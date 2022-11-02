@@ -108,17 +108,26 @@ if (NOT RUN_ASAN AND NOT RUN_UBSAN)
 endif()
 
 target_link_libraries(${PROFILER_STATIC_LIB_NAME}
+
     fmt-lib
     libunwind-lib
     libdatadog-lib
     coreclr
     spdlog-headers
+    libprotobuf
+    crypto
+    ssl
     -static-libgcc
     -static-libstdc++
     -lstdc++fs
     -pthread
     -ldl
 )
+
+
+target_include_directories(${PROFILER_STATIC_LIB_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/../../../../profiler/third_party/cpp-httplib)
+target_compile_options(${PROFILER_STATIC_LIB_NAME} PRIVATE -isystem${PROJECT_SOURCE_DIR}/../../../../profiler/third_party/boringssl/include)
+target_compile_definitions(${PROFILER_STATIC_LIB_NAME} PRIVATE -DCPPHTTPLIB_OPENSSL_SUPPORT)
 
 add_dependencies(${PROFILER_STATIC_LIB_NAME} fmt-lib libdatadog-lib libunwind-lib coreclr spdlog-headers)
 

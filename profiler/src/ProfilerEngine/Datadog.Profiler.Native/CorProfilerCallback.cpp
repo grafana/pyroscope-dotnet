@@ -45,6 +45,8 @@
 #include "ThreadsCpuManager.h"
 #include "WallTimeProvider.h"
 
+#include "PprofExporter.h"
+#include "PyroscopePprofSink.h"
 #include "shared/src/native-src/environment_variables.h"
 #include "shared/src/native-src/pal.h"
 #include "shared/src/native-src/string.h"
@@ -216,12 +218,7 @@ bool CorProfilerCallback::InitializeServices()
 
     // The different elements of the libddprof pipeline are created and linked together
     // i.e. the exporter is passed to the aggregator and each provider is added to the aggregator.
-    _pExporter = std::make_unique<LibddprofExporter>(
-        std::move(sampleTypeDefinitions),
-        _pConfiguration.get(),
-        _pApplicationStore,
-        _pRuntimeInfo.get(),
-        _pEnabledProfilers.get());
+    _pExporter = std::make_unique<PprofExporter>(_pApplicationStore, std::make_unique<PyroscopePprofSink>(), sampleTypeDefinitions);
 
     _pSamplesCollector = RegisterService<SamplesCollector>(_pConfiguration.get(), _pThreadsCpuManager, _pExporter.get(), _metricsSender.get());
 

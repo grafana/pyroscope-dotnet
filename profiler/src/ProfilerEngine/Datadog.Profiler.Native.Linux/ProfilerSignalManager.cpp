@@ -67,8 +67,8 @@ bool ProfilerSignalManager::RegisterHandler(HandlerFn_t handler)
 std::int32_t ProfilerSignalManager::SendSignal(pid_t threadId)
 {
 #ifndef NDEBUG
-    Log::Debug("ProfilerSignalManager::CollectStackSampleImplementation: Sending signal ",
-               _signalToSend, " to thread with threadId=", threadId, ".");
+//    Log::Debug("ProfilerSignalManager::CollectStackSampleImplementation: Sending signal ",
+//               _signalToSend, " to thread with threadId=", threadId, ".");
 #endif
 
     return syscall(SYS_tgkill, _processId, threadId, _signalToSend);

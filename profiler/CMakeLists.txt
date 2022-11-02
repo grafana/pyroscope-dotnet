@@ -112,6 +112,16 @@ SET(OUTPUT_DEPS_DIR ${CMAKE_BINARY_DIR}/deps)
 FILE(MAKE_DIRECTORY ${OUTPUT_DEPS_DIR})
 FILE(MAKE_DIRECTORY ${OUTPUT_TMP_DIR})
 
+
+add_subdirectory(third_party/boringssl)
+option(protobuf_BUILD_TESTS "Build tests" OFF)
+if(ISLINUX)
+    add_compile_options(-stdlib=libstdc++)
+endif()
+add_subdirectory(third_party/protobuf)
+
+set_property(TARGET libprotobuf PROPERTY POSITION_INDEPENDENT_CODE ON)
+
 add_subdirectory(src/ProfilerEngine/Datadog.Profiler.Native.Linux)
 add_subdirectory(src/ProfilerEngine/Datadog.Linux.ApiWrapper)
 enable_testing()

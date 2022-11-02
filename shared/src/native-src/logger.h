@@ -6,6 +6,7 @@
 
 #include <spdlog/sinks/null_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 
 #include "dd_filesystem.hpp"
@@ -113,8 +114,17 @@ std::shared_ptr<spdlog::logger> Logger::CreateInternalLogger()
 
     try
     {
-        logger =
-            spdlog::rotating_logger_mt(LoggerPolicy::file_name, Logger::GetLogPath<LoggerPolicy>(file_name_suffix), 1048576 * 5, 10);
+
+        // todo
+//#if defined(PROFILER_LOG_TO_STDOUT)
+        std::vector<spdlog::sink_ptr> sinks;
+        sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
+//        sinks.push_back(std::make_shared<spdlog::sinks::rotating_file_sink_mt>(Logger::GetLogPath<LoggerPolicy>(file_name_suffix), 1048576 * 5, 10));
+        logger = std::make_shared<spdlog::logger>(LoggerPolicy::file_name, begin(sinks), end(sinks));
+//#else
+//        logger =
+//            spdlog::rotating_logger_mt(LoggerPolicy::file_name, Logger::GetLogPath<LoggerPolicy>(file_name_suffix), 1048576 * 5, 10);
+//#endif
     }
     catch (...)
     {
