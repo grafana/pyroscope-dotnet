@@ -34,7 +34,7 @@ public:
     PprofExporter(IApplicationStore* _applicationStore, std::unique_ptr<PProfExportSink> sin, std::vector<SampleValueType> sampleTypeDefinitions);
     void Add(const Sample& sample) override;
     void SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint) override;
-    bool Export() override;
+    bool Export(ProfileTime& startTime, ProfileTime& endTime) override;
 
 private:
     PprofBuilder& GetPprofBuilder(std::string_view runtimeId);

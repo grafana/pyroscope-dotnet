@@ -29,7 +29,7 @@ void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, 
     Log::Info("SetEndpoint 2");
 }
 
-bool PprofExporter::Export()
+bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime)
 {
     Log::Info("PyroscopeExporter::Export");
     std::lock_guard lock(_perAppBuilderLock);
