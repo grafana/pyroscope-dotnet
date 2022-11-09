@@ -15,8 +15,8 @@ class IConfiguration;
 class FrameStore : public IFrameStore
 {
 private:
-    const std::string UnknownManagedFrame = "|lm:Unknown-Assembly |ns: |ct:Unknown-Type |fn:Unknown-Method";
-    const std::string UnknownManagedType = "|lm:Unknown-Assembly |ns: |ct:Unknown-Type ";
+    const std::string UnknownManagedFrame = "!Unknown-Type.Unknown-Method";
+    const std::string UnknownManagedType = "!Unknown-Type";
     const std::string UnknownManagedAssembly = "Unknown-Assembly";
 
 private:

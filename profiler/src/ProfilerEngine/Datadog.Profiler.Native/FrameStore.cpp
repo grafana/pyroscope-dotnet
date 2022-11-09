@@ -49,7 +49,8 @@ std::tuple<bool, std::string_view, std::string_view> FrameStore::GetFrame(uintpt
 // However, today, no symbol resolution is done; only the module implementing the function is provided
 std::pair<std::string_view, std::string_view> FrameStore::GetNativeFrame(uintptr_t instructionPointer)
 {
-    static const std::string UnknownNativeFrame("|lm:Unknown-Native-Module |ns:NativeCode |ct:Unknown-Native-Module |fn:Function");
+//    static const std::string UnknownNativeFrame("|lm:Unknown-Native-Module |ns:NativeCode |ct:Unknown-Native-Module |fn:Function");
+    static const std::string UnknownNativeFrame("NativeCode!Unknown-Native-Module");
     static const std::string UnknowNativeModule = "Unknown-Native-Module";
 
     auto moduleName = OpSysTools::GetModuleName(reinterpret_cast<void*>(instructionPointer));
@@ -71,7 +72,8 @@ std::pair<std::string_view, std::string_view> FrameStore::GetNativeFrame(uintptr
     // moduleName contains the full path: keep only the filename
     auto moduleFilename = fs::path(moduleName).filename().string();
     std::stringstream builder;
-    builder << "|lm:" << moduleFilename << " |ns:NativeCode |ct:" << moduleFilename << " |fn:Function";
+//    builder << "|lm:" << moduleFilename << " |ns:NativeCode |ct:" << moduleFilename << " |fn:Function";
+    builder << "NativeCode!" << moduleFilename;
 
     {
         std::lock_guard<std::mutex> lock(_nativeLock);
@@ -138,7 +140,7 @@ std::pair<std::string_view, std::string_view> FrameStore::GetManagedFrame(Functi
             // It's safe to cache, because there is no reason that the next calls to
             // GetTypeDesc will succeed.
             auto& value = _methods[functionId];
-            value = {UnknownManagedAssembly, UnknownManagedType + " |fn:" + std::move(methodName)};
+            value = {UnknownManagedAssembly, UnknownManagedType + "." + std::move(methodName)};
             return value;
         }
 
@@ -153,13 +155,7 @@ std::pair<std::string_view, std::string_view> FrameStore::GetManagedFrame(Functi
 
     // build the frame from assembly, namespace, type and method names
     std::stringstream builder;
-    if (!typeDesc.Assembly.empty())
-    {
-        builder << "|lm:" << typeDesc.Assembly;
-    }
-    builder << " |ns:" << typeDesc.Namespace;
-    builder << " |ct:" << typeDesc.Type;
-    builder << " |fn:" << methodName;
+    builder << typeDesc.Namespace << "!" << typeDesc.Type << "." << methodName;
 
     std::string managedFrame = builder.str();
 
@@ -385,7 +381,7 @@ std::pair<std::string, mdTypeDef> FrameStore::GetMethodName(
     // since string is a reference type, the __canon implementation is used and we can't know it is a string
     // --> this is why T5 (from the metadata) is used
     std::stringstream builder;
-    builder << "{";
+    builder << "<";
     for (ULONG32 i = 0; i < genericParametersCount; i++)
     {
         auto [ns, typeName] = GetManagedTypeName(_pCorProfilerInfo, genericParameters[i]);
@@ -393,17 +389,11 @@ std::pair<std::string, mdTypeDef> FrameStore::GetMethodName(
         // deal with System.__Canon case
         if (typeName == "__Canon")
         {
-            builder << "|ns: |ct:T" << i;
+            builder << "!T" << i;
         }
         else // normal namespace.type case
         {
-            builder << "|ns:";
-            if (!ns.empty())
-            {
-                builder << ns;
-            }
-
-            builder << " |ct:" << typeName;
+            builder << ns << "!" << typeName;
         }
 
         if (i < genericParametersCount - 1)
@@ -411,7 +401,7 @@ std::pair<std::string, mdTypeDef> FrameStore::GetMethodName(
             builder << ", ";
         }
     }
-    builder << "}";
+    builder << ">";
 
     return std::make_pair(methodName + builder.str(), mdTokenType);
 }
