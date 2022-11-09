@@ -11,7 +11,6 @@ PprofExporter::PprofExporter(IApplicationStore* applicationStore, std::unique_pt
     _sampleTypeDefinitions(sampleTypeDefinitions)
 {
     signal(SIGPIPE, SIG_IGN);
-    Log::Info("PyroscopeExporter::PyroscopeExporter");
 }
 
 PProfExportSink::~PProfExportSink()
@@ -26,18 +25,21 @@ void PprofExporter::Add(const Sample& sample)
 
 void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint)
 {
-    Log::Info("SetEndpoint 2");
+
 }
 
 bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime)
 {
-    Log::Info("PyroscopeExporter::Export");
-    std::lock_guard lock(_perAppBuilderLock);
-    for (auto& builder : _perAppBuilder)
+    std::vector<std::string> pprofs;
     {
-        Log::Info("   Export ", builder.first);
-        auto pprof = builder.second.Build();
-        _sink->Export(std::move(pprof)); // todo move out of _perAppBuilderLock
+        std::lock_guard lock(_perAppBuilderLock);
+        for (auto& builder : _perAppBuilder)
+        {
+            pprofs.emplace_back(builder.second.Build());
+        }
+    }
+    for (const auto& pprof : pprofs) {
+        _sink->Export(std::move(pprof), startTime, endTime);
     }
     return true;
 }

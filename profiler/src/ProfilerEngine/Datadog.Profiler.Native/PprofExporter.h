@@ -23,7 +23,7 @@
 class PProfExportSink
 {
 public:
-    virtual void Export(std::string pprof) = 0;
+    virtual void Export(std::string pprof, ProfileTime &startTime, ProfileTime &endTime) = 0;
     virtual ~PProfExportSink();
 };
 
