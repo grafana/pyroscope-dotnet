@@ -12,6 +12,8 @@ PyroscopePprofSink::PyroscopePprofSink(std::string server, std::string appName, 
     {
         _client.set_default_headers({{"Authorization", "Bearer " + authToken}});
     }
+    _client.set_connection_timeout(10);
+    _client.set_read_timeout(10);
 }
 
 void PyroscopePprofSink::Export(std::string pprof, ProfileTime& startTime, ProfileTime& endTime)
