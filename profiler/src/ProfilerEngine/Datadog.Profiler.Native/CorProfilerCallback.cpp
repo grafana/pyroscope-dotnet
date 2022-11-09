@@ -218,7 +218,7 @@ bool CorProfilerCallback::InitializeServices()
 
     // The different elements of the libddprof pipeline are created and linked together
     // i.e. the exporter is passed to the aggregator and each provider is added to the aggregator.
-    auto pyroscopeSink = std::make_unique<PyroscopePprofSink>("https://pyroscope.cloud", "tolyan.dotnet2", "psx-iumwzbXczvJi8LbpZ18vZXBjLf1z1ui9hs8l3lUI3XLpT8Rci5Cqp3k");
+    auto pyroscopeSink = std::make_unique<PyroscopePprofSink>("https://pyroscope.cloud", "tolyan.dotnet3", "psx-iumwzbXczvJi8LbpZ18vZXBjLf1z1ui9hs8l3lUI3XLpT8Rci5Cqp3k");
     _pExporter = std::make_unique<PprofExporter>(_pApplicationStore, std::move(pyroscopeSink), sampleTypeDefinitions);
 
     _pSamplesCollector = RegisterService<SamplesCollector>(_pConfiguration.get(), _pThreadsCpuManager, _pExporter.get(), _metricsSender.get());

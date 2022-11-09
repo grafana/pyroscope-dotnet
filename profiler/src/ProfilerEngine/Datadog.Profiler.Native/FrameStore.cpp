@@ -133,7 +133,7 @@ std::pair<std::string_view, std::string_view> FrameStore::GetManagedFrame(Functi
     if (!typeInCache)
     {
         // try to get the type description
-        bool isEncoded = true;
+        bool isEncoded = false;
         if (!GetTypeDesc(pMetadataImport.Get(), classId, moduleId, mdTokenType, typeDesc, isEncoded))
         {
             // This should never happen but in case it happens, we cache the module/frame value.
@@ -628,7 +628,7 @@ std::string FrameStore::FormatGenericParameters(
                         }
                         else
                         {
-                            builder << ns << "." << ct;
+                            builder << ns << "!" << ct;
                         }
                     }
                 }
