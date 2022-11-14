@@ -14,6 +14,7 @@
 // namespace fs is an alias defined in "dd_filesystem.hpp"
 #include "shared/src/native-src/string.h"
 #include "shared/src/native-src/util.h"
+#include "Log.h"
 
 using namespace std::literals::chrono_literals;
 
@@ -24,8 +25,8 @@ std::string const Configuration::DefaultEnvironment = "Unspecified-Environment";
 std::string const Configuration::DefaultAgentHost = "localhost";
 int32_t const Configuration::DefaultAgentPort = 8126;
 std::string const Configuration::DefaultEmptyString = "";
-std::chrono::seconds const Configuration::DefaultDevUploadInterval = 20s;
-std::chrono::seconds const Configuration::DefaultProdUploadInterval = 60s;
+std::string const Configuration::DefaultPyroscopeServerAddress = "http://localhost:4040";
+
 
 Configuration::Configuration()
 {
@@ -61,6 +62,15 @@ Configuration::Configuration()
     _minimumCores = GetEnvironmentValue<double>(EnvironmentVariables::CoreMinimumOverride, 1.0);
     _namedPipeName = GetEnvironmentValue(EnvironmentVariables::NamedPipeName, DefaultEmptyString);
     _isTimestampsAsLabelEnabled = GetEnvironmentValue(EnvironmentVariables::TimestampsAsLabelEnabled, false);
+    _pyroscopeServerAddress = GetEnvironmentValue(EnvironmentVariables::PyroscopeServerAddress, DefaultPyroscopeServerAddress);
+    _pyroscopeAuthToken = GetEnvironmentValue(EnvironmentVariables::PyroscopeAuthToken, DefaultEmptyString);
+    _pyroscopeApplicationName = GetEnvironmentValue(EnvironmentVariables::PyroscopeApplicationName, DefaultEmptyString);
+    if (_pyroscopeApplicationName.empty())
+    {
+        _pyroscopeApplicationName = "dotnetspy." + std::to_string(rand());
+        Log::Info("We recommend specifying application name via env variable PYROSCOPE_APPLICATION_NAME");
+        Log::Info("For now we choose ", _pyroscopeApplicationName);
+    }
 }
 
 fs::path Configuration::ExtractLogDirectory()
@@ -281,12 +291,7 @@ std::string Configuration::ExtractSite()
 
 std::chrono::seconds Configuration::GetDefaultUploadInterval()
 {
-    auto r = shared::GetEnvironmentValue(EnvironmentVariables::DevelopmentConfiguration);
-
-    bool isDev;
-    if (shared::TryParseBooleanEnvironmentValue(r, isDev) && isDev)
-        return DefaultDevUploadInterval;
-    return DefaultProdUploadInterval;
+    return 10s;
 }
 
 const std::string& Configuration::GetNamedPipeName() const
@@ -381,6 +386,18 @@ bool Configuration::GetDefaultDebugLogEnabled()
 bool Configuration::IsAgentless() const
 {
     return _isAgentLess;
+}
+
+std::string Configuration::PyroscopeServerAddress() const {
+    return _pyroscopeServerAddress;
+}
+
+std::string Configuration::PyroscopeApplicationName() const {
+    return _pyroscopeApplicationName;
+}
+
+std::string Configuration::PyroscopeAuthToken() const {
+    return _pyroscopeAuthToken;
 }
 
 bool convert_to(shared::WSTRING const& s, bool& result)

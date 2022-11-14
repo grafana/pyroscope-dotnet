@@ -34,7 +34,6 @@ void PprofBuilder::AddSample(const Sample& sample)
 std::string PprofBuilder::Build()
 {
     std::lock_guard<std::mutex> lock(this->_lock);
-    _profile.SerializeAsString();
     auto res = _profile.SerializeAsString();
     Log::Info("PprofBuilder samples: ", _samplesCount, ", serialized bytes: ", res.size());
     Reset();
@@ -85,20 +84,16 @@ void PprofBuilder::Reset()
     _locations.clear();
     _strings.clear();
     _profile = perftools::profiles::Profile();
-    AddString(""); //
-    int i = 0;
+    AddString("");
     for (const auto& sampleType : _sampleTypeDefinitions) {
         auto *pSample = _profile.add_sample_type();
         pSample->set_unit(AddString(sampleType.Unit));
-//        pSample->set_type(AddString(sampleType.Name)); //todo
-        pSample->set_type(AddString("samples"));
-        Log::Info("SampleType ", i++, sampleType.Name, sampleType.Unit);
+        pSample->set_type(AddString(sampleType.Name));
     }
-    auto sampleRate = 100; // todo
-    _profile.set_period(1000 / sampleRate);
+    _profile.set_period(1);
     auto* pPeriodType = new perftools::profiles::ValueType();
     pPeriodType->set_type(0);
-    pPeriodType->set_unit(AddString("milliseconds"));
+    pPeriodType->set_unit(AddString("nanoseconds"));
     _profile.set_allocated_period_type(pPeriodType);
 }
 

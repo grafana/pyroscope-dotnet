@@ -3,6 +3,7 @@
 #include <memory>
 #include <regex>
 #include <sstream>
+#include <iostream>
 
 #include <spdlog/sinks/null_sink.h>
 #include <spdlog/sinks/rotating_file_sink.h>
@@ -103,7 +104,7 @@ std::shared_ptr<spdlog::logger> Logger::CreateInternalLogger()
         // By writing into the stderr was changing the behavior in a CI scenario.
         // There's not a good way to report errors when trying to create the log file.
         // But we never should be changing the normal behavior of an app.
-        // std::cerr << "LoggerImpl Handler: " << msg << std::endl;
+         std::cerr << "LoggerImpl Handler: " << msg << std::endl;
     });
 
     spdlog::flush_every(std::chrono::seconds(3));
@@ -119,11 +120,10 @@ std::shared_ptr<spdlog::logger> Logger::CreateInternalLogger()
 //#if defined(PROFILER_LOG_TO_STDOUT)
         std::vector<spdlog::sink_ptr> sinks;
         sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
-//        sinks.push_back(std::make_shared<spdlog::sinks::rotating_file_sink_mt>(Logger::GetLogPath<LoggerPolicy>(file_name_suffix), 1048576 * 5, 10));
         logger = std::make_shared<spdlog::logger>(LoggerPolicy::file_name, begin(sinks), end(sinks));
 //#else
-//        logger =
-//            spdlog::rotating_logger_mt(LoggerPolicy::file_name, Logger::GetLogPath<LoggerPolicy>(file_name_suffix), 1048576 * 5, 10);
+        logger =
+            spdlog::rotating_logger_mt(LoggerPolicy::file_name, Logger::GetLogPath<LoggerPolicy>(file_name_suffix), 1048576 * 5, 10);
 //#endif
     }
     catch (...)
@@ -131,7 +131,7 @@ std::shared_ptr<spdlog::logger> Logger::CreateInternalLogger()
         // By writing into the stderr was changing the behavior in a CI scenario.
         // There's not a good way to report errors when trying to create the log file.
         // But we never should be changing the normal behavior of an app.
-        // std::cerr << "LoggerImpl Handler: Error creating native log file." << std::endl;
+        std::cerr << "LoggerImpl Handler: Error creating native log file." << std::endl;
         logger = spdlog::null_logger_mt("LoggerImpl");
     }
 

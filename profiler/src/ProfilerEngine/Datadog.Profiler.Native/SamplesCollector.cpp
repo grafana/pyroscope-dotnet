@@ -38,7 +38,7 @@ SamplesCollector::SamplesCollector(
     IThreadsCpuManager* pThreadsCpuManager,
     IExporter* exporter,
     IMetricsSender* metricsSender) :
-    _uploadInterval(10s),
+    _uploadInterval(configuration->GetUploadInterval()),
     _mustStop{false},
     _pThreadsCpuManager{pThreadsCpuManager},
     _metricsSender{metricsSender},
