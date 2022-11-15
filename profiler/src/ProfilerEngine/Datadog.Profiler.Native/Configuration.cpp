@@ -12,9 +12,9 @@
 
 #include "shared/src/native-src/dd_filesystem.hpp"
 // namespace fs is an alias defined in "dd_filesystem.hpp"
+#include "Log.h"
 #include "shared/src/native-src/string.h"
 #include "shared/src/native-src/util.h"
-#include "Log.h"
 
 using namespace std::literals::chrono_literals;
 
@@ -26,7 +26,6 @@ std::string const Configuration::DefaultAgentHost = "localhost";
 int32_t const Configuration::DefaultAgentPort = 8126;
 std::string const Configuration::DefaultEmptyString = "";
 std::string const Configuration::DefaultPyroscopeServerAddress = "http://localhost:4040";
-
 
 Configuration::Configuration()
 {
@@ -304,7 +303,6 @@ bool Configuration::IsTimestampsAsLabelEnabled() const
     return _isTimestampsAsLabelEnabled;
 }
 
-
 //
 // shared::TryParse does not work on Linux
 // not found the issue yet.
@@ -388,15 +386,18 @@ bool Configuration::IsAgentless() const
     return _isAgentLess;
 }
 
-std::string Configuration::PyroscopeServerAddress() const {
+std::string Configuration::PyroscopeServerAddress() const
+{
     return _pyroscopeServerAddress;
 }
 
-std::string Configuration::PyroscopeApplicationName() const {
+std::string Configuration::PyroscopeApplicationName() const
+{
     return _pyroscopeApplicationName;
 }
 
-std::string Configuration::PyroscopeAuthToken() const {
+std::string Configuration::PyroscopeAuthToken() const
+{
     return _pyroscopeAuthToken;
 }
 

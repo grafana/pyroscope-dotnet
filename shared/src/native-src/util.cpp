@@ -133,7 +133,16 @@ namespace shared
         auto cstr = std::getenv(ToString(name).c_str());
         if (cstr == nullptr)
         {
-            return WStr("");
+            if (name.find(WStr("DD_")) != 0)
+            {
+                return WStr("");
+            }
+            auto secondName = name.substr(3);
+            cstr = std::getenv(ToString(secondName).c_str());
+            if (cstr == nullptr)
+            {
+                return WStr("");
+            }
         }
         std::string str(cstr);
         auto wstr = ToWSTRING(str);
