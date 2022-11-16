@@ -25,7 +25,6 @@ const IID IID_IClassFactory = {
 // use STDMETHODCALLTYPE macro to match the CLR declaration.
 extern "C" BOOL STDMETHODCALLTYPE DllMain(HINSTANCE hInstDll, DWORD reason, PVOID)
 {
-    Log::Info("Profiler DLLMain. ", reason);
     switch (reason)
     {
         case DLL_PROCESS_ATTACH:

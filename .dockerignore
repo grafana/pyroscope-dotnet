@@ -8,7 +8,7 @@ tracer/deploy/
 **/.vscode/
 packages/
 **/bin/
-**/obj/
+
 
 !tracer/test/test-applications/aspnet/Samples.AspNet472.LoaderOptimizationRegKey/bin/
 !tracer/src/WindowsInstaller/bin/
@@ -17,3 +17,4 @@ packages/
 !tracer/test/agent/
 !tracer/test/Directory.Build.props
 !tracer/test/GlobalSuppressions.cs
+cmake-build-*/
