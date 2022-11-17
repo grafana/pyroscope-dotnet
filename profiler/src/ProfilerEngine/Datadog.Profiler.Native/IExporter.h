@@ -7,6 +7,7 @@
 // forward declarations
 class IProfile;
 class Sample;
+typedef std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds> ProfileTime;
 
 class IExporter
 {
@@ -14,5 +15,5 @@ public:
     virtual ~IExporter() = default;
     virtual void Add(Sample const& sample) = 0;
     virtual void SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint) = 0;
-    virtual bool Export() = 0;
+    virtual bool Export(ProfileTime& startTime, ProfileTime& endTime) = 0;
 };

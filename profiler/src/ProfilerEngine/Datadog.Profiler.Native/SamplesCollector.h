@@ -14,12 +14,16 @@
 #include <thread>
 #include <future>
 
+
 using namespace std::chrono_literals;
 
 class SamplesCollector
     : public ISamplesCollector, public IService
 {
+
 public:
+
+
     SamplesCollector(IConfiguration* configuration, IThreadsCpuManager* pThreadsCpuManager, IExporter* exporter, IMetricsSender* metricsSender);
 
     // Inherited via IService
@@ -30,7 +34,7 @@ public:
     void Register(ISamplesProvider* samplesProvider) override;
 
     // Public but should only be called privately or from tests
-    void Export();
+    void Export(ProfileTime &startTime, ProfileTime&endTime);
 
 private:
     void SamplesWork();

@@ -41,7 +41,7 @@ namespace shared {
 class Loader;
 }
 
-class CorProfilerCallback : public ICorProfilerCallback10
+class __declspec(uuid("BD1A650D-AC5D-4896-B64F-D6FA25D6B26A")) CorProfilerCallback : public ICorProfilerCallback10
 {
 private:
     static const std::vector<shared::WSTRING> ManagedAssembliesToLoad_AppDomainDefault_ProcNonIIS;

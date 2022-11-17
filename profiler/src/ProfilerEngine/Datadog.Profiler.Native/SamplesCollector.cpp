@@ -6,12 +6,39 @@
 #include "Log.h"
 #include "OpSysTools.h"
 
+
+using namespace std::chrono_literals;
+
+
+template<typename Clock, typename Duration>
+std::ostream &operator<<(std::ostream &stream,
+                         const std::chrono::time_point<Clock, Duration> &time_point) {
+    const time_t time = Clock::to_time_t(time_point);
+    char buffer[32] = {};
+    struct tm *tm_info = localtime(&time);
+    auto millis = std::chrono::time_point_cast<std::chrono::milliseconds>(time_point);
+    strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", tm_info);
+    sprintf(buffer + strlen(buffer), ".%03d", millis.time_since_epoch() % 1000);
+    return stream << buffer;
+}
+
+ProfileTime _time() {
+    return std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now());
+}
+
+ProfileTime truncate(
+    ProfileTime &t,
+    std::chrono::seconds &period) {
+    return t - (t.time_since_epoch() % period);
+}
+
+
 SamplesCollector::SamplesCollector(
     IConfiguration* configuration,
     IThreadsCpuManager* pThreadsCpuManager,
     IExporter* exporter,
     IMetricsSender* metricsSender) :
-    _uploadInterval{configuration->GetUploadInterval()},
+    _uploadInterval(configuration->GetUploadInterval()),
     _mustStop{false},
     _pThreadsCpuManager{pThreadsCpuManager},
     _metricsSender{metricsSender},
@@ -52,7 +79,10 @@ bool SamplesCollector::Stop()
 
     // Export the leftover samples
     CollectSamples();
-    Export();
+    auto now = _time();
+    auto startTime = truncate(now, _uploadInterval);
+    auto endTime = startTime + _uploadInterval;
+    Export(startTime, endTime);
 
     return true;
 }
@@ -80,14 +110,34 @@ void SamplesCollector::ExportWork()
 
     const auto future = _exporterThreadPromise.get_future();
 
-    while (future.wait_for(_uploadInterval) == std::future_status::timeout)
+    auto now = _time();
+    auto startTime = truncate(now, _uploadInterval);
+    auto endTime = startTime + _uploadInterval;
+    auto sleepTime = endTime - now;
+
+    while (true)
     {
-        Export();
+        if (future.wait_for(sleepTime) != std::future_status::timeout)
+        {
+            break;
+        }
+
+        Export(startTime, endTime);
+
+        now = _time();
+        startTime = truncate(now, _uploadInterval);
+        endTime = startTime + _uploadInterval;
+        if (now - startTime > endTime - now) {
+            startTime = endTime;
+            endTime = startTime + _uploadInterval;
+        }
+        sleepTime = endTime - now;
     }
 }
 
-void SamplesCollector::Export()
+void SamplesCollector::Export(ProfileTime &startTime, ProfileTime &endTime)
 {
+//    std::cout << "export " << startTime << " - " << endTime << std::endl;
     bool success = false;
 
     try
@@ -102,7 +152,7 @@ void SamplesCollector::Export()
             samplesProvider.second = 0;
         }
 
-        success = _exporter->Export();
+        success = _exporter->Export(startTime, endTime);
     }
     catch (std::exception const& ex)
     {

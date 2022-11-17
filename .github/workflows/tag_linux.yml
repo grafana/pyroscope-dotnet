@@ -1,13 +1,12 @@
-name: Build linux
+name: Release linux
 
 on:
   push:
-    branches: [master]
-  pull_request:
-    branches: [master]
+    tags:
+      - v0.**-pyroscope
 
 jobs:
-  build-linux:
+  release-linux:
     runs-on: ubuntu-latest
     steps:
       -
@@ -34,6 +33,13 @@ jobs:
             cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release
             make -j6 Datadog.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            ./profiler/_build/DDProf-Deploy/linux-x64/Datadog.Linux.ApiWrapper.x64.so
+            ./profiler/_build/DDProf-Deploy/linux-x64/Datadog.Profiler.Native.so
 
 
 

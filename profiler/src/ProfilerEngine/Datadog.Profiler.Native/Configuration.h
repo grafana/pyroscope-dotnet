@@ -52,7 +52,9 @@ public:
     bool IsTimestampsAsLabelEnabled() const override;
     int32_t WalltimeThreadsThreshold() const override;
     int32_t CpuThreadsThreshold() const override;
-
+    std::string PyroscopeServerAddress() const override;
+    std::string PyroscopeApplicationName() const override;
+    std::string PyroscopeAuthToken() const override;
 private:
     static tags ExtractUserTags();
     static std::string GetDefaultSite();
@@ -78,8 +80,8 @@ private:
     static std::string const DefaultAgentHost;
     static std::string const DefaultEmptyString;
     static int32_t const DefaultAgentPort;
-    static std::chrono::seconds const DefaultDevUploadInterval;
-    static std::chrono::seconds const DefaultProdUploadInterval;
+    static std::string const DefaultPyroscopeServerAddress;
+    static std::string const DefaultPyroscopeApplicationName;
 
     bool _isProfilingEnabled;
     bool _isCpuProfilingEnabled;
@@ -115,4 +117,8 @@ private:
     double _minimumCores;
     std::string _namedPipeName;
     bool _isTimestampsAsLabelEnabled;
+
+    std::string _pyroscopeServerAddress;
+    std::string _pyroscopeApplicationName;
+    std::string _pyroscopeAuthToken;
 };

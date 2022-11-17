@@ -376,7 +376,7 @@ void LibddprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t trace
     ddog_Profile_set_endpoint(profile, FfiHelper::StringToCharSlice(traceIdStr), FfiHelper::StringToCharSlice(endpoint));
 }
 
-bool LibddprofExporter::Export()
+bool LibddprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime)
 {
     bool exported = false;
 

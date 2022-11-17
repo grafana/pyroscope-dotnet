@@ -49,4 +49,7 @@ public:
     virtual bool IsTimestampsAsLabelEnabled() const = 0;
     virtual int32_t WalltimeThreadsThreshold() const = 0;
     virtual int32_t CpuThreadsThreshold() const = 0;
+    virtual std::string PyroscopeServerAddress() const = 0;
+    virtual std::string PyroscopeApplicationName() const = 0;
+    virtual std::string PyroscopeAuthToken() const = 0;
 };

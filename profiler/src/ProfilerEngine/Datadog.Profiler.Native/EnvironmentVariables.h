@@ -47,6 +47,10 @@ public:
     inline static const shared::WSTRING Agentless                   = WStr("DD_PROFILING_AGENTLESS");
     inline static const shared::WSTRING CoreMinimumOverride         = WStr("DD_PROFILING_MIN_CORES_THRESHOLD");
 
+    inline static const shared::WSTRING PyroscopeServerAddress         = WStr("PYROSCOPE_SERVER_ADDRESS");
+    inline static const shared::WSTRING PyroscopeAuthToken             = WStr("PYROSCOPE_AUTH_TOKEN");
+    inline static const shared::WSTRING PyroscopeApplicationName       = WStr("PYROSCOPE_APPLICATION_NAME");
+
     // feature flags
     inline static const shared::WSTRING FF_LibddprofEnabled = WStr("DD_INTERNAL_PROFILING_LIBDDPROF_ENABLED");
 };
