@@ -3,7 +3,7 @@ name: Build linux
 on:
   push:
     tags:
-      - v0.**
+      - v0.**-pyroscope
 
 jobs:
   build-linux:
