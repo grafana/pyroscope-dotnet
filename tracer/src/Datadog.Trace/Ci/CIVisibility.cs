@@ -16,10 +16,12 @@ using Datadog.Trace.Agent.Transports;
 using Datadog.Trace.Ci.Configuration;
 using Datadog.Trace.ClrProfiler;
 using Datadog.Trace.Configuration;
+using Datadog.Trace.HttpOverStreams;
 using Datadog.Trace.Logging;
 using Datadog.Trace.Pdb;
 using Datadog.Trace.PlatformHelpers;
 using Datadog.Trace.Util;
+using Datadog.Trace.Vendors.Serilog.Events;
 
 namespace Datadog.Trace.Ci
 {
@@ -67,8 +69,26 @@ namespace Datadog.Trace.Ci
             var eventPlatformProxyEnabled = false;
             if (!_settings.Agentless)
             {
-                discoveryService = DiscoveryService.Create(new ImmutableExporterSettings(_settings.TracerSettings.Exporter));
-                eventPlatformProxyEnabled = IsEventPlatformProxySupportedByAgent(discoveryService);
+                if (!_settings.ForceAgentsEvpProxy)
+                {
+                    discoveryService = new DiscoveryService(
+                        AgentTransportStrategy.Get(
+                            new ImmutableExporterSettings(_settings.TracerSettings.Exporter),
+                            productName: "discovery",
+                            tcpTimeout: TimeSpan.FromSeconds(5),
+                            AgentHttpHeaderNames.MinimalHeaders,
+                            () => new MinimalAgentHeaderHelper(),
+                            uri => uri),
+                        10,
+                        1000,
+                        int.MaxValue);
+                }
+                else
+                {
+                    Log.Information("Using the Event platform proxy through the agent.");
+                }
+
+                eventPlatformProxyEnabled = _settings.ForceAgentsEvpProxy || IsEventPlatformProxySupportedByAgent(discoveryService);
             }
 
             LifetimeManager.Instance.AddAsyncShutdownTask(ShutdownAsync);
@@ -294,6 +314,7 @@ namespace Datadog.Trace.Ci
                         }
 
                         var osxVersion = ProcessHelpers.RunCommandAsync(new ProcessHelpers.Command("uname", "-r")).GetAwaiter().GetResult();
+                        osxVersion = osxVersion?.Trim(' ', '\n');
                         if (!string.IsNullOrEmpty(osxVersion))
                         {
                             return osxVersion!;
