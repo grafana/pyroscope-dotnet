@@ -53,7 +53,6 @@ namespace Datadog.Trace
             ImmutableTracerSettings settings,
             IAgentWriter agentWriter,
             ITraceSampler sampler,
-            ISpanSampler spanSampler,
             IScopeManager scopeManager,
             IDogStatsd statsd,
             RuntimeMetricsWriter runtimeMetricsWriter,
@@ -67,7 +66,6 @@ namespace Datadog.Trace
             Settings = settings;
             AgentWriter = agentWriter;
             Sampler = sampler;
-            SpanSampler = spanSampler;
             ScopeManager = scopeManager;
             Statsd = statsd;
             RuntimeMetrics = runtimeMetricsWriter;
@@ -126,11 +124,6 @@ namespace Datadog.Trace
         /// Gets the <see cref="ITraceSampler"/> instance used by this <see cref="IDatadogTracer"/> instance.
         /// </summary>
         public ITraceSampler Sampler { get; }
-
-        /// <summary>
-        /// Gets the <see cref="ISpanSampler"/> instance used by this <see cref="IDatadogTracer"/> instance.
-        /// </summary>
-        public ISpanSampler SpanSampler { get; }
 
         public DirectLogSubmissionManager DirectLogSubmission { get; }
 
@@ -586,6 +579,9 @@ namespace Datadog.Trace
 
                     Log.Debug("Waiting for disposals.");
                     await Task.WhenAll(flushTracesTask, logSubmissionTask, telemetryTask, discoveryService, dataStreamsTask).ConfigureAwait(false);
+
+                    instance.RuntimeMetrics?.Dispose();
+
                     Log.Debug("Finished waiting for disposals.");
                 }
             }

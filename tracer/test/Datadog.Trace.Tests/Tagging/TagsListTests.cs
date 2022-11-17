@@ -30,7 +30,7 @@ namespace Datadog.Trace.Tests.Tagging
         {
             var settings = new TracerSettings();
             _testApi = new MockApi();
-            var agentWriter = new AgentWriter(_testApi, statsAggregator: null, statsd: null);
+            var agentWriter = new AgentWriter(_testApi, statsAggregator: null, statsd: null, spanSampler: null);
             _tracer = new Tracer(settings, agentWriter, sampler: null, scopeManager: null, statsd: null);
         }
 
@@ -187,6 +187,24 @@ namespace Datadog.Trace.Tests.Tagging
                 deserializedSpan.Tags.Should().Contain(key, key);
                 deserializedSpan.Metrics.Should().Contain(key, i);
             }
+        }
+
+        [Fact]
+        public async Task Serialization_SettingReadOnlyProperty()
+        {
+            var tags = new WebTags();
+            using (var scope = _tracer.StartActiveInternal("root", serviceName: "service1", tags: tags))
+            {
+                // Read only property, so shouldn't be able to set it
+                tags.SetTag(Trace.Tags.SpanKind, SpanKinds.Client);
+            }
+
+            await _tracer.FlushAsync();
+
+            var traceChunks = _testApi.Wait(TimeSpan.FromSeconds(20));
+
+            var deserializedSpan = traceChunks.Should().ContainSingle().Which.Should().ContainSingle().Subject;
+            deserializedSpan.Tags.Should().Contain(Tags.SpanKind, SpanKinds.Server);
         }
 
         [Fact]
