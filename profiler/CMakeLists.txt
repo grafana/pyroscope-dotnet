@@ -113,6 +113,7 @@ FILE(MAKE_DIRECTORY ${OUTPUT_DEPS_DIR})
 FILE(MAKE_DIRECTORY ${OUTPUT_TMP_DIR})
 
 
+add_compile_options(-fPIC)
 add_subdirectory(third_party/boringssl)
 option(protobuf_BUILD_TESTS "Build tests" OFF)
 if(ISLINUX)
