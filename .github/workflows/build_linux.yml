@@ -20,3 +20,4 @@ jobs:
           tags: test-image:latest
           push: false
           file: ./Pyroscope.Dockerfile
+
