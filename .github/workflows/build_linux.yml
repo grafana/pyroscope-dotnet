@@ -20,4 +20,13 @@ jobs:
           tags: test-image:latest
           push: false
           file: ./Pyroscope.Dockerfile
+      - name: Build profiler
+        uses: addnab/docker-run-action@v3
+        with:
+          image: test-image:latest
+          run: |
+            mkdir build-release
+            cd build-release
+            cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=RelWithDebInfo
+            make -j6 Datadog.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
