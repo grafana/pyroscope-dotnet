@@ -24,7 +24,9 @@ jobs:
         uses: addnab/docker-run-action@v3
         with:
           image: test-image:latest
+          options: -v ${{ github.workspace }}:/project
           run: |
+            cd /project
             mkdir build-release
             cd build-release
             cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=RelWithDebInfo
