@@ -31,7 +31,7 @@ jobs:
             cd /project
             mkdir build-release
             cd build-release
-            cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=RelWithDebInfo
+            cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release
             make -j6 Datadog.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
 
