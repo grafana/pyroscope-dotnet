@@ -42,9 +42,12 @@ void PyroscopePprofSink::Export(Pprof pprof, ProfileTime& startTime, ProfileTime
         PyroscopeRequest req = {};
         _queue.waitAndPop(req);
 
-        FILE* f = fopen("last.pprof", "wb");
-        fwrite(req.pprof.data(), req.pprof.size(), 1, f);
-        fclose(f);
+//        FILE* f = fopen("last.pprof", "wb");
+//        if (f)
+//        {
+//            fwrite(req.pprof.data(), req.pprof.size(), 1, f);
+//            fclose(f);
+//        }
 
         upload(std::move(req.pprof), req.startTime, req.endTime);
     }
