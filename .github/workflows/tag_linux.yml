@@ -1,4 +1,4 @@
-name: Build linux
+name: Release linux
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - v0.**-pyroscope
 
 jobs:
-  build-linux:
+  release-linux:
     runs-on: ubuntu-latest
     steps:
       -
