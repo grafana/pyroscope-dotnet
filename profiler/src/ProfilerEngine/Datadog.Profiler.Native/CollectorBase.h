@@ -6,9 +6,10 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <iomanip>
+
 #include "Log.h"
 #include "OpSysTools.h"
-
 #include "IService.h"
 #include "ICollector.h"
 #include "IConfiguration.h"
@@ -129,10 +130,14 @@ private:
         auto runtimeId = _pRuntimeIdStore->GetId(rawSample.AppDomainId);
 
         Sample sample(rawSample.Timestamp, runtimeId == nullptr ? std::string_view() : std::string_view(runtimeId), rawSample.Stack.size());
-        if (rawSample.LocalRootSpanId != 0 && rawSample.SpanId != 0)
+        if (rawSample.LocalRootSpanId)
         {
-            sample.AddLabel(Label{Sample::LocalRootSpanIdLabel, std::to_string(rawSample.LocalRootSpanId)});
-            sample.AddLabel(Label{Sample::SpanIdLabel, std::to_string(rawSample.SpanId)});
+            std::stringstream profile_id;
+            profile_id << std::hex << std::setw(16) << std::setfill('0') << rawSample.LocalRootSpanId;
+            sample.AddLabel(Label{Sample::ProfileIdLabel, profile_id.str()});//todo there is no need for refcounted string here
+        }
+        for (auto &tag: rawSample.Tags) {
+            sample.AddLabel(Label{tag.first, tag.second});
         }
 
         // compute thread/appdomain details
@@ -143,12 +148,12 @@ private:
         SetStack(rawSample, sample);
 
         // add timestamp
-        if (_isTimestampsAsLabelEnabled)
-        {
-            // All timestamps give the time when "something" ends and the associated duration
-            // happened in the past
-            sample.AddLabel(Label{"end_timestamp_ns", std::to_string(sample.GetTimeStamp())});
-        }
+        // if (_isTimestampsAsLabelEnabled)
+        // {
+        //     // All timestamps give the time when "something" ends and the associated duration
+        //     // happened in the past
+        //     sample.AddLabel(Label{"end_timestamp_ns", std::to_string(sample.GetTimeStamp())});
+        // }
 
         // allow inherited classes to add values and specific labels
         rawSample.OnTransform(sample, _valueOffset);
@@ -163,14 +168,14 @@ private:
 
         if (!_pAppDomainStore->GetInfo(rawSample.AppDomainId, pid, appDomainName))
         {
-            sample.SetAppDomainName("");
-            sample.SetPid("0");
+            // sample.SetAppDomainName("");
+            // sample.SetPid("0");
 
             return;
         }
 
-        sample.SetAppDomainName(appDomainName);
-        sample.SetPid(std::to_string(pid));
+        // sample.SetAppDomainName(appDomainName);
+        // sample.SetPid(std::to_string(pid));
     }
 
     void SetThreadDetails(const TRawSample& rawSample, Sample& sample)
@@ -178,14 +183,14 @@ private:
         // needed for tests
         if (rawSample.ThreadInfo == nullptr)
         {
-            sample.SetThreadId("<0> [# 0]");
-            sample.SetThreadName("Managed thread (name unknown) [#0]");
+            // sample.SetThreadId("<0> [# 0]");
+            // sample.SetThreadName("Managed thread (name unknown) [#0]");
 
             return;
         }
 
-        sample.SetThreadId(rawSample.ThreadInfo->GetProfileThreadId());
-        sample.SetThreadName(rawSample.ThreadInfo->GetProfileThreadName());
+        // sample.SetThreadId(rawSample.ThreadInfo->GetProfileThreadId());
+        // sample.SetThreadName(rawSample.ThreadInfo->GetProfileThreadName());
 
         // don't forget to release the ManagedThreadInfo
         rawSample.ThreadInfo->Release();

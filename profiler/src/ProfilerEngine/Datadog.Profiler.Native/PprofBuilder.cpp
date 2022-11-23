@@ -28,6 +28,15 @@ void PprofBuilder::AddSample(const Sample& sample)
     {
         pSample->add_value(value);
     }
+    for (const auto& label : sample.GetLabels())
+    {
+        if (label.second.Get() != nullptr)
+        {
+            auto pLabel = pSample->add_label();
+            pLabel->set_key(AddString(label.first));
+            pLabel->set_str(AddString(*label.second.Get()));
+        }
+    }
     _samplesCount++;
 }
 

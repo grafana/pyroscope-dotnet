@@ -129,3 +129,57 @@ extern "C" void __stdcall SetEndpointForTrace(const char* runtimeId, uint64_t tr
 
     profiler->GetExporter()->SetEndpoint(runtimeId, traceId, endpoint);
 }
+
+extern "C" void __stdcall SetDynamicTag(const char* key, const char* value)
+{
+    const auto profiler = CorProfilerCallback::GetInstance();
+
+    if (profiler == nullptr)
+    {
+        Log::Error("GetPointerToNativeTraceContext is called BEFORE CLR initialize");
+        return;
+    }
+
+    if (!profiler->GetClrLifetime()->IsRunning())
+    {
+        return;
+    }
+
+    // Engine is active. Get info for current thread.
+    ManagedThreadInfo* pCurrentThreadInfo;
+    HRESULT hr = profiler->GetManagedThreadList()->TryGetCurrentThreadInfo(&pCurrentThreadInfo);
+    if (FAILED(hr))
+    {
+        // There was an error looking up the current thread info:
+        return;
+    }
+
+    pCurrentThreadInfo->GetTags()
+        .Set(key, google::javaprofiler::AsyncRefCountedString(value));
+}
+
+extern "C" void __stdcall ClearDynamicTags() {
+    const auto profiler = CorProfilerCallback::GetInstance();
+
+    if (profiler == nullptr)
+    {
+        Log::Error("GetPointerToNativeTraceContext is called BEFORE CLR initialize");
+        return;
+    }
+
+    if (!profiler->GetClrLifetime()->IsRunning())
+    {
+        return;
+    }
+
+    // Engine is active. Get info for current thread.
+    ManagedThreadInfo* pCurrentThreadInfo;
+    HRESULT hr = profiler->GetManagedThreadList()->TryGetCurrentThreadInfo(&pCurrentThreadInfo);
+    if (FAILED(hr))
+    {
+        // There was an error looking up the current thread info:
+        return;
+    }
+    pCurrentThreadInfo->GetTags()
+        .ClearAll();
+}

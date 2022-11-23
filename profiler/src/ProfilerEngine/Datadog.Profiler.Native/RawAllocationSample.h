@@ -16,7 +16,7 @@ public:
 
         sample.AddValue(1, allocationCountIndex);
         sample.AddValue(AllocationSize, allocationSizeIndex);
-        sample.AddLabel(Label(Sample::AllocationClassLabel, AllocationClass));
+        // sample.AddLabel(Label(Sample::AllocationClassLabel, AllocationClass));
     }
 
     std::string AllocationClass;

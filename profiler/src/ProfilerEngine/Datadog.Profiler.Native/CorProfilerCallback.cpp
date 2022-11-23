@@ -32,7 +32,6 @@
 #include "FrameStore.h"
 #include "IMetricsSender.h"
 #include "IMetricsSenderFactory.h"
-#include "LibddprofExporter.h"
 #include "Log.h"
 #include "ManagedThreadList.h"
 #include "OpSysTools.h"
@@ -88,6 +87,8 @@ CorProfilerCallback::CorProfilerCallback()
 #ifndef _WINDOWS
     CGroup::Initialize();
 #endif
+    google::javaprofiler::AsyncRefCountedString::Init();
+    google::javaprofiler::Tags::Init();
 }
 
 // Cleanup

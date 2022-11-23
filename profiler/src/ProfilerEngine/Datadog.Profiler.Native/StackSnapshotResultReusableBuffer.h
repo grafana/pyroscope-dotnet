@@ -8,6 +8,8 @@
 #include "corprof.h"
 // end
 
+#include "tags.h"
+
 #include <vector>
 #include <cstdint>
 
@@ -41,6 +43,8 @@ public:
     inline void CopyInstructionPointers(std::vector<std::uintptr_t>& ips) const;
 
     inline void DetermineAppDomain(ThreadID threadId, ICorProfilerInfo4* pCorProfilerInfo);
+    inline google::javaprofiler::Tags& GetTags();
+    inline const google::javaprofiler::Tags& GetTags() const;
 
 protected:
     explicit StackSnapshotResultBuffer(std::uint16_t initialCapacity);
@@ -58,6 +62,7 @@ protected:
 
     std::uint64_t _localRootSpanId;
     std::uint64_t _spanId;
+    google::javaprofiler::Tags _tags;
 };
 
 // ----------- ----------- ----------- ----------- ----------- ----------- ----------- ----------- -----------
@@ -181,6 +186,14 @@ inline void StackSnapshotResultBuffer::DetermineAppDomain(ThreadID threadId, ICo
     {
         SetAppDomainId(appDomainId);
     }
+}
+
+inline google::javaprofiler::Tags& StackSnapshotResultBuffer::GetTags() {
+    return _tags;
+}
+
+inline const google::javaprofiler::Tags& StackSnapshotResultBuffer::GetTags() const {
+    return _tags;
 }
 
 // ----------- ----------- ----------- ----------- ----------- ----------- ----------- ----------- -----------

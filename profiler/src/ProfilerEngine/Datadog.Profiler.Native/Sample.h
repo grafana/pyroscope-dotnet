@@ -10,6 +10,7 @@
 #include <string_view>
 #include <tuple>
 #include <vector>
+#include "async_ref_counted_string.h"
 
 struct SampleValueType
 {
@@ -19,7 +20,7 @@ struct SampleValueType
 
 
 typedef std::vector<int64_t> Values;
-typedef std::pair<std::string_view, std::string> Label;
+typedef std::pair<std::string_view, google::javaprofiler::AsyncRefCountedString> Label;
 typedef std::list<Label> Labels;
 typedef std::vector<std::pair<std::string_view, std::string_view>> CallStack;
 
@@ -77,6 +78,7 @@ public:
     static const std::string ProcessIdLabel;
     static const std::string AppDomainNameLabel;
     static const std::string LocalRootSpanIdLabel;
+    static const std::string ProfileIdLabel;
     static const std::string SpanIdLabel;
     static const std::string ExceptionTypeLabel;
     static const std::string ExceptionMessageLabel;

@@ -9,6 +9,7 @@ const std::string Sample::ThreadNameLabel = "thread name";
 const std::string Sample::AppDomainNameLabel = "appdomain name";
 const std::string Sample::ProcessIdLabel = "appdomain process id";
 const std::string Sample::LocalRootSpanIdLabel = "local root span id";
+const std::string Sample::ProfileIdLabel = "profile_id";
 const std::string Sample::SpanIdLabel = "span id";
 const std::string Sample::ExceptionTypeLabel = "exception type";
 const std::string Sample::ExceptionMessageLabel = "exception message";
