@@ -15,18 +15,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           submodules: 'true'
-      -
-        name: Build docker image
-        uses: docker/build-push-action@v3
+      - uses: actions/setup-dotnet@v3
         with:
-          tags: test-image:latest
-          push: false
-          file: ./Pyroscope.Dockerfile
-      - name: Build managed helper
-        uses: addnab/docker-run-action@v3
-        with:
-          image: test-image:latest
-          options: -v ${{ github.workspace }}:/project
-          run: |
-            cd /project/Pyroscope
-            dotnet publish -c Release
+          dotnet-version: '6.0'
+      - run: dotnet build -c Release Pyroscope
