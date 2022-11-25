@@ -1,4 +1,4 @@
-name: Build linux
+name: Build managed helper
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [master]
 
 jobs:
-  build-linux:
+  build-managed-helper:
     runs-on: ubuntu-latest
     steps:
       -
@@ -22,18 +22,11 @@ jobs:
           tags: test-image:latest
           push: false
           file: ./Pyroscope.Dockerfile
-      - name: Build profiler
+      - name: Build managed helper
         uses: addnab/docker-run-action@v3
         with:
           image: test-image:latest
           options: -v ${{ github.workspace }}:/project
           run: |
-            cd /project
-            mkdir build-release
-            cd build-release
-            cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release
-            make -j6 Datadog.Profiler.Native Datadog.Linux.ApiWrapper.x64
-
-
-
-
+            cd /project/Pyroscope
+            dotnet publish -c Release

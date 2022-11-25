@@ -1,12 +1,13 @@
-name: Release linux profiler
+name: Build linux profiler
 
 on:
   push:
-    tags:
-      - v0.**-pyroscope
+    branches: [master]
+  pull_request:
+    branches: [master]
 
 jobs:
-  release-linux-profiler:
+  build-linux-profiler:
     runs-on: ubuntu-latest
     steps:
       -
@@ -21,7 +22,7 @@ jobs:
           tags: test-image:latest
           push: false
           file: ./Pyroscope.Dockerfile
-      - name: Build profiler
+      - name: Build linux profiler
         uses: addnab/docker-run-action@v3
         with:
           image: test-image:latest
@@ -33,13 +34,6 @@ jobs:
             cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release
             make -j6 Datadog.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: |
-            ./profiler/_build/DDProf-Deploy/linux-x64/Datadog.Linux.ApiWrapper.x64.so
-            ./profiler/_build/DDProf-Deploy/linux-x64/Datadog.Profiler.Native.so
 
 
 
