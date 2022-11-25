@@ -1,0 +1,26 @@
+name: Release managed helper
+
+on:
+  push:
+    tags:
+      - v0.**-pyroscope
+
+jobs:
+  release-managed-helper:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: 'true'
+      - uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0'
+      - run: dotnet build -c Release
+        working-directory: Pyroscope
+      - name: Publish the package to nuget.org
+        run: dotnet nuget push Pyroscope/bin/Release/*.nupkg -k $NUGET_AUTH_TOKEN -s https://api.nuget.org/v3/index.json
+        working-directory: Pyroscope
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.NUGET_API_KEY }}
