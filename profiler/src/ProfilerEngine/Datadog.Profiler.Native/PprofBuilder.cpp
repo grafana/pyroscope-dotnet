@@ -5,8 +5,9 @@
 #include "PprofBuilder.h"
 #include "Log.h"
 
-PprofBuilder::PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions) :
-    _sampleTypeDefinitions(sampleTypeDefinitions)
+PprofBuilder::PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions,
+                           std::vector<std::pair<std::string, std::string>>& staticTags) :
+    _sampleTypeDefinitions(sampleTypeDefinitions), _staticTags(staticTags)
 {
     Reset();
 }
@@ -32,10 +33,16 @@ void PprofBuilder::AddSample(const Sample& sample)
     {
         if (label.second.Get() != nullptr)
         {
-            auto pLabel = pSample->add_label();
+            auto* pLabel = pSample->add_label();
             pLabel->set_key(AddString(label.first));
             pLabel->set_str(AddString(*label.second.Get()));
         }
+    }
+    for (const auto& tag : _staticTags)
+    {
+        auto* pLabel = pSample->add_label();
+        pLabel->set_key(AddString(tag.first));
+        pLabel->set_str(AddString(tag.second));
     }
     _samplesCount++;
 }
@@ -86,7 +93,6 @@ int64_t PprofBuilder::AddLocation(int64_t functionName, int64_t moduleName)
     return id;
 }
 
-
 void PprofBuilder::Reset()
 {
     _samplesCount = 0;
@@ -94,8 +100,9 @@ void PprofBuilder::Reset()
     _strings.clear();
     _profile = perftools::profiles::Profile();
     AddString("");
-    for (const auto& sampleType : _sampleTypeDefinitions) {
-        auto *pSample = _profile.add_sample_type();
+    for (const auto& sampleType : _sampleTypeDefinitions)
+    {
+        auto* pSample = _profile.add_sample_type();
         pSample->set_unit(AddString(sampleType.Unit));
         pSample->set_type(AddString(sampleType.Name));
     }
@@ -105,4 +112,3 @@ void PprofBuilder::Reset()
     pPeriodType->set_unit(AddString("nanoseconds"));
     _profile.set_allocated_period_type(pPeriodType);
 }
-
