@@ -1,0 +1,22 @@
+name: Build managed helper
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-managed-helper:
+    runs-on: ubuntu-latest
+    steps:
+      -
+        name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: 'true'
+      - uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0'
+      - run: dotnet build -c Release
+        working-directory: Pyroscope

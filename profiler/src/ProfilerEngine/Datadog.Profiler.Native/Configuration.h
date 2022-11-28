@@ -124,4 +124,5 @@ private:
     std::string _pyroscopeServerAddress;
     std::string _pyroscopeApplicationName;
     std::string _pyroscopeAuthToken;
+    std::vector<std::pair<std::string, std::string>> _pyroscopeTags;
 };

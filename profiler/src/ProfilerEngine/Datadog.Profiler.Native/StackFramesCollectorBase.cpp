@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <chrono>
 #include <condition_variable>
+#include <iostream>
 #include <mutex>
 
 StackFramesCollectorBase::StackFramesCollectorBase()
@@ -108,17 +109,17 @@ bool StackFramesCollectorBase::TryApplyTraceContextDataFromCurrentCollectionThre
 {
     // If TraceContext Tracking is not enabled, then we will simply get zero IDs.
     ManagedThreadInfo* pCurrentCollectionThreadInfo = _pCurrentCollectionThreadInfo;
-    if (nullptr != pCurrentCollectionThreadInfo && pCurrentCollectionThreadInfo->CanReadTraceContext())
+    if (pCurrentCollectionThreadInfo == nullptr)
+    {
+        return false;
+    }
+    _pReusableStackSnapshotResult->GetTags().AsyncSafeCopy(pCurrentCollectionThreadInfo->GetTags());
+    if (pCurrentCollectionThreadInfo->CanReadTraceContext())
     {
         std::uint64_t localRootSpanId = pCurrentCollectionThreadInfo->GetLocalRootSpanId();
-        std::uint64_t spanId = pCurrentCollectionThreadInfo->GetSpanId();
-
         _pReusableStackSnapshotResult->SetLocalRootSpanId(localRootSpanId);
-        _pReusableStackSnapshotResult->SetSpanId(spanId);
-
         return true;
     }
-
     return false;
 }
 

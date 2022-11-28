@@ -79,6 +79,7 @@ void ContentionProvider::OnContention(double contentionDuration)
     rawSample.ThreadInfo = threadInfo;
     threadInfo->AddRef();
     rawSample.ContentionDuration = contentionDuration;
+    rawSample.Tags = threadInfo->GetTags().GetAll();
 
     Add(std::move(rawSample));
 }

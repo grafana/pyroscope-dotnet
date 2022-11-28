@@ -11,6 +11,7 @@
 #include "RefCountingObject.h"
 #include "Semaphore.h"
 #include "shared/src/native-src/string.h"
+#include "tags.h"
 
 
 static constexpr int32_t MinFieldAlignRequirement = 8;
@@ -79,6 +80,8 @@ public:
     inline std::string GetProfileThreadId();
     inline std::string GetProfileThreadName();
 
+    inline google::javaprofiler::Tags& GetTags();
+
 private:
     inline void BuildProfileThreadId();
     inline void BuildProfileThreadName();
@@ -109,6 +112,7 @@ private:
     bool _isThreadDestroyed;
 
     TraceContextTrackingInfo _traceContextTrackingInfo;
+    google::javaprofiler::Tags _tags;
 
     //  strings to be used by samples: avoid allocations when rebuilding them over and over again
     std::string _profileThreadId;
@@ -135,6 +139,10 @@ std::string ManagedThreadInfo::GetProfileThreadName()
     }
 
     return _profileThreadName;
+}
+
+inline google::javaprofiler::Tags& ManagedThreadInfo::GetTags() {
+    return _tags;
 }
 
 inline void ManagedThreadInfo::BuildProfileThreadId()

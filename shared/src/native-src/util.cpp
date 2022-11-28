@@ -125,6 +125,7 @@ namespace shared
     WSTRING GetEnvironmentValue(const WSTRING& name)
     {
 #ifdef _WIN32
+#error "not implemented"
         const size_t max_buf_size = 4096;
         WSTRING buf(max_buf_size, 0);
         auto len = GetEnvironmentVariable((LPWSTR)name.data(), (LPWSTR)buf.data(), (DWORD)(buf.size()));
@@ -141,7 +142,12 @@ namespace shared
             cstr = std::getenv(ToString(secondName).c_str());
             if (cstr == nullptr)
             {
-                return WStr("");
+                auto pyroscopeName = WStr("PYROSCOPE_") + secondName;
+                cstr = std::getenv(ToString(pyroscopeName).c_str());
+                if (cstr == nullptr)
+                {
+                    return WStr("");
+                }
             }
         }
         std::string str(cstr);

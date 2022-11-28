@@ -32,7 +32,6 @@
 #include "FrameStore.h"
 #include "IMetricsSender.h"
 #include "IMetricsSenderFactory.h"
-#include "LibddprofExporter.h"
 #include "Log.h"
 #include "ManagedThreadList.h"
 #include "OpSysTools.h"
@@ -88,6 +87,8 @@ CorProfilerCallback::CorProfilerCallback()
 #ifndef _WINDOWS
     CGroup::Initialize();
 #endif
+    google::javaprofiler::AsyncRefCountedString::Init();
+    google::javaprofiler::Tags::Init();
 }
 
 // Cleanup
@@ -222,7 +223,10 @@ bool CorProfilerCallback::InitializeServices()
         _pConfiguration->PyroscopeServerAddress(),
         _pConfiguration->PyroscopeApplicationName(),
         _pConfiguration->PyroscopeAuthToken());
-    _pExporter = std::make_unique<PprofExporter>(_pApplicationStore, std::move(pyroscopeSink), sampleTypeDefinitions);
+    _pExporter = std::make_unique<PprofExporter>(_pApplicationStore,
+                                                 std::move(pyroscopeSink),
+                                                 sampleTypeDefinitions,
+                                                 _pConfiguration->GetUserTags());
 
     _pSamplesCollector = RegisterService<SamplesCollector>(_pConfiguration.get(), _pThreadsCpuManager, _pExporter.get(), _metricsSender.get());
 

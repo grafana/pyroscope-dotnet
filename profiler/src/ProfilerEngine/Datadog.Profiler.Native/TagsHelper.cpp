@@ -7,9 +7,13 @@
 tag TagsHelper::ParseTag(std::string_view s)
 {
     auto colonIdx = s.find_first_of(':');
-
     if (colonIdx == std::string::npos)
+    {
+        colonIdx = s.find_first_of('=');
+    }
+    if (colonIdx == std::string::npos) {
         return tag(s, "");
+    }
 
     return tag(s.substr(0, colonIdx), s.substr(colonIdx + 1));
 }

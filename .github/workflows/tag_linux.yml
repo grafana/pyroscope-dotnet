@@ -1,4 +1,4 @@
-name: Release linux
+name: Release linux profiler
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - v0.**-pyroscope
 
 jobs:
-  release-linux:
+  release-linux-profiler:
     runs-on: ubuntu-latest
     steps:
       -

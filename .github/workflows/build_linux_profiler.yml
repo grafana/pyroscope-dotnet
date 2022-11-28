@@ -1,13 +1,13 @@
-name: Build linux
+name: Build linux profiler
 
 on:
   push:
-    branches: [master]
+    branches: [main]
   pull_request:
-    branches: [master]
+    branches: [main]
 
 jobs:
-  build-linux:
+  build-linux-profiler:
     runs-on: ubuntu-latest
     steps:
       -
@@ -22,7 +22,7 @@ jobs:
           tags: test-image:latest
           push: false
           file: ./Pyroscope.Dockerfile
-      - name: Build profiler
+      - name: Build linux profiler
         uses: addnab/docker-run-action@v3
         with:
           image: test-image:latest

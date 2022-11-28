@@ -573,6 +573,7 @@ void StackSamplerLoop::PersistStackSnapshotResults(
         rawSample.ThreadInfo = pThreadInfo;
         pThreadInfo->AddRef();
         rawSample.Duration = pSnapshotResult->GetRepresentedDurationNanoseconds();
+        rawSample.Tags = pSnapshotResult->GetTags().GetAll();
         _pWallTimeCollector->Add(std::move(rawSample));
     }
     else
@@ -588,6 +589,7 @@ void StackSamplerLoop::PersistStackSnapshotResults(
         rawCpuSample.ThreadInfo = pThreadInfo;
         pThreadInfo->AddRef();
         rawCpuSample.Duration = pSnapshotResult->GetRepresentedDurationNanoseconds();
+        rawCpuSample.Tags = pSnapshotResult->GetTags().GetAll();
         _pCpuTimeCollector->Add(std::move(rawCpuSample));
     }
 }

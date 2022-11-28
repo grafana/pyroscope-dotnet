@@ -26,6 +26,7 @@ StackSnapshotResultBuffer::~StackSnapshotResultBuffer()
     _currentFramesCount = 0;
     _localRootSpanId = 0;
     _spanId = 0;
+    _tags.ClearAll();
 }
 
 void StackSnapshotResultReusableBuffer::Reset(void)
@@ -40,4 +41,5 @@ void StackSnapshotResultReusableBuffer::Reset(void)
     _appDomainId = static_cast<AppDomainID>(0);
     _representedDurationNanoseconds = 0;
     _unixTimeUtc = 0;
+    _tags.ClearAll();
 }

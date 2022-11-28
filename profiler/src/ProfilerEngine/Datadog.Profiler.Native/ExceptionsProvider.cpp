@@ -157,6 +157,7 @@ bool ExceptionsProvider::OnExceptionThrown(ObjectID thrownObjectId)
     threadInfo->AddRef();
     rawSample.ExceptionMessage = std::move(message);
     rawSample.ExceptionType = std::move(name);
+    rawSample.Tags = threadInfo->GetTags().GetAll();
     Add(std::move(rawSample));
 
     return true;
