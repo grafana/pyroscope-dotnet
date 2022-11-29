@@ -3,7 +3,7 @@ name: Release linux profiler
 on:
   push:
     tags:
-      - v*
+      - v*-pyroscope
 
 jobs:
   release-linux-profiler:

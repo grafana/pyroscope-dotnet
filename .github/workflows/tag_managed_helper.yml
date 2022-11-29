@@ -3,7 +3,7 @@ name: Release managed helper
 on:
   push:
     tags:
-      - v0.**-pyroscope
+      - v*-pyroscope
 
 jobs:
   release-managed-helper:
