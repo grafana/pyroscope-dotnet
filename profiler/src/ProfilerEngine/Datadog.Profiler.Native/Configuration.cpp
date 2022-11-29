@@ -247,7 +247,7 @@ fs::path Configuration::GetApmBaseDirectory()
 
     return fs::path();
 #else
-    return fs::path(WStr("/var/log/datadog/"));
+    return fs::path(WStr("/var/log/pyroscope/"));
 #endif
 }
 
