@@ -1,22 +1,84 @@
-# Datadog APM .NET Client Libraries
+# Pyroscope .NET Agent
 
-This repository contains the sources for the client-side components of the Datadog product suite for Application Telemetry Collection and Application Performance Monitoring for .NET Applications.
+The Java profiling agent for Pyroscope.io. Based on [dd-trace-dotnet](https://github.com/DataDog/dd-trace-dotnet) with some key improvements:
+- support for memory profiling
+- support for wall (wall-clock) time profiling
+- support for exceptions profiling
+- support for dynamic tags
 
-**[Datadog .NET Tracer](https://github.com/DataDog/dd-trace-dotnet/tree/master/tracer)**: A set of .NET libraries that let you trace any piece of your .NET code. It automatically instruments supported libraries out-of-the-box and also supports custom instrumentation to instrument your own code.
+## Supported .NET versions:
+ - .NET 6.0
+ 
+## Supported platforms
 
-**[Datadog .NET Continuous Profiler](https://github.com/DataDog/dd-trace-dotnet/tree/master/profiler)**: Libraries that automatically profile your application.
+| Spy Name     | Type         | Linux | macOS | Windows | Docker |
+|:------------:|:------------:|:-----:|:-----:|:-------:|:------:|
+| dotnetspy    | `embedded`   |   ✅  |       |         |        |
 
-## Downloads
+## Running the .NET profiler
 
-| Package                      | Download                                                                                                                                                  |
-|------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Windows and Linux Installers | [![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/DataDog/dd-trace-dotnet)](https://github.com/DataDog/dd-trace-dotnet/releases)                                                                                       |
-| `Datadog.Trace`              | [![Datadog.Trace](https://img.shields.io/nuget/vpre/Datadog.Trace.svg)](https://www.nuget.org/packages/Datadog.Trace)                                     |
-| `Datadog.Trace.OpenTracing`  | [![Datadog.Trace.OpenTracing](https://img.shields.io/nuget/vpre/Datadog.Trace.OpenTracing.svg)](https://www.nuget.org/packages/Datadog.Trace.OpenTracing) |
+1. Download `Pyroscope.Profiler.Native.so` and `Pyroscope.Linux.ApiWrapper.x64.so` from [latest release](https://github.com/pyroscope-io/pyroscope-dotnet/releases/)
 
-## Build status
+2. Set the following required environment variables to enable profiler
+```shell
+PYROSCOPE_APPLICATION_NAME=rideshare.dotnet.app
+PYROSCOPE_SERVER_ADDRESS=http://localhost:4040
+PYROSCOPE_AUTH_TOKEN="psx-..." # optional auth token
+PYROSCOPE_PROFILING_ENABLED=1
+CORECLR_ENABLE_PROFILING=1
+CORECLR_PROFILER={BD1A650D-AC5D-4896-B64F-D6FA25D6B26A}
+CORECLR_PROFILER_PATH=Pyroscope.Profiler.Native.so
+LD_PRELOAD=Pyroscope.Linux.ApiWrapper.x64.so
+```
 
-Build status on `master`: [![Build](https://dev.azure.com/datadoghq/dd-trace-dotnet/_apis/build/status/consolidated-pipeline?branchName=master&stageName=build_windows_tracer)](https://dev.azure.com/datadoghq/dd-trace-dotnet/_build/latest?definitionId=54&branchName=master)
+### Dynamic labels
+It is possible to add labels to the profiling data. These labels can be used to filter the data in the UI.
+
+1. Add dependency 
+```shell
+dotnet add package Pyroscope
+````
+2. Create a LabelSet and wrap a piece of code with Pyroscope.LabelsWrapper
+```java
+var labels = Pyroscope.LabelSet.Empty.BuildUpon()
+    .Add("key1", "value1")
+    .Build();
+Pyroscope.LabelsWrapper.Do(labels, () =>
+{
+  SlowCode();
+});
+```
+
+Labels can be nested. For nesting LabelSets use `LabelSet.BuildUpon` on non-empty set.
+```java
+var labels = Pyroscope.LabelSet.Empty.BuildUpon()
+    .Add("key1", "value1")
+    .Build();
+Pyroscope.LabelsWrapper.Do(labels, () =>
+{
+  var labels2 = labels.BuildUpon()
+    .Add("key2", "value2")
+    .Build();
+  Pyroscope.LabelsWrapper.Do(labels2, () =>
+  {
+    SlowCode();
+  });
+  FastCode();
+});
+```
+
+## Configuration
+
+| ENVIRONMENT VARIABLE            | Type         | DESCRIPTION |
+|---------------------------------|------------|-----------|
+| PYROSCOPE_PROFILING_LOG_DIR            | String       | Sets the directory for .NET Profiler logs. Defaults to /var/log/pyroscope/ . |
+| PYROSCOPE_LABELS                       | String       | Static labels to apply to an uploaded profile. Must be a list of key:value separated by commas such as: layer:api,team:intake. |
+| PYROSCOPE_PROFILING_ENABLED            | Boolean      | If set to true, enables the .NET Profiler. Defaults to false. |
+| PYROSCOPE_PROFILING_WALLTIME_ENABLED   | Boolean      | If set to false, disables the Wall time profiling. Defaults to true. |
+| PYROSCOPE_PROFILING_CPU_ENABLED        | Boolean      | If set to false, disables the CPU profiling. Defaults to true. |
+| PYROSCOPE_PROFILING_EXCEPTION_ENABLED  | Boolean      | If set to true, enables the Exceptions profiling (beta). Defaults to false. |
+| PYROSCOPE_PROFILING_ALLOCATION_ENABLED | Boolean      | If set to true, enables the Allocations profiling (beta). Defaults to false. |
+| PYROSCOPE_PROFILING_LOCK_ENABLED       | Boolean      | If set to true, enables the Lock Contention profiling (beta). Defaults to false. |
 
 ## Copyright
 
@@ -33,8 +95,4 @@ See [license information](../LICENSE).
 
 ### Security Vulnerabilities
 
-If you have found a security issue, please contact the security team directly at [security@datadoghq.com](mailto:security@datadoghq.com).
-
-### Other feedback
-
-If you have questions, feedback, or feature requests, reach our [support](https://docs.datadoghq.com/help).
+If you have found a security issue, please contact the security team directly at [security@pyroscope.io](mailto:security@pyroscope.io).
