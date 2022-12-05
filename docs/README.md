@@ -23,6 +23,8 @@ Build status on `master`: [![Build](https://dev.azure.com/datadoghq/dd-trace-dot
 Copyright (c) 2017 Datadog
 [https://www.datadoghq.com](https://www.datadoghq.com/)
 
+Copyright (c) 2022 Pyroscope
+
 ## License
 
 See [license information](../LICENSE).
