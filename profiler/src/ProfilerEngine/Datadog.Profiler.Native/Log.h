@@ -18,7 +18,7 @@ class Log final
 private:
     struct ProfilerLoggerPolicy
     {
-        inline static const std::string file_name = "DD-DotNet-Profiler-Native";
+        inline static const std::string file_name = "Pyroscope-DotNet-Profiler-Native";
 #ifdef _WIN32
         inline static const shared::WSTRING folder_path = WStr(R"(Datadog-APM\logs\DotNet)");
 #endif

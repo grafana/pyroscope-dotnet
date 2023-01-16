@@ -115,16 +115,13 @@ std::shared_ptr<spdlog::logger> Logger::CreateInternalLogger()
 
     try
     {
-
-        // todo
-//#if defined(PROFILER_LOG_TO_STDOUT)
         std::vector<spdlog::sink_ptr> sinks;
-        sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
+        if (::shared::StderrLogEnabled())
+        {
+            sinks.push_back(std::make_shared<spdlog::sinks::ansicolor_stderr_sink_mt>());
+        }
+        sinks.push_back(std::make_shared<spdlog::sinks::rotating_file_sink_mt>(Logger::GetLogPath<LoggerPolicy>(file_name_suffix), 1048576 * 5, 10));
         logger = std::make_shared<spdlog::logger>(LoggerPolicy::file_name, begin(sinks), end(sinks));
-//#else
-        logger =
-            spdlog::rotating_logger_mt(LoggerPolicy::file_name, Logger::GetLogPath<LoggerPolicy>(file_name_suffix), 1048576 * 5, 10);
-//#endif
     }
     catch (...)
     {
@@ -157,7 +154,12 @@ std::string Logger::GetLogPath(const std::string& file_name_suffix)
 
         if (!fs::exists(parent_path))
         {
-            fs::create_directories(parent_path);
+            try {
+
+                fs::create_directories(parent_path);
+            } catch (std::exception &e) {
+                std::cerr << "Logger::GetLogPath failed to create a parent directory: " << parent_path <<  std::endl;
+            }
         }
     }
 

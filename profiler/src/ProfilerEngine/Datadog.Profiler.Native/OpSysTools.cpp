@@ -345,6 +345,10 @@ bool OpSysTools::IsSafeToStartProfiler(double coresThreshold)
     // We assume that the profiler library is in the same folder as the wrapper library
     auto currentModulePath = fs::path(shared::GetCurrentModuleFileName());
     auto wrapperLibrary = currentModulePath.parent_path() / "Pyroscope.Linux.ApiWrapper.x64.so";
+    if (!fs::exists(wrapperLibrary))
+    {
+        wrapperLibrary = currentModulePath.parent_path() / "Datadog.Linux.ApiWrapper.x64.so";
+    }
     auto wrapperLibraryPath = wrapperLibrary.string();
 
     auto* instance = dlopen(wrapperLibraryPath.c_str(), RTLD_LAZY | RTLD_LOCAL);
