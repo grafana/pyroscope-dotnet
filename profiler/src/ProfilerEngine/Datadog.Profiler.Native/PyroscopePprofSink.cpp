@@ -7,7 +7,7 @@
 #include "OpSysTools.h"
 
 PyroscopePprofSink::PyroscopePprofSink(std::string server, std::string appName, std::string authToken) :
-    _appName(appName), _client(server)
+    _appName(appName), _server(server), _client(server)
 {
     if (!authToken.empty())
     {
@@ -79,6 +79,6 @@ void PyroscopePprofSink::upload(Pprof pprof, ProfileTime& startTime, ProfileTime
     else
     {
         auto err = res.error();
-        Log::Info("PyroscopePprofSink err ", to_string(err));
+        Log::Info("PyroscopePprofSink err ", to_string(err), " ", _server);
     }
 }

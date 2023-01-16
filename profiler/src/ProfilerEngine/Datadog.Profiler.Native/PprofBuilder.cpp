@@ -51,7 +51,7 @@ std::string PprofBuilder::Build()
 {
     std::lock_guard<std::mutex> lock(this->_lock);
     auto res = _profile.SerializeAsString();
-    Log::Info("PprofBuilder samples: ", _samplesCount, ", serialized bytes: ", res.size());
+    Log::Debug("PprofBuilder samples: ", _samplesCount, ", serialized bytes: ", res.size());
     Reset();
     return std::move(res);
 }

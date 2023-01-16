@@ -27,6 +27,7 @@ private:
     void upload(Pprof pprof, ProfileTime &startTime, ProfileTime &endTime);
 
     std::string _appName;
+    std::string _server;
     httplib::Client _client;
     LockingQueue<PyroscopeRequest> _queue;
     std::thread _workerThread;

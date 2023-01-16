@@ -25,6 +25,15 @@
 
 namespace shared
 {
+inline bool StderrLogEnabled() {
+    auto log_to_stderr = GetEnvironmentValue(WStr("PYROSCOPE_LOG_STDERR"));
+    bool enabled = false;
+    bool parsed = TryParseBooleanEnvironmentValue(log_to_stderr, enabled);
+    if (parsed) {
+        return enabled;
+    }
+    return true;
+}
 
 template <class TLoggerPolicy>
 inline shared::WSTRING GetDatadogLogFilePath(const std::string& file_name_suffix)
@@ -63,7 +72,7 @@ inline shared::WSTRING GetDatadogLogFilePath(const std::string& file_name_suffix
     // on Windows WSTRING == wstring
     return (program_data_path / TLoggerPolicy::folder_path / file_name).wstring();
 #else
-    return ToWSTRING("/var/log/datadog/dotnet/" + file_name);
+    return ToWSTRING("/var/log/pyroscope/dotnet/" + file_name);
 #endif
 }
 
