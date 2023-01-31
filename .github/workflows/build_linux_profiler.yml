@@ -8,24 +8,16 @@ on:
 
 jobs:
   build-linux-profiler:
-    runs-on: ubuntu-latest
+    runs-on: jirutka/setup-alpine@v1
     steps:
       -
         name: Checkout
         uses: actions/checkout@v2
         with:
           submodules: 'true'
-      -
-        name: Build docker image
-        uses: docker/build-push-action@v3
-        with:
-          tags: test-image:latest
-          push: false
-          file: ./Pyroscope.Dockerfile
       - name: Build linux profiler
-        uses: addnab/docker-run-action@v3
+        uses: jirutka/setup-alpine@v1
         with:
-          image: test-image:latest
           options: -v ${{ github.workspace }}:/project
           run: |
             cd /project
@@ -33,6 +25,7 @@ jobs:
             cd build-release
             cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release
             make -j6 Datadog.Profiler.Native Datadog.Linux.ApiWrapper.x64
+          shell: alpine.sh {0}
 
 
 
