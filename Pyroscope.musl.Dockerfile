@@ -1,13 +1,5 @@
 FROM alpine:3.15 as builder
 
-#RUN apt-get update \
-#    && apt-get -y install wget apt-transport-https\
-#    && wget https://packages.microsoft.com/config/debian/10/packages-microsoft-prod.deb -O packages-microsoft-prod.deb \
-#    && dpkg -i packages-microsoft-prod.deb\
-#    && rm packages-microsoft-prod.deb
-
-
-
 RUN apk add  \
             clang \
             cmake \
@@ -39,5 +31,5 @@ RUN mkdir build-release && cd build-release && cmake .. -DCMAKE_C_COMPILER=clang
 RUN cd build-release && make -j6 Datadog.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
 FROM scratch
-COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-x64/Datadog.Profiler.Native.so /Pyroscope.Profiler.Native.so
-COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-x64/Datadog.Linux.ApiWrapper.x64.so /Pyroscope.Linux.ApiWrapper.x64.so
+COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-musl-x64/Datadog.Profiler.Native.so /Pyroscope.Profiler.Native.so
+COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-musl-x64/Datadog.Linux.ApiWrapper.x64.so /Pyroscope.Linux.ApiWrapper.x64.so
