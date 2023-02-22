@@ -6,7 +6,7 @@ on:
       - v*-pyroscope
 
 jobs:
-  release-linux-profiler:
+  release-linux-profiler-glibc:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -14,11 +14,25 @@ jobs:
         with:
           submodules: 'true'
       - name: Build in Docker
-        run: docker build -f ./Pyroscope.Dockerfile -o out .
+        run: docker build -f ./Pyroscope.Dockerfile -o out.glibc .
+      - name: Create tar archive
+        run: tar -czvf pyroscope.glibc.tar.gz -C out.glibc .
       - name: Release
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: |
-            ./out/Pyroscope.Linux.ApiWrapper.x64.so
-            ./out/Pyroscope.Profiler.Native.so
+          files: ./pyroscope.glibc.tar.gz
+  release-linux-profiler-musl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: 'true'
+      - name: Build in Docker
+        run: docker build -f ./Pyroscope.musl.Dockerfile -o out.musl .
+      - name: Create tar archive
+        run: tar -czvf pyroscope.musl.tar.gz -C out.musl .
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ./pyroscope.musl.tar.gz
