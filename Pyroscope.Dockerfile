@@ -1,12 +1,5 @@
 FROM debian:10 as builder
 
-#RUN apt-get update \
-#    && apt-get -y install wget apt-transport-https\
-#    && wget https://packages.microsoft.com/config/debian/10/packages-microsoft-prod.deb -O packages-microsoft-prod.deb \
-#    && dpkg -i packages-microsoft-prod.deb\
-#    && rm packages-microsoft-prod.deb
-
-
 RUN apt-get update && apt-get -y install cmake clang make git curl golang libtool
 
 WORKDIR /profiler
