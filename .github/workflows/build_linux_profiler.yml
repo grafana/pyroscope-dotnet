@@ -16,3 +16,12 @@ jobs:
           submodules: 'true'
       - name: Build in Docker
         run: docker build -f ./Pyroscope.Dockerfile .
+  build-linux-profiler-musl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: 'true'
+      - name: Build in Docker
+        run: docker build -f ./Pyroscope.musl.Dockerfile .

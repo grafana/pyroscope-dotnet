@@ -1,4 +1,4 @@
-FROM debian:10 as builder
+FROM alpine:3.15 as builder
 
 #RUN apt-get update \
 #    && apt-get -y install wget apt-transport-https\
@@ -7,9 +7,27 @@ FROM debian:10 as builder
 #    && rm packages-microsoft-prod.deb
 
 
-RUN apt-get update && apt-get -y install cmake clang make git curl golang libtool
+
+RUN apk add  \
+            clang \
+            cmake \
+            git \
+            bash \
+            make \
+            alpine-sdk \
+            util-linux-dev \
+            autoconf \
+            libtool \
+            automake \
+            xz-dev \
+            musl-dbg
+
+RUN apk add wget
+RUN apk add go
+
 
 WORKDIR /profiler
+ENV IsAlpine=true
 
 ADD build build
 ADD profiler profiler

@@ -4,6 +4,7 @@
 
 #include "PprofExporter.h"
 #include "Log.h"
+#include <signal.h>
 
 PprofExporter::PprofExporter(IApplicationStore* applicationStore,
                              std::unique_ptr<PProfExportSink> sink,
