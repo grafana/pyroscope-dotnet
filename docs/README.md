@@ -1,10 +1,8 @@
 # Pyroscope .NET Agent
 
 The .NET profiling agent for Pyroscope.io. Based on [dd-trace-dotnet](https://github.com/DataDog/dd-trace-dotnet) with some key improvements:
-- support for memory profiling
-- support for wall (wall-clock) time profiling
-- support for exceptions profiling
 - support for dynamic tags
+- export to pyroscope
 
 ## Supported .NET versions:
  - .NET 6.0
