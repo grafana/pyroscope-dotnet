@@ -1,6 +1,6 @@
 # Pyroscope .NET Agent
 
-The Java profiling agent for Pyroscope.io. Based on [dd-trace-dotnet](https://github.com/DataDog/dd-trace-dotnet) with some key improvements:
+The .NET profiling agent for Pyroscope.io. Based on [dd-trace-dotnet](https://github.com/DataDog/dd-trace-dotnet) with some key improvements:
 - support for memory profiling
 - support for wall (wall-clock) time profiling
 - support for exceptions profiling
