@@ -9,7 +9,7 @@
 PyroscopePprofSink::PyroscopePprofSink(std::string server, std::string appName, std::string authToken) :
     _appName(appName),
     _url(server),
-    _client(HostServerAndPort(_url)),
+    _client(SchemeHostPort(_url)),
     _running(true)
 {
     if (!authToken.empty())
