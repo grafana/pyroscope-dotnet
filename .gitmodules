@@ -7,3 +7,6 @@
 [submodule "profiler/third_party/cpp-httplib"]
 	path = profiler/third_party/cpp-httplib
 	url = https://github.com/yhirose/cpp-httplib.git
+[submodule "profiler/third_party/CxxUrl"]
+	path = profiler/third_party/CxxUrl
+	url = git@github.com:chmike/CxxUrl.git

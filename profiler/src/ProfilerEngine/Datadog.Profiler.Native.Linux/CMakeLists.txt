@@ -115,6 +115,7 @@ target_link_libraries(${PROFILER_STATIC_LIB_NAME}
     coreclr
     spdlog-headers
     libprotobuf
+    chmike::CxxUrl
     crypto
     ssl
     -static-libgcc

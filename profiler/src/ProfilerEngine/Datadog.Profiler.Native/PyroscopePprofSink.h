@@ -8,7 +8,7 @@
 
 #include "LockingQueue.h"
 #include "httplib.h"
-#include "vendor/CxxUrl/url.hpp"
+#include "url.hpp"
 
 class PyroscopePprofSink: public PProfExportSink
 {
