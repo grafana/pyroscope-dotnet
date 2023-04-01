@@ -6,9 +6,9 @@
 
 #include <PprofExporter.h>
 
-#include "httplib.h"
-#include "url.hpp"
 #include "LockingQueue.h"
+#include "httplib.h"
+#include "vendor/CxxUrl/url.hpp"
 
 class PyroscopePprofSink: public PProfExportSink
 {
