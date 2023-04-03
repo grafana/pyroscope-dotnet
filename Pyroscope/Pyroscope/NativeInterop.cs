@@ -46,6 +46,18 @@ namespace Pyroscope
             NativeMethods.SetStackSamplerEnabled(enabled);
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void SetAllocationTrackingEnabled(bool enabled)
+        {
+            NativeMethods.SetAllocationTrackingEnabled(enabled);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void SetContentionTrackingEnabled(bool enabled)
+        {
+            NativeMethods.SetContentionTrackingEnabled(enabled);
+        }
+
         // These methods are rewritten by the native tracer to use the correct paths
         private static class NativeMethods
         {
@@ -66,6 +78,12 @@ namespace Pyroscope
 
             [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetStackSamplerEnabled")]
             public static extern void SetStackSamplerEnabled(bool enabled);
+
+            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetAllocationTrackingEnabled")]
+            public static extern void SetAllocationTrackingEnabled(bool enabled);
+
+            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetContentionTrackingEnabled")]
+            public static extern void SetContentionTrackingEnabled(bool enabled);
         }
     }
 }

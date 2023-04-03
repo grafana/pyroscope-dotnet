@@ -199,3 +199,36 @@ extern "C" void __stdcall SetStackSamplerEnabled(bool enabled) {
     }
     profiler->SetStackSamplerEnabled(enabled);
 }
+
+extern "C" void __stdcall SetAllocationTrackingEnabled(bool enabled) {
+    auto *const profiler = CorProfilerCallback::GetInstance();
+
+    if (profiler == nullptr)
+    {
+        Log::Error("SetAllocationTrackingEnabled is called BEFORE CLR initialize");
+        return;
+    }
+
+    if (!profiler->GetClrLifetime()->IsRunning())
+    {
+        return;
+    }
+    profiler->SetAllocationTrackingEnabled(enabled);
+}
+
+
+extern "C" void __stdcall SetContentionTrackingEnabled(bool enabled) {
+    auto *const profiler = CorProfilerCallback::GetInstance();
+
+    if (profiler == nullptr)
+    {
+        Log::Error("SetContentionTrackingEnabled is called BEFORE CLR initialize");
+        return;
+    }
+
+    if (!profiler->GetClrLifetime()->IsRunning())
+    {
+        return;
+    }
+    profiler->SetContentionTrackingEnabled(enabled);
+}

@@ -72,7 +72,8 @@ public:
                     ULONG numStackFrames,
                     UINT_PTR stackFrames[]
                     );
-
+    void SetAllocationTrackingEnabled(bool enabled);
+    void SetContentionTrackingEnabled(bool enabled);
 private:
     bool TryGetEventInfo(LPCBYTE pMetadata, ULONG cbMetadata, WCHAR*& name, DWORD& id, INT64& keywords, DWORD& version);
     void ParseGcEvent(DWORD id, DWORD version, ULONG cbEventData, LPCBYTE pEventData);
@@ -110,6 +111,8 @@ private:
     ICorProfilerInfo12* _pCorProfilerInfo = nullptr;
     IAllocationsListener* _pAllocationListener = nullptr;
     IContentionListener* _pContentionListener = nullptr;
+    volatile bool _allocationEnabled = true;
+    volatile bool _contentionEnabled = true;
 
 private:
     const int EVENT_ALLOCATION_TICK = 10;   // version 4 contains the size + reference

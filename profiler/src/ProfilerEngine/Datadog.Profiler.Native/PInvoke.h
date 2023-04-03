@@ -45,3 +45,7 @@ extern "C" void __stdcall SetDynamicTag(const char* key, const char* value);
 extern "C" void __stdcall ClearDynamicTags();
 
 extern "C" void __stdcall SetStackSamplerEnabled(bool enabled);
+
+extern "C" void __stdcall SetAllocationTrackingEnabled(bool enabled);
+
+extern "C" void __stdcall SetContentionTrackingEnabled(bool enabled);

@@ -80,6 +80,38 @@ namespace Pyroscope
                 _dllNotFound = true;
             }
         }
+
+        public void SetAllocationTrackingEnabled(bool enabled)
+        {
+            if (_dllNotFound)
+            {
+                return;
+            }
+            try
+            {
+                NativeInterop.SetAllocationTrackingEnabled(enabled);
+            }
+            catch (DllNotFoundException)
+            {
+                _dllNotFound = true;
+            }
+        }
+
+        public void SetContentionTrackingEnabled(bool enabled)
+        {
+            if (_dllNotFound)
+            {
+                return;
+            }
+            try
+            {
+                NativeInterop.SetContentionTrackingEnabled(enabled);
+            }
+            catch (DllNotFoundException)
+            {
+                _dllNotFound = true;
+            }
+        }
         
         private readonly ContextTracker _contextTracker;
         private bool _dllNotFound;

@@ -84,6 +84,16 @@ void CorProfilerCallback::SetStackSamplerEnabled(bool enabled)
     }
 }
 
+void CorProfilerCallback::SetAllocationTrackingEnabled(bool enabled)
+{
+    _pClrEventsParser->SetAllocationTrackingEnabled(enabled);
+}
+
+void CorProfilerCallback::SetContentionTrackingEnabled(bool enabled)
+{
+    _pClrEventsParser->SetContentionTrackingEnabled(enabled);
+}
+
 // Initialization
 
 CorProfilerCallback* CorProfilerCallback::_this = nullptr;

@@ -184,6 +184,8 @@ public:
     IApplicationStore* GetApplicationStore() { return _pApplicationStore; }
     IExporter* GetExporter() { return _pExporter.get(); }
     void SetStackSamplerEnabled(bool enabled);
+    void SetAllocationTrackingEnabled(bool enabled);
+    void SetContentionTrackingEnabled(bool enabled);
 
 private :
     static CorProfilerCallback* _this;

@@ -15,7 +15,9 @@
 ClrEventsParser::ClrEventsParser(ICorProfilerInfo12* pCorProfilerInfo, IAllocationsListener* pAllocationListener, IContentionListener* pContentionListener) :
     _pCorProfilerInfo{pCorProfilerInfo},
     _pAllocationListener{pAllocationListener},
-    _pContentionListener{pContentionListener}
+    _pContentionListener{pContentionListener},
+    _allocationEnabled{true},
+    _contentionEnabled{true}
 {
 }
 
@@ -59,7 +61,7 @@ void ClrEventsParser::ParseEvent(
 
 void ClrEventsParser::ParseGcEvent(DWORD id, DWORD version, ULONG cbEventData, LPCBYTE pEventData)
 {
-    if (_pAllocationListener == nullptr)
+    if (_pAllocationListener == nullptr || !_allocationEnabled)
     {
         return;
     }
@@ -124,7 +126,7 @@ void ClrEventsParser::ParseGcEvent(DWORD id, DWORD version, ULONG cbEventData, L
 
 void ClrEventsParser::ParseContentionEvent(DWORD id, DWORD version, ULONG cbEventData, LPCBYTE pEventData)
 {
-    if (_pContentionListener == nullptr)
+    if (_pContentionListener == nullptr || !_contentionEnabled)
     {
         return;
     }
@@ -165,4 +167,16 @@ bool ClrEventsParser::TryGetEventInfo(LPCBYTE pMetadata, ULONG cbMetadata, WCHAR
     Read(version, pMetadata, cbMetadata, offset);
 
     return true;
+}
+
+void ClrEventsParser::SetAllocationTrackingEnabled(bool enabled)
+{
+    std::cout << "SetAllocationTrackingEnabled: " << enabled << std::endl;
+    _allocationEnabled = enabled;
+}
+
+void ClrEventsParser::SetContentionTrackingEnabled(bool enabled)
+{
+        std::cout << "SetContentionTrackingEnabled: " << enabled << std::endl;
+    _contentionEnabled = enabled;
 }
