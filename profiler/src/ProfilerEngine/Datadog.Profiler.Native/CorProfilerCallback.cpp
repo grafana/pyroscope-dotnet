@@ -94,11 +94,16 @@ void CorProfilerCallback::SetContentionTrackingEnabled(bool enabled)
     _pClrEventsParser->SetContentionTrackingEnabled(enabled);
 }
 
+void CorProfilerCallback::SetExceptionTrackingEnabled(bool enabled)
+{
+    _exceptionTrackingEnabled = enabled;
+}
+
 // Initialization
 
 CorProfilerCallback* CorProfilerCallback::_this = nullptr;
 
-CorProfilerCallback::CorProfilerCallback()
+CorProfilerCallback::CorProfilerCallback() : _exceptionTrackingEnabled(true)
 {
     // Keep track of the one and only ICorProfilerCallback implementation.
     // It will be used as root for other services
@@ -111,6 +116,7 @@ CorProfilerCallback::CorProfilerCallback()
 #endif
     google::javaprofiler::AsyncRefCountedString::Init();
     google::javaprofiler::Tags::Init();
+
 }
 
 // Cleanup
@@ -1257,6 +1263,11 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::ExceptionThrown(ObjectID thrownOb
     if (false == _isInitialized.load())
     {
         // If this CorProfilerCallback has not yet initialized, or if it has already shut down, then this callback is a No-Op.
+        return S_OK;
+    }
+
+    if (!_exceptionTrackingEnabled)
+    {
         return S_OK;
     }
 

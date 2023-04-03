@@ -49,3 +49,5 @@ extern "C" void __stdcall SetStackSamplerEnabled(bool enabled);
 extern "C" void __stdcall SetAllocationTrackingEnabled(bool enabled);
 
 extern "C" void __stdcall SetContentionTrackingEnabled(bool enabled);
+
+extern "C" void __stdcall SetExceptionTrackingEnabled(bool enabled);

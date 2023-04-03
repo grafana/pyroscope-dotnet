@@ -186,6 +186,7 @@ public:
     void SetStackSamplerEnabled(bool enabled);
     void SetAllocationTrackingEnabled(bool enabled);
     void SetContentionTrackingEnabled(bool enabled);
+    void SetExceptionTrackingEnabled(bool enabled);
 
 private :
     static CorProfilerCallback* _this;
@@ -207,6 +208,7 @@ private :
     IManagedThreadList* _pManagedThreadList = nullptr;
     IApplicationStore* _pApplicationStore = nullptr;
     ExceptionsProvider* _pExceptionsProvider = nullptr;
+    volatile bool _exceptionTrackingEnabled = true;
     WallTimeProvider* _pWallTimeProvider = nullptr;
     CpuTimeProvider* _pCpuTimeProvider = nullptr;
     AllocationsProvider* _pAllocationsProvider = nullptr;

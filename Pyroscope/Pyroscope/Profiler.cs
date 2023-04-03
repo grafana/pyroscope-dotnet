@@ -112,6 +112,22 @@ namespace Pyroscope
                 _dllNotFound = true;
             }
         }
+
+        public void SetExceptionTrackingEnabled(bool enabled)
+        {
+            if (_dllNotFound)
+            {
+                return;
+            }
+            try
+            {
+                NativeInterop.SetExceptionTrackingEnabled(enabled);
+            }
+            catch (DllNotFoundException)
+            {
+                _dllNotFound = true;
+            }
+        }
         
         private readonly ContextTracker _contextTracker;
         private bool _dllNotFound;

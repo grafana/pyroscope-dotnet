@@ -58,6 +58,12 @@ namespace Pyroscope
             NativeMethods.SetContentionTrackingEnabled(enabled);
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void SetExceptionTrackingEnabled(bool enabled)
+        {
+            NativeMethods.SetExceptionTrackingEnabled(enabled);
+        }
+
         // These methods are rewritten by the native tracer to use the correct paths
         private static class NativeMethods
         {
@@ -84,6 +90,10 @@ namespace Pyroscope
 
             [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetContentionTrackingEnabled")]
             public static extern void SetContentionTrackingEnabled(bool enabled);
+
+            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetExceptionTrackingEnabled")]
+            public static extern void SetExceptionTrackingEnabled(bool enabled);
+
         }
     }
 }

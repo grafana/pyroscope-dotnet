@@ -232,3 +232,19 @@ extern "C" void __stdcall SetContentionTrackingEnabled(bool enabled) {
     }
     profiler->SetContentionTrackingEnabled(enabled);
 }
+
+extern "C" void __stdcall SetExceptionTrackingEnabled(bool enabled) {
+    auto *const profiler = CorProfilerCallback::GetInstance();
+
+    if (profiler == nullptr)
+    {
+        Log::Error("SetExceptionTrackingEnabled is called BEFORE CLR initialize");
+        return;
+    }
+
+    if (!profiler->GetClrLifetime()->IsRunning())
+    {
+        return;
+    }
+    profiler->SetExceptionTrackingEnabled(enabled);
+}
