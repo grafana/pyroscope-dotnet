@@ -72,6 +72,18 @@ IClrLifetime* CorProfilerCallback::GetClrLifetime() const
     return _pClrLifetime.get();
 }
 
+void CorProfilerCallback::SetStackSamplerEnabled(bool enabled)
+{
+    if (enabled)
+    {
+        _pStackSamplerLoopManager->Start();
+    }
+    else
+    {
+        _pStackSamplerLoopManager->Stop();
+    }
+}
+
 // Initialization
 
 CorProfilerCallback* CorProfilerCallback::_this = nullptr;

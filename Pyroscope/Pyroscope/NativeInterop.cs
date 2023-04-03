@@ -40,6 +40,12 @@ namespace Pyroscope
             NativeMethods.ClearDynamicTags();
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void SetStackSamplerEnabled(bool enabled)
+        {
+            NativeMethods.SetStackSamplerEnabled(enabled);
+        }
+
         // These methods are rewritten by the native tracer to use the correct paths
         private static class NativeMethods
         {
@@ -57,6 +63,9 @@ namespace Pyroscope
             
             [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "ClearDynamicTags")]
             public static extern void ClearDynamicTags();
+
+            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetStackSamplerEnabled")]
+            public static extern void SetStackSamplerEnabled(bool enabled);
         }
     }
 }

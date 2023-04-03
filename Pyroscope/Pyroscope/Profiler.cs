@@ -64,6 +64,22 @@ namespace Pyroscope
                 _dllNotFound = true;
             }
         }
+
+        public void SetStackSamplerEnabled(bool enabled)
+        {
+            if (_dllNotFound)
+            {
+                return;
+            }
+            try
+            {
+                NativeInterop.SetStackSamplerEnabled(enabled);
+            }
+            catch (DllNotFoundException)
+            {
+                _dllNotFound = true;
+            }
+        }
         
         private readonly ContextTracker _contextTracker;
         private bool _dllNotFound;

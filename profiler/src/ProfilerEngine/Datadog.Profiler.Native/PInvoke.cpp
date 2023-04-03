@@ -183,3 +183,19 @@ extern "C" void __stdcall ClearDynamicTags() {
     pCurrentThreadInfo->GetTags()
         .ClearAll();
 }
+
+extern "C" void __stdcall SetStackSamplerEnabled(bool enabled) {
+    auto *const profiler = CorProfilerCallback::GetInstance();
+
+    if (profiler == nullptr)
+    {
+        Log::Error("SetStackSamplerEnabled is called BEFORE CLR initialize");
+        return;
+    }
+
+    if (!profiler->GetClrLifetime()->IsRunning())
+    {
+        return;
+    }
+    profiler->SetStackSamplerEnabled(enabled);
+}

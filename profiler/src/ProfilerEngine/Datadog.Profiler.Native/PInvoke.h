@@ -43,3 +43,5 @@ extern "C" void __stdcall SetApplicationInfoForAppDomain(const char* runtimeId, 
 extern "C" void __stdcall SetDynamicTag(const char* key, const char* value);
 
 extern "C" void __stdcall ClearDynamicTags();
+
+extern "C" void __stdcall SetStackSamplerEnabled(bool enabled);

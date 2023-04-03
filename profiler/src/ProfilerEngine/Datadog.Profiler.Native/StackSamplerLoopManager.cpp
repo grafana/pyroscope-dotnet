@@ -83,20 +83,28 @@ const char* StackSamplerLoopManager::GetName()
 
 bool StackSamplerLoopManager::Start()
 {
+    std::lock_guard<std::mutex> lock(_startStopLock);
+    if (_isStarted)
+    {
+        return true;
+    }
+    _isWatcherShutdownRequested = false;
     this->RunStackSampling();
     this->RunWatcher();
+    _isStarted = true;
 
     return true;
 }
 
 bool StackSamplerLoopManager::Stop()
 {
+    std::lock_guard<std::mutex> lock(_startStopLock);
     // allow multiple calls to Stop()
-    if (_isStopped)
+    if (!_isStarted)
     {
         return true;
     }
-    _isStopped = true;
+    _isStarted = false;
 
     GracefulShutdownStackSampling();
     ShutdownWatcher();

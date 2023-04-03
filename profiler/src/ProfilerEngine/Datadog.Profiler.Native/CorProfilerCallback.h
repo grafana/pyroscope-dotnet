@@ -183,6 +183,7 @@ public:
     IStackSamplerLoopManager* GetStackSamplerLoopManager() { return _pStackSamplerLoopManager; }
     IApplicationStore* GetApplicationStore() { return _pApplicationStore; }
     IExporter* GetExporter() { return _pExporter.get(); }
+    void SetStackSamplerEnabled(bool enabled);
 
 private :
     static CorProfilerCallback* _this;
