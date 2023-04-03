@@ -120,6 +120,7 @@ if(ISLINUX)
     add_compile_options(-stdlib=libstdc++)
 endif()
 add_subdirectory(third_party/protobuf)
+add_subdirectory(third_party/CxxUrl)
 
 set_property(TARGET libprotobuf PROPERTY POSITION_INDEPENDENT_CODE ON)
 
