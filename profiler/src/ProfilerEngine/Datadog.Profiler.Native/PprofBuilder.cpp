@@ -47,6 +47,10 @@ void PprofBuilder::AddSample(const Sample& sample)
     _samplesCount++;
 }
 
+int PprofBuilder::SamplesCount() {
+    return _samplesCount;
+}
+
 std::string PprofBuilder::Build()
 {
     std::lock_guard<std::mutex> lock(this->_lock);

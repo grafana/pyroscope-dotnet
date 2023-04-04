@@ -38,7 +38,10 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime)
         std::lock_guard lock(_perAppBuilderLock);
         for (auto& builder : _perAppBuilder)
         {
-            pprofs.emplace_back(builder.second->Build());
+            if (builder.second->SamplesCount() != 0)
+            {
+                pprofs.emplace_back(builder.second->Build());
+            }
         }
     }
     for (const auto& pprof : pprofs)
