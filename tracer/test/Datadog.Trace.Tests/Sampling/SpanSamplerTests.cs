@@ -37,9 +37,9 @@ namespace Datadog.Trace.Tests.Sampling
 
             sampler.MakeSamplingDecision(span).Should().BeFalse();
 
-            span.Tags.GetTag(Tags.SingleSpanSampling.RuleRate).Should().BeNull();
-            span.Tags.GetTag(Tags.SingleSpanSampling.MaxPerSecond).Should().BeNull();
-            span.Tags.GetTag(Tags.SingleSpanSampling.SamplingMechanism).Should().BeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.RuleRate).Should().BeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.MaxPerSecond).Should().BeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.SamplingMechanism).Should().BeNull();
         }
 
         [Fact]
@@ -52,9 +52,9 @@ namespace Datadog.Trace.Tests.Sampling
 
             sampler.MakeSamplingDecision(span).Should().BeFalse();
 
-            span.Tags.GetTag(Tags.SingleSpanSampling.RuleRate).Should().BeNull();
-            span.Tags.GetTag(Tags.SingleSpanSampling.MaxPerSecond).Should().BeNull();
-            span.Tags.GetTag(Tags.SingleSpanSampling.SamplingMechanism).Should().BeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.RuleRate).Should().BeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.MaxPerSecond).Should().BeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.SamplingMechanism).Should().BeNull();
         }
 
         [Fact]
@@ -71,9 +71,9 @@ namespace Datadog.Trace.Tests.Sampling
 
             sampler.MakeSamplingDecision(span).Should().BeTrue();
 
-            span.Tags.GetTag(Tags.SingleSpanSampling.RuleRate).Should().Be(expectedRuleRate.ToString());
-            span.Tags.GetTag(Tags.SingleSpanSampling.MaxPerSecond).Should().Be(expectedMaxPerSecond.ToString());
-            span.Tags.GetTag(Tags.SingleSpanSampling.SamplingMechanism).Should().Be(expectedSamplingMechanism.ToString());
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.RuleRate).Should().Be(expectedRuleRate);
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.MaxPerSecond).Should().Be(expectedMaxPerSecond);
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.SamplingMechanism).Should().Be(expectedSamplingMechanism);
         }
 
         [Fact]
@@ -90,9 +90,9 @@ namespace Datadog.Trace.Tests.Sampling
 
             sampler.MakeSamplingDecision(span).Should().BeTrue();
 
-            span.Tags.GetTag(Tags.SingleSpanSampling.RuleRate).Should().Be(expectedRuleRate.ToString());
-            span.Tags.GetTag(Tags.SingleSpanSampling.MaxPerSecond).Should().Be(expectedMaxPerSecond.ToString());
-            span.Tags.GetTag(Tags.SingleSpanSampling.SamplingMechanism).Should().Be(expectedSamplingMechanism.ToString());
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.RuleRate).Should().Be(expectedRuleRate);
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.MaxPerSecond).Should().Be(expectedMaxPerSecond);
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.SamplingMechanism).Should().Be(expectedSamplingMechanism);
         }
 
         [Fact]
@@ -106,9 +106,9 @@ namespace Datadog.Trace.Tests.Sampling
 
             sampler.MakeSamplingDecision(span).Should().BeFalse();
 
-            span.Tags.GetTag(Tags.SingleSpanSampling.RuleRate).Should().BeNull();
-            span.Tags.GetTag(Tags.SingleSpanSampling.MaxPerSecond).Should().BeNull();
-            span.Tags.GetTag(Tags.SingleSpanSampling.SamplingMechanism).Should().BeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.RuleRate).Should().BeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.MaxPerSecond).Should().BeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.SamplingMechanism).Should().BeNull();
         }
 
         [Fact]
@@ -119,9 +119,9 @@ namespace Datadog.Trace.Tests.Sampling
 
             sampler.MakeSamplingDecision(span).Should().BeFalse();
 
-            span.Tags.GetTag(Tags.SingleSpanSampling.RuleRate).Should().BeNull();
-            span.Tags.GetTag(Tags.SingleSpanSampling.MaxPerSecond).Should().BeNull();
-            span.Tags.GetTag(Tags.SingleSpanSampling.SamplingMechanism).Should().BeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.RuleRate).Should().BeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.MaxPerSecond).Should().BeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.SamplingMechanism).Should().BeNull();
         }
 
         [Fact]
@@ -133,9 +133,9 @@ namespace Datadog.Trace.Tests.Sampling
 
             sampler.MakeSamplingDecision(span).Should().BeTrue();
 
-            span.Tags.GetTag(Tags.SingleSpanSampling.RuleRate).Should().NotBeNull();
-            span.Tags.GetTag(Tags.SingleSpanSampling.MaxPerSecond).Should().NotBeNull();
-            span.Tags.GetTag(Tags.SingleSpanSampling.SamplingMechanism).Should().NotBeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.RuleRate).Should().NotBeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.MaxPerSecond).Should().NotBeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.SamplingMechanism).Should().NotBeNull();
         }
 
         [Fact]
@@ -147,9 +147,9 @@ namespace Datadog.Trace.Tests.Sampling
 
             sampler.MakeSamplingDecision(span).Should().BeFalse();
 
-            span.Tags.GetTag(Tags.SingleSpanSampling.RuleRate).Should().BeNull();
-            span.Tags.GetTag(Tags.SingleSpanSampling.MaxPerSecond).Should().BeNull();
-            span.Tags.GetTag(Tags.SingleSpanSampling.SamplingMechanism).Should().BeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.RuleRate).Should().BeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.MaxPerSecond).Should().BeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.SamplingMechanism).Should().BeNull();
         }
 
         [Fact]
@@ -164,9 +164,9 @@ namespace Datadog.Trace.Tests.Sampling
 
             sampler.MakeSamplingDecision(span).Should().BeTrue();
 
-            span.Tags.GetTag(Tags.SingleSpanSampling.RuleRate).Should().Be(expectedRuleRate.ToString());
-            span.Tags.GetTag(Tags.SingleSpanSampling.MaxPerSecond).Should().BeNull();
-            span.Tags.GetTag(Tags.SingleSpanSampling.SamplingMechanism).Should().Be(expectedSamplingMechanism.ToString());
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.RuleRate).Should().Be(expectedRuleRate);
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.MaxPerSecond).Should().BeNull();
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.SamplingMechanism).Should().Be(expectedSamplingMechanism);
         }
 
         [Fact]
@@ -182,9 +182,9 @@ namespace Datadog.Trace.Tests.Sampling
 
             sampler.MakeSamplingDecision(span).Should().BeTrue();
 
-            span.Tags.GetTag(Tags.SingleSpanSampling.RuleRate).Should().Be(expectedRuleRate.ToString());
-            span.Tags.GetTag(Tags.SingleSpanSampling.MaxPerSecond).Should().Be(expectedMaxPerSecond.ToString());
-            span.Tags.GetTag(Tags.SingleSpanSampling.SamplingMechanism).Should().Be(expectedSamplingMechanism.ToString());
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.RuleRate).Should().Be(expectedRuleRate);
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.MaxPerSecond).Should().Be(expectedMaxPerSecond);
+            span.Tags.GetMetric(Metrics.SingleSpanSampling.SamplingMechanism).Should().Be(expectedSamplingMechanism);
         }
 
         [Fact]
@@ -238,7 +238,7 @@ namespace Datadog.Trace.Tests.Sampling
 
             for (var i = 0; i < iterations; i++)
             {
-                var traceId = SpanIdGenerator.CreateNew();
+                var traceId = RandomIdGenerator.Shared.NextSpanId();
                 var span = GetSpan(traceId);
                 var sampled = sampler.MakeSamplingDecision(span);
 
@@ -265,7 +265,7 @@ namespace Datadog.Trace.Tests.Sampling
 
         private Span GetSpan(ulong traceId)
         {
-            var span = new Span(new SpanContext(traceId, SpanIdGenerator.CreateNew(), null, serviceName: "service-name"), DateTimeOffset.Now) { OperationName = "operation-name" };
+            var span = new Span(new SpanContext(traceId, RandomIdGenerator.Shared.NextSpanId(), null, serviceName: "service-name"), DateTimeOffset.Now) { OperationName = "operation-name" };
             return span;
         }
     }

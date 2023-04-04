@@ -38,6 +38,8 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
 
         public static IEnumerable<object[]> GraphQL => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.GraphQL : PackageVersionsLatestSpecific.GraphQL;
 
+        public static IEnumerable<object[]> GraphQL7 => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.GraphQL7 : PackageVersionsLatestSpecific.GraphQL7;
+
         public static IEnumerable<object[]> HotChocolate => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.HotChocolate : PackageVersionsLatestSpecific.HotChocolate;
 
         public static IEnumerable<object[]> Npgsql => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.Npgsql : PackageVersionsLatestSpecific.Npgsql;
@@ -83,5 +85,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
         public static IEnumerable<object[]> Grpc => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.Grpc : PackageVersionsLatestSpecific.Grpc;
 
         public static IEnumerable<object[]> GrpcLegacy => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.GrpcLegacy : PackageVersionsLatestSpecific.GrpcLegacy;
+
+        public static IEnumerable<object[]> OpenTelemetry => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.OpenTelemetry : PackageVersionsLatestSpecific.OpenTelemetry;
     }
 }

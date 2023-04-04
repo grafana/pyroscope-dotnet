@@ -7,10 +7,10 @@ using System;
 using System.Diagnostics;
 using System.Globalization;
 using Datadog.Trace.ClrProfiler;
+using Datadog.Trace.Configuration;
 using Datadog.Trace.ContinuousProfiler;
 using Datadog.Trace.Iast;
 using Datadog.Trace.Logging;
-using Datadog.Trace.PlatformHelpers;
 using Datadog.Trace.Sampling;
 using Datadog.Trace.Tagging;
 using Datadog.Trace.Util;
@@ -32,8 +32,20 @@ namespace Datadog.Trace
 
         public TraceContext(IDatadogTracer tracer, TraceTagCollection tags = null)
         {
+            var settings = tracer?.Settings;
+
+            // TODO: Environment, ServiceVersion, GitCommitSha, and GitRepositoryUrl are stored on the TraceContext
+            // even though they likely won't change for the lifetime of the process. We should consider moving them
+            // elsewhere to reduce the memory usage.
+            if (settings is not null)
+            {
+                // these could be set from DD_ENV/DD_VERSION or from DD_TAGS
+                Environment = settings.Environment;
+                ServiceVersion = settings.ServiceVersion;
+            }
+
             Tracer = tracer;
-            Tags = tags ?? new TraceTagCollection(tracer?.Settings?.OutgoingTagPropagationHeaderMaxLength ?? TagPropagation.OutgoingTagPropagationHeaderMaxLength);
+            Tags = tags ?? new TraceTagCollection(settings?.OutgoingTagPropagationHeaderMaxLength ?? TagPropagation.OutgoingTagPropagationHeaderMaxLength);
         }
 
         public Span RootSpan { get; private set; }
@@ -55,26 +67,36 @@ namespace Datadog.Trace
             get => _samplingPriority;
         }
 
-        /// <summary>
-        /// Gets the iast context.
-        /// </summary>
-        internal IastRequestContext IastRequestContext
-        {
-            get
-            {
-                if (_iastRequestContext == null && Iast.Iast.Instance.Settings.Enabled)
-                {
-                    lock (_syncRoot)
-                    {
-                        _iastRequestContext ??= new();
-                    }
-                }
+        public string Environment { get; set; }
 
-                return _iastRequestContext;
-            }
-        }
+        public string ServiceVersion { get; set; }
+
+        public string Origin { get; set; }
+
+        /// <summary>
+        /// Gets or sets additional key/value pairs from upstream "tracestate" header that we will propagate downstream.
+        /// This value will _not_ include the "dd" key, which is parsed out into other individual values
+        /// (e.g. sampling priority, origin, propagates tags, etc).
+        /// </summary>
+        internal string AdditionalW3CTraceState { get; set; }
+
+        /// <summary>
+        /// Gets the IAST context.
+        /// </summary>
+        internal IastRequestContext IastRequestContext => _iastRequestContext;
 
         private TimeSpan Elapsed => StopwatchHelpers.GetElapsed(Stopwatch.GetTimestamp() - _timestamp);
+
+        internal void EnableIastInRequest()
+        {
+            if (_iastRequestContext is null)
+            {
+                lock (_syncRoot)
+                {
+                    _iastRequestContext ??= new();
+                }
+            }
+        }
 
         public void AddSpan(Span span)
         {
@@ -82,24 +104,14 @@ namespace Datadog.Trace
             {
                 if (RootSpan == null)
                 {
-                    // first span added is the root span
+                    // first span added is the local root span
                     RootSpan = span;
 
+                    // if we don't have a sampling priority yet, make a sampling decision now
                     if (_samplingPriority == null)
                     {
-                        if (span.Context.Parent is SpanContext { SamplingPriority: { } samplingPriority })
-                        {
-                            // this is a local root span created from a propagated context that contains a sampling priority.
-                            // any distributed tags were already parsed from SpanContext.PropagatedTags and added to the TraceContext.
-                            SetSamplingPriority(samplingPriority);
-                        }
-                        else
-                        {
-                            // this is a local root span with no upstream service.
-                            // make a sampling decision early so it's ready if we need it for propagation.
-                            var samplingDecision = Tracer.Sampler?.MakeSamplingDecision(span) ?? SamplingDecision.Default;
-                            SetSamplingPriority(samplingDecision);
-                        }
+                        var samplingDecision = Tracer.Sampler?.MakeSamplingDecision(span) ?? SamplingDecision.Default;
+                        SetSamplingPriority(samplingDecision);
                     }
                 }
 
@@ -118,9 +130,10 @@ namespace Datadog.Trace
             {
                 Profiler.Instance.ContextTracker.SetEndpoint(span.RootSpanId, span.ResourceName);
 
-                if (Iast.Iast.Instance.Settings.Enabled)
+                if (Iast.Iast.Instance.Settings.Enabled && _iastRequestContext != null)
                 {
-                    IastRequestContext.AddsIastTagsToSpan(span, _iastRequestContext);
+                    _iastRequestContext.AddIastVulnerabilitiesToSpan(span);
+                    OverheadController.Instance.ReleaseRequest();
                 }
             }
 
@@ -137,7 +150,7 @@ namespace Datadog.Trace
                 else if (ShouldTriggerPartialFlush())
                 {
                     Log.Debug<ulong, ulong, int>(
-                        "Closing span {spanId} triggered a partial flush of trace {traceId} with {spanCount} pending spans",
+                        "Closing span {SpanId} triggered a partial flush of trace {TraceId} with {SpanCount} pending spans",
                         span.SpanId,
                         span.TraceId,
                         _spans.Count);
@@ -153,10 +166,6 @@ namespace Datadog.Trace
 
             if (spansToWrite.Count > 0)
             {
-                // When receiving chunks of spans, the backend checks whether the aas.resource.id tag is present on any of the
-                // span to decide which metric to emit (datadog.apm.host.instance or datadog.apm.azure_resource_instance one).
-                AddAASMetadata(spansToWrite.Array![spansToWrite.Offset]);
-
                 Tracer.Write(spansToWrite);
             }
         }
@@ -174,7 +183,6 @@ namespace Datadog.Trace
 
             if (spansToWrite.Count > 0)
             {
-                AddAASMetadata(spansToWrite.Array![spansToWrite.Offset]);
                 Tracer.Write(spansToWrite);
             }
         }
@@ -220,24 +228,6 @@ namespace Datadog.Trace
         public TimeSpan ElapsedSince(DateTimeOffset date)
         {
             return Elapsed + (_utcStart - date);
-        }
-
-        private static void AddAASMetadata(Span span)
-        {
-            if (AzureAppServices.Metadata.IsRelevant)
-            {
-                span.Tags.SetTag(Datadog.Trace.Tags.AzureAppServicesSiteName, AzureAppServices.Metadata.SiteName);
-                span.Tags.SetTag(Datadog.Trace.Tags.AzureAppServicesSiteKind, AzureAppServices.Metadata.SiteKind);
-                span.Tags.SetTag(Datadog.Trace.Tags.AzureAppServicesSiteType, AzureAppServices.Metadata.SiteType);
-                span.Tags.SetTag(Datadog.Trace.Tags.AzureAppServicesResourceGroup, AzureAppServices.Metadata.ResourceGroup);
-                span.Tags.SetTag(Datadog.Trace.Tags.AzureAppServicesSubscriptionId, AzureAppServices.Metadata.SubscriptionId);
-                span.Tags.SetTag(Datadog.Trace.Tags.AzureAppServicesResourceId, AzureAppServices.Metadata.ResourceId);
-                span.Tags.SetTag(Datadog.Trace.Tags.AzureAppServicesInstanceId, AzureAppServices.Metadata.InstanceId);
-                span.Tags.SetTag(Datadog.Trace.Tags.AzureAppServicesInstanceName, AzureAppServices.Metadata.InstanceName);
-                span.Tags.SetTag(Datadog.Trace.Tags.AzureAppServicesOperatingSystem, AzureAppServices.Metadata.OperatingSystem);
-                span.Tags.SetTag(Datadog.Trace.Tags.AzureAppServicesRuntime, AzureAppServices.Metadata.Runtime);
-                span.Tags.SetTag(Datadog.Trace.Tags.AzureAppServicesExtensionVersion, AzureAppServices.Metadata.SiteExtensionVersion);
-            }
         }
     }
 }

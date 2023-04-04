@@ -39,13 +39,6 @@ internal class DataStreamsManager
         _writer = writer;
     }
 
-    /// <summary>
-    /// Gets the tags to use when setting a checkpoint on a "producer",
-    /// which requires setting the <c>type:internal</c> edge tags.
-    /// Rather than creating a new array each time, this provides a cache.
-    /// </summary>
-    public static string[] InternalEdgeTags { get; } = { "type:internal" };
-
     public bool IsEnabled => Volatile.Read(ref _isEnabled);
 
     public static DataStreamsManager Create(
@@ -157,7 +150,7 @@ internal class DataStreamsManager
         }
         catch (Exception ex)
         {
-            Log.Error("Error setting a data streams checkpoint. Disabling data streams monitoring", ex);
+            Log.Error(ex, "Error setting a data streams checkpoint. Disabling data streams monitoring");
             // Set this to false out of an abundance of caution.
             // We will look at being less conservative in the future
             // if we see intermittent errors for some reason.

@@ -104,7 +104,7 @@ namespace Datadog.Trace.TestHelpers
         /// </summary>
         public bool ShouldDeserializeTraces { get; set; } = true;
 
-        public static TcpUdpAgent Create(ITestOutputHelper output, int port = 8126, int retries = 5, bool useStatsd = false, bool doNotBindPorts = false, int? requestedStatsDPort = null, bool useTelemetry = false, AgentConfiguration agentConfiguration = null)
+        public static TcpUdpAgent Create(ITestOutputHelper output, int? port = null, int retries = 5, bool useStatsd = false, bool doNotBindPorts = false, int? requestedStatsDPort = null, bool useTelemetry = false, AgentConfiguration agentConfiguration = null)
             => new TcpUdpAgent(port, retries, useStatsd, doNotBindPorts, requestedStatsDPort, useTelemetry) { Output = output, Configuration = agentConfiguration ?? new() };
 
 #if NETCOREAPP3_1_OR_GREATER
@@ -350,6 +350,29 @@ namespace Datadog.Trace.TestHelpers
         public void ClearProbeStatuses()
         {
             ProbesStatuses.Clear();
+        }
+
+        public async Task<string[]> WaitForStatsdRequests(int statsdRequestsCount, TimeSpan? timeout = null)
+        {
+            using var cancellationSource = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(5));
+
+            var isFound = false;
+            while (!isFound && !cancellationSource.IsCancellationRequested)
+            {
+                isFound = StatsdRequests.Count >= statsdRequestsCount;
+
+                if (!isFound)
+                {
+                    await Task.Delay(100, cancellationSource.Token);
+                }
+            }
+
+            if (!isFound)
+            {
+                throw new InvalidOperationException($"Stats requested count not found. Expected {statsdRequestsCount}, actual {ProbesStatuses.Count}");
+            }
+
+            return StatsdRequests.ToArray();
         }
 
         public virtual void Dispose()
@@ -870,13 +893,14 @@ namespace Datadog.Trace.TestHelpers
             private readonly Task _tracesListenerTask;
             private readonly Task _statsdTask;
 
-            public TcpUdpAgent(int port, int retries, bool useStatsd, bool doNotBindPorts, int? requestedStatsDPort, bool useTelemetry)
+            public TcpUdpAgent(int? port, int retries, bool useStatsd, bool doNotBindPorts, int? requestedStatsDPort, bool useTelemetry)
                 : base(useTelemetry, TestTransports.Tcp)
             {
+                port ??= TcpPortProvider.GetOpenPort();
                 if (doNotBindPorts)
                 {
                     // This is for any tests that want to use a specific port but never actually bind
-                    Port = port;
+                    Port = port.Value;
                     return;
                 }
 
@@ -938,7 +962,7 @@ namespace Datadog.Trace.TestHelpers
                         listener.Start();
 
                         // successfully listening
-                        Port = port;
+                        Port = port.Value;
                         _listener = listener;
 
                         listeners.Add($"Traces at port {Port}");
@@ -1352,6 +1376,25 @@ namespace Datadog.Trace.TestHelpers
                     catch (Exception) when (_cancellationTokenSource.IsCancellationRequested)
                     {
                         return;
+                    }
+                    catch (SocketException ex)
+                    {
+                        var message = ex.Message.ToLowerInvariant();
+                        if (message.Contains("interrupted"))
+                        {
+                            // Accept call is likely interrupted by a dispose
+                            // Swallow the exception and let the test finish
+                            return;
+                        }
+
+                        if (message.Contains("broken") || message.Contains("forcibly closed") || message.Contains("invalid argument"))
+                        {
+                            // The application was likely shut down
+                            // Swallow the exception and let the test finish
+                            return;
+                        }
+
+                        throw;
                     }
                     catch (Exception ex)
                     {

@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.ServiceProcess;
 using System.Threading.Tasks;
 
@@ -28,10 +29,17 @@ namespace Samples.Computer01
         private IteratorComputation _iteratorComputation;
         private GenericsAllocation _genericsAllocation;
         private ContentionGenerator _contentionGenerator;
+        private GarbageCollections _garbageCollections;
+        private MemoryLeak _memoryLeak;
+        private QuicklyDeadThreads _quicklyDeadThreads;
 
 #if NET6_0_OR_GREATER
         private LinuxSignalHandler _linuxSignalHandler;
 #endif
+        private LinuxMallocDeadLock _linuxMallockDeadlock;
+        private MeasureAllocations _measureAllocations;
+        private InnerMethods _innerMethods;
+        private LineNumber _lineNumber;
 
         public void StartService(Scenario scenario, int nbThreads, int parameter)
         {
@@ -49,6 +57,10 @@ namespace Samples.Computer01
                     StartFibonacciComputation(nbThreads);
                     StartSleep(nbThreads);
                     StartAsyncComputation(nbThreads);
+                    StartIteratorComputation(nbThreads);
+                    StartGenericsAllocation(nbThreads);
+                    StartContentionGenerator(nbThreads, parameter);
+                    StartLineNumber();
                     break;
 
                 case Scenario.Computer:
@@ -96,6 +108,33 @@ namespace Samples.Computer01
                     StartLinuxSignalHandler();
                     break;
 #endif
+                case Scenario.GarbageCollection:
+                    StartGarbageCollections(parameter);
+                    break;
+
+                case Scenario.MemoryLeak:
+                    StartMemoryLeak(parameter);
+                    break;
+
+                case Scenario.QuicklyDeadThreads:
+                    StartQuicklyDeadThreads(nbThreads, parameter);
+                    break;
+
+                case Scenario.LinuxMallocDeadlock:
+                    StartLinuxMallocDeadlock();
+                    break;
+
+                case Scenario.MeasureAllocations:
+                    StartMeasureAllocations();
+                    break;
+
+                case Scenario.InnerMethods:
+                    StartInnerMethods();
+                    break;
+
+                case Scenario.LineNumber:
+                    StartLineNumber();
+                    break;
 
                 default:
                     throw new ArgumentOutOfRangeException(nameof(scenario), $"Unsupported scenario #{_scenario}");
@@ -113,6 +152,11 @@ namespace Samples.Computer01
                     StopPiComputation();
                     StopFibonacciComputation();
                     StopSleep();
+                    StopAsyncComputation();
+                    StopIteratorComputation();
+                    StopGenericsAllocation();
+                    StopContentionGenerator();
+                    StopLineNumber();
                     break;
 
                 case Scenario.Computer:
@@ -160,6 +204,34 @@ namespace Samples.Computer01
                     StopLinuxSignalHandler();
                     break;
 #endif
+
+                case Scenario.GarbageCollection:
+                    StopGarbageCollections();
+                    break;
+
+                case Scenario.MemoryLeak:
+                    StopMemoryLeak();
+                    break;
+
+                case Scenario.QuicklyDeadThreads:
+                    StopQuicklyDeadThreads();
+                    break;
+
+                case Scenario.LinuxMallocDeadlock:
+                    StopLinuxMallocDeadlock();
+                    break;
+
+                case Scenario.MeasureAllocations:
+                    StopMeasureAllocations();
+                    break;
+
+                case Scenario.InnerMethods:
+                    StopInnerMethods();
+                    break;
+
+                case Scenario.LineNumber:
+                    StopLineNumber();
+                    break;
             }
         }
 
@@ -171,6 +243,8 @@ namespace Samples.Computer01
 
             for (int i = 0; i < iterations; i++)
             {
+                Console.WriteLine($"___Iteration {i + 1}___");
+
                 switch (scenario)
                 {
                     case Scenario.All:
@@ -179,6 +253,12 @@ namespace Samples.Computer01
                         RunSimpleWallTime();
                         RunPiComputation();
                         RunFibonacciComputation(nbThreads);
+                        RunSleep(nbThreads);
+                        RunAsyncComputation(nbThreads);
+                        RunIteratorComputation(nbThreads);
+                        RunGenericsAllocation(nbThreads);
+                        RunContentionGenerator(nbThreads, parameter);
+                        RunLineNumber();
                         break;
 
                     case Scenario.Computer:
@@ -226,10 +306,39 @@ namespace Samples.Computer01
                         RunLinuxSignalHandler();
                         break;
 #endif
+                    case Scenario.GarbageCollection:
+                        RunGarbageCollections(parameter);
+                        break;
+
+                    case Scenario.MemoryLeak:
+                        RunMemoryLeak(parameter);
+                        break;
+
+                    case Scenario.QuicklyDeadThreads:
+                        RunQuicklyDeadThreads(nbThreads, parameter);
+                        break;
+
+                    case Scenario.LinuxMallocDeadlock:
+                        RunLinuxMallocDeadlock();
+                        break;
+
+                    case Scenario.MeasureAllocations:
+                        RunMeasureAllocations();
+                        break;
+
+                    case Scenario.InnerMethods:
+                        RunInnerMethods();
+                        break;
+
+                    case Scenario.LineNumber:
+                        RunLineNumber();
+                        break;
 
                     default:
                         throw new ArgumentOutOfRangeException(nameof(scenario), $"Unsupported scenario #{_scenario}");
                 }
+
+                Console.WriteLine();
             }
 
             Console.WriteLine($"End of {iterations} iterations of {scenario.ToString()} in {sw.Elapsed}");
@@ -316,6 +425,61 @@ namespace Samples.Computer01
             _linuxSignalHandler.Start();
         }
 #endif
+        private void StartGarbageCollections(int parameter)
+        {
+            if (parameter == int.MaxValue)
+            {
+                // gen0 GC by default
+                parameter = 0;
+            }
+
+            _garbageCollections = new GarbageCollections(parameter);
+            _garbageCollections.Start();
+        }
+
+        private void StartMemoryLeak(int parameter)
+        {
+            // by default, no limit to allocations
+
+            _memoryLeak = new MemoryLeak(parameter);
+            _memoryLeak.Start();
+        }
+
+        private void StartQuicklyDeadThreads(int nbThreads, int nbThreadsToCreate)
+        {
+            if (nbThreadsToCreate == int.MaxValue)
+            {
+                // 1024 threads by default
+                nbThreadsToCreate = 1024;
+            }
+
+            _quicklyDeadThreads = new QuicklyDeadThreads(nbThreads, nbThreadsToCreate);
+            _quicklyDeadThreads.Start();
+        }
+
+        private void StartLinuxMallocDeadlock()
+        {
+            _linuxMallockDeadlock = new LinuxMallocDeadLock();
+            _linuxMallockDeadlock.Start();
+        }
+
+        private void StartMeasureAllocations()
+        {
+            _measureAllocations = new MeasureAllocations();
+            _measureAllocations.Start();
+        }
+
+        private void StartInnerMethods()
+        {
+            _innerMethods = new InnerMethods();
+            _innerMethods.Start();
+        }
+
+        private void StartLineNumber()
+        {
+            _lineNumber = new LineNumber();
+            _lineNumber.Start();
+        }
 
         private void StopComputer()
         {
@@ -387,6 +551,41 @@ namespace Samples.Computer01
             _linuxSignalHandler.Stop();
         }
 #endif
+
+        private void StopGarbageCollections()
+        {
+            _garbageCollections.Stop();
+        }
+
+        private void StopMemoryLeak()
+        {
+            _memoryLeak.Stop();
+        }
+
+        private void StopQuicklyDeadThreads()
+        {
+            _quicklyDeadThreads.Stop();
+        }
+
+        private void StopLinuxMallocDeadlock()
+        {
+            _linuxMallockDeadlock.Stop();
+        }
+
+        private void StopMeasureAllocations()
+        {
+            _measureAllocations.Stop();
+        }
+
+        private void StopInnerMethods()
+        {
+            _innerMethods.Stop();
+        }
+
+        private void StopLineNumber()
+        {
+            _lineNumber.Stop();
+        }
 
         private void RunComputer()
         {
@@ -463,6 +662,60 @@ namespace Samples.Computer01
             linuxSignalHandler.Run();
         }
 #endif
+
+        private void RunGarbageCollections(int parameter)
+        {
+            if (parameter == int.MaxValue)
+            {
+                // gen0 collection by default
+                parameter = 0;
+            }
+
+            var garbageCollections = new GarbageCollections(parameter);
+            garbageCollections.Run();
+        }
+
+        private void RunMemoryLeak(int parameter)
+        {
+            var memoryLeak = new MemoryLeak(parameter);
+            memoryLeak.Run();
+        }
+
+        private void RunQuicklyDeadThreads(int nbThreads, int nbThreadsToCreate)
+        {
+            if (nbThreadsToCreate == int.MaxValue)
+            {
+                // 1024 threads by default
+                nbThreadsToCreate = 1024;
+            }
+
+            var quicklyDeadThreads = new QuicklyDeadThreads(nbThreads, nbThreadsToCreate);
+            quicklyDeadThreads.Run();
+        }
+
+        private void RunLinuxMallocDeadlock()
+        {
+            var linuxSignalHandler = new LinuxMallocDeadLock();
+            linuxSignalHandler.Run();
+        }
+
+        private void RunMeasureAllocations()
+        {
+            var measureAllocations = new MeasureAllocations();
+            measureAllocations.Run();
+        }
+
+        private void RunInnerMethods()
+        {
+            var innerMethods = new InnerMethods();
+            innerMethods.Run();
+        }
+
+        private void RunLineNumber()
+        {
+            var lineNumber = new LineNumber();
+            lineNumber.Run();
+        }
 
         public class MySpecialClassA
         {

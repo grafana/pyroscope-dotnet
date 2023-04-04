@@ -5,7 +5,6 @@ stages:
   - deploy
   
 variables:
-  DATADOG_AGENT_WINBUILDIMAGES: v9405677-746a71d
   GIT_PROFILER_REF: master
   DEPLOY_TO_REL_ENV:
     value: "false"
@@ -13,6 +12,9 @@ variables:
   DOWNSTREAM_BRANCH:
     value: "master"
     description: "Run a specific datadog-reliability-env branch downstream"
+  DEPLOY_TO_DEBUGGER_BACKEND:
+    value: "false"
+    description: "Set to true to deploy to debugger backend demo application"
     
 build:
   only:
@@ -28,7 +30,7 @@ build:
   script:
     - if (Test-Path build-out) { remove-item -recurse -force build-out }
     - if (Test-Path artifacts) { remove-item -recurse -force artifacts }
-    - docker run --rm -m 4096M -v "$(Get-Location):c:\mnt" -e CI_JOB_ID=${CI_JOB_ID} -e ENABLE_MULTIPROCESSOR_COMPILATION=false -e WINDOWS_BUILDER=true -e AWS_NETWORKING=true -e SIGN_WINDOWS=true 486234852809.dkr.ecr.us-east-1.amazonaws.com/ci/datadog-agent-buildimages/windows_1809_x64:$Env:DATADOG_AGENT_WINBUILDIMAGES c:\mnt\tracer\build\_build\gitlab.bat
+    - docker run --rm -m 4096M -v "$(Get-Location):c:\mnt" -e CI_JOB_ID=${CI_JOB_ID} -e ENABLE_MULTIPROCESSOR_COMPILATION=false -e WINDOWS_BUILDER=true -e AWS_NETWORKING=true -e SIGN_WINDOWS=true datadog/dd-trace-dotnet-docker-build:latest
     - mkdir artifacts
     - xcopy /e/s build-out\${CI_JOB_ID}\*.* artifacts
     - remove-item -recurse -force build-out\${CI_JOB_ID}
@@ -90,3 +92,89 @@ deploy_to_reliability_env:
     UPSTREAM_PACKAGE_JOB: build
     UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
     FORCE_TRIGGER: $DEPLOY_TO_REL_ENV
+
+deploy_to_docker_registries:
+  stage: deploy
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+(-prerelease)?$/'
+      when: on_success
+    - when: manual
+      allow_failure: true
+  trigger:
+    project: DataDog/public-images
+    branch: main
+    strategy: depend
+  variables:
+    IMG_SOURCES: ghcr.io/datadog/dd-trace-dotnet/dd-lib-dotnet-init:$CI_COMMIT_SHA
+    IMG_DESTINATIONS: dd-lib-dotnet-init:$CI_COMMIT_TAG
+    IMG_SIGNING: "false"
+
+deploy_musl_tag_to_docker_registries:
+  stage: deploy
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+(-prerelease)?$/'
+      when: on_success
+    - when: manual
+      allow_failure: true
+  trigger:
+    project: DataDog/public-images
+    branch: main
+    strategy: depend
+  variables:
+    IMG_SOURCES: ghcr.io/datadog/dd-trace-dotnet/dd-lib-dotnet-init:$CI_COMMIT_SHA-musl
+    IMG_DESTINATIONS: dd-lib-dotnet-init:$CI_COMMIT_TAG-musl
+    IMG_SIGNING: "false"
+
+deploy_latest_tag_to_docker_registries:
+  stage: deploy
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+(-prerelease)?$/'
+      when: on_success
+    - when: manual
+      allow_failure: true
+  trigger:
+    project: DataDog/public-images
+    branch: main
+    strategy: depend
+  variables:
+    IMG_SOURCES: ghcr.io/datadog/dd-trace-dotnet/dd-lib-dotnet-init:$CI_COMMIT_SHA
+    IMG_DESTINATIONS: dd-lib-dotnet-init:latest
+    IMG_SIGNING: "false"
+
+deploy_latest_musl_tag_to_docker_registries:
+  stage: deploy
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+(-prerelease)?$/'
+      when: on_success
+    - when: manual
+      allow_failure: true
+  trigger:
+    project: DataDog/public-images
+    branch: main
+    strategy: depend
+  variables:
+    IMG_SOURCES: ghcr.io/datadog/dd-trace-dotnet/dd-lib-dotnet-init:$CI_COMMIT_SHA-musl
+    IMG_DESTINATIONS: dd-lib-dotnet-init:latest-musl
+    IMG_SIGNING: "false"
+
+deploy_to_debugger_backend:
+  stage: deploy
+  rules:
+    - if: '$DEPLOY_TO_DEBUGGER_BACKEND == "true"'
+  trigger:
+    project: DataDog/debugger-backend
+    branch: main
+  variables:
+    UPSTREAM_PACKAGE_JOB: build
+    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
+    UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
+    UPSTREAM_TAG: $DEPLOY_TAG
+

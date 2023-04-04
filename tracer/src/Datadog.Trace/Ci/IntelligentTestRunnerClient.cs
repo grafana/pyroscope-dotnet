@@ -18,7 +18,6 @@ using System.Threading.Tasks;
 using Datadog.Trace.Agent;
 using Datadog.Trace.Agent.Transports;
 using Datadog.Trace.Ci.Configuration;
-using Datadog.Trace.Ci.Tags;
 using Datadog.Trace.Logging;
 using Datadog.Trace.Processors;
 using Datadog.Trace.Util;
@@ -37,7 +36,7 @@ internal class IntelligentTestRunnerClient
     private const string EvpSubdomainHeader = "X-Datadog-EVP-Subdomain";
     private const string EvpNeedsApplicationKeyHeader = "X-Datadog-NeedsAppKey";
 
-    private const int MaxRetries = 3;
+    private const int MaxRetries = 5;
     private const int MaxPackFileSizeInMb = 3;
 
     private const string CommitType = "commit";
@@ -62,15 +61,15 @@ internal class IntelligentTestRunnerClient
     private readonly bool _useEvpProxy;
     private readonly Task<string> _getRepositoryUrlTask;
     private readonly Task<string> _getBranchNameTask;
-    private readonly Task<string?> _getShaTask;
+    private readonly Task<ProcessHelpers.CommandOutput?> _getShaTask;
 
     public IntelligentTestRunnerClient(string workingDirectory, CIVisibilitySettings? settings = null)
     {
-        _id = SpanIdGenerator.CreateNew().ToString(CultureInfo.InvariantCulture);
+        _id = RandomIdGenerator.Shared.NextSpanId().ToString(CultureInfo.InvariantCulture);
         _settings = settings ?? CIVisibility.Settings;
 
         _workingDirectory = workingDirectory;
-        _environment = TraceUtil.NormalizeTag(_settings.TracerSettings.Environment ?? string.Empty) ?? string.Empty;
+        _environment = TraceUtil.NormalizeTag(_settings.TracerSettings.Environment ?? "none") ?? "none";
         _serviceName = NormalizerTraceProcessor.NormalizeService(_settings.TracerSettings.ServiceName) ?? string.Empty;
         _customConfigurations = null;
 
@@ -178,7 +177,7 @@ internal class IntelligentTestRunnerClient
                 return 0;
             }
 
-            if (gitRevParseShallowOutput.IndexOf("true", StringComparison.OrdinalIgnoreCase) > -1)
+            if (gitRevParseShallowOutput.Output.IndexOf("true", StringComparison.OrdinalIgnoreCase) > -1)
             {
                 // The git repo is a shallow clone, we need to double check if there are more than just 1 commit in the logs.
                 var gitShallowLogOutput = await ProcessHelpers.RunCommandAsync(new ProcessHelpers.Command("git", "log --format=oneline -n 2", _workingDirectory)).ConfigureAwait(false);
@@ -190,7 +189,7 @@ internal class IntelligentTestRunnerClient
 
                 // After asking for 2 logs lines, if the git log command returns just one commit sha, we reconfigure the repo
                 // to ask for git commits and trees of the last month (no blobs)
-                var shallowLogArray = gitShallowLogOutput.Split(new[] { "\n" }, StringSplitOptions.RemoveEmptyEntries);
+                var shallowLogArray = gitShallowLogOutput.Output.Split(new[] { "\n" }, StringSplitOptions.RemoveEmptyEntries);
                 if (shallowLogArray.Length == 1)
                 {
                     // Just one commit SHA. Reconfiguring repo
@@ -212,14 +211,14 @@ internal class IntelligentTestRunnerClient
             return 0;
         }
 
-        var localCommits = gitLogOutput.Split(new[] { "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        var localCommits = gitLogOutput.Output.Split(new[] { "\n" }, StringSplitOptions.RemoveEmptyEntries);
         if (localCommits.Length == 0)
         {
             Log.Debug("ITR: Local commits not found. (since 1 month ago)");
             return 0;
         }
 
-        Log.Debug<int>("ITR: Local commits = {count}", localCommits.Length);
+        Log.Debug<int>("ITR: Local commits = {Count}", localCommits.Length);
         var remoteCommitsData = await SearchCommitAsync(localCommits).ConfigureAwait(false);
         return await SendObjectsPackFileAsync(localCommits[0], remoteCommitsData).ConfigureAwait(false);
     }
@@ -227,17 +226,22 @@ internal class IntelligentTestRunnerClient
     public async Task<SettingsResponse> GetSettingsAsync(bool skipFrameworkInfo = false)
     {
         Log.Debug("ITR: Getting settings...");
+        if (!_useEvpProxy && string.IsNullOrEmpty(_settings.ApplicationKey))
+        {
+            Log.Error("ITR: Error getting settings: Application key is missing.");
+        }
+
         var framework = FrameworkDescription.Instance;
         var repository = await _getRepositoryUrlTask.ConfigureAwait(false);
         var branchName = await _getBranchNameTask.ConfigureAwait(false);
-        var currentSha = await _getShaTask.ConfigureAwait(false);
-        if (currentSha is null)
+        var currentShaCommand = await _getShaTask.ConfigureAwait(false);
+        if (currentShaCommand is null)
         {
             Log.Warning("ITR: 'git rev-parse HEAD' command is null");
             return default;
         }
 
-        currentSha = currentSha.Replace("\n", string.Empty);
+        var currentSha = currentShaCommand.Output.Replace("\n", string.Empty);
 
         var query = new DataEnvelope<Data<SettingsQuery>>(
             new Data<SettingsQuery>(
@@ -260,44 +264,30 @@ internal class IntelligentTestRunnerClient
             default);
         var jsonQuery = JsonConvert.SerializeObject(query, SerializerSettings);
         var jsonQueryBytes = Encoding.UTF8.GetBytes(jsonQuery);
-        Log.Debug("ITR: JSON RQ = {json}", jsonQuery);
+        Log.Debug("ITR: JSON RQ = {Json}", jsonQuery);
 
         return await WithRetries(InternalGetSettingsAsync, jsonQueryBytes, MaxRetries).ConfigureAwait(false);
 
         async Task<SettingsResponse> InternalGetSettingsAsync(byte[] state, bool finalTry)
         {
             var request = _apiRequestFactory.Create(_settingsUrl);
-            request.AddHeader(HttpHeaderNames.TraceId, _id);
-            request.AddHeader(HttpHeaderNames.ParentId, _id);
-            if (_useEvpProxy)
-            {
-                request.AddHeader(EvpSubdomainHeader, "api");
-                request.AddHeader(EvpNeedsApplicationKeyHeader, "true");
-            }
-            else
-            {
-                request.AddHeader(ApiKeyHeader, _settings.ApiKey);
-                request.AddHeader(ApplicationKeyHeader, _settings.ApplicationKey);
-            }
+            SetRequestHeader(request, useApplicationHeader: true);
 
             if (Log.IsEnabled(LogEventLevel.Debug))
             {
-                Log.Debug("ITR: Getting settings from: {url}", _settingsUrl.ToString());
+                Log.Debug("ITR: Getting settings from: {Url}", _settingsUrl.ToString());
             }
 
             using var response = await request.PostAsync(new ArraySegment<byte>(state), MimeTypes.Json).ConfigureAwait(false);
             var responseContent = await response.ReadAsStringAsync().ConfigureAwait(false);
-            if (response.StatusCode is < 200 or >= 300 && response.StatusCode != 404)
-            {
-                if (finalTry)
-                {
-                    Log.Error<int, string>("Failed to get settings with status code {StatusCode} and message: {ResponseContent}", response.StatusCode, responseContent);
-                }
+            CheckResponseStatusCode(response, responseContent, finalTry);
 
-                throw new WebException($"Status: {response.StatusCode}, Content: {responseContent}");
+            Log.Debug("ITR: JSON RS = {Json}", responseContent);
+            if (string.IsNullOrEmpty(responseContent))
+            {
+                return default;
             }
 
-            Log.Debug("ITR: JSON RS = {json}", responseContent);
             var deserializedResult = JsonConvert.DeserializeObject<DataEnvelope<Data<SettingsResponse>?>>(responseContent);
             return deserializedResult.Data?.Attributes ?? default;
         }
@@ -306,16 +296,21 @@ internal class IntelligentTestRunnerClient
     public async Task<SkippableTest[]> GetSkippableTestsAsync()
     {
         Log.Debug("ITR: Getting skippable tests...");
+        if (!_useEvpProxy && string.IsNullOrEmpty(_settings.ApplicationKey))
+        {
+            Log.Error("ITR: Error getting skippable tests: Application key is missing.");
+        }
+
         var framework = FrameworkDescription.Instance;
         var repository = await _getRepositoryUrlTask.ConfigureAwait(false);
-        var currentSha = await _getShaTask.ConfigureAwait(false);
-        if (currentSha is null)
+        var currentShaCommand = await _getShaTask.ConfigureAwait(false);
+        if (currentShaCommand is null)
         {
             Log.Warning("ITR: 'git rev-parse HEAD' command is null");
             return Array.Empty<SkippableTest>();
         }
 
-        currentSha = currentSha.Replace("\n", string.Empty);
+        var currentSha = currentShaCommand.Output.Replace("\n", string.Empty);
 
         var query = new DataEnvelope<Data<SkippableTestsQuery>>(
             new Data<SkippableTestsQuery>(
@@ -337,44 +332,30 @@ internal class IntelligentTestRunnerClient
             default);
         var jsonQuery = JsonConvert.SerializeObject(query, SerializerSettings);
         var jsonQueryBytes = Encoding.UTF8.GetBytes(jsonQuery);
-        Log.Debug("ITR: JSON RQ = {json}", jsonQuery);
+        Log.Debug("ITR: JSON RQ = {Json}", jsonQuery);
 
         return await WithRetries(InternalGetSkippableTestsAsync, jsonQueryBytes, MaxRetries).ConfigureAwait(false);
 
         async Task<SkippableTest[]> InternalGetSkippableTestsAsync(byte[] state, bool finalTry)
         {
             var request = _apiRequestFactory.Create(_skippableTestsUrl);
-            request.AddHeader(HttpHeaderNames.TraceId, _id);
-            request.AddHeader(HttpHeaderNames.ParentId, _id);
-            if (_useEvpProxy)
-            {
-                request.AddHeader(EvpSubdomainHeader, "api");
-                request.AddHeader(EvpNeedsApplicationKeyHeader, "true");
-            }
-            else
-            {
-                request.AddHeader(ApiKeyHeader, _settings.ApiKey);
-                request.AddHeader(ApplicationKeyHeader, _settings.ApplicationKey);
-            }
+            SetRequestHeader(request, useApplicationHeader: true);
 
             if (Log.IsEnabled(LogEventLevel.Debug))
             {
-                Log.Debug("ITR: Searching skippable tests from: {url}", _skippableTestsUrl.ToString());
+                Log.Debug("ITR: Searching skippable tests from: {Url}", _skippableTestsUrl.ToString());
             }
 
             using var response = await request.PostAsync(new ArraySegment<byte>(state), MimeTypes.Json).ConfigureAwait(false);
             var responseContent = await response.ReadAsStringAsync().ConfigureAwait(false);
-            if (response.StatusCode is < 200 or >= 300 && response.StatusCode != 404)
-            {
-                if (finalTry)
-                {
-                    Log.Error<int, string>("Failed to get skippable tests with status code {StatusCode} and message: {ResponseContent}", response.StatusCode, responseContent);
-                }
+            CheckResponseStatusCode(response, responseContent, finalTry);
 
-                throw new WebException($"Status: {response.StatusCode}, Content: {responseContent}");
+            Log.Debug("ITR: JSON RS = {Json}", responseContent);
+            if (string.IsNullOrEmpty(responseContent))
+            {
+                return Array.Empty<SkippableTest>();
             }
 
-            Log.Debug("ITR: JSON RS = {json}", responseContent);
             var deserializedResult = JsonConvert.DeserializeObject<DataArrayEnvelope<Data<SkippableTest>>>(responseContent);
             if (deserializedResult.Data is null || deserializedResult.Data.Length == 0)
             {
@@ -413,7 +394,7 @@ internal class IntelligentTestRunnerClient
 
             if (Log.IsEnabled(LogEventLevel.Debug) && deserializedResult.Data.Length != testAttributes.Count)
             {
-                Log.Debug("ITR: JSON Filtered = {json}", JsonConvert.SerializeObject(testAttributes));
+                Log.Debug("ITR: JSON Filtered = {Json}", JsonConvert.SerializeObject(testAttributes));
             }
 
             return testAttributes.ToArray();
@@ -445,7 +426,7 @@ internal class IntelligentTestRunnerClient
 
         var repository = await _getRepositoryUrlTask.ConfigureAwait(false);
         var jsonPushedSha = JsonConvert.SerializeObject(new DataArrayEnvelope<Data<object>>(commitRequests, repository), SerializerSettings);
-        Log.Debug("ITR: JSON RQ = {json}", jsonPushedSha);
+        Log.Debug("ITR: JSON RQ = {Json}", jsonPushedSha);
         var jsonPushedShaBytes = Encoding.UTF8.GetBytes(jsonPushedSha);
 
         return await WithRetries(InternalSearchCommitAsync, jsonPushedShaBytes, MaxRetries).ConfigureAwait(false);
@@ -453,42 +434,23 @@ internal class IntelligentTestRunnerClient
         async Task<string[]> InternalSearchCommitAsync(byte[] state, bool finalTry)
         {
             var request = _apiRequestFactory.Create(_searchCommitsUrl);
-            request.AddHeader(HttpHeaderNames.TraceId, _id);
-            request.AddHeader(HttpHeaderNames.ParentId, _id);
-            if (_useEvpProxy)
-            {
-                request.AddHeader(EvpSubdomainHeader, "api");
-            }
-            else
-            {
-                request.AddHeader(ApiKeyHeader, _settings.ApiKey);
-            }
+            SetRequestHeader(request, useApplicationHeader: false);
 
             if (Log.IsEnabled(LogEventLevel.Debug))
             {
-                Log.Debug("ITR: Searching commits from: {url}", _searchCommitsUrl.ToString());
+                Log.Debug("ITR: Searching commits from: {Url}", _searchCommitsUrl.ToString());
             }
 
             using var response = await request.PostAsync(new ArraySegment<byte>(state), MimeTypes.Json).ConfigureAwait(false);
             var responseContent = await response.ReadAsStringAsync().ConfigureAwait(false);
-            if (response.StatusCode is < 200 or >= 300)
-            {
-                if (finalTry)
-                {
-                    try
-                    {
-                        Log.Error<int, string>("Failed to submit events with status code {StatusCode} and message: {ResponseContent}", response.StatusCode, responseContent);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error<int>(ex, "Unable to read response for failed request with status code {StatusCode}", response.StatusCode);
-                    }
-                }
+            CheckResponseStatusCode(response, responseContent, finalTry);
 
-                throw new WebException($"Status: {response.StatusCode}, Content: {responseContent}");
+            Log.Debug("ITR: JSON RS = {Json}", responseContent);
+            if (string.IsNullOrEmpty(responseContent))
+            {
+                return Array.Empty<string>();
             }
 
-            Log.Debug("ITR: JSON RS = {json}", responseContent);
             var deserializedResult = JsonConvert.DeserializeObject<DataArrayEnvelope<Data<object>>>(responseContent);
             if (deserializedResult.Data is null || deserializedResult.Data.Length == 0)
             {
@@ -518,22 +480,22 @@ internal class IntelligentTestRunnerClient
     {
         Log.Debug("ITR: Packing and sending delta of commits and tree objects...");
 
-        var packFiles = await GetObjectsPackFileFromWorkingDirectoryAsync(commitsToExclude).ConfigureAwait(false);
-        if (packFiles.Length == 0)
+        var packFilesObject = await GetObjectsPackFileFromWorkingDirectoryAsync(commitsToExclude).ConfigureAwait(false);
+        if (packFilesObject is null || packFilesObject.Files.Length == 0)
         {
             return 0;
         }
 
         var repository = await _getRepositoryUrlTask.ConfigureAwait(false);
         var jsonPushedSha = JsonConvert.SerializeObject(new DataEnvelope<Data<object>>(new Data<object>(commitSha, CommitType, default), repository), SerializerSettings);
-        Log.Debug("ITR: JSON RQ = {json}", jsonPushedSha);
+        Log.Debug("ITR: JSON RQ = {Json}", jsonPushedSha);
         var jsonPushedShaBytes = Encoding.UTF8.GetBytes(jsonPushedSha);
 
         long totalUploadSize = 0;
-        foreach (var packFile in packFiles)
+        foreach (var packFile in packFilesObject.Files)
         {
             // Send PackFile content
-            Log.Information("ITR: Sending {packFile}", packFile);
+            Log.Information("ITR: Sending {PackFile}", packFile);
             totalUploadSize += await WithRetries(InternalSendObjectsPackFileAsync, packFile, MaxRetries).ConfigureAwait(false);
 
             // Delete temporal pack file
@@ -543,81 +505,97 @@ internal class IntelligentTestRunnerClient
             }
             catch (Exception ex)
             {
-                Log.Warning(ex, "ITR: Error deleting pack file: '{packFile}'", packFile);
+                Log.Warning(ex, "ITR: Error deleting pack file: '{PackFile}'", packFile);
             }
         }
 
-        Log.Information("ITR: Total pack file upload: {totalUploadSize} bytes", totalUploadSize);
+        // Delete temporary folder after the upload
+        if (!string.IsNullOrEmpty(packFilesObject.TemporaryFolder))
+        {
+            try
+            {
+                Directory.Delete(packFilesObject.TemporaryFolder, true);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "ITR: Error deleting temporary folder: '{TemporaryFolder}'", packFilesObject.TemporaryFolder);
+            }
+        }
+
+        Log.Information("ITR: Total pack file upload: {TotalUploadSize} bytes", totalUploadSize);
         return totalUploadSize;
 
         async Task<long> InternalSendObjectsPackFileAsync(string packFile, bool finalTry)
         {
             var request = _apiRequestFactory.Create(_packFileUrl);
-            request.AddHeader(HttpHeaderNames.TraceId, _id);
-            request.AddHeader(HttpHeaderNames.ParentId, _id);
-            if (_useEvpProxy)
-            {
-                request.AddHeader(EvpSubdomainHeader, "api");
-            }
-            else
-            {
-                request.AddHeader(ApiKeyHeader, _settings.ApiKey);
-            }
+            SetRequestHeader(request, useApplicationHeader: false);
 
             var multipartRequest = (IMultipartApiRequest)request;
-
             using var fileStream = File.Open(packFile, FileMode.Open, FileAccess.Read, FileShare.Read);
             using var response = await multipartRequest.PostAsync(
                 new MultipartFormItem("pushedSha", MimeTypes.Json, null, new ArraySegment<byte>(jsonPushedShaBytes)),
                 new MultipartFormItem("packfile", "application/octet-stream", null, fileStream))
             .ConfigureAwait(false);
             var responseContent = await response.ReadAsStringAsync().ConfigureAwait(false);
-            if (response.StatusCode is < 200 or >= 300)
-            {
-                if (finalTry)
-                {
-                    try
-                    {
-                        Log.Error<int, string>("Failed to submit events with status code {StatusCode} and message: {ResponseContent}", response.StatusCode, responseContent);
-                    }
-                    catch (Exception ex)
-                    {
-                        Log.Error<int>(ex, "Unable to read response for failed request with status code {StatusCode}", response.StatusCode);
-                    }
-                }
-
-                throw new WebException($"Status: {response.StatusCode}, Content: {responseContent}");
-            }
+            CheckResponseStatusCode(response, responseContent, finalTry);
 
             return new FileInfo(packFile).Length;
         }
     }
 
-    private async Task<string[]> GetObjectsPackFileFromWorkingDirectoryAsync(string[]? commitsToExclude)
+    private async Task<ObjectPackFilesResult> GetObjectsPackFileFromWorkingDirectoryAsync(string[]? commitsToExclude)
     {
         Log.Debug("ITR: Getting objects...");
         commitsToExclude ??= Array.Empty<string>();
+        var temporaryFolder = string.Empty;
         var temporaryPath = Path.GetTempFileName();
 
         var getObjectsArguments = "rev-list --objects --no-object-names --filter=blob:none --since=\"1 month ago\" HEAD " + string.Join(" ", commitsToExclude.Select(c => "^" + c));
-        var getObjects = await ProcessHelpers.RunCommandAsync(new ProcessHelpers.Command("git", getObjectsArguments, _workingDirectory)).ConfigureAwait(false);
-        if (string.IsNullOrEmpty(getObjects))
+        var getObjectsCommand = await ProcessHelpers.RunCommandAsync(new ProcessHelpers.Command("git", getObjectsArguments, _workingDirectory)).ConfigureAwait(false);
+        if (string.IsNullOrEmpty(getObjectsCommand?.Output))
         {
             // If not objects has been returned we skip the pack + upload.
             Log.Debug("ITR: No objects were returned from the git rev-list command.");
-            return Array.Empty<string>();
+            return new ObjectPackFilesResult(Array.Empty<string>(), temporaryFolder);
         }
 
         Log.Debug("ITR: Packing objects...");
-        var getPacksArguments = $"pack-objects --compression=9 --max-pack-size={MaxPackFileSizeInMb}m  {temporaryPath}";
-        var packObjectsResult = await ProcessHelpers.RunCommandAsync(new ProcessHelpers.Command("git", getPacksArguments, _workingDirectory), getObjects).ConfigureAwait(false);
-        if (packObjectsResult is null)
+        var getPacksArguments = $"pack-objects --compression=9 --max-pack-size={MaxPackFileSizeInMb}m \"{temporaryPath}\"";
+        var packObjectsResultCommand = await ProcessHelpers.RunCommandAsync(new ProcessHelpers.Command("git", getPacksArguments, _workingDirectory), getObjectsCommand!.Output).ConfigureAwait(false);
+        if (packObjectsResultCommand is null)
         {
             Log.Warning("ITR: 'git pack-objects...' command is null");
-            return Array.Empty<string>();
+            return new ObjectPackFilesResult(Array.Empty<string>(), temporaryFolder);
         }
 
-        var packObjectsSha = packObjectsResult.Split(new[] { "\n" }, StringSplitOptions.RemoveEmptyEntries);
+        if (packObjectsResultCommand.ExitCode != 0 && packObjectsResultCommand.Error.IndexOf("Cross-device", StringComparison.OrdinalIgnoreCase) != -1)
+        {
+            // Git can throw a cross device error if the temporal folder is in a different drive than the .git folder (eg. symbolic link)
+            // to handle this edge case, we create a temporal folder inside the current folder.
+
+            Log.Warning("ITR: 'git pack-objects...' returned a cross-device error, retrying using a local temporal folder.");
+            temporaryFolder = Path.Combine(Environment.CurrentDirectory, ".git_tmp");
+            if (!Directory.Exists(temporaryFolder))
+            {
+                Directory.CreateDirectory(temporaryFolder);
+            }
+
+            temporaryPath = Path.Combine(temporaryFolder, Path.GetFileName(temporaryPath));
+            getPacksArguments = $"pack-objects --compression=9 --max-pack-size={MaxPackFileSizeInMb}m \"{temporaryPath}\"";
+            packObjectsResultCommand = await ProcessHelpers.RunCommandAsync(new ProcessHelpers.Command("git", getPacksArguments, _workingDirectory), getObjectsCommand!.Output).ConfigureAwait(false);
+            if (packObjectsResultCommand is null)
+            {
+                Log.Warning("ITR: 'git pack-objects...' command is null");
+                return new ObjectPackFilesResult(Array.Empty<string>(), temporaryFolder);
+            }
+
+            if (packObjectsResultCommand.ExitCode != 0)
+            {
+                Log.Warning("ITR: 'git pack-objects...' command error: {Stderr}", packObjectsResultCommand.Error);
+            }
+        }
+
+        var packObjectsSha = packObjectsResultCommand.Output.Split(new[] { "\n" }, StringSplitOptions.RemoveEmptyEntries);
 
         // We try to return an array with the path in the same order as has been returned by the git command.
         var tempFolder = Path.GetDirectoryName(temporaryPath) ?? string.Empty;
@@ -632,11 +610,60 @@ internal class IntelligentTestRunnerClient
             }
             else
             {
-                Log.Warning("ITR: The file '{packFile}' doesn't exist.", file);
+                Log.Warning("ITR: The file '{PackFile}' doesn't exist.", file);
             }
         }
 
-        return lstFiles.ToArray();
+        return new ObjectPackFilesResult(lstFiles.ToArray(), temporaryFolder);
+    }
+
+    private void SetRequestHeader(IApiRequest request, bool useApplicationHeader)
+    {
+        request.AddHeader(HttpHeaderNames.TraceId, _id);
+        request.AddHeader(HttpHeaderNames.ParentId, _id);
+        if (_useEvpProxy)
+        {
+            request.AddHeader(EvpSubdomainHeader, "api");
+            if (useApplicationHeader)
+            {
+                request.AddHeader(EvpNeedsApplicationKeyHeader, "true");
+            }
+        }
+        else
+        {
+            request.AddHeader(ApiKeyHeader, _settings.ApiKey);
+            if (useApplicationHeader)
+            {
+                request.AddHeader(ApplicationKeyHeader, _settings.ApplicationKey);
+            }
+        }
+    }
+
+    private void CheckResponseStatusCode(IApiResponse response, string responseContent, bool finalTry)
+    {
+        // Check if the rate limit header was received.
+        if (response.StatusCode == 429 &&
+            response.GetHeader("x-ratelimit-reset") is { } strRateLimitDurationInSeconds &&
+            int.TryParse(strRateLimitDurationInSeconds, out var rateLimitDurationInSeconds))
+        {
+            if (rateLimitDurationInSeconds > 30)
+            {
+                // If 'x-ratelimit-reset' is > 30 seconds we cancel the request.
+                throw new RateLimitException();
+            }
+
+            throw new RateLimitException(rateLimitDurationInSeconds);
+        }
+
+        if (response.StatusCode is < 200 or >= 300 && response.StatusCode != 404 && response.StatusCode != 502)
+        {
+            if (finalTry)
+            {
+                Log.Error<int, string>("ITR: Request failed with status code {StatusCode} and message: {ResponseContent}", response.StatusCode, responseContent);
+            }
+
+            throw new WebException($"Status: {response.StatusCode}, Content: {responseContent}");
+        }
     }
 
     private async Task<T> WithRetries<T, TState>(Func<TState, bool, Task<T>> sendDelegate, TState state, int numOfRetries)
@@ -648,7 +675,7 @@ internal class IntelligentTestRunnerClient
         {
             T response = default!;
             ExceptionDispatchInfo? exceptionDispatchInfo = null;
-            bool isFinalTry = retryCount >= numOfRetries;
+            var isFinalTry = retryCount >= numOfRetries;
 
             try
             {
@@ -662,17 +689,18 @@ internal class IntelligentTestRunnerClient
             // Error handling block
             if (exceptionDispatchInfo is not null)
             {
-                if (isFinalTry)
+                var sourceException = exceptionDispatchInfo.SourceException;
+
+                if (isFinalTry || sourceException is RateLimitException { DelayTimeInSeconds: null })
                 {
                     // stop retrying
-                    Log.Error<int>(exceptionDispatchInfo.SourceException, "An error occurred while sending intelligent test runner data after {Retries} retries.", retryCount);
+                    Log.Error<int>(sourceException, "ITR: An error occurred while sending intelligent test runner data after {Retries} retries.", retryCount);
                     exceptionDispatchInfo.Throw();
                 }
 
-                // Before retry delay
-                bool isSocketException = false;
-                Exception? innerException = exceptionDispatchInfo.SourceException;
-
+                // Before retry
+                var isSocketException = false;
+                var innerException = sourceException;
                 while (innerException != null)
                 {
                     if (innerException is SocketException)
@@ -686,14 +714,22 @@ internal class IntelligentTestRunnerClient
 
                 if (isSocketException)
                 {
-                    Log.Debug(exceptionDispatchInfo.SourceException, "Unable to communicate with the server");
+                    Log.Debug(sourceException, "Unable to communicate with the server");
                 }
 
-                // Execute retry delay
-                await Task.Delay(sleepDuration).ConfigureAwait(false);
-                retryCount++;
-                sleepDuration *= 2;
+                if (sourceException is RateLimitException { DelayTimeInSeconds: { } delayTimeInSeconds })
+                {
+                    // Execute rate limit retry delay
+                    await Task.Delay(TimeSpan.FromSeconds(delayTimeInSeconds)).ConfigureAwait(false);
+                }
+                else
+                {
+                    // Execute retry delay
+                    await Task.Delay(sleepDuration).ConfigureAwait(false);
+                    sleepDuration *= 2;
+                }
 
+                retryCount++;
                 continue;
             }
 
@@ -711,7 +747,7 @@ internal class IntelligentTestRunnerClient
             return string.Empty;
         }
 
-        return gitOutput.Replace("\n", string.Empty);
+        return gitOutput.Output.Replace("\n", string.Empty);
     }
 
     private async Task<string> GetBranchNameAsync()
@@ -723,7 +759,7 @@ internal class IntelligentTestRunnerClient
             return string.Empty;
         }
 
-        return gitOutput.Replace("\n", string.Empty);
+        return gitOutput.Output.Replace("\n", string.Empty);
     }
 
     private readonly struct DataEnvelope<T>
@@ -851,5 +887,35 @@ internal class IntelligentTestRunnerClient
 
         [JsonProperty("tests_skipping")]
         public readonly bool? TestsSkipping;
+    }
+
+    private class ObjectPackFilesResult
+    {
+        public ObjectPackFilesResult(string[] files, string temporaryFolder)
+        {
+            Files = files;
+            TemporaryFolder = temporaryFolder;
+        }
+
+        public string[] Files { get; }
+
+        public string TemporaryFolder { get; }
+    }
+
+    private class RateLimitException : Exception
+    {
+        public RateLimitException()
+            : base("Server rate limiting response received. Cancelling request.")
+        {
+            DelayTimeInSeconds = null;
+        }
+
+        public RateLimitException(int delayTimeInSeconds)
+            : base($"Server rate limiting response received. Waiting for {delayTimeInSeconds} seconds")
+        {
+            DelayTimeInSeconds = delayTimeInSeconds;
+        }
+
+        public int? DelayTimeInSeconds { get; private set; }
     }
 }

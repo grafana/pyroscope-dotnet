@@ -39,6 +39,8 @@ Configuration::Configuration()
     _isExceptionProfilingEnabled = GetEnvironmentValue(EnvironmentVariables::ExceptionProfilingEnabled, false);
     _isAllocationProfilingEnabled = GetEnvironmentValue(EnvironmentVariables::AllocationProfilingEnabled, false);
     _isContentionProfilingEnabled = GetContention();
+    _isGarbageCollectionProfilingEnabled = GetEnvironmentValue(EnvironmentVariables::GCProfilingEnabled, false);
+    _isHeapProfilingEnabled = GetEnvironmentValue(EnvironmentVariables::HeapProfilingEnabled, false);
     _uploadPeriod = ExtractUploadInterval();
     _userTags = ExtractUserTags();
     _version = GetEnvironmentValue(EnvironmentVariables::Version, DefaultVersion);
@@ -58,9 +60,13 @@ Configuration::Configuration()
     _cpuWallTimeSamplingRate = ExtractCpuWallTimeSamplingRate();
     _walltimeThreadsThreshold = ExtractWallTimeThreadsThreshold();
     _cpuThreadsThreshold = ExtractCpuThreadsThreshold();
+    _codeHotspotsThreadsThreshold = ExtractCodeHotspotsThreadsThreshold();
     _minimumCores = GetEnvironmentValue<double>(EnvironmentVariables::CoreMinimumOverride, 1.0);
     _namedPipeName = GetEnvironmentValue(EnvironmentVariables::NamedPipeName, DefaultEmptyString);
     _isTimestampsAsLabelEnabled = GetEnvironmentValue(EnvironmentVariables::TimestampsAsLabelEnabled, false);
+    _useBacktrace2 = GetEnvironmentValue(EnvironmentVariables::UseBacktrace2, true);
+    _isAllocationRecorderEnabled = GetEnvironmentValue(EnvironmentVariables::AllocationRecorderEnabled, false);
+    _isDebugInfoEnabled = GetEnvironmentValue(EnvironmentVariables::DebugInfoEnabled, false);
     _pyroscopeServerAddress = GetEnvironmentValue(EnvironmentVariables::PyroscopeServerAddress, DefaultPyroscopeServerAddress);
     _pyroscopeAuthToken = GetEnvironmentValue(EnvironmentVariables::PyroscopeAuthToken, DefaultEmptyString);
     _pyroscopeApplicationName = GetEnvironmentValue(EnvironmentVariables::PyroscopeApplicationName, DefaultEmptyString);
@@ -145,6 +151,16 @@ bool Configuration::IsContentionProfilingEnabled() const
     return _isContentionProfilingEnabled;
 }
 
+bool Configuration::IsGarbageCollectionProfilingEnabled() const
+{
+    return _isGarbageCollectionProfilingEnabled;
+}
+
+bool Configuration::IsHeapProfilingEnabled() const
+{
+    return _isHeapProfilingEnabled;
+}
+
 int32_t Configuration::ContentionSampleLimit() const
 {
     return _contentionSampleLimit;
@@ -168,6 +184,11 @@ int32_t Configuration::WalltimeThreadsThreshold() const
 int32_t Configuration::CpuThreadsThreshold() const
 {
     return _cpuThreadsThreshold;
+}
+
+int32_t Configuration::CodeHotspotsThreadsThreshold() const
+{
+    return _codeHotspotsThreadsThreshold;
 }
 
 double Configuration::MinimumCores() const
@@ -235,6 +256,17 @@ std::string const& Configuration::GetServiceName() const
     return _serviceName;
 }
 
+bool Configuration::UseBacktrace2() const
+{
+    return _useBacktrace2;
+}
+
+bool Configuration::IsAllocationRecorderEnabled() const
+{
+    return _isAllocationRecorderEnabled;
+}
+
+
 fs::path Configuration::GetApmBaseDirectory()
 {
 #ifdef _WINDOWS
@@ -255,7 +287,7 @@ fs::path Configuration::GetDefaultLogDirectoryPath()
 {
     auto baseDirectory = fs::path(GetApmBaseDirectory());
 #ifdef _WINDOWS
-    return baseDirectory / WStr(R"(Datadog-APM\logs\DotNet)");
+    return baseDirectory / WStr(R"(Datadog .NET Tracer\logs)");
 #else
     return baseDirectory / WStr("dotnet");
 #endif
@@ -363,6 +395,13 @@ int32_t Configuration::ExtractWallTimeThreadsThreshold()
     return threshold;
 }
 
+int32_t Configuration::ExtractCodeHotspotsThreadsThreshold()
+{
+    // default threads to sample for codehotspots is 10; could be changed via env vars but down to 1ms
+    int32_t threshold = std::max(GetEnvironmentValue(EnvironmentVariables::CodeHotspotsThreadsThreshold, 10), 1);
+    return threshold;
+}
+
 int32_t Configuration::ExtractCpuThreadsThreshold()
 {
     // default threads to sample for CPU profiling is 64; could be changed via env vars from 5 to 128
@@ -399,6 +438,11 @@ bool Configuration::GetDefaultDebugLogEnabled()
 bool Configuration::IsAgentless() const
 {
     return _isAgentLess;
+}
+
+bool Configuration::IsDebugInfoEnabled() const
+{
+    return _isDebugInfoEnabled;
 }
 
 std::string Configuration::PyroscopeServerAddress() const
