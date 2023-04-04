@@ -76,8 +76,6 @@ message(STATUS "Libdatadog library " ${LIBDATADOG_VERSION})
 add_subdirectory(tracer)
 
 # profiler cannot be built on MacOS (yet)
-if (NOT ISMACOS)
-    add_subdirectory(profiler)
-endif()
+add_subdirectory(profiler)
 
 add_subdirectory(shared)
