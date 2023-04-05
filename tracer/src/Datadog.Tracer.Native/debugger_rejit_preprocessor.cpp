@@ -4,7 +4,7 @@
 #include "debugger_method_rewriter.h"
 #include "debugger_rejit_handler_module_method.h"
 #include "logger.h"
-#include "probes_tracker.h"
+#include "debugger_probes_tracker.h"
 
 namespace debugger
 {
@@ -157,14 +157,14 @@ void DebuggerRejitPreprocessor::EnqueuePreprocessLineProbes(const std::vector<Mo
     Logger::Debug("RejitHandler::EnqueuePreprocessRejitRequests");
 
     std::function<void()> action = [=, modules = std::move(modulesVector), definitions = std::move(lineProbes),
-                                    rejitRequests = rejitRequests, promise = promise]() mutable {
+                                    localRejitRequests = rejitRequests, localPromise = promise]() mutable {
         // Process modules for rejit
-        const auto rejitCount = PreprocessLineProbes(modules, definitions, rejitRequests);
+        const auto rejitCount = PreprocessLineProbes(modules, definitions, localRejitRequests);
 
         // Resolve promise
-        if (promise != nullptr)
+        if (localPromise != nullptr)
         {
-            promise->set_value(rejitRequests);
+            localPromise->set_value(localRejitRequests);
         }
     };
 
@@ -238,14 +238,14 @@ const std::unique_ptr<RejitHandlerModuleMethod>
 DebuggerRejitPreprocessor::CreateMethod(const mdMethodDef methodDef, RejitHandlerModule* module,
                                         const FunctionInfo& functionInfo, const MethodProbeDefinition& methodProbe)
 {
-    return std::make_unique<DebuggerRejitHandlerModuleMethod>(methodDef, module, functionInfo);
+    return std::make_unique<DebuggerRejitHandlerModuleMethod>(methodDef, module, functionInfo, std::make_unique<DebuggerMethodRewriter>(m_corProfiler));
 }
 
 const std::unique_ptr<RejitHandlerModuleMethod>
 DebuggerRejitPreprocessor::CreateMethod(const mdMethodDef methodDef, RejitHandlerModule* module,
                                         const FunctionInfo& functionInfo) const
 {
-    return std::make_unique<DebuggerRejitHandlerModuleMethod>(methodDef, module, functionInfo);
+    return std::make_unique<DebuggerRejitHandlerModuleMethod>(methodDef, module, functionInfo, std::make_unique<DebuggerMethodRewriter>(m_corProfiler));
 }
 
 void DebuggerRejitPreprocessor::UpdateMethod(RejitHandlerModuleMethod* methodHandler,
@@ -262,7 +262,7 @@ void DebuggerRejitPreprocessor::UpdateMethod(RejitHandlerModuleMethod* methodHan
     {
         Logger::Warn("Tried to place Debugger Probe on a method that have been instrumented already be the Tracer/Ci instrumentation.",
             "ProbeId: ", probe->probeId);
-        ProbesMetadataTracker::Instance()->SetProbeStatus(probe->probeId, ProbeStatus::_ERROR);
+        ProbesMetadataTracker::Instance()->SetErrorProbeStatus(probe->probeId, invalid_probe_method_already_instrumented);
         return;
     }
 
@@ -294,7 +294,7 @@ void DebuggerRejitPreprocessor::EnqueueNewMethod(const MethodProbeDefinition& de
 }
 
 HRESULT DebuggerRejitPreprocessor::GetMoveNextMethodFromKickOffMethod(const ComPtr<IMetaDataImport2>& metadataImport, mdTypeDef typeDef, mdMethodDef methodDef, 
-                                                                      const FunctionInfo& function, mdMethodDef& moveNextMethod, mdTypeDef& nestedAsyncClassOrStruct) const
+                                                                      const FunctionInfo& function, mdMethodDef& moveNextMethod, mdTypeDef& nestedAsyncClassOrStruct) 
 {
     // TODO: We might consider rewriting this code using CustomAttributeParser [AsyncStateMachine(typeof(<X>d__1))]
 

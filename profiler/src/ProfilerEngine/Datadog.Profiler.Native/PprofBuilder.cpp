@@ -20,8 +20,8 @@ void PprofBuilder::AddSample(const Sample& sample)
     auto* pSample = _profile.add_sample();
     for (auto const& frame : sample.GetCallstack())
     {
-        auto moduleName = AddString(frame.first);
-        auto functionName = AddString(frame.second);
+        auto moduleName = AddString(frame.ModuleName);
+        auto functionName = AddString(frame.Frame);
         auto locId = AddLocation(functionName, moduleName);
         pSample->add_location_id(locId);
     }

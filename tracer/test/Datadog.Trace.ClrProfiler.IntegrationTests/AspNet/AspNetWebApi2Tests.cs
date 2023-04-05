@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
-#if NET461
+#if NETFRAMEWORK
 #pragma warning disable SA1402 // File may only contain a single class
 #pragma warning disable SA1649 // File name must match first type name
 
@@ -215,7 +215,8 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
             // Overriding the method name to _
             // Overriding the parameters to remove the expectedSpanCount parameter, which is necessary for operation but unnecessary for the filename
             await Verifier.Verify(spans, settings)
-                          .UseFileName($"{_testName}.__path={sanitisedPath}_statusCode={(int)statusCode}");
+                          .UseFileName($"{_testName}.__path={sanitisedPath}_statusCode={(int)statusCode}")
+                          .DisableRequireUniquePrefix(); // sharing snapshots between web api and owin
         }
     }
 

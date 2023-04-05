@@ -53,6 +53,7 @@ namespace Datadog.Trace.TestHelpers
             Output = output;
 
             Output.WriteLine($"Platform: {EnvironmentTools.GetPlatform()}");
+            Output.WriteLine($"TargetPlatform: {EnvironmentTools.GetTestTargetPlatform()}");
             Output.WriteLine($"Configuration: {EnvironmentTools.GetBuildConfiguration()}");
             Output.WriteLine($"TargetFramework: {EnvironmentHelper.GetTargetFramework()}");
             Output.WriteLine($".NET Core: {EnvironmentHelper.IsCoreClr()}");
@@ -71,7 +72,7 @@ namespace Datadog.Trace.TestHelpers
         {
         }
 
-        public Process StartDotnetTestSample(MockTracerAgent agent, string arguments, string packageVersion, int aspNetCorePort, string framework = "")
+        public Process StartDotnetTestSample(MockTracerAgent agent, string arguments, string packageVersion, int aspNetCorePort, string framework = "", bool forceVsTestParam = false)
         {
             // get path to sample app that the profiler will attach to
             string sampleAppPath = EnvironmentHelper.GetTestCommandForSampleApplicationPath(packageVersion, framework);
@@ -83,21 +84,25 @@ namespace Datadog.Trace.TestHelpers
             Output.WriteLine($"Starting Application: {sampleAppPath}");
             string testCli = EnvironmentHelper.GetDotNetTest();
             string exec = testCli;
-            string appPath = testCli.StartsWith("dotnet") ? $"vstest {sampleAppPath}" : sampleAppPath;
+            string appPath = testCli.StartsWith("dotnet") || forceVsTestParam ? $"vstest {sampleAppPath}" : sampleAppPath;
             Output.WriteLine("Executable: " + exec);
             Output.WriteLine("ApplicationPath: " + appPath);
-            return ProfilerHelper.StartProcessWithProfiler(
+            var process = ProfilerHelper.StartProcessWithProfiler(
                 exec,
                 EnvironmentHelper,
                 agent,
                 $"{appPath} {arguments ?? string.Empty}",
                 aspNetCorePort: aspNetCorePort,
-                processToProfile: exec + ";testhost.exe");
+                processToProfile: exec + ";testhost.exe;testhost.x86.exe");
+
+            Output.WriteLine($"ProcessId: {process.Id}");
+
+            return process;
         }
 
-        public ProcessResult RunDotnetTestSampleAndWaitForExit(MockTracerAgent agent, string arguments = null, string packageVersion = "", string framework = "")
+        public ProcessResult RunDotnetTestSampleAndWaitForExit(MockTracerAgent agent, string arguments = null, string packageVersion = "", string framework = "", bool forceVsTestParam = false)
         {
-            var process = StartDotnetTestSample(agent, arguments, packageVersion, aspNetCorePort: 5000, framework: framework);
+            var process = StartDotnetTestSample(agent, arguments, packageVersion, aspNetCorePort: 5000, framework: framework, forceVsTestParam: forceVsTestParam);
 
             using var helper = new ProcessHelper(process);
 
@@ -105,7 +110,6 @@ namespace Datadog.Trace.TestHelpers
             helper.Drain();
             var exitCode = process.ExitCode;
 
-            Output.WriteLine($"ProcessId: " + process.Id);
             Output.WriteLine($"Exit Code: " + exitCode);
 
             var standardOutput = helper.StandardOutput;
@@ -125,7 +129,7 @@ namespace Datadog.Trace.TestHelpers
             return new ProcessResult(process, standardOutput, standardError, exitCode);
         }
 
-        public Process StartSample(MockTracerAgent agent, string arguments, string packageVersion, int aspNetCorePort, string framework = "")
+        public Process StartSample(MockTracerAgent agent, string arguments, string packageVersion, int aspNetCorePort, string framework = "", bool? enableSecurity = null, string externalRulesFile = null)
         {
             // get path to sample app that the profiler will attach to
             var sampleAppPath = EnvironmentHelper.GetSampleApplicationPath(packageVersion, framework);
@@ -138,13 +142,19 @@ namespace Datadog.Trace.TestHelpers
             var executable = EnvironmentHelper.IsCoreClr() ? EnvironmentHelper.GetSampleExecutionSource() : sampleAppPath;
             var args = EnvironmentHelper.IsCoreClr() ? $"{sampleAppPath} {arguments ?? string.Empty}" : arguments;
 
-            return ProfilerHelper.StartProcessWithProfiler(
+            var process = ProfilerHelper.StartProcessWithProfiler(
                 executable,
                 EnvironmentHelper,
                 agent,
                 args,
                 aspNetCorePort: aspNetCorePort,
-                processToProfile: executable);
+                processToProfile: executable,
+                enableSecurity: enableSecurity,
+                externalRulesFile: externalRulesFile);
+
+            Output.WriteLine($"ProcessId: {process.Id}");
+
+            return process;
         }
 
         public async Task<bool> TakeMemoryDump(Process process)
@@ -183,7 +193,7 @@ namespace Datadog.Trace.TestHelpers
             return WaitForProcessResult(helper);
         }
 
-        public ProcessResult WaitForProcessResult(ProcessHelper helper)
+        public ProcessResult WaitForProcessResult(ProcessHelper helper, int expectedExitCode = 0)
         {
             // this is _way_ too long, but we want to be v. safe
             // the goal is just to make sure we kill the test before
@@ -191,18 +201,6 @@ namespace Datadog.Trace.TestHelpers
             var process = helper.Process;
             var timeoutMs = (int)TimeSpan.FromMinutes(10).TotalMilliseconds;
             var ranToCompletion = process.WaitForExit(timeoutMs) && helper.Drain(timeoutMs / 2);
-
-            if (!ranToCompletion && !process.HasExited)
-            {
-                var tookMemoryDump = TakeMemoryDump(process);
-                process.Kill();
-                throw new Exception($"The sample did not exit in {timeoutMs}ms. Memory dump taken: {tookMemoryDump.Result}. Killing process.");
-            }
-
-            var exitCode = process.ExitCode;
-
-            Output.WriteLine($"ProcessId: " + process.Id);
-            Output.WriteLine($"Exit Code: " + exitCode);
 
             var standardOutput = helper.StandardOutput;
 
@@ -217,6 +215,18 @@ namespace Datadog.Trace.TestHelpers
             {
                 Output.WriteLine($"StandardError:{Environment.NewLine}{standardError}");
             }
+
+            if (!ranToCompletion && !process.HasExited)
+            {
+                var tookMemoryDump = TakeMemoryDump(process);
+                process.Kill();
+                throw new Exception($"The sample did not exit in {timeoutMs}ms. Memory dump taken: {tookMemoryDump.Result}. Killing process.");
+            }
+
+            var exitCode = process.ExitCode;
+
+            Output.WriteLine($"ProcessId: " + process.Id);
+            Output.WriteLine($"Exit Code: " + exitCode);
 
 #if NETCOREAPP2_1
             if (exitCode == 139)
@@ -233,7 +243,7 @@ namespace Datadog.Trace.TestHelpers
                 throw new SkipException("Coverlet threw AbandonedMutexException during cleanup");
             }
 
-            ExitCodeException.ThrowIfNonZero(exitCode);
+            ExitCodeException.ThrowIfNonExpected(exitCode, expectedExitCode);
 
             return new ProcessResult(process, standardOutput, standardError, exitCode);
         }
@@ -363,7 +373,12 @@ namespace Datadog.Trace.TestHelpers
 
         public void EnableIast(bool enable = true)
         {
-            SetEnvironmentVariable(ConfigurationKeys.Iast.Enabled, enable.ToString());
+            SetEnvironmentVariable(ConfigurationKeys.Iast.Enabled, enable.ToString().ToLower());
+        }
+
+        public void DisableObfuscationQueryString()
+        {
+            SetEnvironmentVariable(ConfigurationKeys.ObfuscationQueryStringRegex, string.Empty);
         }
 
         public void SetEnvironmentVariable(string key, string value)
@@ -415,9 +430,14 @@ namespace Datadog.Trace.TestHelpers
             EnvironmentHelper.DebugModeEnabled = true;
         }
 
+        protected void SetServiceName(string serviceName)
+        {
+            SetEnvironmentVariable(ConfigurationKeys.ServiceName, serviceName);
+        }
+
         protected void SetServiceVersion(string serviceVersion)
         {
-            SetEnvironmentVariable("DD_VERSION", serviceVersion);
+            SetEnvironmentVariable(ConfigurationKeys.ServiceVersion, serviceVersion);
         }
 
         protected void SetSecurity(bool security)
@@ -429,8 +449,7 @@ namespace Datadog.Trace.TestHelpers
         protected void SetInstrumentationVerification()
         {
             bool verificationEnabled = ShouldUseInstrumentationVerification();
-            SetEnvironmentVariable(InstrumentationVerification.InstrumentationVerificationEnabled, verificationEnabled ? "1" : "0");
-            SetEnvironmentVariable(Configuration.ConfigurationKeys.LogDirectory, verificationEnabled ? EnvironmentHelper.LogDirectory : null);
+            SetEnvironmentVariable(ConfigurationKeys.LogDirectory, verificationEnabled ? EnvironmentHelper.LogDirectory : null);
         }
 
         protected void VerifyInstrumentation(Process process)

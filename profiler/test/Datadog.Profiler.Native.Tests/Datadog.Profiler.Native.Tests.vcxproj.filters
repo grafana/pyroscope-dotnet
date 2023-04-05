@@ -56,9 +56,6 @@
     <ClCompile Include="AppDomainStoreHelper.cpp">
       <Filter>Helpers</Filter>
     </ClCompile>
-    <ClCompile Include="SamplesProviderTest.cpp">
-      <Filter>Tests</Filter>
-    </ClCompile>
     <ClCompile Include="LogTest.cpp">
       <Filter>Tests</Filter>
     </ClCompile>
@@ -80,7 +77,7 @@
     <ClCompile Include="ManagedThreadListTest.cpp">
       <Filter>Tests</Filter>
     </ClCompile>
-    <ClCompile Include="StackSnapshotResultReusableBufferTest.cpp">
+    <ClCompile Include="StackSnapshotResultBufferTest.cpp">
       <Filter>Tests</Filter>
     </ClCompile>
     <ClCompile Include="RuntimeIdTest.cpp">
@@ -106,6 +103,12 @@
     </ClCompile>
     <ClCompile Include="ProfilerSignalManagerTest.cpp">
       <Filter>Tests</Filter>
+    </ClCompile>
+    <ClCompile Include="MetricsRegistryTest.cpp">
+      <Filter>Tests</Filter>
+    </ClCompile>
+    <ClCompile Include="OSpecificAPIHelper.cpp">
+      <Filter>Helpers</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

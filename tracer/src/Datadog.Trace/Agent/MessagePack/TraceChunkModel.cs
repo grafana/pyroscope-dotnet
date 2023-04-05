@@ -8,6 +8,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Datadog.Trace.Configuration;
 using Datadog.Trace.Tagging;
 using Datadog.Trace.Util;
 
@@ -29,7 +30,18 @@ internal readonly struct TraceChunkModel
     //   _hashSet.IsValueCreated == true, we needed the HashSet so we initialized it
     private readonly Lazy<HashSet<ulong>>? _hashSet;
 
+    public readonly string? DefaultServiceName = null;
+
     public readonly int? SamplingPriority = null;
+
+    public readonly string? Environment = null;
+
+    public readonly string? ServiceVersion = null;
+    public readonly string? GitRepositoryUrl = null;
+
+    public readonly string? GitCommitSha = null;
+
+    public readonly string? Origin = null;
 
     public readonly TraceTagCollection? Tags = null;
 
@@ -39,8 +51,17 @@ internal readonly struct TraceChunkModel
 
     public readonly bool HasUpstreamService = false;
 
-    public TraceChunkModel(in ArraySegment<Span> spans)
-        : this(spans, GetTraceContext(spans))
+    public readonly bool IsRunningInAzureAppService = false;
+
+    public readonly ImmutableAzureAppServiceSettings? AzureAppServiceSettings = null;
+
+    /// <summary>
+    ///     Initializes a new instance of the <see cref="TraceChunkModel"/> struct.
+    /// </summary>
+    /// <param name="spans">The spans that will be within this <see cref="TraceChunkModel"/>.</param>
+    /// <param name="samplingPriority">Optional sampling priority to override the <see cref="TraceContext"/> sampling priority.</param>
+    public TraceChunkModel(in ArraySegment<Span> spans, int? samplingPriority = null)
+        : this(spans, GetTraceContext(spans), samplingPriority)
     {
         // since all we have is an array of spans, use the trace context from the first span
         // to get the other values we need (sampling priority, origin, trace tags, etc) for now.
@@ -49,13 +70,27 @@ internal readonly struct TraceChunkModel
     }
 
     // used only to chain constructors
-    private TraceChunkModel(in ArraySegment<Span> spans, TraceContext? traceContext)
+    private TraceChunkModel(in ArraySegment<Span> spans, TraceContext? traceContext, int? samplingPriority)
         : this(spans, traceContext?.RootSpan)
     {
+        SamplingPriority = samplingPriority;
+
         if (traceContext is not null)
         {
-            SamplingPriority = traceContext.SamplingPriority;
+            DefaultServiceName = traceContext.Tracer?.DefaultServiceName;
+            SamplingPriority ??= traceContext.SamplingPriority;
+            Environment = traceContext.Environment;
+            ServiceVersion = traceContext.ServiceVersion;
+            Origin = traceContext.Origin;
             Tags = traceContext.Tags;
+            IsRunningInAzureAppService = traceContext.Tracer?.Settings?.IsRunningInAzureAppService ?? false;
+            AzureAppServiceSettings = traceContext.Tracer?.Settings?.AzureAppServiceMetadata ?? null;
+            if (traceContext.Tracer?.GitMetadataTagsProvider?.TryExtractGitMetadata(out var gitMetadata) == true &&
+                gitMetadata != GitMetadata.Empty)
+            {
+                GitRepositoryUrl = gitMetadata.RepositoryUrl;
+                GitCommitSha = gitMetadata.CommitSha;
+            }
         }
     }
 

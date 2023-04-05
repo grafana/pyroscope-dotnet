@@ -4,6 +4,7 @@
 // </copyright>
 
 using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Datadog.Trace.Ci.Tagging;
 using Datadog.Trace.Ci.Tags;
@@ -36,6 +37,11 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
 
         private readonly byte[] _languageNameBytes = StringEncoding.UTF8.GetBytes(Trace.Tags.Language);
         private readonly byte[] _languageValueBytes = StringEncoding.UTF8.GetBytes(TracerConstants.Language);
+
+        private readonly byte[] _environmentNameBytes = StringEncoding.UTF8.GetBytes(Trace.Tags.Env);
+
+        private readonly byte[] _versionNameBytes = StringEncoding.UTF8.GetBytes(Trace.Tags.Version);
+
         private readonly byte[] _originNameBytes = StringEncoding.UTF8.GetBytes(Trace.Tags.Origin);
         private readonly byte[] _originValueBytes = StringEncoding.UTF8.GetBytes(TestTags.CIAppTestOriginName);
 
@@ -191,6 +197,7 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
         private int WriteTags(ref byte[] bytes, int offset, Span span, ITags tags, ITagProcessor[] tagProcessors)
         {
             int originalOffset = offset;
+            var traceContext = span.Context.TraceContext;
 
             // Start of "meta" dictionary. Do not add any string tags before this line.
             offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _metaBytes);
@@ -201,15 +208,6 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
             var countOffset = offset;
             offset += MessagePackBinary.WriteMapHeaderForceMap32Block(ref bytes, offset, 0);
 
-            // add "language=dotnet" tag to all spans, except those that
-            // represents a downstream service or external dependency
-            if (tags is not InstrumentationTags { SpanKind: SpanKinds.Client or SpanKinds.Producer })
-            {
-                count++;
-                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _languageNameBytes);
-                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _languageValueBytes);
-            }
-
             // Write span tags
             var tagWriter = new TagWriter(this, tagProcessors, bytes, offset);
             tags.EnumerateTags(ref tagWriter);
@@ -217,22 +215,54 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
             offset = tagWriter.Offset;
             count += tagWriter.Count;
 
-            if (span.IsRootSpan && span.Context.TraceContext != null)
+            // TODO: for each trace tag, determine if it should be added to the local root,
+            // to the first span in the chunk, or to all orphan spans.
+            // For now, we add them to the local root which is correct in most cases.
+            if (span.IsRootSpan && traceContext?.Tags is { Count: > 0 } traceTags)
             {
-                // write trace-level string tags
-                var traceTags = span.Context.TraceContext.Tags.ToArray();
-                count += traceTags.Length;
-
-                foreach (var tag in traceTags)
-                {
-                    WriteTag(ref bytes, ref offset, tag.Key, tag.Value, tagProcessors);
-                }
+                var traceTagWriter = new TraceTagWriter(this, tagProcessors, bytes, offset);
+                traceTags.Enumerate(ref traceTagWriter);
+                bytes = traceTagWriter.Bytes;
+                offset = traceTagWriter.Offset;
+                count += traceTagWriter.Count;
             }
 
             // add "_dd.origin" tag to all spans
             count++;
             offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _originNameBytes);
             offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _originValueBytes);
+
+            // add "env" to all spans
+            var env = traceContext?.Environment;
+
+            if (!string.IsNullOrWhiteSpace(env))
+            {
+                count++;
+                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _environmentNameBytes);
+                offset += MessagePackBinary.WriteString(ref bytes, offset, env);
+            }
+
+            // add "language=dotnet" tag to all spans, except those that
+            // represents a downstream service or external dependency
+            if (span.Tags is not InstrumentationTags { SpanKind: SpanKinds.Client or SpanKinds.Producer })
+            {
+                count++;
+                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _languageNameBytes);
+                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _languageValueBytes);
+            }
+
+            // add "version" tags to all spans whose service name is the default service name
+            if (string.Equals(span.Context.ServiceName, traceContext?.Tracer.DefaultServiceName, StringComparison.OrdinalIgnoreCase))
+            {
+                var version = traceContext?.ServiceVersion;
+
+                if (!string.IsNullOrWhiteSpace(version))
+                {
+                    count++;
+                    offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _versionNameBytes);
+                    offset += MessagePackBinary.WriteString(ref bytes, offset, version);
+                }
+            }
 
             if (count > 0)
             {
@@ -379,6 +409,7 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
             public int Offset;
             public int Count;
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             internal TagWriter(SpanMessagePackFormatter formatter, ITagProcessor[] tagProcessors, byte[] bytes, int offset)
             {
                 _formatter = formatter;
@@ -388,6 +419,7 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
                 Count = 0;
             }
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Process(TagItem<string> item)
             {
                 if (item.KeyUtf8 is null)
@@ -402,6 +434,7 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
                 Count++;
             }
 
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Process(TagItem<double> item)
             {
                 if (item.KeyUtf8 is null)
@@ -413,6 +446,33 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
                     _formatter.WriteMetric(ref Bytes, ref Offset, item.KeyUtf8, item.Value, _tagProcessors);
                 }
 
+                Count++;
+            }
+        }
+
+        internal struct TraceTagWriter : TraceTagCollection.ITagEnumerator
+        {
+            private readonly SpanMessagePackFormatter _formatter;
+            private readonly ITagProcessor[] _tagProcessors;
+
+            public byte[] Bytes;
+            public int Offset;
+            public int Count;
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            internal TraceTagWriter(SpanMessagePackFormatter formatter, ITagProcessor[] tagProcessors, byte[] bytes, int offset)
+            {
+                _formatter = formatter;
+                _tagProcessors = tagProcessors;
+                Bytes = bytes;
+                Offset = offset;
+                Count = 0;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public void Next(KeyValuePair<string, string> item)
+            {
+                _formatter.WriteTag(ref Bytes, ref Offset, item.Key, item.Value, _tagProcessors);
                 Count++;
             }
         }

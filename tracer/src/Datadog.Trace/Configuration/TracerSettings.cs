@@ -12,6 +12,7 @@ using Datadog.Trace.ClrProfiler.ServerlessInstrumentation;
 using Datadog.Trace.ExtensionMethods;
 using Datadog.Trace.Logging.DirectSubmission;
 using Datadog.Trace.PlatformHelpers;
+using Datadog.Trace.Propagators;
 using Datadog.Trace.Vendors.Serilog;
 
 namespace Datadog.Trace.Configuration
@@ -53,6 +54,8 @@ namespace Datadog.Trace.Configuration
         /// <param name="source">The <see cref="IConfigurationSource"/> to use when retrieving configuration values.</param>
         public TracerSettings(IConfigurationSource source)
         {
+            var commaSeparator = new[] { ',' };
+
             Environment = source?.GetString(ConfigurationKeys.Environment);
 
             ServiceName = source?.GetString(ConfigurationKeys.ServiceName) ??
@@ -61,14 +64,15 @@ namespace Datadog.Trace.Configuration
 
             ServiceVersion = source?.GetString(ConfigurationKeys.ServiceVersion);
 
+            GitCommitSha = source?.GetString(ConfigurationKeys.GitCommitSha);
+
+            GitRepositoryUrl = source?.GetString(ConfigurationKeys.GitRepositoryUrl);
+
+            GitMetadataEnabled = source?.GetBool(ConfigurationKeys.GitMetadataEnabled) ?? true;
+
             TraceEnabled = source?.GetBool(ConfigurationKeys.TraceEnabled) ??
                            // default value
                            true;
-
-            if (AzureAppServices.Metadata.IsRelevant && AzureAppServices.Metadata.IsUnsafeToTrace)
-            {
-                TraceEnabled = false;
-            }
 
             var disabledIntegrationNames = source?.GetString(ConfigurationKeys.DisabledIntegrations)
                                                  ?.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries) ??
@@ -138,16 +142,6 @@ namespace Datadog.Trace.Configuration
                                           // default value
                                           true;
 
-            var urlSubstringSkips = source?.GetString(ConfigurationKeys.HttpClientExcludedUrlSubstrings) ??
-                                    // default value
-                                    (AzureAppServices.Metadata.IsRelevant ? AzureAppServices.Metadata.DefaultHttpClientExclusions :
-                                     Serverless.Metadata is { IsRunningInLambda: true } m ? m.DefaultHttpClientExclusions : null);
-
-            if (urlSubstringSkips != null)
-            {
-                HttpClientExcludedUrlSubstrings = TrimSplitString(urlSubstringSkips.ToUpperInvariant(), ',').ToArray();
-            }
-
             var httpServerErrorStatusCodes = source?.GetString(ConfigurationKeys.HttpServerErrorStatusCodes) ??
                                              // Default value
                                              "500-599";
@@ -187,9 +181,54 @@ namespace Datadog.Trace.Configuration
 
             ObfuscationQueryStringRegexTimeout = source?.GetDouble(ConfigurationKeys.ObfuscationQueryStringRegexTimeout) is { } x and > 0 ? x : 200;
 
-            PropagationStyleInject = TrimSplitString(source?.GetString(ConfigurationKeys.PropagationStyleInject) ?? nameof(Propagators.ContextPropagators.Names.Datadog), ',').ToArray();
+            IsActivityListenerEnabled = source?.GetBool(ConfigurationKeys.FeatureFlags.OpenTelemetryEnabled) ??
+                                        source?.GetBool("DD_TRACE_ACTIVITY_LISTENER_ENABLED") ??
+                                        // default value
+                                        false;
 
-            PropagationStyleExtract = TrimSplitString(source?.GetString(ConfigurationKeys.PropagationStyleExtract) ?? nameof(Propagators.ContextPropagators.Names.Datadog), ',').ToArray();
+            var propagationStyleInject = source?.GetString(ConfigurationKeys.PropagationStyleInject) ??
+                                         source?.GetString("DD_PROPAGATION_STYLE_INJECT") ?? // deprecated setting name
+                                         source?.GetString(ConfigurationKeys.PropagationStyle);
+
+            PropagationStyleInject = TrimSplitString(propagationStyleInject, commaSeparator);
+
+            if (PropagationStyleInject.Length == 0)
+            {
+                // default value
+                PropagationStyleInject = new[]
+                                         {
+                                             ContextPropagationHeaderStyle.W3CTraceContext,
+                                             ContextPropagationHeaderStyle.Datadog
+                                         };
+            }
+
+            var propagationStyleExtract = source?.GetString(ConfigurationKeys.PropagationStyleExtract) ??
+                                          source?.GetString("DD_PROPAGATION_STYLE_EXTRACT") ?? // deprecated setting name
+                                          source?.GetString(ConfigurationKeys.PropagationStyle);
+
+            PropagationStyleExtract = TrimSplitString(propagationStyleExtract, commaSeparator);
+
+            if (PropagationStyleExtract.Length == 0)
+            {
+                // default value
+                PropagationStyleExtract = new[]
+                                          {
+                                              ContextPropagationHeaderStyle.W3CTraceContext,
+                                              ContextPropagationHeaderStyle.Datadog
+                                          };
+            }
+
+            // If Activity support is enabled, we must enable the W3C Trace Context propagators.
+            // It's ok to include W3C multiple times, we handle that later.
+            if (IsActivityListenerEnabled)
+            {
+                PropagationStyleInject = PropagationStyleInject.Concat(ContextPropagationHeaderStyle.W3CTraceContext);
+                PropagationStyleExtract = PropagationStyleExtract.Concat(ContextPropagationHeaderStyle.W3CTraceContext);
+            }
+            else
+            {
+                DisabledIntegrationNames.Add(nameof(Configuration.IntegrationId.OpenTelemetry));
+            }
 
             LogSubmissionSettings = new DirectLogSubmissionSettings(source);
 
@@ -208,33 +247,38 @@ namespace Datadog.Trace.Configuration
 
             OutgoingTagPropagationHeaderMaxLength = outgoingTagPropagationHeaderMaxLength is >= 0 and <= Tagging.TagPropagation.OutgoingTagPropagationHeaderMaxLength ? (int)outgoingTagPropagationHeaderMaxLength : Tagging.TagPropagation.OutgoingTagPropagationHeaderMaxLength;
 
-            IsActivityListenerEnabled = source?.GetBool(ConfigurationKeys.FeatureFlags.ActivityListenerEnabled) ??
-                                        // default value
-                                        false;
-
             IpHeader = source?.GetString(ConfigurationKeys.IpHeader) ?? source?.GetString(ConfigurationKeys.AppSec.CustomIpHeader);
 
             IpHeaderEnabled = source?.GetBool(ConfigurationKeys.IpHeaderEnabled) ?? false;
 
-            if (IsActivityListenerEnabled)
-            {
-                // If the activities support is activated, we must enable W3C propagators
-                if (!Array.Exists(PropagationStyleExtract, key => string.Equals(key, nameof(Propagators.ContextPropagators.Names.W3C), StringComparison.OrdinalIgnoreCase)))
-                {
-                    PropagationStyleExtract = PropagationStyleExtract.Concat(nameof(Propagators.ContextPropagators.Names.W3C));
-                }
+            IsDataStreamsMonitoringEnabled = source?.GetBool(ConfigurationKeys.DataStreamsMonitoring.Enabled) ??
+                                             // default value
+                                             false;
 
-                if (!Array.Exists(PropagationStyleInject, key => string.Equals(key, nameof(Propagators.ContextPropagators.Names.W3C), StringComparison.OrdinalIgnoreCase)))
+            IsRareSamplerEnabled = source?.GetBool(ConfigurationKeys.RareSamplerEnabled) ?? false;
+
+            IsRunningInAzureAppService = source?.GetString(ConfigurationKeys.AzureAppService.AzureAppServicesContextKey)?.ToBoolean() ?? false;
+            if (IsRunningInAzureAppService)
+            {
+                AzureAppServiceMetadata = new ImmutableAzureAppServiceSettings(source);
+                if (AzureAppServiceMetadata.IsUnsafeToTrace)
                 {
-                    PropagationStyleInject = PropagationStyleInject.Concat(nameof(Propagators.ContextPropagators.Names.W3C));
+                    TraceEnabled = false;
                 }
             }
 
-            IsDataStreamsMonitoringEnabled = source?.GetBool(ConfigurationKeys.DataStreamsMonitoring.Enabled) ??
-                                        // default value
-                                        false;
+            var urlSubstringSkips = source?.GetString(ConfigurationKeys.HttpClientExcludedUrlSubstrings) ??
+                                    // default value
+                                    (IsRunningInAzureAppService ? ImmutableAzureAppServiceSettings.DefaultHttpClientExclusions :
+                                     Serverless.Metadata is { IsRunningInLambda: true } m ? m.DefaultHttpClientExclusions : null);
 
-            IsRareSamplerEnabled = source?.GetBool(ConfigurationKeys.RareSamplerEnabled) ?? false;
+            if (urlSubstringSkips != null)
+            {
+                HttpClientExcludedUrlSubstrings = TrimSplitString(urlSubstringSkips.ToUpperInvariant(), commaSeparator);
+            }
+
+            var dbmPropagationMode = source?.GetString(ConfigurationKeys.DbmPropagationMode);
+            DbmPropagationMode = dbmPropagationMode == null ? DbmPropagationLevel.Disabled : ValidateDbmPropagationInput(dbmPropagationMode);
         }
 
         /// <summary>
@@ -254,6 +298,25 @@ namespace Datadog.Trace.Configuration
         /// </summary>
         /// <seealso cref="ConfigurationKeys.ServiceVersion"/>
         public string ServiceVersion { get; set; }
+
+        /// <summary>
+        /// Gets or sets the application's git repository url.
+        /// </summary>
+        /// <seealso cref="ConfigurationKeys.GitRepositoryUrl"/>
+        internal string GitRepositoryUrl { get; set; }
+
+        /// <summary>
+        /// Gets or sets the application's git commit hash.
+        /// </summary>
+        /// <seealso cref="ConfigurationKeys.GitCommitSha"/>
+        internal string GitCommitSha { get; set; }
+
+        /// <summary>
+        /// Gets a value indicating whether we should tag every telemetry event with git metadata.
+        /// Default value is <c>true</c> (enabled).
+        /// </summary>
+        /// <seealso cref="ConfigurationKeys.GitMetadataEnabled"/>
+        internal bool GitMetadataEnabled { get; }
 
         /// <summary>
         /// Gets or sets a value indicating whether tracing is enabled.
@@ -523,6 +586,21 @@ namespace Datadog.Trace.Configuration
         internal bool IsRareSamplerEnabled { get; set; }
 
         /// <summary>
+        /// Gets or sets a value indicating whether the tracer is running in AAS
+        /// </summary>
+        internal bool IsRunningInAzureAppService { get; set; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether the tracer should propagate service data in db queries
+        /// </summary>
+        internal DbmPropagationLevel DbmPropagationMode { get; set; }
+
+        /// <summary>
+        /// Gets or sets the AAS settings
+        /// </summary>
+        internal ImmutableAzureAppServiceSettings AzureAppServiceMetadata { get; set; }
+
+        /// <summary>
         /// Create a <see cref="TracerSettings"/> populated from the default sources
         /// returned by <see cref="GlobalConfigurationSource.Instance"/>.
         /// </summary>
@@ -614,18 +692,25 @@ namespace Datadog.Trace.Configuration
             return headerTags;
         }
 
-        // internal for testing
-        internal static IEnumerable<string> TrimSplitString(string textValues, char separator)
+        internal static string[] TrimSplitString(string textValues, char[] separators)
         {
-            var values = textValues.Split(separator);
-
-            for (var i = 0; i < values.Length; i++)
+            if (string.IsNullOrWhiteSpace(textValues))
             {
-                if (!string.IsNullOrWhiteSpace(values[i]))
+                return Array.Empty<string>();
+            }
+
+            var values = textValues.Split(separators);
+            var list = new List<string>(values.Length);
+
+            foreach (var value in values)
+            {
+                if (!string.IsNullOrWhiteSpace(value))
                 {
-                    yield return values[i].Trim();
+                    list.Add(value.Trim());
                 }
             }
+
+            return list.ToArray();
         }
 
         internal static bool[] ParseHttpCodesToArray(string httpStatusErrorCodes)
@@ -678,6 +763,31 @@ namespace Datadog.Trace.Configuration
             }
 
             return httpErrorCodesArray;
+        }
+
+        internal static DbmPropagationLevel ValidateDbmPropagationInput(string inputValue)
+        {
+            DbmPropagationLevel propagationValue;
+
+            if (inputValue.Equals("disabled", StringComparison.OrdinalIgnoreCase))
+            {
+                propagationValue = DbmPropagationLevel.Disabled;
+            }
+            else if (inputValue.Equals("service", StringComparison.OrdinalIgnoreCase))
+            {
+                propagationValue = DbmPropagationLevel.Service;
+            }
+            else if (inputValue.Equals("full", StringComparison.OrdinalIgnoreCase))
+            {
+                propagationValue = DbmPropagationLevel.Full;
+            }
+            else
+            {
+                propagationValue = DbmPropagationLevel.Disabled;
+                Log.Warning("Wrong setting '{0}' for DD_DBM_PROPAGATION_MODE supported values include: disabled, service or full.", inputValue);
+            }
+
+            return propagationValue;
         }
     }
 }

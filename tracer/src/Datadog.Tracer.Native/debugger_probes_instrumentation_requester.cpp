@@ -2,6 +2,7 @@
 
 #include "debugger_members.h"
 #include "cor_profiler.h"
+#include "dd_profiler_constants.h"
 #include "il_rewriter_wrapper.h"
 #include "logger.h"
 #include "stats.h"
@@ -11,7 +12,7 @@
 #include "debugger_environment_variables_util.h"
 #include "debugger_method_rewriter.h"
 #include "debugger_rejit_handler_module_method.h"
-#include "probes_tracker.h"
+#include "debugger_probes_tracker.h"
 
 namespace debugger
 {
@@ -60,14 +61,13 @@ void DebuggerProbesInstrumentationRequester::PerformInstrumentAllIfNeeded(const 
         return;
     }
 
-    const auto corProfiler = trace::profiler;
-    const auto& module_info = GetModuleInfo(corProfiler->info_, module_id);
+    const auto& module_info = GetModuleInfo(m_corProfiler->info_, module_id);
     const auto assembly_name = module_info.assembly.name;
 
     if (!IsCoreLibOr3rdParty(assembly_name))
     {
         ComPtr<IUnknown> metadataInterfaces;
-        auto hr = corProfiler->info_->GetModuleMetaData(module_id, ofRead | ofWrite, IID_IMetaDataImport2,
+        auto hr = m_corProfiler->info_->GetModuleMetaData(module_id, ofRead | ofWrite, IID_IMetaDataImport2,
                                                         metadataInterfaces.GetAddressOf());
 
         auto metadataImport = metadataInterfaces.As<IMetaDataImport2>(IID_IMetaDataImport);
@@ -80,8 +80,8 @@ void DebuggerProbesInstrumentationRequester::PerformInstrumentAllIfNeeded(const 
 
         std::unique_ptr<ModuleMetadata> module_metadata = std::make_unique<ModuleMetadata>(
             metadataImport, metadataEmit, assemblyImport, assemblyEmit, module_info.assembly.name,
-            module_info.assembly.app_domain_id, &corProfiler->corAssemblyProperty,
-            corProfiler->enable_by_ref_instrumentation, corProfiler->enable_calltarget_state_by_ref);
+            module_info.assembly.app_domain_id, &m_corProfiler->corAssemblyProperty,
+            m_corProfiler->enable_by_ref_instrumentation, m_corProfiler->enable_calltarget_state_by_ref);
 
         // get function info
         auto caller = GetFunctionInfo(module_metadata->metadata_import, function_token);
@@ -137,11 +137,14 @@ void DebuggerProbesInstrumentationRequester::PerformInstrumentAllIfNeeded(const 
 
 
 DebuggerProbesInstrumentationRequester::DebuggerProbesInstrumentationRequester(
+    CorProfiler* corProfiler,
     std::shared_ptr<trace::RejitHandler> rejit_handler, 
     std::shared_ptr<trace::RejitWorkOffloader> work_offloader) :
-    m_rejit_handler(rejit_handler), m_work_offloader(work_offloader)
+    m_corProfiler(corProfiler),
+    m_rejit_handler(rejit_handler),
+    m_work_offloader(work_offloader),
+    m_debugger_rejit_preprocessor(std::make_unique<DebuggerRejitPreprocessor>(corProfiler, rejit_handler, work_offloader))
 {
-    m_debugger_rejit_preprocessor = std::make_unique<DebuggerRejitPreprocessor>(rejit_handler, work_offloader);
     is_debugger_enabled = IsDebuggerEnabled();
 }
 
@@ -262,13 +265,17 @@ void DebuggerProbesInstrumentationRequester::AddMethodProbes(
         if (methodProbesLength <= 0) 
             return;
 
-        const auto corProfiler = trace::profiler;
-
         std::vector<MethodProbeDefinition> methodProbeDefinitions;
 
         for (int i = 0; i < methodProbesLength; i++)
         {
             const DebuggerMethodProbeDefinition& current = methodProbes[i];
+
+            if (ProbeIdExists(current.probeId))
+            {
+                Logger::Debug("[AddMethodProbes] Method Probe Id: ", current.probeId, " is already processed.");
+                continue;
+            }
 
             const shared::WSTRING& probeId = shared::WSTRING(current.probeId);
             const shared::WSTRING& targetType = shared::WSTRING(current.targetType);
@@ -307,11 +314,17 @@ void DebuggerProbesInstrumentationRequester::AddMethodProbes(
             ProbesMetadataTracker::Instance()->CreateNewProbeIfNotExists(probeId);
         }
 
-        std::scoped_lock<std::mutex> moduleLock(trace::profiler->module_ids_lock_);
+        if (methodProbeDefinitions.empty())
+        {
+            Logger::Debug("[AddMethodProbes] Early exiting, there are no new method probes to be added.");
+            return;
+        }
 
-        std::promise<std::vector<MethodIdentifier>> promise;
-        std::future<std::vector<MethodIdentifier>> future = promise.get_future();
-        m_debugger_rejit_preprocessor->EnqueuePreprocessRejitRequests(corProfiler->module_ids_, methodProbeDefinitions, &promise);
+        auto modules = m_corProfiler->module_ids.Get();
+
+        auto promise = std::make_shared<std::promise<std::vector<MethodIdentifier>>>();
+        std::future<std::vector<MethodIdentifier>> future = promise->get_future();
+        m_debugger_rejit_preprocessor->EnqueuePreprocessRejitRequests(modules.Ref(), methodProbeDefinitions, promise);
 
         const auto& methodProbeRequests = future.get();
 
@@ -345,14 +358,18 @@ void DebuggerProbesInstrumentationRequester::AddLineProbes(
 
         if (lineProbesLength <= 0)
             return;
-
-        const auto corProfiler = trace::profiler;
-
+        
         LineProbeDefinitions lineProbeDefinitions;
 
         for (int i = 0; i < lineProbesLength; i++)
         {
             const DebuggerLineProbeDefinition& current = lineProbes[i];
+
+            if (ProbeIdExists(current.probeId))
+            {
+                Logger::Debug("[AddLineProbes] Method Probe Id: ", current.probeId, " is already processed.");
+                continue;
+            }
 
             const shared::WSTRING& probeId = shared::WSTRING(current.probeId);
             const shared::WSTRING& probeFilePath = shared::WSTRING(current.probeFilePath);
@@ -361,11 +378,17 @@ void DebuggerProbesInstrumentationRequester::AddLineProbes(
             lineProbeDefinitions.push_back(lineProbe);
         }
 
-        std::scoped_lock<std::mutex> moduleLock(trace::profiler->module_ids_lock_);
+        if (lineProbeDefinitions.empty())
+        {
+            Logger::Debug("[AddLineProbes] Early exiting, there are no new line probes to be added.");
+            return;
+        }
+
+        auto modules = m_corProfiler->module_ids.Get();
 
         std::promise<std::vector<MethodIdentifier>> promise;
         std::future<std::vector<MethodIdentifier>> future = promise.get_future();
-        m_debugger_rejit_preprocessor->EnqueuePreprocessLineProbes(corProfiler->module_ids_, lineProbeDefinitions, &promise);
+        m_debugger_rejit_preprocessor->EnqueuePreprocessLineProbes(modules.Ref(), lineProbeDefinitions, &promise);
 
         const auto& lineProbeRequests = future.get();
 
@@ -441,6 +464,14 @@ void DebuggerProbesInstrumentationRequester::DetermineReInstrumentProbes(std::se
     }
 }
 
+// Assumes `m_probes_mutex` is held
+bool DebuggerProbesInstrumentationRequester::ProbeIdExists(const WCHAR* probeId)
+{
+    auto it = std::find_if(m_probes.begin(), m_probes.end(),
+                           [&](ProbeDefinition_S const& probeDef) { return probeDef->probeId == probeId; });
+    return it != m_probes.end();
+}
+
 void DebuggerProbesInstrumentationRequester::InstrumentProbes(debugger::DebuggerMethodProbeDefinition* methodProbes,
                                                               int methodProbesLength,
                                                               debugger::DebuggerLineProbeDefinition* lineProbes,
@@ -486,9 +517,9 @@ void DebuggerProbesInstrumentationRequester::InstrumentProbes(debugger::Debugger
         // RequestRevert
         std::vector<MethodIdentifier> requests(revertRequests.size());
         std::copy(revertRequests.begin(), revertRequests.end(), requests.begin());
-        std::promise<void> promise;
-        std::future<void> future = promise.get_future();
-        m_debugger_rejit_preprocessor->EnqueueRequestRevert(requests, &promise);
+        auto promise = std::make_shared<std::promise<void>>();
+        std::future<void> future = promise->get_future();
+        m_debugger_rejit_preprocessor->EnqueueRequestRevert(requests, promise);
         // wait and get the value from the future<void>
         future.get();   
     }
@@ -498,11 +529,11 @@ void DebuggerProbesInstrumentationRequester::InstrumentProbes(debugger::Debugger
         Logger::Info("About to RequestRejit for ", rejitRequests.size(), " methods.");
 
         // RequestRejit
-        std::promise<void> promise;
-        std::future<void> future = promise.get_future();
+        auto promise = std::make_shared<std::promise<void>>();
+        std::future<void> future = promise->get_future();
         std::vector<MethodIdentifier> requests(rejitRequests.size());
         std::copy(rejitRequests.begin(), rejitRequests.end(), requests.begin());
-        m_debugger_rejit_preprocessor->EnqueueRequestRejit(requests, &promise);
+        m_debugger_rejit_preprocessor->EnqueueRequestRejit(requests, promise);
         // wait and get the value from the future<void>
         future.get();   
     }
@@ -530,8 +561,15 @@ int DebuggerProbesInstrumentationRequester::GetProbesStatuses(WCHAR** probeIds, 
         std::shared_ptr<ProbeMetadata> probeMetadata;
         if (ProbesMetadataTracker::Instance()->TryGetMetadata(probeId, probeMetadata))
         {
-            probeStatuses[probeStatusesCount] = 
-                {probeMetadata->probeId.c_str(), probeMetadata->status};
+            if (probeMetadata->status == ProbeStatus::_ERROR)
+            {
+                probeStatuses[probeStatusesCount] = {probeMetadata->probeId.c_str(), probeMetadata->errorMessage.c_str(), probeMetadata->status};
+            }
+            else
+            {
+                probeStatuses[probeStatusesCount] = {probeMetadata->probeId.c_str(), /* errorMessage */ nullptr,
+                                                     probeMetadata->status};
+            }
             probeStatusesCount++;
         }
         else
@@ -678,7 +716,42 @@ void DebuggerProbesInstrumentationRequester::ModuleLoadFinished_AddMetadataToMod
         // define a new boolean field in the state machine object to indicate whether we have already entered the
         // MoveNext method (if we have, it means we are re-entering the method as a continuation in a subsequent
         // `await` operation, and should not capture the method parameter values as we do the first time around).
-        BYTE fieldSignature[] = {IMAGE_CEE_CS_CALLCONV_FIELD, ELEMENT_TYPE_BOOLEAN};
+
+        mdAssemblyRef managed_profiler_assemblyRef = mdAssemblyRefNil;
+        hr = assemblyEmit->DefineAssemblyRef(
+            managed_profiler_assembly_property.ppbPublicKey, managed_profiler_assembly_property.pcbPublicKey,
+            managed_profiler_assembly_property.szName.data(), &managed_profiler_assembly_property.pMetaData,
+            &managed_profiler_assembly_property.pulHashAlgId, sizeof(managed_profiler_assembly_property.pulHashAlgId),
+            managed_profiler_assembly_property.assemblyFlags, &managed_profiler_assemblyRef);
+
+        if (FAILED(hr) || managed_profiler_assemblyRef == mdAssemblyRefNil)
+        {
+            Logger::Warn("Failed to resolve assembly ref of the tracer assembly. [ModuleId=", moduleInfo.id, ", Assembly=", moduleInfo.assembly.name,
+        ", Type=", typeInfo.name, ", IsValueType=", typeInfo.valueType, "]");
+            return;
+        }
+
+        mdTypeRef asyncMethodDebuggerStateTypeRef = mdTypeRefNil;
+        hr = metadataEmit->DefineTypeRefByName(managed_profiler_assemblyRef,
+            managed_profiler_debugger_async_method_state_type.data(),
+            &asyncMethodDebuggerStateTypeRef);
+        if (FAILED(hr) || asyncMethodDebuggerStateTypeRef == mdTypeRefNil)
+        {
+            Logger::Warn("Failed to define type ref of the AsyncMethodDebuggerState. [ModuleId=", moduleInfo.id,
+                         ", Assembly=", moduleInfo.assembly.name, ", Type=", typeInfo.name,
+                         ", IsValueType=", typeInfo.valueType, "]");
+            return;
+        }
+
+        unsigned callTargetStateBuffer;
+        auto callTargetStateSize = CorSigCompressToken(asyncMethodDebuggerStateTypeRef, &callTargetStateBuffer);
+
+        COR_SIGNATURE fieldSignature[500];
+        unsigned offset = 0;
+        fieldSignature[offset++] = IMAGE_CEE_CS_CALLCONV_FIELD;
+        fieldSignature[offset++] = ELEMENT_TYPE_CLASS;
+        memcpy(&fieldSignature[offset], &callTargetStateBuffer, callTargetStateSize);
+
         mdFieldDef isFirstEntry = mdFieldDefNil;
         hr = metadataEmit->DefineField(typeDef, managed_profiler_debugger_is_first_entry_field_name.c_str(),
                                        fdPrivate | mdHideBySig | fdSpecialName,
@@ -716,7 +789,7 @@ HRESULT DebuggerProbesInstrumentationRequester::NotifyReJITError(ModuleID module
         for (const auto& probeId : probeIds)
         {
             Logger::Info("Marking ", probeId, " as Error.");
-            ProbesMetadataTracker::Instance()->SetProbeStatus(probeId, ProbeStatus::_ERROR);
+            ProbesMetadataTracker::Instance()->SetErrorProbeStatus(probeId, invalid_probe_failed_to_instrument_method_probe);
         }
     }
 

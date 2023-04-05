@@ -27,7 +27,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
         public TelemetryTests(ITestOutputHelper output)
             : base("Telemetry", output)
         {
-            SetEnvironmentVariable(ConfigurationKeys.FeatureFlags.ActivityListenerEnabled, "true");
+            SetEnvironmentVariable(ConfigurationKeys.FeatureFlags.OpenTelemetryEnabled, "true");
             SetServiceVersion(ServiceVersion);
             EnableDebugMode();
         }
@@ -56,6 +56,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
             }
 
             var data = telemetry.AssertIntegrationEnabled(IntegrationId.HttpMessageHandler);
+            telemetry.AssertConfiguration(ConfigTelemetryData.NativeTracerVersion, TracerConstants.ThreePartVersion);
             AssertTelemetry(data);
             agent.Telemetry.Should().BeEmpty();
         }
@@ -81,6 +82,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
             }
 
             var data = agent.AssertIntegrationEnabled(IntegrationId.HttpMessageHandler);
+            agent.AssertConfiguration(ConfigTelemetryData.NativeTracerVersion, TracerConstants.ThreePartVersion);
             AssertTelemetry(data);
         }
 
@@ -153,6 +155,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
                 }
 
                 var data = agent.AssertIntegrationEnabled(IntegrationId.HttpMessageHandler);
+                agent.AssertConfiguration(ConfigTelemetryData.NativeTracerVersion, TracerConstants.ThreePartVersion);
 
                 AssertTelemetry(data);
             }

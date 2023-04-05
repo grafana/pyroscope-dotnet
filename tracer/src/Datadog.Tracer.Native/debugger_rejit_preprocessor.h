@@ -24,21 +24,21 @@ public:
                                std::promise<std::vector<MethodIdentifier>>* promise) const;
 
 protected:
-    virtual void ProcessTypesForRejit(std::vector<MethodIdentifier>& rejitRequests, const ModuleInfo& moduleInfo,
+    void ProcessTypesForRejit(std::vector<MethodIdentifier>& rejitRequests, const ModuleInfo& moduleInfo,
                                       ComPtr<IMetaDataImport2> metadataImport, ComPtr<IMetaDataEmit2> metadataEmit,
                                       ComPtr<IMetaDataAssemblyImport> assemblyImport,
                                       ComPtr<IMetaDataAssemblyEmit> assemblyEmit,
                                       const MethodProbeDefinition& definition,
                                       const MethodReference& targetMethod) final;
-    virtual const MethodReference& GetTargetMethod(const MethodProbeDefinition& methodProbe) final;
-    virtual const bool GetIsDerived(const MethodProbeDefinition& definition) final;
-    virtual const bool GetIsInterface(const MethodProbeDefinition& definition) final;
-    virtual const bool GetIsExactSignatureMatch(const MethodProbeDefinition& definition) final;
-    virtual const std::unique_ptr<RejitHandlerModuleMethod>
-    CreateMethod(const mdMethodDef methodDef, RejitHandlerModule* module, const FunctionInfo& functionInfo,
+    const MethodReference& GetTargetMethod(const MethodProbeDefinition& methodProbe) final;
+    const bool GetIsDerived(const MethodProbeDefinition& definition) final;
+    const bool GetIsInterface(const MethodProbeDefinition& definition) final;
+    const bool GetIsExactSignatureMatch(const MethodProbeDefinition& definition) final;
+    const std::unique_ptr<RejitHandlerModuleMethod>
+    CreateMethod(mdMethodDef methodDef, RejitHandlerModule* module, const FunctionInfo& functionInfo,
                  const MethodProbeDefinition& methodProbe) final;
     const std::unique_ptr<RejitHandlerModuleMethod>
-    CreateMethod(const mdMethodDef methodDef, RejitHandlerModule* module, const FunctionInfo& functionInfo) const;
+    CreateMethod(mdMethodDef methodDef, RejitHandlerModule* module, const FunctionInfo& functionInfo) const;
     void UpdateMethod(RejitHandlerModuleMethod* methodHandler, const MethodProbeDefinition& methodProbe) override;
     static void UpdateMethod(RejitHandlerModuleMethod* methodHandler, const ProbeDefinition_S& probe);
     [[nodiscard]] std::tuple<HRESULT, mdMethodDef, FunctionInfo> PickMethodToRejit(
@@ -52,8 +52,8 @@ protected:
                           ComPtr<IMetaDataEmit2>& metadataEmit, const ModuleInfo& moduleInfo, mdTypeDef typeDef,
                           std::vector<MethodIdentifier>& rejitRequests, unsigned methodDef,
                           const FunctionInfo& functionInfo, RejitHandlerModule* moduleHandler) override;
-    HRESULT GetMoveNextMethodFromKickOffMethod(const ComPtr<IMetaDataImport2>& metadataImport, mdTypeDef typeDef, mdMethodDef methodDef, const FunctionInfo& function,
-                                               mdMethodDef& moveNextMethod, mdTypeDef& nestedAsyncClassOrStruct) const;
+    static HRESULT GetMoveNextMethodFromKickOffMethod(const ComPtr<IMetaDataImport2>& metadataImport, mdTypeDef typeDef, mdMethodDef methodDef, const FunctionInfo& function,
+                                               mdMethodDef& moveNextMethod, mdTypeDef& nestedAsyncClassOrStruct) ;
     static std::tuple<HRESULT, mdMethodDef, FunctionInfo> TransformKickOffToMoveNext(const ComPtr<IMetaDataImport2>& metadataImport,
                                                                                      const ComPtr<IMetaDataEmit2>& metadataEmit,
                                                                                      mdMethodDef moveNextMethod, mdTypeDef nestedAsyncClassOrStruct);

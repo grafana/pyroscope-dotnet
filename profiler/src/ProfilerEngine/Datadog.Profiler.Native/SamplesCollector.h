@@ -2,6 +2,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2022 Datadog, Inc.
 
 #pragma once
+
+#include "IBatchedSamplesProvider.h"
 #include "IConfiguration.h"
 #include "IExporter.h"
 #include "IMetricsSender.h"
@@ -32,6 +34,7 @@ public:
     bool Stop() override;
 
     void Register(ISamplesProvider* samplesProvider) override;
+    void RegisterBatchedProvider(IBatchedSamplesProvider* batchedSamplesProvider) override;
 
     // Public but should only be called privately or from tests
     void Export(ProfileTime &startTime, ProfileTime&endTime);
@@ -39,7 +42,7 @@ public:
 private:
     void SamplesWork();
     void ExportWork();
-    void CollectSamples();
+    void CollectSamples(std::forward_list<std::pair<ISamplesProvider*, uint64_t>>& samplesProviders);
     void SendHeartBeatMetric(bool success);
 
     const char* _serviceName = "SamplesCollector";
@@ -53,9 +56,10 @@ private:
     bool _mustStop;
     IThreadsCpuManager* _pThreadsCpuManager;
     std::forward_list<std::pair<ISamplesProvider*, uint64_t>> _samplesProviders;
+    std::forward_list<std::pair<ISamplesProvider*, uint64_t>> _batchedSamplesProviders;
     std::thread _workerThread;
     std::thread _exporterThread;
-    std::mutex _exportLock;
+    std::recursive_mutex _exportLock;
     std::promise<void> _exporterThreadPromise;
     std::promise<void> _workerThreadPromise;
     IMetricsSender* _metricsSender;

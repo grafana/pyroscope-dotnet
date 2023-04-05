@@ -9,6 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Datadog.Trace.Configuration;
 using Datadog.Trace.Logging;
 
 namespace Datadog.Trace.TestHelpers;
@@ -20,7 +21,7 @@ public class LogEntryWatcher : IDisposable
 
     public LogEntryWatcher(string logFilePattern, string logDirectory = null)
     {
-        var logPath = logDirectory ?? DatadogLogging.GetLogDirectory();
+        var logPath = logDirectory ?? DatadogLoggingFactory.GetLogDirectory();
         _fileWatcher = new FileSystemWatcher { Path = logPath, Filter = logFilePattern, EnableRaisingEvents = true };
 
         var dir = new DirectoryInfo(logPath);
@@ -48,7 +49,7 @@ public class LogEntryWatcher : IDisposable
 
     public async Task WaitForLogEntries(string[] logEntries, TimeSpan? timeout = null)
     {
-        using var cancellationSource = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(5));
+        using var cancellationSource = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(20));
 
         var i = 0;
         while (logEntries.Length > i && !cancellationSource.IsCancellationRequested)
