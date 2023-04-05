@@ -44,7 +44,7 @@ extern "C" void __stdcall SetDynamicTag(const char* key, const char* value);
 
 extern "C" void __stdcall ClearDynamicTags();
 
-extern "C" void __stdcall SetStackSamplerEnabled(bool enabled);
+extern "C" void __stdcall SetCPUTrackingEnabled(bool enabled);
 
 extern "C" void __stdcall SetAllocationTrackingEnabled(bool enabled);
 

@@ -180,7 +180,7 @@ extern "C" void __stdcall ClearDynamicTags() {
         .ClearAll();
 }
 
-extern "C" void __stdcall SetStackSamplerEnabled(bool enabled) {
+extern "C" void __stdcall SetCPUTrackingEnabled(bool enabled) {
     auto *const profiler = CorProfilerCallback::GetInstance();
 
     if (profiler == nullptr)

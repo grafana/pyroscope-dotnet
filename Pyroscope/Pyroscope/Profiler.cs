@@ -65,7 +65,7 @@ namespace Pyroscope
             }
         }
 
-        public void SetStackSamplerEnabled(bool enabled)
+        public void SetCPUTrackingEnabled(bool enabled)
         {
             if (_dllNotFound)
             {
@@ -73,7 +73,7 @@ namespace Pyroscope
             }
             try
             {
-                NativeInterop.SetStackSamplerEnabled(enabled);
+                NativeInterop.SetCPUTrackingEnabled(enabled);
             }
             catch (DllNotFoundException)
             {

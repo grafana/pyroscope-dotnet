@@ -41,9 +41,9 @@ namespace Pyroscope
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        public static void SetStackSamplerEnabled(bool enabled)
+        public static void SetCPUTrackingEnabled(bool enabled)
         {
-            NativeMethods.SetStackSamplerEnabled(enabled);
+            NativeMethods.SetCPUTrackingEnabled(enabled);
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -82,8 +82,8 @@ namespace Pyroscope
             [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "ClearDynamicTags")]
             public static extern void ClearDynamicTags();
 
-            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetStackSamplerEnabled")]
-            public static extern void SetStackSamplerEnabled(bool enabled);
+            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetCPUTrackingEnabled")]
+            public static extern void SetCPUTrackingEnabled(bool enabled);
 
             [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetAllocationTrackingEnabled")]
             public static extern void SetAllocationTrackingEnabled(bool enabled);
