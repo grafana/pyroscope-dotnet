@@ -314,13 +314,11 @@ bool ClrEventsParser::TryGetEventInfo(LPCBYTE pMetadata, ULONG cbMetadata, WCHAR
 
 void ClrEventsParser::SetAllocationTrackingEnabled(bool enabled)
 {
-    std::cout << "SetAllocationTrackingEnabled: " << enabled << std::endl;
     _allocationEnabled = enabled;
 }
 
 void ClrEventsParser::SetContentionTrackingEnabled(bool enabled)
 {
-        std::cout << "SetContentionTrackingEnabled: " << enabled << std::endl;
     _contentionEnabled = enabled;
 }
 
