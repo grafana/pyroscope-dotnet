@@ -5,11 +5,36 @@ cmake_policy(SET CMP0015 NEW)
 # Project definition
 # ******************************************************
 
-project("Datadog.Tracer.Native" VERSION 2.19.0)
+project("Datadog.Tracer.Native" VERSION 2.27.0)
 
 # ******************************************************
 # Environment detection
 # ******************************************************
+
+SET(OSX_ARCH ${CMAKE_OSX_ARCHITECTURES})
+
+# Detect architecture
+if (OSX_ARCH STREQUAL x86_64)
+    message(STATUS "Architecture is x64/AMD64 configured by CMAKE_OSX_ARCHITECTURES")
+    SET(ISAMD64 true)
+elseif (OSX_ARCH STREQUAL arm64)
+    message(STATUS "Architecture is ARM64 configured by CMAKE_OSX_ARCHITECTURES")
+    SET(ISARM64 true)
+elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL amd64)
+    message(STATUS "Architecture is x64/AMD64")
+    SET(ISAMD64 true)
+    SET(OSX_ARCH "x86_64")
+elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL x86 OR CMAKE_SYSTEM_PROCESSOR STREQUAL i686)
+    message(STATUS "Architecture is x86")
+    SET(ISX86 true)
+elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL arm64)
+    message(STATUS "Architecture is ARM64")
+    SET(ISARM64 true)
+    SET(OSX_ARCH "arm64")
+elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL armv7l OR CMAKE_SYSTEM_PROCESSOR STREQUAL arm)
+    message(STATUS "Architecture is ARM")
+    SET(ISARM true)
+endif()
 
 # Detect operating system
 if (CMAKE_SYSTEM_NAME MATCHES "Windows")
@@ -27,21 +52,6 @@ endif()
 if (CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(STATUS "Setting compilation for 64bits processor")
     SET(BIT64 true)
-endif()
-
-# Detect architecture
-if (CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL amd64)
-    message(STATUS "Architecture is x64/AMD64")
-    SET(ISAMD64 true)
-elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL x86 OR CMAKE_SYSTEM_PROCESSOR STREQUAL i686)
-    message(STATUS "Architecture is x86")
-    SET(ISX86 true)
-elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL arm64)
-    message(STATUS "Architecture is ARM64")
-    SET(ISARM64 true)
-elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL armv7l OR CMAKE_SYSTEM_PROCESSOR STREQUAL arm)
-    message(STATUS "Architecture is ARM")
-    SET(ISARM true)
 endif()
 
 # ******************************************************
@@ -96,8 +106,6 @@ SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_BIN_DIR})
 # ******************************************************
 # Compiler options
 # ******************************************************
-
-add_definitions(-D_GLIBCXX_USE_CXX11_ABI=0)
 
 # Sets compiler options
 add_compile_options(-std=c++17 -fPIC -fms-extensions -fvisibility=hidden)
@@ -163,10 +171,24 @@ add_library("Datadog.Tracer.Native.static" STATIC
         method_rewriter.cpp
         tracer_tokens.cpp
         debugger_environment_variables_util.cpp
-        probes_tracker.cpp
+        debugger_probes_tracker.cpp
+        iast/aspect.cpp
+        iast/aspect_filter.cpp
+        iast/dataflow.cpp
+        iast/dataflow_aspects.cpp
+        iast/dataflow_il_analysis.cpp
+        iast/dataflow_il_rewriter.cpp
+        iast/iast_util.cpp
+        iast/method_info.cpp
+        iast/module_info.cpp
+        iast/signature_info.cpp
+        iast/signature_types.cpp
+        iast/string_literal_aspect_filter.cpp
+        iast/string_optimization_aspect_filter.cpp
 )
 
 set_target_properties("Datadog.Tracer.Native.static" PROPERTIES PREFIX "")
+target_compile_definitions("Datadog.Tracer.Native.static" PUBLIC "-D_GLIBCXX_USE_CXX11_ABI=0")
 
 # Define linker libraries
 if (ISMACOS)

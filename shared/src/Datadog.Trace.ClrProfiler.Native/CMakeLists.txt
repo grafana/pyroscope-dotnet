@@ -5,11 +5,36 @@ cmake_policy(SET CMP0015 NEW)
 # Project definition
 # ******************************************************
 
-project("Datadog.Trace.ClrProfiler.Native" VERSION 2.19.0)
+project("Datadog.Trace.ClrProfiler.Native" VERSION 2.27.0)
 
 # ******************************************************
 # Environment detection
 # ******************************************************
+
+SET(OSX_ARCH ${CMAKE_OSX_ARCHITECTURES})
+
+# Detect architecture
+if (OSX_ARCH STREQUAL x86_64)
+    message(STATUS "Architecture is x64/AMD64 configured by CMAKE_OSX_ARCHITECTURES")
+    SET(ISAMD64 true)
+elseif (OSX_ARCH STREQUAL arm64)
+    message(STATUS "Architecture is ARM64 configured by CMAKE_OSX_ARCHITECTURES")
+    SET(ISARM64 true)
+elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL amd64)
+    message(STATUS "Architecture is x64/AMD64")
+    SET(ISAMD64 true)
+    SET(OSX_ARCH "x86_64")
+elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL x86 OR CMAKE_SYSTEM_PROCESSOR STREQUAL i686)
+    message(STATUS "Architecture is x86")
+    SET(ISX86 true)
+elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL arm64)
+    message(STATUS "Architecture is ARM64")
+    SET(ISARM64 true)
+    SET(OSX_ARCH "arm64")
+elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL armv7l OR CMAKE_SYSTEM_PROCESSOR STREQUAL arm)
+    message(STATUS "Architecture is ARM")
+    SET(ISARM true)
+endif()
 
 # Detect operating system
 if (CMAKE_SYSTEM_NAME MATCHES "Windows")
@@ -23,26 +48,10 @@ elseif (CMAKE_SYSTEM_NAME MATCHES "Darwin")
     SET(ISMACOS true)
 endif()
 
-
 # Detect bitness of the build
 if (CMAKE_SIZEOF_VOID_P EQUAL 8)
     message(STATUS "Setting compilation for 64bits processor")
     SET(BIT64 true)
-endif()
-
-# Detect architecture
-if (CMAKE_SYSTEM_PROCESSOR STREQUAL x86_64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL amd64)
-    message(STATUS "Architecture is x64/AMD64")
-    SET(ISAMD64 true)
-elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL x86 OR CMAKE_SYSTEM_PROCESSOR STREQUAL i686)
-    message(STATUS "Architecture is x86")
-    SET(ISX86 true)
-elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL aarch64 OR CMAKE_SYSTEM_PROCESSOR STREQUAL arm64)
-    message(STATUS "Architecture is ARM64")
-    SET(ISARM64 true)
-elseif (CMAKE_SYSTEM_PROCESSOR STREQUAL armv7l OR CMAKE_SYSTEM_PROCESSOR STREQUAL arm)
-    message(STATUS "Architecture is ARM")
-    SET(ISARM true)
 endif()
 
 # ******************************************************
@@ -133,14 +142,12 @@ endif()
 # ******************************************************
 # Define target
 # ******************************************************
-add_library("Datadog.Trace.ClrProfiler.Native" SHARED
+add_library("Datadog.Trace.ClrProfiler.Native.static" STATIC
         cor_profiler.cpp
         cor_profiler_class_factory.cpp
-        dllmain.cpp
         dynamic_dispatcher.cpp
         dynamic_instance.cpp
         runtimeid_store.cpp
-        exported_functions.cpp
         instrumented_assembly_generator/instrumented_assembly_generator_cor_profiler_function_control.cpp
         instrumented_assembly_generator/instrumented_assembly_generator_cor_profiler_info.cpp
         instrumented_assembly_generator/instrumented_assembly_generator_metadata_interfaces.cpp
@@ -153,20 +160,20 @@ add_library("Datadog.Trace.ClrProfiler.Native" SHARED
         ${DOTNET_TRACER_REPO_ROOT_PATH}/shared/src/native-src/dynamic_com_library.cpp
         )
 
-target_compile_definitions("Datadog.Trace.ClrProfiler.Native" PRIVATE "-D_GLIBCXX_USE_CXX11_ABI=0")
+target_compile_definitions("Datadog.Trace.ClrProfiler.Native.static" PRIVATE "-D_GLIBCXX_USE_CXX11_ABI=0")
 
-set_target_properties("Datadog.Trace.ClrProfiler.Native" PROPERTIES PREFIX "")
+set_target_properties("Datadog.Trace.ClrProfiler.Native.static" PROPERTIES PREFIX "")
 
 # Define linker libraries
 if (ISMACOS)
-    target_link_libraries("Datadog.Trace.ClrProfiler.Native"
+    target_link_libraries("Datadog.Trace.ClrProfiler.Native.static"
         ${CMAKE_DL_LIBS}
         coreclr
         fmt-lib
         spdlog-headers
     )
 elseif(ISLINUX)
-    target_link_libraries("Datadog.Trace.ClrProfiler.Native"
+    target_link_libraries("Datadog.Trace.ClrProfiler.Native.static"
         -static-libgcc
         -static-libstdc++
         ${CMAKE_DL_LIBS}
@@ -176,4 +183,17 @@ elseif(ISLINUX)
     )
 endif()
 
-add_dependencies("Datadog.Trace.ClrProfiler.Native" fmt-lib coreclr spdlog-headers)
+add_dependencies("Datadog.Trace.ClrProfiler.Native.static" fmt-lib coreclr spdlog-headers)
+
+# ******************************************************
+# Define shared target
+# ******************************************************
+add_library("Datadog.Trace.ClrProfiler.Native" SHARED
+    dllmain.cpp
+    exported_functions.cpp
+)
+  
+set_target_properties("Datadog.Trace.ClrProfiler.Native" PROPERTIES PREFIX "")
+
+# Define linker libraries
+target_link_libraries("Datadog.Trace.ClrProfiler.Native" "Datadog.Trace.ClrProfiler.Native.static")

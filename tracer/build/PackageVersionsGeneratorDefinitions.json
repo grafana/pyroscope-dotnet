@@ -83,9 +83,23 @@
     "VersionConditions": [{
       "MinVersion": "5.0.0",
       "MaxVersionExclusive": "5.1.1",
-      "ExcludeTargetFrameworks": ["net461", "netcoreapp2.1", "netcoreapp3.0", "netcoreapp3.1", "net5.0", "net6.0"]
+      "ExcludeTargetFrameworks": ["net461", "netcoreapp2.1", "netcoreapp3.0", "netcoreapp3.1", "net5.0", "net6.0", "net7.0"]
     },{
       "MaxVersionExclusive": "6.0.0",
+      "ExcludeTargetFrameworks": ["net461", "netcoreapp2.1", "netcoreapp3.0"]
+    }]
+  },
+  {
+    "IntegrationName": "GraphQL7",
+    "SampleProjectName": "Samples.GraphQL7",
+    "NugetPackageSearchName": "GraphQL",
+    "MinVersion": "7.0.0",
+    "MaxVersionExclusive": "8.0.0",
+    "SpecificVersions": [
+      "7.*.*"
+    ],
+    "VersionConditions": [{
+      "MaxVersionExclusive": "8.0.0",
       "ExcludeTargetFrameworks": ["net461", "netcoreapp2.1", "netcoreapp3.0"]
     }]
   },
@@ -100,20 +114,21 @@
       "12.*.*"
     ],
     "VersionConditions": [{
-        "MaxVersionExclusive": "13.0.0",
-        "ExcludeTargetFrameworks": [ "net461", "netcoreapp2.1", "netcoreapp3.0" ]
+      "MaxVersionExclusive": "13.0.0",
+      "ExcludeTargetFrameworks": [ "net461", "netcoreapp2.1", "netcoreapp3.0" ]
     }]
-  },  
+  },
   {
     "IntegrationName": "Npgsql",
     "SampleProjectName": "Samples.Npgsql",
     "NugetPackageSearchName": "Npgsql",
     "MinVersion": "4.0.0",
-    "MaxVersionExclusive": "7.0.0",
+    "MaxVersionExclusive": "8.0.0",
     "SpecificVersions": [
       "4.*.*",
       "5.*.*",
-      "6.*.*"
+      "6.*.*",
+      "7.*.*"
     ],
     "VersionConditions": [{
       "MinVersion": "6.0.0",
@@ -157,7 +172,11 @@
       "3.*.*",
       "4.*.*",
       "5.*.*"
-    ]
+    ],
+    "VersionConditions": [{
+      "MinVersion": "5.1.0",
+      "ExcludeTargetFrameworks": ["netcoreapp2.1", "netcoreapp3.0"]
+    }]
   },
   {
     "IntegrationName": "StackExchangeRedis",
@@ -227,13 +246,19 @@
     "SampleProjectName": "Samples.Microsoft.Data.Sqlite",
     "NugetPackageSearchName": "Microsoft.Data.Sqlite",
     "MinVersion": "2.0.0",
-    "MaxVersionExclusive": "7.0.0",
+    "MaxVersionExclusive": "8.0.0",
     "SpecificVersions": [
       "2.*.*",
       "3.*.*",
       "5.*.*",
-      "6.*.*"
-    ]
+      "6.*.*",
+      "7.*.*"
+    ],
+    "VersionConditions": [{
+      "MinVersion": "3.1.32",
+      "MaxVersionExclusive": "4.0.0",
+      "ExcludeTargetFrameworks": ["netcoreapp3.0"]
+    }]
   },
   {
     "IntegrationName": "XUnit",
@@ -263,10 +288,11 @@
     "SampleProjectName": "Samples.MSTestTests",
     "NugetPackageSearchName": "MSTest.TestFramework",
     "MinVersion": "2.0.0",
-    "MaxVersionExclusive": "3.0.0",
+    "MaxVersionExclusive": "3.1.0",
     "SpecificVersions": [
       "2.0.*",
-      "2.*.*"
+      "2.*.*",
+      "3.0.*"
     ]
   },
   {
@@ -274,10 +300,11 @@
     "SampleProjectName": "Samples.Kafka",
     "NugetPackageSearchName": "Confluent.Kafka",
     "MinVersion": "1.4.0",
-    "MaxVersionExclusive": "2.0.0",
+    "MaxVersionExclusive": "3.0.0",
     "SpecificVersions": [
       "1.4.*",
-      "1.*.*"
+      "1.*.*",
+      "2.*.*"
     ]
   },
   {
@@ -349,13 +376,17 @@
     "SampleProjectName": "Samples.Aerospike",
     "NugetPackageSearchName": "Aerospike.Client",
     "MinVersion": "4.0.0",
-    "MaxVersionExclusive": "6.0.0",
+    "MaxVersionExclusive": "7.0.0",
     "SpecificVersions": [
       "4.0.*",
       "4.*.*",
-      "5.*.*"
+      "5.*.*",
+      "6.*.*"
     ],
     "VersionConditions": [{
+      "MinVersion": "6.0.0",
+      "ExcludeTargetFrameworks": ["net462", "netcoreapp2.1", "netcoreapp3.0", "netcoreapp3.1", "net5.0"]
+    },{
       "MinVersion": "5.0.0",
       "ExcludeTargetFrameworks": ["net461"]
     }]
@@ -423,5 +454,16 @@
       "MaxVersionExclusive": "2.37.0",
       "SkipArm64": true
     }]
+  },
+  {
+    "IntegrationName": "OpenTelemetry",
+    "SampleProjectName": "Samples.OpenTelemetrySdk",
+    "NugetPackageSearchName": "OpenTelemetry.Api",
+    "MinVersion": "1.0.0",
+    "MaxVersionExclusive": "2.0.0",
+    "SpecificVersions": [
+      "1.0.1",
+      "1.*.*"
+    ]
   }
 ]

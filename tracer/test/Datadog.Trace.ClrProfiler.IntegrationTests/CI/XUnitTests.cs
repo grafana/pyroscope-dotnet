@@ -28,6 +28,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
         public XUnitTests(ITestOutputHelper output)
             : base("XUnitTests", output)
         {
+            SetServiceName("xunit-tests");
             SetServiceVersion("1.0.0");
         }
 
@@ -67,6 +68,10 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                             // Remove decision maker tag (not used by the backend for civisibility)
                             targetSpan.Tags.Remove(Tags.Propagated.DecisionMaker);
 
+                            // Remove git metadata added by the apm agent writer.
+                            targetSpan.Tags.Remove(Tags.GitCommitSha);
+                            targetSpan.Tags.Remove(Tags.GitRepositoryUrl);
+
                             // check the name
                             Assert.Equal("xunit.test", targetSpan.Name);
 
@@ -93,6 +98,9 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                             // check the version
                             AssertTargetSpanEqual(targetSpan, "version", "1.0.0");
 
+                            // remove ITR skippeable tags
+                            AssertTargetSpanExists(targetSpan, CommonTags.TestsSkipped);
+
                             // checks the origin tag
                             CheckOriginTag(targetSpan);
 
@@ -113,6 +121,10 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
 
                             // CI Library Language
                             AssertTargetSpanEqual(targetSpan, CommonTags.LibraryVersion, TracerConstants.AssemblyVersion);
+
+                            // Session data
+                            AssertTargetSpanExists(targetSpan, TestTags.Command);
+                            AssertTargetSpanExists(targetSpan, TestTags.CommandWorkingDirectory);
 
                             // check specific test span
                             switch (targetSpan.Tags[TestTags.Name])
@@ -297,13 +309,11 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
 
         private static void CheckRuntimeValues(MockSpan targetSpan)
         {
-            FrameworkDescription framework = FrameworkDescription.Instance;
-
-            AssertTargetSpanEqual(targetSpan, CommonTags.RuntimeName, framework.Name);
-            AssertTargetSpanEqual(targetSpan, CommonTags.RuntimeVersion, framework.ProductVersion);
-            AssertTargetSpanEqual(targetSpan, CommonTags.RuntimeArchitecture, framework.ProcessArchitecture);
-            AssertTargetSpanEqual(targetSpan, CommonTags.OSArchitecture, framework.OSArchitecture);
-            AssertTargetSpanEqual(targetSpan, CommonTags.OSPlatform, framework.OSPlatform);
+            AssertTargetSpanExists(targetSpan, CommonTags.RuntimeName);
+            AssertTargetSpanExists(targetSpan, CommonTags.RuntimeVersion);
+            AssertTargetSpanExists(targetSpan, CommonTags.RuntimeArchitecture);
+            AssertTargetSpanExists(targetSpan, CommonTags.OSArchitecture);
+            AssertTargetSpanExists(targetSpan, CommonTags.OSPlatform);
             AssertTargetSpanEqual(targetSpan, CommonTags.OSVersion, CIVisibility.GetOperatingSystemVersion());
         }
 

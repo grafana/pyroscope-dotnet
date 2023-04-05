@@ -38,7 +38,7 @@ SamplesCollector::SamplesCollector(
     IThreadsCpuManager* pThreadsCpuManager,
     IExporter* exporter,
     IMetricsSender* metricsSender) :
-    _uploadInterval(configuration->GetUploadInterval()),
+    _uploadInterval{configuration->GetUploadInterval()},
     _mustStop{false},
     _pThreadsCpuManager{pThreadsCpuManager},
     _metricsSender{metricsSender},
@@ -49,6 +49,11 @@ SamplesCollector::SamplesCollector(
 void SamplesCollector::Register(ISamplesProvider* samplesProvider)
 {
     _samplesProviders.push_front(std::make_pair(samplesProvider, 0));
+}
+
+void SamplesCollector::RegisterBatchedProvider(IBatchedSamplesProvider* batchedSamplesProvider)
+{
+    _batchedSamplesProviders.push_front(std::make_pair(batchedSamplesProvider, 0));
 }
 
 bool SamplesCollector::Start()
@@ -78,7 +83,7 @@ bool SamplesCollector::Stop()
     _exporterThread.join();
 
     // Export the leftover samples
-    CollectSamples();
+    CollectSamples(_samplesProviders);
     auto now = _time();
     auto startTime = truncate(now, _uploadInterval);
     auto endTime = startTime + _uploadInterval;
@@ -100,7 +105,7 @@ void SamplesCollector::SamplesWork()
 
     while (future.wait_for(CollectingPeriod) == std::future_status::timeout)
     {
-        CollectSamples();
+        CollectSamples(_samplesProviders);
     }
 }
 
@@ -137,12 +142,14 @@ void SamplesCollector::ExportWork()
 
 void SamplesCollector::Export(ProfileTime &startTime, ProfileTime &endTime)
 {
-//    std::cout << "export " << startTime << " - " << endTime << std::endl;
     bool success = false;
 
     try
     {
         std::lock_guard lock(_exportLock);
+
+        // batched samples are collected once just before export
+        CollectSamples(_batchedSamplesProviders);
 
         Log::Debug("Collected samples per provider:");
         for (auto& samplesProvider : _samplesProviders)
@@ -150,6 +157,12 @@ void SamplesCollector::Export(ProfileTime &startTime, ProfileTime &endTime)
             auto name = samplesProvider.first->GetName();
             Log::Debug(name, " : ", samplesProvider.second);
             samplesProvider.second = 0;
+        }
+        for (auto& batchedSamplesProvider : _batchedSamplesProviders)
+        {
+            auto name = batchedSamplesProvider.first->GetName();
+            Log::Debug(name, " : ", batchedSamplesProvider.second);
+            batchedSamplesProvider.second = 0;
         }
 
         success = _exporter->Export(startTime, endTime);
@@ -164,9 +177,9 @@ void SamplesCollector::Export(ProfileTime &startTime, ProfileTime &endTime)
     _pThreadsCpuManager->LogCpuTimes();
 }
 
-void SamplesCollector::CollectSamples()
+void SamplesCollector::CollectSamples(std::forward_list<std::pair<ISamplesProvider*, uint64_t>>& samplesProviders)
 {
-    for (auto& samplesProvider : _samplesProviders)
+    for (auto& samplesProvider : samplesProviders)
     {
         try
         {
@@ -177,7 +190,7 @@ void SamplesCollector::CollectSamples()
 
             for (auto const& sample : result)
             {
-                if (!sample.GetCallstack().empty())
+                if (!sample->GetCallstack().empty())
                 {
                     _exporter->Add(sample);
                 }

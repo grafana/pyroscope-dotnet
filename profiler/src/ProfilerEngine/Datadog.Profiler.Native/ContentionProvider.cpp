@@ -4,6 +4,7 @@
 
 #include "COMHelpers.h"
 #include "IAppDomainStore.h"
+#include "IConfiguration.h"
 #include "IFrameStore.h"
 #include "IManagedThreadList.h"
 #include "IRuntimeIdStore.h"
@@ -27,40 +28,68 @@ ContentionProvider::ContentionProvider(
     IThreadsCpuManager* pThreadsCpuManager,
     IAppDomainStore* pAppDomainStore,
     IRuntimeIdStore* pRuntimeIdStore,
-    IConfiguration* pConfiguration)
+    IConfiguration* pConfiguration,
+    MetricsRegistry& metricsRegistry)
     :
     CollectorBase<RawContentionSample>("ContentionProvider", valueOffset, pThreadsCpuManager, pFrameStore, pAppDomainStore, pRuntimeIdStore, pConfiguration),
     _pCorProfilerInfo{pCorProfilerInfo},
     _pManagedThreadList{pManagedThreadList},
     _sampler(pConfiguration->ContentionSampleLimit(), pConfiguration->GetUploadInterval()),
     _contentionDurationThreshold{pConfiguration->ContentionDurationThreshold()},
-    _sampleLimit{pConfiguration->ContentionSampleLimit()}
+    _sampleLimit{pConfiguration->ContentionSampleLimit()},
+    _pConfiguration{pConfiguration}
 {
+    _lockContentionsCountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_lock_contentions");
+    _lockContentionsDurationMetric = metricsRegistry.GetOrRegister<MeanMaxMetric>("dotnet_lock_contentions_duration");
+    _sampledLockContentionsCountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_sampled_lock_contentions");
+    _sampledLockContentionsDurationMetric = metricsRegistry.GetOrRegister<MeanMaxMetric>("dotnet_sampled_lock_contentions_duration");
 }
 
-void ContentionProvider::OnContention(double contentionDuration)
+std::string ContentionProvider::GetBucket(double contentionDurationNs)
 {
-    // sample contentions with a duration greater then a threshold (100ms by default)
-    if ((_sampleLimit > 0) && (contentionDuration < _contentionDurationThreshold))
+    if (contentionDurationNs < 10'000'000.0)
     {
-        if (!_sampler.Sample())
-        {
-            return;
-        }
-    }
-    else
-    {
-    // TODO: should we call _sampler.Keep() to avoid swamping the profile with contention samples?
+        return "0-9ms";
     }
 
-    ManagedThreadInfo* threadInfo;
-    CALL(_pManagedThreadList->TryGetCurrentThreadInfo(&threadInfo))
+    if (contentionDurationNs < 50'000'000.0)
+    {
+        return "10-49ms";
+    }
 
-    const auto pStackFramesCollector = OsSpecificApi::CreateNewStackFramesCollectorInstance(_pCorProfilerInfo);
+    if (contentionDurationNs < 100'000'000.0)
+    {
+        return "50-99ms";
+    }
+
+    if (contentionDurationNs < 500'000'000.0)
+    {
+        return "100-499ms";
+    }
+
+    return "+500ms";
+}
+
+void ContentionProvider::OnContention(double contentionDurationNs)
+{
+    _lockContentionsCountMetric->Incr();
+    _lockContentionsDurationMetric->Add(contentionDurationNs);
+
+    auto bucket = GetBucket(contentionDurationNs);
+
+    if (!_sampler.Sample(bucket))
+    {
+        return;
+    }
+
+    std::shared_ptr<ManagedThreadInfo> threadInfo;
+    CALL(_pManagedThreadList->TryGetCurrentThreadInfo(threadInfo))
+
+    const auto pStackFramesCollector = OsSpecificApi::CreateNewStackFramesCollectorInstance(_pCorProfilerInfo, _pConfiguration);
     pStackFramesCollector->PrepareForNextCollection();
 
     uint32_t hrCollectStack = E_FAIL;
-    const auto result = pStackFramesCollector->CollectStackSample(threadInfo, &hrCollectStack);
+    const auto result = pStackFramesCollector->CollectStackSample(threadInfo.get(), &hrCollectStack);
     if (result->GetFramesCount() == 0)
     {
         Log::Warn("Failed to walk stack for sampled contention: ", HResultConverter::ToStringWithCode(hrCollectStack));
@@ -77,9 +106,10 @@ void ContentionProvider::OnContention(double contentionDuration)
     rawSample.AppDomainId = result->GetAppDomainId();
     result->CopyInstructionPointers(rawSample.Stack);
     rawSample.ThreadInfo = threadInfo;
-    threadInfo->AddRef();
-    rawSample.ContentionDuration = contentionDuration;
+    rawSample.ContentionDuration = contentionDurationNs;
     rawSample.Tags = threadInfo->GetTags().GetAll();
-
+    rawSample.Bucket = std::move(bucket);
     Add(std::move(rawSample));
+    _sampledLockContentionsCountMetric->Incr();
+    _sampledLockContentionsDurationMetric->Add(contentionDurationNs);
 }

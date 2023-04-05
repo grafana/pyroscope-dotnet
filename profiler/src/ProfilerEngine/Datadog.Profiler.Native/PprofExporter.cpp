@@ -21,10 +21,10 @@ PProfExportSink::~PProfExportSink()
 {
 }
 
-void PprofExporter::Add(const Sample& sample)
+void PprofExporter::Add(std::shared_ptr<Sample> const& sample)
 {
-    GetPprofBuilder(sample.GetRuntimeId())
-        .AddSample(sample);
+    GetPprofBuilder(sample->GetRuntimeId())
+        .AddSample(*sample);
 }
 
 void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint)

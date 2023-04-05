@@ -95,7 +95,7 @@ namespace Datadog.Trace
             settings ??= ImmutableTracerSettings.FromDefaultSources();
 
             var defaultServiceName = settings.ServiceName ??
-                                     GetApplicationName() ??
+                                     GetApplicationName(settings) ??
                                      UnknownServiceName;
 
             discoveryService ??= GetDiscoveryService(settings);
@@ -109,28 +109,35 @@ namespace Datadog.Trace
 
             if (settings.RuntimeMetricsEnabled && !DistributedTracer.Instance.IsChildTracer)
             {
-                runtimeMetrics ??= new RuntimeMetricsWriter(statsd ?? CreateDogStatsdClient(settings, defaultServiceName), TimeSpan.FromSeconds(10));
+                runtimeMetrics ??= new RuntimeMetricsWriter(statsd ?? CreateDogStatsdClient(settings, defaultServiceName), TimeSpan.FromSeconds(10), settings.IsRunningInAzureAppService);
             }
 
+            var gitMetadataTagsProvider = GetGitMetadataTagsProvider(settings);
             logSubmissionManager = DirectLogSubmissionManager.Create(
                 logSubmissionManager,
                 settings.LogSubmissionSettings,
                 defaultServiceName,
                 settings.Environment,
-                settings.ServiceVersion);
+                settings.ServiceVersion,
+                gitMetadataTagsProvider);
 
             telemetry ??= TelemetryFactory.CreateTelemetryController(settings);
-            telemetry.RecordTracerSettings(settings, defaultServiceName, AzureAppServices.Metadata);
+            telemetry.RecordTracerSettings(settings, defaultServiceName);
             telemetry.RecordSecuritySettings(Security.Instance.Settings);
             telemetry.RecordIastSettings(Datadog.Trace.Iast.Iast.Instance.Settings);
             telemetry.RecordProfilerSettings(Profiler.Instance);
 
-            SpanContextPropagator.Instance = ContextPropagators.GetSpanContextPropagator(settings.PropagationStyleInject, settings.PropagationStyleExtract);
+            SpanContextPropagator.Instance = SpanContextPropagatorFactory.GetSpanContextPropagator(settings.PropagationStyleInject, settings.PropagationStyleExtract);
 
             dataStreamsManager ??= DataStreamsManager.Create(settings, discoveryService, defaultServiceName);
 
-            var tracerManager = CreateTracerManagerFrom(settings, agentWriter, sampler, scopeManager, statsd, runtimeMetrics, logSubmissionManager, telemetry, discoveryService, dataStreamsManager, defaultServiceName);
+            var tracerManager = CreateTracerManagerFrom(settings, agentWriter, sampler, scopeManager, statsd, runtimeMetrics, logSubmissionManager, telemetry, discoveryService, dataStreamsManager, defaultServiceName, gitMetadataTagsProvider);
             return tracerManager;
+        }
+
+        protected virtual IGitMetadataTagsProvider GetGitMetadataTagsProvider(ImmutableTracerSettings settings)
+        {
+            return new GitMetadataTagsProvider(settings);
         }
 
         /// <summary>
@@ -147,8 +154,9 @@ namespace Datadog.Trace
             ITelemetryController telemetry,
             IDiscoveryService discoveryService,
             DataStreamsManager dataStreamsManager,
-            string defaultServiceName)
-            => new TracerManager(settings, agentWriter, sampler, scopeManager, statsd, runtimeMetrics, logSubmissionManager, telemetry, discoveryService, dataStreamsManager, defaultServiceName);
+            string defaultServiceName,
+            IGitMetadataTagsProvider gitMetadataTagsProvider)
+            => new TracerManager(settings, agentWriter, sampler, scopeManager, statsd, runtimeMetrics, logSubmissionManager, telemetry, discoveryService, dataStreamsManager, defaultServiceName, gitMetadataTagsProvider);
 
         protected virtual ITraceSampler GetSampler(ImmutableTracerSettings settings)
         {
@@ -204,28 +212,18 @@ namespace Datadog.Trace
         protected virtual IDiscoveryService GetDiscoveryService(ImmutableTracerSettings settings)
             => DiscoveryService.Create(settings.Exporter);
 
-        private static IDogStatsd CreateDogStatsdClient(ImmutableTracerSettings settings, string serviceName)
+        internal static IDogStatsd CreateDogStatsdClient(ImmutableTracerSettings settings, List<string> constantTags, string prefix = null)
         {
             try
             {
-                var constantTags = new List<string>
-                                   {
-                                       "lang:.NET",
-                                       $"lang_interpreter:{FrameworkDescription.Instance.Name}",
-                                       $"lang_version:{FrameworkDescription.Instance.ProductVersion}",
-                                       $"tracer_version:{TracerConstants.AssemblyVersion}",
-                                       $"service:{NormalizerTraceProcessor.NormalizeService(serviceName)}",
-                                       $"{Tags.RuntimeId}:{Tracer.RuntimeId}"
-                                   };
-
                 if (settings.Environment != null)
                 {
-                    constantTags.Add($"env:{settings.Environment}");
+                    constantTags?.Add($"env:{settings.Environment}");
                 }
 
                 if (settings.ServiceVersion != null)
                 {
-                    constantTags.Add($"version:{settings.ServiceVersion}");
+                    constantTags?.Add($"version:{settings.ServiceVersion}");
                 }
 
                 var statsd = new DogStatsdService();
@@ -238,7 +236,8 @@ namespace Datadog.Trace
                         Log.Information("Using windows named pipes for metrics transport.");
                         statsd.Configure(new StatsdConfig
                         {
-                            ConstantTags = constantTags.ToArray()
+                            ConstantTags = constantTags?.ToArray(),
+                            Prefix = prefix
                         });
                         break;
 #if NETCOREAPP3_1_OR_GREATER
@@ -247,7 +246,8 @@ namespace Datadog.Trace
                         statsd.Configure(new StatsdConfig
                         {
                             StatsdServerName = $"{ExporterSettings.UnixDomainSocketPrefix}{settings.Exporter.MetricsUnixDomainSocketPath}",
-                            ConstantTags = constantTags.ToArray()
+                            ConstantTags = constantTags?.ToArray(),
+                            Prefix = prefix
                         });
                         break;
 #endif
@@ -257,7 +257,8 @@ namespace Datadog.Trace
                         {
                             StatsdServerName = settings.Exporter.AgentUri.DnsSafeHost,
                             StatsdPort = settings.Exporter.DogStatsdPort,
-                            ConstantTags = constantTags.ToArray()
+                            ConstantTags = constantTags?.ToArray(),
+                            Prefix = prefix
                         });
                         break;
                 }
@@ -271,18 +272,33 @@ namespace Datadog.Trace
             }
         }
 
+        private static IDogStatsd CreateDogStatsdClient(ImmutableTracerSettings settings, string serviceName)
+        {
+            var constantTags = new List<string>
+            {
+                "lang:.NET",
+                $"lang_interpreter:{FrameworkDescription.Instance.Name}",
+                $"lang_version:{FrameworkDescription.Instance.ProductVersion}",
+                $"tracer_version:{TracerConstants.AssemblyVersion}",
+                $"service:{NormalizerTraceProcessor.NormalizeService(serviceName)}",
+                $"{Tags.RuntimeId}:{Tracer.RuntimeId}"
+            };
+
+            return CreateDogStatsdClient(settings, constantTags);
+        }
+
         /// <summary>
         /// Gets an "application name" for the executing application by looking at
         /// the hosted app name (.NET Framework on IIS only), assembly name, and process name.
         /// </summary>
         /// <returns>The default service name.</returns>
-        private static string GetApplicationName()
+        private static string GetApplicationName(ImmutableTracerSettings settings)
         {
             try
             {
-                if (AzureAppServices.Metadata.IsRelevant)
+                if (settings.IsRunningInAzureAppService)
                 {
-                    return AzureAppServices.Metadata.SiteName;
+                    return settings.AzureAppServiceMetadata.SiteName;
                 }
 
                 if (Serverless.Metadata is { IsRunningInLambda: true, ServiceName: var serviceName })

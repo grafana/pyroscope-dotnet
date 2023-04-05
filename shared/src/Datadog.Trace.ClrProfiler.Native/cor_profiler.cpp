@@ -2,6 +2,7 @@
 #include "log.h"
 #include "dynamic_dispatcher.h"
 #include "util.h"
+#include "../../../shared/src/native-src/pal.h"
 #include "instrumented_assembly_generator/instrumented_assembly_generator_cor_profiler_function_control.h"
 #include "instrumented_assembly_generator/instrumented_assembly_generator_cor_profiler_info.h"
 #include "instrumented_assembly_generator/instrumented_assembly_generator_helper.h"
@@ -52,7 +53,12 @@ namespace datadog::shared::nativeloader
     CorProfiler* CorProfiler::m_this = nullptr;
 
     CorProfiler::CorProfiler(IDynamicDispatcher* dispatcher) :
-        m_refCount(0), m_dispatcher(dispatcher), m_cpProfiler(nullptr), m_tracerProfiler(nullptr), m_customProfiler(nullptr)
+        m_refCount(0),
+        m_dispatcher(dispatcher),
+        m_cpProfiler(nullptr),
+        m_tracerProfiler(nullptr),
+        m_customProfiler(nullptr),
+        m_info(nullptr)
     {
         Log::Debug("CorProfiler::.ctor");
     }
@@ -85,13 +91,13 @@ namespace datadog::shared::nativeloader
         return E_NOINTERFACE;
     }
 
-    ULONG STDMETHODCALLTYPE CorProfiler::AddRef(void)
+    ULONG STDMETHODCALLTYPE CorProfiler::AddRef()
     {
         Log::Debug("CorProfiler::AddRef");
         return std::atomic_fetch_add(&this->m_refCount, 1) + 1;
     }
 
-    ULONG STDMETHODCALLTYPE CorProfiler::Release(void)
+    ULONG STDMETHODCALLTYPE CorProfiler::Release()
     {
         Log::Debug("CorProfiler::Release");
         int count = std::atomic_fetch_sub(&this->m_refCount, 1) - 1;
@@ -109,6 +115,15 @@ namespace datadog::shared::nativeloader
     {
         Log::Debug("CorProfiler::Initialize");
         InspectRuntimeCompatibility(pICorProfilerInfoUnk);
+
+        const auto process_name = ::shared::GetCurrentProcessName();
+        Log::Debug("ProcessName: ", process_name);
+
+        if (process_name == WStr("dd-trace") || process_name == WStr("dd-trace.exe"))
+        {
+            Log::Info("Profiler disabled - monitoring the dd-trace tool is not supported.");
+            return CORPROF_E_PROFILER_CANCEL_ACTIVATION;
+        }
 
         //
         // Get and set profiler pointers
@@ -446,7 +461,15 @@ namespace datadog::shared::nativeloader
 
                     moduleName = moduleName + EndLWStr;
                     instrumented_assembly_generator::WriteTextToFile(instrumented_assembly_generator::ModulesFileName, moduleName);
-                    instrumented_assembly_generator::CopyOriginalModuleForInstrumentationVerification(modulePath);
+                    if (instrumented_assembly_generator::IsCopyingOriginalsModulesEnabled())
+                    {
+                        // This option means we copy every loaded assembly to the InstrumentationVerification folder.
+                        // It is off by default, but can be useful as during an escalation, we can request that the customer turn it on,
+                        // and then the customer will only need to upload the contents of their logs folder (which contains the InstrumentationVerification folder) to us for offline analysis, 
+                        // so we won't have to ask the customer to go and locate wherever it was that the assembly was loaded from at runtime.
+                        // In most cases, this would hopefully not be necessary as the textual output of the `dd-trace analyze-instrumentation` command should suffice.
+                        instrumented_assembly_generator::CopyOriginalModuleForInstrumentationVerification(modulePath);
+                    }
                 }
             }
         }

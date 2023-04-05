@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Text;
 using System.Threading.Tasks;
 using Datadog.Trace.Agent;
 using Datadog.Trace.Configuration;
@@ -14,6 +15,7 @@ using Datadog.Trace.ExtensionMethods;
 using Datadog.Trace.Headers;
 using Datadog.Trace.Propagators;
 using Datadog.Trace.Sampling;
+using Datadog.Trace.Tagging;
 using Datadog.Trace.TestHelpers;
 using Datadog.Trace.Tests.PlatformHelpers;
 using Datadog.Trace.Vendors.StatsdClient;
@@ -399,15 +401,25 @@ namespace Datadog.Trace.Tests
         [InlineData("test")]
         public void SetEnv(string env)
         {
-            var settings = new TracerSettings()
-            {
-                Environment = env,
-            };
-
+            var settings = new TracerSettings { Environment = env };
             var tracer = TracerHelper.Create(settings);
-            ISpan span = tracer.StartSpan("operation");
+            var scope = (Scope)tracer.StartActive("operation");
 
-            Assert.Equal(env, span.GetTag(Tags.Env));
+            scope.Span.GetTag(Tags.Env).Should().Be(env);
+            scope.Span.Context.TraceContext.Environment.Should().Be(env);
+        }
+
+        [Theory]
+        [InlineData(null)]
+        [InlineData("1.2.3")]
+        public void SetVersion(string version)
+        {
+            var settings = new TracerSettings { ServiceVersion = version };
+            var tracer = TracerHelper.Create(settings);
+            var scope = (Scope)tracer.StartActive("operation");
+
+            scope.Span.GetTag(Tags.Version).Should().Be(version);
+            scope.Span.Context.TraceContext.ServiceVersion.Should().Be(version);
         }
 
         [Theory]
@@ -657,6 +669,35 @@ namespace Datadog.Trace.Tests
 
             Assert.ThrowsAny<ArgumentException>(() =>
                 testSpan.SetUser(userDetails));
+        }
+
+        [Fact]
+        public void SetUser_PropagateId_ShouldSetUsrId()
+        {
+            var scopeManager = new AsyncLocalScopeManager();
+
+            var settings = new TracerSettings
+            {
+                StartupDiagnosticLogEnabled = false
+            };
+            var tracer = new Tracer(settings, Mock.Of<IAgentWriter>(), Mock.Of<ITraceSampler>(), scopeManager, Mock.Of<IDogStatsd>());
+
+            var rootTestScope = (Scope)tracer.StartActive("test.trace");
+
+            var id = Guid.NewGuid().ToString();
+
+            var userDetails = new UserDetails()
+            {
+                Id = id,
+                PropagateId = true,
+            };
+            tracer.ActiveScope?.Span.SetUser(userDetails);
+
+            var base64UserId = Convert.ToBase64String(Encoding.UTF8.GetBytes(userDetails.Id));
+
+            var traceContext = rootTestScope.Span.Context.TraceContext;
+            Assert.Equal(id, traceContext.Tags.GetTag(Tags.User.Id));
+            Assert.Equal(base64UserId, traceContext.Tags.GetTag(TagPropagation.PropagatedTagPrefix + Tags.User.Id));
         }
 
         private class SpanStub : ISpan

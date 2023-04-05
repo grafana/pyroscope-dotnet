@@ -6,8 +6,10 @@
 #include "COMHelpers.h"
 #include "FrameStore.h"
 #include "HResultConverter.h"
+#include "IConfiguration.h"
 #include "Log.h"
 #include "OsSpecificApi.h"
+#include "ScopeFinalizer.h"
 #include "shared/src/native-src/com_ptr.h"
 #include "shared/src/native-src/string.h"
 
@@ -25,7 +27,8 @@ ExceptionsProvider::ExceptionsProvider(
     IConfiguration* pConfiguration,
     IThreadsCpuManager* pThreadsCpuManager,
     IAppDomainStore* pAppDomainStore,
-    IRuntimeIdStore* pRuntimeIdStore)
+    IRuntimeIdStore* pRuntimeIdStore,
+    MetricsRegistry& metricsRegistry)
     :
     CollectorBase<RawExceptionSample>("ExceptionsProvider", valueOffset, pThreadsCpuManager, pFrameStore, pAppDomainStore, pRuntimeIdStore, pConfiguration),
     _pCorProfilerInfo(pCorProfilerInfo),
@@ -37,8 +40,11 @@ ExceptionsProvider::ExceptionsProvider(
     _mscorlibModuleId(0),
     _exceptionClassId(0),
     _loggedMscorlibError(false),
-    _sampler(pConfiguration->ExceptionSampleLimit(), pConfiguration->GetUploadInterval())
+    _sampler(pConfiguration->ExceptionSampleLimit(), pConfiguration->GetUploadInterval()),
+    _pConfiguration(pConfiguration)
 {
+    _exceptionsCountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_exceptions");
+    _sampledExceptionsCountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_sampled_exceptions");
 }
 
 bool ExceptionsProvider::OnModuleLoaded(const ModuleID moduleId)
@@ -100,6 +106,7 @@ bool ExceptionsProvider::OnExceptionThrown(ObjectID thrownObjectId)
         return false;
     }
 
+    _exceptionsCountMetric->Incr();
     if (!_sampler.Sample(name))
     {
         return true;
@@ -127,15 +134,15 @@ bool ExceptionsProvider::OnExceptionThrown(ObjectID thrownObjectId)
         }
     }
 
-    ManagedThreadInfo* threadInfo;
+    std::shared_ptr<ManagedThreadInfo> threadInfo;
 
-    INVOKE(_pManagedThreadList->TryGetCurrentThreadInfo(&threadInfo))
+    INVOKE(_pManagedThreadList->TryGetCurrentThreadInfo(threadInfo))
 
     uint32_t hrCollectStack = E_FAIL;
-    const auto pStackFramesCollector = OsSpecificApi::CreateNewStackFramesCollectorInstance(_pCorProfilerInfo);
+    const auto pStackFramesCollector = OsSpecificApi::CreateNewStackFramesCollectorInstance(_pCorProfilerInfo, _pConfiguration);
 
     pStackFramesCollector->PrepareForNextCollection();
-    const auto result = pStackFramesCollector->CollectStackSample(threadInfo, &hrCollectStack);
+    const auto result = pStackFramesCollector->CollectStackSample(threadInfo.get(), &hrCollectStack);
 
     if (result->GetFramesCount() == 0)
     {
@@ -154,11 +161,11 @@ bool ExceptionsProvider::OnExceptionThrown(ObjectID thrownObjectId)
     rawSample.AppDomainId = result->GetAppDomainId();
     result->CopyInstructionPointers(rawSample.Stack);
     rawSample.ThreadInfo = threadInfo;
-    threadInfo->AddRef();
     rawSample.ExceptionMessage = std::move(message);
     rawSample.ExceptionType = std::move(name);
     rawSample.Tags = threadInfo->GetTags().GetAll();
     Add(std::move(rawSample));
+    _sampledExceptionsCountMetric->Incr();
 
     return true;
 }
@@ -226,6 +233,10 @@ bool ExceptionsProvider::LoadExceptionMetadata()
         if (fields[i].ridOfField == messageFieldDef)
         {
             _messageFieldOffset = fields[i];
+            // Set the _exceptionClassId field to notify that we found
+            // the message field offset.
+            // So we do not enter this method anymore
+            _exceptionClassId = exceptionClassId;
             return true;
         }
     }

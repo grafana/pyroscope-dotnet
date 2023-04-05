@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Datadog.Trace.Agent;
 using Datadog.Trace.Agent.DiscoveryService;
 using Datadog.Trace.AppSec;
+using Datadog.Trace.ClrProfiler;
 using Datadog.Trace.Configuration;
 using Datadog.Trace.ContinuousProfiler;
 using Datadog.Trace.DataStreamsMonitoring;
@@ -61,6 +62,7 @@ namespace Datadog.Trace
             IDiscoveryService discoveryService,
             DataStreamsManager dataStreamsManager,
             string defaultServiceName,
+            IGitMetadataTagsProvider gitMetadataTagsProvider,
             ITraceProcessor[] traceProcessors = null)
         {
             Settings = settings;
@@ -70,6 +72,7 @@ namespace Datadog.Trace
             Statsd = statsd;
             RuntimeMetrics = runtimeMetricsWriter;
             DefaultServiceName = defaultServiceName;
+            GitMetadataTagsProvider = gitMetadataTagsProvider;
             DataStreamsManager = dataStreamsManager;
             DirectLogSubmission = directLogSubmission;
             Telemetry = telemetry;
@@ -107,6 +110,8 @@ namespace Datadog.Trace
         /// Gets the default service name for traces where a service name is not specified.
         /// </summary>
         public string DefaultServiceName { get; }
+
+        public IGitMetadataTagsProvider GitMetadataTagsProvider { get; }
 
         /// <summary>
         /// Gets this tracer's settings.
@@ -271,7 +276,7 @@ namespace Datadog.Trace
             // In AAS, the trace agent is deployed alongside the tracer and managed by the tracer
             // Disable this check as it may hit the trace agent before it is ready to receive requests and give false negatives
             // Also disable if tracing is not enabled (as likely to be in an environment where agent is not available)
-            if (instanceSettings.TraceEnabled && !AzureAppServices.Metadata.IsRelevant)
+            if (instanceSettings.TraceEnabled && !instanceSettings.IsRunningInAzureAppService)
             {
                 try
                 {
@@ -308,6 +313,9 @@ namespace Datadog.Trace
 
                     writer.WritePropertyName("version");
                     writer.WriteValue(TracerConstants.AssemblyVersion);
+
+                    writer.WritePropertyName("native_tracer_version");
+                    writer.WriteValue(Instrumentation.GetNativeTracerVersion());
 
                     writer.WritePropertyName("platform");
                     writer.WriteValue(FrameworkDescription.Instance.ProcessArchitecture);
@@ -612,7 +620,7 @@ namespace Datadog.Trace
                     }
                     catch (Exception e)
                     {
-                        Log.Error(e, e.Message);
+                        Log.Error(e, "Error executing trace processor {TraceProcessorType}", processor?.GetType());
                     }
                 }
             }

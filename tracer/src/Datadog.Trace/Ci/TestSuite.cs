@@ -8,8 +8,6 @@ using System;
 using System.Threading;
 using Datadog.Trace.Ci.Tagging;
 using Datadog.Trace.Ci.Tags;
-using Datadog.Trace.ExtensionMethods;
-using Datadog.Trace.Sampling;
 
 namespace Datadog.Trace.Ci;
 
@@ -35,14 +33,14 @@ public sealed class TestSuite
 
         span.Type = SpanTypes.TestSuite;
         span.ResourceName = name;
-        span.Context.TraceContext.SetSamplingPriority((int)SamplingPriority.AutoKeep, SamplingMechanism.Manual);
-        span.SetTag(Trace.Tags.Origin, TestTags.CIAppTestOriginName);
+        span.Context.TraceContext.SetSamplingPriority((int)SamplingPriority.AutoKeep);
+        span.Context.TraceContext.Origin = TestTags.CIAppTestOriginName;
 
         tags.SuiteId = span.SpanId;
 
         _span = span;
         Current = this;
-        CIVisibility.Log.Debug("###### New Test Suite Created: {name} ({module})", Name, Module.Name);
+        CIVisibility.Log.Debug("###### New Test Suite Created: {Name} ({Module})", Name, Module.Name);
 
         if (startDate is null)
         {
@@ -165,7 +163,7 @@ public sealed class TestSuite
 
         Current = null;
         Module.RemoveSuite(Name);
-        CIVisibility.Log.Debug("###### Test Suite Closed: {name} ({module})", Name, Module.Name);
+        CIVisibility.Log.Debug("###### Test Suite Closed: {Name} ({Module}) | {Status}", Name, Module.Name, Tags.Status);
     }
 
     /// <summary>

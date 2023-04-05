@@ -3,7 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
-#if NET461
+#if NETFRAMEWORK
 using System.Net;
 using System.Threading.Tasks;
 using Datadog.Trace.AppSec;
@@ -79,6 +79,8 @@ namespace Datadog.Trace.Security.IntegrationTests
         [InlineData(AddressesConstants.RequestQuery, "/api/Health/?arg=[$slice]", null)]
         [InlineData(AddressesConstants.RequestQuery, "/api/Health/?arg&[$slice]", null)]
         [InlineData(AddressesConstants.RequestPathParams, "/api/Health/appscan_fingerprint", null)]
+        [InlineData(AddressesConstants.RequestPathParams, "/api/route/2?arg=[$slice]", null)]
+        [InlineData(AddressesConstants.RequestPathParams, "/api/route/TwoMember?arg=[$slice]", null)]
         [InlineData(AddressesConstants.RequestBody, "/api/Home/Upload", "{\"Property1\": \"[$slice]\"}")]
         public Task TestSecurity(string test, string url, string body)
         {
