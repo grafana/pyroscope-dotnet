@@ -162,28 +162,7 @@ private:
 private:
     void SetAppDomainDetails(const TRawSample& rawSample, std::shared_ptr<Sample>& sample)
     {
-        ProcessID pid;
-        std::string appDomainName;
 
-        // check for null AppDomainId (garbage collection for example)
-        if (rawSample.AppDomainId == 0)
-        {
-            sample->SetAppDomainName("CLR");
-            sample->SetPid(OpSysTools::GetProcId());
-
-            return;
-        }
-
-        if (!_pAppDomainStore->GetInfo(rawSample.AppDomainId, pid, appDomainName))
-        {
-            sample->SetAppDomainName("");
-            sample->SetPid(OpSysTools::GetProcId());
-
-            return;
-        }
-
-        sample->SetAppDomainName(std::move(appDomainName));
-        sample->SetPid(pid);
     }
 
     void SetThreadDetails(const TRawSample& rawSample, std::shared_ptr<Sample>& sample)
