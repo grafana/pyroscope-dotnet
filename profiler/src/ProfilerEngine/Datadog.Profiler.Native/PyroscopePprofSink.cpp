@@ -73,7 +73,46 @@ void PyroscopePprofSink::upload(Pprof pprof, ProfileTime& startTime, ProfileTime
     });
     data.emplace_back(httplib::MultipartFormData{
         .name = "sample_type_config",
-        .content = "{\"alloc-samples\":{\"units\":\"objects\",\"display-name\":\"alloc_objects\"},\"alloc-size\":{\"units\":\"bytes\",\"display-name\":\"alloc_space\"},\"cpu\":{\"units\":\"samples\",\"sampled\":true},\"exception\":{\"units\":\"exceptions\",\"display-name\":\"exceptions\"},\"lock-count\":{\"units\":\"lock_samples\",\"display-name\":\"mutex_count\"},\"lock-time\":{\"units\":\"lock_nanoseconds\",\"display-name\":\"mutex_duration\"},\"wall\":{\"units\":\"samples\",\"sampled\":true}}",
+        .content = "{\n"
+                   "  \"alloc-samples\": {\n"
+                   "    \"units\": \"objects\",\n"
+                   "    \"display-name\": \"alloc_objects\"\n"
+                   "  },\n"
+                   "  \"alloc-size\": {\n"
+                   "    \"units\": \"bytes\",\n"
+                   "    \"display-name\": \"alloc_space\"\n"
+                   "  },\n"
+                   "  \"cpu\": {\n"
+                   "    \"units\": \"samples\",\n"
+                   "    \"sampled\": true\n"
+                   "  },\n"
+                   "  \"exception\": {\n"
+                   "    \"units\": \"exceptions\",\n"
+                   "    \"display-name\": \"exceptions\"\n"
+                   "  },\n"
+                   "  \"lock-count\": {\n"
+                   "    \"units\": \"lock_samples\",\n"
+                   "    \"display-name\": \"mutex_count\"\n"
+                   "  },\n"
+                   "  \"lock-time\": {\n"
+                   "    \"units\": \"lock_nanoseconds\",\n"
+                   "    \"display-name\": \"mutex_duration\"\n"
+                   "  },\n"
+                   "  \"wall\": {\n"
+                   "    \"units\": \"samples\",\n"
+                   "    \"sampled\": true\n"
+                   "  },\n"
+                   "  \"inuse-objects\": {\n"
+                   "    \"units\": \"objects\",\n"
+                   "    \"display-name\": \"inuse_objects\",\n"
+                   "    \"aggregation\": \"average\"\n"
+                   "  },\n"
+                   "  \"inuse-space\": {\n"
+                   "    \"units\": \"bytes\",\n"
+                   "    \"display-name\": \"inuse_space\",\n"
+                   "    \"aggregation\": \"average\"\n"
+                   "  }\n"
+                   "}",
         .filename = "sample_type_config.json",
     });
 
