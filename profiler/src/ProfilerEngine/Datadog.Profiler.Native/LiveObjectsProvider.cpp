@@ -115,10 +115,6 @@ std::list<std::shared_ptr<Sample>> LiveObjectsProvider::GetSamples()
             // are available for live heap profiling
             auto sample = info.GetSample();
             liveObjectsSamples.push_back(sample);
-
-            // update samples lifetime
-            sample->ReplaceLabel(Label{Sample::ObjectLifetimeLabel, std::to_string(sample->GetTimeStamp() - currentTimestamp)});
-            sample->ReplaceLabel(Label{Sample::ObjectGenerationLabel, info.IsGen2() ? Gen2 : Gen1});
         }
     }
 
