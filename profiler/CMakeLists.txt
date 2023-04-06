@@ -13,7 +13,7 @@ elseif (CMAKE_SYSTEM_NAME MATCHES "Linux")
     message(STATUS "Preparing Linux build")
     SET(ISLINUX true)
 elseif (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-    message(FATAL_ERROR "MACOS builds are not supported yet.")
+    message(STATUS "MACOS builds are not supported yet.")
     SET(ISMACOS true)
 endif()
 

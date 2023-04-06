@@ -43,3 +43,11 @@ extern "C" void __stdcall SetApplicationInfoForAppDomain(const char* runtimeId, 
 extern "C" void __stdcall SetDynamicTag(const char* key, const char* value);
 
 extern "C" void __stdcall ClearDynamicTags();
+
+extern "C" void __stdcall SetCPUTrackingEnabled(bool enabled);
+
+extern "C" void __stdcall SetAllocationTrackingEnabled(bool enabled);
+
+extern "C" void __stdcall SetContentionTrackingEnabled(bool enabled);
+
+extern "C" void __stdcall SetExceptionTrackingEnabled(bool enabled);

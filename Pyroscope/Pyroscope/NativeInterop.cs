@@ -40,6 +40,30 @@ namespace Pyroscope
             NativeMethods.ClearDynamicTags();
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void SetCPUTrackingEnabled(bool enabled)
+        {
+            NativeMethods.SetCPUTrackingEnabled(enabled);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void SetAllocationTrackingEnabled(bool enabled)
+        {
+            NativeMethods.SetAllocationTrackingEnabled(enabled);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void SetContentionTrackingEnabled(bool enabled)
+        {
+            NativeMethods.SetContentionTrackingEnabled(enabled);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void SetExceptionTrackingEnabled(bool enabled)
+        {
+            NativeMethods.SetExceptionTrackingEnabled(enabled);
+        }
+
         // These methods are rewritten by the native tracer to use the correct paths
         private static class NativeMethods
         {
@@ -57,6 +81,19 @@ namespace Pyroscope
             
             [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "ClearDynamicTags")]
             public static extern void ClearDynamicTags();
+
+            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetCPUTrackingEnabled")]
+            public static extern void SetCPUTrackingEnabled(bool enabled);
+
+            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetAllocationTrackingEnabled")]
+            public static extern void SetAllocationTrackingEnabled(bool enabled);
+
+            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetContentionTrackingEnabled")]
+            public static extern void SetContentionTrackingEnabled(bool enabled);
+
+            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetExceptionTrackingEnabled")]
+            public static extern void SetExceptionTrackingEnabled(bool enabled);
+
         }
     }
 }

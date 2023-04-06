@@ -136,7 +136,8 @@ public:
                     UINT_PTR stackFrames[]
                     );
     void Register(IGarbageCollectionsListener* pGarbageCollectionsListener);
-
+    void SetAllocationTrackingEnabled(bool enabled);
+    void SetContentionTrackingEnabled(bool enabled);
 private:
     bool TryGetEventInfo(LPCBYTE pMetadata, ULONG cbMetadata, WCHAR*& name, DWORD& id, INT64& keywords, DWORD& version);
     void ParseGcEvent(DWORD id, DWORD version, ULONG cbEventData, LPCBYTE pEventData);
@@ -199,6 +200,8 @@ private:
     }
 
 private:
+    volatile bool _allocationEnabled = true;
+    volatile bool _contentionEnabled = true;
     ICorProfilerInfo12* _pCorProfilerInfo = nullptr;
     IAllocationsListener* _pAllocationListener = nullptr;
     IContentionListener* _pContentionListener = nullptr;

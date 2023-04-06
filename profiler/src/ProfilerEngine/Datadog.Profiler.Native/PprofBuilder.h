@@ -20,6 +20,7 @@ public:
                  std::vector<std::pair<std::string, std::string>>& staticTags);
 
     void AddSample(const Sample& sample);
+    int SamplesCount();
     std::string Build();
 
 private:

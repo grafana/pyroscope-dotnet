@@ -34,6 +34,8 @@ ClrEventsParser::ClrEventsParser(
     IContentionListener* pContentionListener,
     IGCSuspensionsListener* pGCSuspensionsListener)
     :
+    _allocationEnabled{true},
+    _contentionEnabled{true},
     _pCorProfilerInfo{pCorProfilerInfo},
     _pAllocationListener{pAllocationListener},
     _pContentionListener{pContentionListener},
@@ -116,7 +118,7 @@ void ClrEventsParser::ParseGcEvent(DWORD id, DWORD version, ULONG cbEventData, L
     // look for AllocationTick_V4
     if ((id == EVENT_ALLOCATION_TICK) && (version == 4))
     {
-        if (_pAllocationListener == nullptr)
+        if (_pAllocationListener == nullptr || !_allocationEnabled)
         {
             return;
         }
@@ -256,7 +258,7 @@ void ClrEventsParser::ParseGcEvent(DWORD id, DWORD version, ULONG cbEventData, L
 
 void ClrEventsParser::ParseContentionEvent(DWORD id, DWORD version, ULONG cbEventData, LPCBYTE pEventData)
 {
-    if (_pContentionListener == nullptr)
+    if (_pContentionListener == nullptr || !_contentionEnabled)
     {
         return;
     }
@@ -308,6 +310,16 @@ bool ClrEventsParser::TryGetEventInfo(LPCBYTE pMetadata, ULONG cbMetadata, WCHAR
     }
 
     return true;
+}
+
+void ClrEventsParser::SetAllocationTrackingEnabled(bool enabled)
+{
+    _allocationEnabled = enabled;
+}
+
+void ClrEventsParser::SetContentionTrackingEnabled(bool enabled)
+{
+    _contentionEnabled = enabled;
 }
 
 void ClrEventsParser::NotifySuspension(uint32_t number, uint32_t generation, uint64_t duration, uint64_t timestamp)

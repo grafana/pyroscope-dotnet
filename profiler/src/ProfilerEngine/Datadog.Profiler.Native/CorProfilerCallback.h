@@ -192,6 +192,10 @@ public:
     IStackSamplerLoopManager* GetStackSamplerLoopManager() { return _pStackSamplerLoopManager; }
     IApplicationStore* GetApplicationStore() { return _pApplicationStore; }
     IExporter* GetExporter() { return _pExporter.get(); }
+    void SetStackSamplerEnabled(bool enabled);
+    void SetAllocationTrackingEnabled(bool enabled);
+    void SetContentionTrackingEnabled(bool enabled);
+    void SetExceptionTrackingEnabled(bool enabled);
 
 private :
     static CorProfilerCallback* _this;
@@ -216,6 +220,7 @@ private :
     IManagedThreadList* _pCodeHotspotsThreadList = nullptr;
     IApplicationStore* _pApplicationStore = nullptr;
     ExceptionsProvider* _pExceptionsProvider = nullptr;
+    volatile bool _exceptionTrackingEnabled = true;
     WallTimeProvider* _pWallTimeProvider = nullptr;
     CpuTimeProvider* _pCpuTimeProvider = nullptr;
     AllocationsProvider* _pAllocationsProvider = nullptr;

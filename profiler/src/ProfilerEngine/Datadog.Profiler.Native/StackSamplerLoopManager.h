@@ -233,5 +233,6 @@ private:
     std::unique_ptr<Statistics> _currentStatistics;
 
     IClrLifetime const* _pClrLifetime;
-    bool _isStopped = false;
+    bool _isStarted = false;
+    std::mutex _startStopLock;
 };

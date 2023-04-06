@@ -64,6 +64,87 @@ namespace Pyroscope
                 _dllNotFound = true;
             }
         }
+
+        /// Enables or disables CPU/wall profiling dynamically.
+        ///
+        /// This function works in conjunction with the PYROSCOPE_PROFILING_CPU_ENABLED and
+        /// PYROSCOPE_PROFILING_WALLTIME_ENABLED environment variables. If CPU/wall profiling is not
+        /// configured, this function will have no effect.
+        public void SetCPUTrackingEnabled(bool enabled)
+        {
+            if (_dllNotFound)
+            {
+                return;
+            }
+            try
+            {
+                NativeInterop.SetCPUTrackingEnabled(enabled);
+            }
+            catch (DllNotFoundException)
+            {
+                _dllNotFound = true;
+            }
+        }
+
+        /// Enables or disables allocation profiling dynamically.
+        ///
+        /// This function works in conjunction with the PYROSCOPE_PROFILING_ALLOCATION_ENABLED environment variable.
+        //  If allocation profiling is not configured, this function will have no effect.
+        public void SetAllocationTrackingEnabled(bool enabled)
+        {
+            if (_dllNotFound)
+            {
+                return;
+            }
+            try
+            {
+                NativeInterop.SetAllocationTrackingEnabled(enabled);
+            }
+            catch (DllNotFoundException)
+            {
+                _dllNotFound = true;
+            }
+        }
+
+        /// Enables or disables contention profiling dynamically.
+        ///
+        /// This function works in conjunction with the PYROSCOPE_PROFILING_CONTENTION_ENABLED environment variable.
+        //  If contention profiling is not configured, this function will have no effect.
+        public void SetContentionTrackingEnabled(bool enabled)
+        {
+            if (_dllNotFound)
+            {
+                return;
+            }
+            try
+            {
+                NativeInterop.SetContentionTrackingEnabled(enabled);
+            }
+            catch (DllNotFoundException)
+            {
+                _dllNotFound = true;
+            }
+        }
+
+        /// Enables or disables exception profiling dynamically.
+        ///
+        /// This function works in conjunction with the PYROSCOPE_PROFILING_EXCEPTION_ENABLED environment variable.
+        //  If exception profiling is not configured, this function will have no effect.
+        public void SetExceptionTrackingEnabled(bool enabled)
+        {
+            if (_dllNotFound)
+            {
+                return;
+            }
+            try
+            {
+                NativeInterop.SetExceptionTrackingEnabled(enabled);
+            }
+            catch (DllNotFoundException)
+            {
+                _dllNotFound = true;
+            }
+        }
         
         private readonly ContextTracker _contextTracker;
         private bool _dllNotFound;
