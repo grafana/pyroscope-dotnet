@@ -7,33 +7,21 @@ on:
     branches: [main]
 
 jobs:
-  build-linux-profiler:
+  build-linux-profiler-glibc:
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Checkout
+      - name: Checkout
         uses: actions/checkout@v2
         with:
           submodules: 'true'
-      -
-        name: Build docker image
-        uses: docker/build-push-action@v3
+      - name: Build in Docker
+        run: DOCKER_BUILDKIT=1 docker build -f ./Pyroscope.Dockerfile .
+  build-linux-profiler-musl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
         with:
-          tags: test-image:latest
-          push: false
-          file: ./Pyroscope.Dockerfile
-      - name: Build linux profiler
-        uses: addnab/docker-run-action@v3
-        with:
-          image: test-image:latest
-          options: -v ${{ github.workspace }}:/project
-          run: |
-            cd /project
-            mkdir build-release
-            cd build-release
-            cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release
-            make -j6 Datadog.Profiler.Native Datadog.Linux.ApiWrapper.x64
-
-
-
-
+          submodules: 'true'
+      - name: Build in Docker
+        run: DOCKER_BUILDKIT=1 docker build -f ./Pyroscope.musl.Dockerfile .
