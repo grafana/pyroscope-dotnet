@@ -25,5 +25,3 @@ jobs:
           submodules: 'true'
       - name: Build in Docker
         run: DOCKER_BUILDKIT=1 docker build -f ./Pyroscope.musl.Dockerfile .
-      - name: debug
-        run: DOCKER_BUILDKIT=1 docker build -f ./Pyroscope.musl.Dockerfile . -o out.musl && ls -la
