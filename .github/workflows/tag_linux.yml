@@ -14,7 +14,7 @@ jobs:
         with:
           submodules: 'true'
       - name: Build in Docker
-        run: docker build -f ./Pyroscope.Dockerfile -o out.glibc .
+        run: DOCKER_BUILDKIT=1 docker build -f ./Pyroscope.Dockerfile -o out.glibc .
       - name: Create tar archive
         run: tar -czvf pyroscope.glibc.tar.gz -C out.glibc .
       - name: Release
@@ -29,7 +29,7 @@ jobs:
         with:
           submodules: 'true'
       - name: Build in Docker
-        run: docker build -f ./Pyroscope.musl.Dockerfile -o out.musl .
+        run: DOCKER_BUILDKIT=1 docker build -f ./Pyroscope.musl.Dockerfile -o out.musl .
       - name: Create tar archive
         run: tar -czvf pyroscope.musl.tar.gz -C out.musl .
       - name: Release

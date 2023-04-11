@@ -15,7 +15,7 @@ jobs:
         with:
           submodules: 'true'
       - name: Build in Docker
-        run: docker build -f ./Pyroscope.Dockerfile .
+        run: DOCKER_BUILDKIT=1 docker build -f ./Pyroscope.Dockerfile .
   build-linux-profiler-musl:
     runs-on: ubuntu-latest
     steps:
@@ -24,4 +24,6 @@ jobs:
         with:
           submodules: 'true'
       - name: Build in Docker
-        run: docker build -f ./Pyroscope.musl.Dockerfile .
+        run: DOCKER_BUILDKIT=1 docker build -f ./Pyroscope.musl.Dockerfile .
+      - name: debug
+        run: DOCKER_BUILDKIT=1 docker build -f ./Pyroscope.musl.Dockerfile . -o out.musl && ls -la
