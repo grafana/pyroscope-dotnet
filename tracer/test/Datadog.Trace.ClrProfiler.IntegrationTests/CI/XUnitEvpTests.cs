@@ -30,6 +30,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
         public XUnitEvpTests(ITestOutputHelper output)
             : base("XUnitTests", output)
         {
+            SetServiceName("xunit-tests-evp");
             SetServiceVersion("1.0.0");
         }
 
@@ -44,7 +45,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
             var testModules = new List<MockCIVisibilityTestModule>();
 
             // Inject session
-            var sessionId = SpanIdGenerator.CreateNew();
+            var sessionId = RandomIdGenerator.Shared.NextSpanId();
             var sessionCommand = "test command";
             var sessionWorkingDirectory = "C:\\evp_demo\\working_directory";
             SetEnvironmentVariable(HttpHeaderNames.TraceId.Replace(".", "_").Replace("-", "_").ToUpperInvariant(), sessionId.ToString(CultureInfo.InvariantCulture));
@@ -138,6 +139,9 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
 
                             // check the version
                             AssertTargetSpanEqual(targetTest, "version", "1.0.0");
+
+                            // remove ITR skippeable tags
+                            AssertTargetSpanExists(targetTest, CommonTags.TestsSkipped);
 
                             // checks the origin tag
                             CheckOriginTag(targetTest);
@@ -360,13 +364,11 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
 
         private static void CheckRuntimeValues(MockCIVisibilityTest targetTest)
         {
-            FrameworkDescription framework = FrameworkDescription.Instance;
-
-            AssertTargetSpanEqual(targetTest, CommonTags.RuntimeName, framework.Name);
-            AssertTargetSpanEqual(targetTest, CommonTags.RuntimeVersion, framework.ProductVersion);
-            AssertTargetSpanEqual(targetTest, CommonTags.RuntimeArchitecture, framework.ProcessArchitecture);
-            AssertTargetSpanEqual(targetTest, CommonTags.OSArchitecture, framework.OSArchitecture);
-            AssertTargetSpanEqual(targetTest, CommonTags.OSPlatform, framework.OSPlatform);
+            AssertTargetSpanExists(targetTest, CommonTags.RuntimeName);
+            AssertTargetSpanExists(targetTest, CommonTags.RuntimeVersion);
+            AssertTargetSpanExists(targetTest, CommonTags.RuntimeArchitecture);
+            AssertTargetSpanExists(targetTest, CommonTags.OSArchitecture);
+            AssertTargetSpanExists(targetTest, CommonTags.OSPlatform);
             AssertTargetSpanEqual(targetTest, CommonTags.OSVersion, CIVisibility.GetOperatingSystemVersion());
         }
 

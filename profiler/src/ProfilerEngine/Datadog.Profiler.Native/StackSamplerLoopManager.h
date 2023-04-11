@@ -13,14 +13,17 @@
 #include "corprof.h"
 // end
 
-#include "IMetricsSender.h"
-#include "Log.h"
-#include "OpSysTools.h"
+#include "CounterMetric.h"
 #include "ICollector.h"
+#include "IMetricsSender.h"
+#include "IStackSamplerLoopManager.h"
+#include "Log.h"
+#include "MeanMaxMetric.h"
+#include "MetricsRegistry.h"
+#include "OpSysTools.h"
 #include "RawCpuSample.h"
 #include "RawWallTimeSample.h"
 #include "StackSamplerLoop.h"
-#include "IStackSamplerLoopManager.h"
 
 // forward declaration
 class IClrLifetime;
@@ -29,7 +32,6 @@ class IStackSnapshotsBufferManager;
 class IManagedThreadList;
 class ISymbolsResolver;
 class IConfiguration;
-
 
 constexpr std::uint64_t DeadlocksPerThreadThreshold = 5;
 constexpr std::uint64_t TotalDeadlocksThreshold = 12;
@@ -74,9 +76,10 @@ public:
         IClrLifetime const* clrLifetime,
         IThreadsCpuManager* pThreadsCpuManager,
         IManagedThreadList* pManagedThreadList,
+        IManagedThreadList* pCodeHotspotThreadList,
         ICollector<RawWallTimeSample>* pWallTimeCollector,
-        ICollector<RawCpuSample>* pCpuTimeCollector
-        );
+        ICollector<RawCpuSample>* pCpuTimeCollector,
+        MetricsRegistry& metricsRegistry);
 
     ~StackSamplerLoopManager() override;
 
@@ -84,7 +87,7 @@ public:
     const char* GetName() override;
     bool Start() override;
     bool Stop() override;
-    bool AllowStackWalk(ManagedThreadInfo* pThreadInfo) override;
+    bool AllowStackWalk(std::shared_ptr<ManagedThreadInfo> pThreadInfo) override;
     void NotifyThreadState(bool isSuspended) override;
     void NotifyCollectionStart() override;
     void NotifyCollectionEnd() override;
@@ -94,16 +97,16 @@ private:
     StackSamplerLoopManager() = delete;
 
     inline bool GetUpdateIsThreadSafeForStackSampleCollection(ManagedThreadInfo* pThreadInfo, bool* pIsStatusChanged);
-    inline bool ShouldCollectThread(std::uint64_t threadAggPeriodDeadlockCount, std::uint64_t globalAggPeriodDeadlockCount) const;
+    static inline bool ShouldCollectThread(std::uint64_t threadAggPeriodDeadlockCount, std::uint64_t globalAggPeriodDeadlockCount) ;
 
-    void RunStackSampling(void);
-    void GracefulShutdownStackSampling(void);
+    void RunStackSampling();
+    void GracefulShutdownStackSampling();
 
-    void RunWatcher(void);
-    void ShutdownWatcher(void);
+    void RunWatcher();
+    void ShutdownWatcher();
 
-    void WatcherLoop(void);
-    void WatcherLoopIteration(void);
+    void WatcherLoop();
+    void WatcherLoopIteration();
     void PerformDeadlockIntervention(const std::chrono::nanoseconds& ongoingStackSampleCollectionDurationNs);
     void LogDeadlockIntervention(
         const std::chrono::nanoseconds& ongoingStackSampleCollectionDurationNs,
@@ -194,6 +197,7 @@ private:
     IConfiguration* _pConfiguration = nullptr;
     IThreadsCpuManager* _pThreadsCpuManager = nullptr;
     IManagedThreadList* _pManagedThreadList = nullptr;
+    IManagedThreadList* _pCodeHotspotsThreadList = nullptr;
     ICollector<RawWallTimeSample>* _pWallTimeCollector = nullptr;
     ICollector<RawCpuSample>* _pCpuTimeCollector = nullptr;
 
@@ -206,7 +210,7 @@ private:
 
     std::mutex _watcherActivityLock;
 
-    ManagedThreadInfo* _pTargetThread;
+    std::shared_ptr<ManagedThreadInfo> _pTargetThread;
     std::int64_t _collectionStartNs;
     FILETIME _kernelTime, _userTime;
 
@@ -229,5 +233,6 @@ private:
     std::unique_ptr<Statistics> _currentStatistics;
 
     IClrLifetime const* _pClrLifetime;
-    bool _isStopped = false;
+    bool _isStarted = false;
+    std::mutex _startStopLock;
 };

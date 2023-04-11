@@ -6,47 +6,93 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using Datadog.Trace.Configuration;
+using Datadog.Trace.Iast.Settings;
 
 namespace Datadog.Trace.Iast;
 
-internal class IastModule
+internal static class IastModule
 {
     private const string OperationNameWeakHash = "weak_hashing";
     private const string OperationNameWeakCipher = "weak_cipher";
+    private const string OperationNameSqlInjection = "sql_injection";
+    private static IastSettings iastSettings = Iast.Instance.Settings;
 
-    public IastModule()
+    public static Scope? OnSqlQuery(string query, IntegrationId integrationId)
     {
+        return GetScope(query, integrationId, VulnerabilityTypeName.SqlInjection, OperationNameSqlInjection, true);
     }
 
-    public static Scope? OnCipherAlgorithm(Type type, IntegrationId integrationId, Iast iast)
+    public static Scope? OnCipherAlgorithm(Type type, IntegrationId integrationId)
     {
         var algorithm = type.BaseType?.Name;
 
-        if (algorithm is null || !InvalidCipherAlgorithm(type, algorithm, iast))
+        if (algorithm is null || !InvalidCipherAlgorithm(type, algorithm))
         {
             return null;
         }
 
-        return GetScope(Tracer.Instance, algorithm, integrationId, VulnerabilityType.WeakCipher, OperationNameWeakCipher, iast);
+        return GetScope(algorithm, integrationId, VulnerabilityTypeName.WeakCipher, OperationNameWeakCipher);
     }
 
-    public static Scope? OnHashingAlgorithm(string? algorithm, IntegrationId integrationId, Iast iast)
+    public static Scope? OnHashingAlgorithm(string? algorithm, IntegrationId integrationId)
     {
-        if (algorithm == null || !InvalidHashAlgorithm(algorithm, iast))
+        if (algorithm == null || !InvalidHashAlgorithm(algorithm))
         {
             return null;
         }
 
-        return GetScope(Tracer.Instance, algorithm, integrationId, VulnerabilityType.WeakHash, OperationNameWeakHash, iast);
+        return GetScope(algorithm, integrationId, VulnerabilityTypeName.WeakHash, OperationNameWeakHash);
     }
 
-    private static Scope? GetScope(Tracer tracer, string evidenceValue, IntegrationId integrationId, string vulnerabilityType, string operationName, Iast iast)
+    public static IastRequestContext? GetIastContext()
     {
-        if (!tracer.Settings.IsIntegrationEnabled(integrationId))
+        if (!iastSettings.Enabled)
         {
             // integration disabled, don't create a scope, skip this span
+            return null;
+        }
+
+        var currentSpan = (Tracer.Instance.ActiveScope as Scope)?.Span;
+        var traceContext = currentSpan?.Context?.TraceContext;
+        return traceContext?.IastRequestContext;
+    }
+
+    private static Scope? GetScope(string evidenceValue, IntegrationId integrationId, string vulnerabilityType, string operationName, bool taintedFromEvidenceRequired = false)
+    {
+        var tracer = Tracer.Instance;
+        if (!iastSettings.Enabled || !tracer.Settings.IsIntegrationEnabled(integrationId))
+        {
+            // integration disabled, don't create a scope, skip this span
+            return null;
+        }
+
+        var currentSpan = (tracer.ActiveScope as Scope)?.Span;
+        var traceContext = currentSpan?.Context?.TraceContext;
+        var isRequest = traceContext?.RootSpan?.Type == SpanTypes.Web;
+
+        // We do not have, for now, tainted objects in console apps, so further checking is not neccessary.
+        if (!isRequest && vulnerabilityType == VulnerabilityTypeName.SqlInjection)
+        {
+            return null;
+        }
+
+        TaintedObject? tainted = null;
+        if (taintedFromEvidenceRequired)
+        {
+            tainted = traceContext?.IastRequestContext?.GetTainted(evidenceValue);
+            if (tainted is null)
+            {
+                return null;
+            }
+        }
+
+        if (isRequest && traceContext?.IastRequestContext?.AddVulnerabilitiesAllowed() != true)
+        {
+            // we are inside a request but we don't accept more vulnerabilities or IastRequestContext is null, which means that iast is
+            // not activated for this particular request
             return null;
         }
 
@@ -59,39 +105,40 @@ internal class IastModule
 
         // Sometimes we do not have the file/line but we have the method/class.
         var filename = frameInfo.StackFrame?.GetFileName();
-        var vulnerability = new Vulnerability(vulnerabilityType, new Location(filename ?? GetMethodName(frameInfo.StackFrame), filename != null ? frameInfo.StackFrame?.GetFileLineNumber() : null), new Evidence(evidenceValue));
+        var vulnerability = new Vulnerability(vulnerabilityType, new Location(filename ?? GetMethodName(frameInfo.StackFrame), filename != null ? frameInfo.StackFrame?.GetFileLineNumber() : null, currentSpan?.SpanId), new Evidence(evidenceValue, tainted?.Ranges));
 
-        if (!iast.Settings.DeduplicationEnabled || HashBasedDeduplication.Instance.Add(vulnerability))
+        if (!iastSettings.DeduplicationEnabled || HashBasedDeduplication.Instance.Add(vulnerability))
         {
-            return AddVulnerability(tracer, integrationId, operationName, vulnerability);
+            if (isRequest)
+            {
+                traceContext?.IastRequestContext.AddVulnerability(vulnerability);
+                return null;
+            }
+            else
+            {
+                return AddVulnerabilityAsSingleSpan(tracer, integrationId, operationName, vulnerability);
+            }
         }
 
         return null;
     }
 
-    private static Scope? AddVulnerability(Tracer tracer, IntegrationId integrationId, string operationName, Vulnerability vulnerability)
+    private static Scope? AddVulnerabilityAsSingleSpan(Tracer tracer, IntegrationId integrationId, string operationName, Vulnerability vulnerability)
     {
-        if (tracer.ActiveScope is Scope { Span.Context.TraceContext: { RootSpan.Type: SpanTypes.Web } traceContext })
-        {
-            traceContext.IastRequestContext?.AddVulnerability(vulnerability);
-            return null;
-        }
-        else
-        {
-            // we either are not in a request or the distributed tracer returned a scope that cannot be casted to Scope and we cannot access the root span.
-            var batch = new VulnerabilityBatch();
-            batch.Add(vulnerability);
+        // we either are not in a request or the distributed tracer returned a scope that cannot be casted to Scope and we cannot access the root span.
+        var batch = new VulnerabilityBatch();
+        batch.Add(vulnerability);
 
-            var tags = new IastTags()
-            {
-                IastJson = batch.ToString(),
-                IastEnabled = "1"
-            };
+        var tags = new IastTags()
+        {
+            IastJson = batch.ToString(),
+            IastEnabled = "1"
+        };
 
-            var scope = tracer.StartActiveInternal(operationName, tags: tags);
-            tracer?.TracerManager?.Telemetry.IntegrationGeneratedSpan(integrationId);
-            return scope;
-        }
+        var scope = tracer.StartActiveInternal(operationName, tags: tags);
+        scope.Span.Type = SpanTypes.IastVulnerability;
+        tracer.TracerManager.Telemetry.IntegrationGeneratedSpan(integrationId);
+        return scope;
     }
 
     private static string? GetMethodName(StackFrame? frame)
@@ -110,9 +157,9 @@ internal class IastModule
         return $"{namespaceName}.{typeName}::{methodName}";
     }
 
-    private static bool InvalidHashAlgorithm(string algorithm, Iast iast)
+    private static bool InvalidHashAlgorithm(string algorithm)
     {
-        foreach (var weakHashAlgorithm in iast.Settings.WeakHashAlgorithmsArray)
+        foreach (var weakHashAlgorithm in iastSettings.WeakHashAlgorithmsArray)
         {
             if (string.Equals(algorithm, weakHashAlgorithm, StringComparison.OrdinalIgnoreCase))
             {
@@ -123,14 +170,15 @@ internal class IastModule
         return false;
     }
 
-    private static bool InvalidCipherAlgorithm(Type type, string algorithm, Iast iast)
+    private static bool InvalidCipherAlgorithm(Type type, string algorithm)
     {
+#if !NETFRAMEWORK
         if (ProviderValid(type.Name))
         {
             return false;
         }
-
-        foreach (var weakCipherAlgorithm in iast.Settings.WeakCipherAlgorithmsArray)
+#endif
+        foreach (var weakCipherAlgorithm in iastSettings.WeakCipherAlgorithmsArray)
         {
             if (string.Equals(algorithm, weakCipherAlgorithm, StringComparison.OrdinalIgnoreCase))
             {

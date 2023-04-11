@@ -15,11 +15,12 @@ void ILRewriterWrapper::SetILPosition(ILInstr* pILInstr)
     m_ILInstr = pILInstr;
 }
 
-void ILRewriterWrapper::Pop() const
+ILInstr* ILRewriterWrapper::Pop() const
 {
     ILInstr* pNewInstr = m_ILRewriter->NewILInstr();
     pNewInstr->m_opcode = CEE_POP;
     m_ILRewriter->InsertBefore(m_ILInstr, pNewInstr);
+    return pNewInstr;
 }
 
 ILInstr* ILRewriterWrapper::LoadNull() const
@@ -76,7 +77,7 @@ ILInstr* ILRewriterWrapper::LoadArgument(const UINT16 index) const
 
     ILInstr* pNewInstr = m_ILRewriter->NewILInstr();
 
-    if (index >= 0 && index <= 3)
+    if (index <= 3)
     {
         pNewInstr->m_opcode = opcodes[index];
     }
@@ -357,6 +358,7 @@ ILInstr* ILRewriterWrapper::CreateInstr(unsigned opCode) const
     m_ILRewriter->InsertBefore(m_ILInstr, pNewInstr);
     return pNewInstr;
 }
+
 ILInstr* ILRewriterWrapper::InitObj(mdTypeRef type_ref) const
 {
     ILInstr* pNewInstr = m_ILRewriter->NewILInstr();
@@ -365,3 +367,4 @@ ILInstr* ILRewriterWrapper::InitObj(mdTypeRef type_ref) const
     m_ILRewriter->InsertBefore(m_ILInstr, pNewInstr);
     return pNewInstr;
 }
+

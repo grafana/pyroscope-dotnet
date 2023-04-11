@@ -16,12 +16,15 @@ namespace BuggyBits
 {
     public enum Scenario
     {
-        None,
-        StringConcat,    // using += / String.Concat
-        StringBuilder,   // using StringBuilder
-        Parallel,        // using parallel code
-        Async,           // using async code
-        FormatExceptions // generating FormatExceptions for prices
+        None = 0,
+        StringConcat = 1,      // using += / String.Concat
+        StringBuilder = 2,     // using StringBuilder
+        Parallel = 4,          // using parallel code
+        Async = 8,             // using async code
+        FormatExceptions = 16, // generating FormatExceptions for prices
+        ParallelLock = 32,     // using parallel code with lock
+        MemoryLeak = 64, // keep a controller in memory due to instance callback passed to a cache
+        EndpointsCount = 128 // Specific test with '.' in endpoint name
     }
 
     public class Program
@@ -34,7 +37,7 @@ namespace BuggyBits
 
             EnvironmentInfo.PrintDescriptionToConsole();
 
-            ParseCommandLine(args, out var timeout, out var iterations, out var scenario);
+            ParseCommandLine(args, out var timeout, out var iterations, out var scenario, out var nbIdleThreads);
 
             using (var host = CreateHostBuilder(args).Build())
             {
@@ -53,7 +56,7 @@ namespace BuggyBits
                 WriteLine($"Listening to {rootUrl}");
 
                 var cts = new CancellationTokenSource();
-                using (var selfInvoker = new SelfInvoker(cts.Token, scenario))
+                using (var selfInvoker = new SelfInvoker(cts.Token, scenario, nbIdleThreads))
                 {
                     await host.StartAsync();
 
@@ -121,12 +124,13 @@ namespace BuggyBits
                     webBuilder.UseStartup<Startup>();
                 });
 
-        private static void ParseCommandLine(string[] args, out TimeSpan timeout, out int iterations, out Scenario scenario)
+        private static void ParseCommandLine(string[] args, out TimeSpan timeout, out int iterations, out Scenario scenario, out int nbIdleThreads)
         {
             // by default, need interactive action to exit and string.Concat scenario
             timeout = TimeSpan.MinValue;
             iterations = 0;
             scenario = Scenario.StringConcat;
+            nbIdleThreads = 0;
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -170,6 +174,15 @@ namespace BuggyBits
                 if ("--run-infinitely".Equals(arg, StringComparison.OrdinalIgnoreCase))
                 {
                     timeout = Timeout.InfiniteTimeSpan;
+                }
+                else
+                if ("--with-idle-threads".Equals(arg, StringComparison.OrdinalIgnoreCase))
+                {
+                    var nbThreadsArgument = i + 1;
+                    if (nbThreadsArgument >= args.Length || !int.TryParse(args[nbThreadsArgument], out nbIdleThreads))
+                    {
+                        throw new InvalidOperationException($"Invalid or missing count after --with-idle-threads");
+                    }
                 }
             }
 

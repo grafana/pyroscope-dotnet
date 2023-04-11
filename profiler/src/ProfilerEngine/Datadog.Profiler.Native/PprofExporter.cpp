@@ -22,10 +22,10 @@ PProfExportSink::~PProfExportSink()
 {
 }
 
-void PprofExporter::Add(const Sample& sample)
+void PprofExporter::Add(std::shared_ptr<Sample> const& sample)
 {
-    GetPprofBuilder(sample.GetRuntimeId())
-        .AddSample(sample);
+    GetPprofBuilder(sample->GetRuntimeId())
+        .AddSample(*sample);
 }
 
 void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint)
@@ -39,7 +39,10 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime)
         std::lock_guard lock(_perAppBuilderLock);
         for (auto& builder : _perAppBuilder)
         {
-            pprofs.emplace_back(builder.second->Build());
+            if (builder.second->SamplesCount() != 0)
+            {
+                pprofs.emplace_back(builder.second->Build());
+            }
         }
     }
     for (const auto& pprof : pprofs)

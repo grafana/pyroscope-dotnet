@@ -52,6 +52,13 @@ public:
     bool IsTimestampsAsLabelEnabled() const override;
     int32_t WalltimeThreadsThreshold() const override;
     int32_t CpuThreadsThreshold() const override;
+    int32_t CodeHotspotsThreadsThreshold() const override;
+    bool IsGarbageCollectionProfilingEnabled() const override;
+    bool IsHeapProfilingEnabled() const override;
+    bool UseBacktrace2() const override;
+    bool IsAllocationRecorderEnabled() const override;
+    bool IsDebugInfoEnabled() const override;
+
     std::string PyroscopeServerAddress() const override;
     std::string PyroscopeApplicationName() const override;
     std::string PyroscopeAuthToken() const override;
@@ -73,6 +80,7 @@ private:
     static std::chrono::nanoseconds ExtractCpuWallTimeSamplingRate();
     static int32_t ExtractWallTimeThreadsThreshold();
     static int32_t ExtractCpuThreadsThreshold();
+    static int32_t ExtractCodeHotspotsThreadsThreshold();
     static bool GetContention();
 
 private:
@@ -92,6 +100,8 @@ private:
     bool _isExceptionProfilingEnabled;
     bool _isAllocationProfilingEnabled;
     bool _isContentionProfilingEnabled;
+    bool _isGarbageCollectionProfilingEnabled;
+    bool _isHeapProfilingEnabled;
     bool _debugLogEnabled;
     fs::path _logDirectory;
     fs::path _pprofDirectory;
@@ -116,10 +126,14 @@ private:
     std::chrono::nanoseconds _cpuWallTimeSamplingRate;
     int32_t _walltimeThreadsThreshold;
     int32_t _cpuThreadsThreshold;
+    int32_t _codeHotspotsThreadsThreshold;
+    bool _useBacktrace2;
+    bool _isAllocationRecorderEnabled;
 
     double _minimumCores;
     std::string _namedPipeName;
     bool _isTimestampsAsLabelEnabled;
+    bool _isDebugInfoEnabled;
 
     std::string _pyroscopeServerAddress;
     std::string _pyroscopeApplicationName;

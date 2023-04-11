@@ -26,7 +26,7 @@ namespace Datadog.Trace.Telemetry
         private readonly TelemetryTransportManager _transportManager;
         private readonly TimeSpan _flushInterval;
         private readonly TimeSpan _heartBeatInterval;
-        private readonly TaskCompletionSource<bool> _tracerInitialized = new();
+        private readonly TaskCompletionSource<bool> _tracerInitialized = new(TaskCreationOptions.RunContinuationsAsynchronously);
         private readonly TaskCompletionSource<bool> _processExit = new();
         private readonly Task _flushTask;
         private readonly Task _heartbeatTask;
@@ -70,9 +70,9 @@ namespace Datadog.Trace.Telemetry
 
         public bool FatalError => Volatile.Read(ref _fatalError);
 
-        public void RecordTracerSettings(ImmutableTracerSettings settings, string defaultServiceName, AzureAppServices appServicesMetadata)
+        public void RecordTracerSettings(ImmutableTracerSettings settings, string defaultServiceName)
         {
-            _configuration.RecordTracerSettings(settings, defaultServiceName, appServicesMetadata);
+            _configuration.RecordTracerSettings(settings, defaultServiceName);
             _integrations.RecordTracerSettings(settings);
         }
 

@@ -57,19 +57,15 @@ extern "C" void* __stdcall GetPointerToNativeTraceContext()
     }
 
     // Engine is active. Get info for current thread.
-    ManagedThreadInfo* pCurrentThreadInfo;
-    HRESULT hr = profiler->GetManagedThreadList()->TryGetCurrentThreadInfo(&pCurrentThreadInfo);
+    std::shared_ptr<ManagedThreadInfo> pCurrentThreadInfo;
+    HRESULT hr = profiler->GetManagedThreadList()->TryGetCurrentThreadInfo(pCurrentThreadInfo);
     if (FAILED(hr))
     {
         // There was an error looking up the current thread info:
         return nullptr;
     }
 
-    if (S_FALSE == hr)
-    {
-        // There was no error looking up the current thread, but we are not tracking any info for this thread:
-        return nullptr;
-    }
+    profiler->GetCodeHotspotThreadList()->RegisterThread(pCurrentThreadInfo);
 
     // Get pointers to the relevant fields within the thread info data structure.
     return pCurrentThreadInfo->GetTraceContextPointer();
@@ -146,8 +142,8 @@ extern "C" void __stdcall SetDynamicTag(const char* key, const char* value)
     }
 
     // Engine is active. Get info for current thread.
-    ManagedThreadInfo* pCurrentThreadInfo;
-    HRESULT hr = profiler->GetManagedThreadList()->TryGetCurrentThreadInfo(&pCurrentThreadInfo);
+    std::shared_ptr<ManagedThreadInfo> pCurrentThreadInfo{};
+    HRESULT hr = profiler->GetManagedThreadList()->TryGetCurrentThreadInfo(pCurrentThreadInfo);
     if (FAILED(hr))
     {
         // There was an error looking up the current thread info:
@@ -173,8 +169,8 @@ extern "C" void __stdcall ClearDynamicTags() {
     }
 
     // Engine is active. Get info for current thread.
-    ManagedThreadInfo* pCurrentThreadInfo;
-    HRESULT hr = profiler->GetManagedThreadList()->TryGetCurrentThreadInfo(&pCurrentThreadInfo);
+    std::shared_ptr<ManagedThreadInfo> pCurrentThreadInfo{};
+    HRESULT hr = profiler->GetManagedThreadList()->TryGetCurrentThreadInfo(pCurrentThreadInfo);
     if (FAILED(hr))
     {
         // There was an error looking up the current thread info:
@@ -182,4 +178,69 @@ extern "C" void __stdcall ClearDynamicTags() {
     }
     pCurrentThreadInfo->GetTags()
         .ClearAll();
+}
+
+extern "C" void __stdcall SetCPUTrackingEnabled(bool enabled) {
+    auto *const profiler = CorProfilerCallback::GetInstance();
+
+    if (profiler == nullptr)
+    {
+        Log::Error("SetStackSamplerEnabled is called BEFORE CLR initialize");
+        return;
+    }
+
+    if (!profiler->GetClrLifetime()->IsRunning())
+    {
+        return;
+    }
+    profiler->SetStackSamplerEnabled(enabled);
+}
+
+extern "C" void __stdcall SetAllocationTrackingEnabled(bool enabled) {
+    auto *const profiler = CorProfilerCallback::GetInstance();
+
+    if (profiler == nullptr)
+    {
+        Log::Error("SetAllocationTrackingEnabled is called BEFORE CLR initialize");
+        return;
+    }
+
+    if (!profiler->GetClrLifetime()->IsRunning())
+    {
+        return;
+    }
+    profiler->SetAllocationTrackingEnabled(enabled);
+}
+
+
+extern "C" void __stdcall SetContentionTrackingEnabled(bool enabled) {
+    auto *const profiler = CorProfilerCallback::GetInstance();
+
+    if (profiler == nullptr)
+    {
+        Log::Error("SetContentionTrackingEnabled is called BEFORE CLR initialize");
+        return;
+    }
+
+    if (!profiler->GetClrLifetime()->IsRunning())
+    {
+        return;
+    }
+    profiler->SetContentionTrackingEnabled(enabled);
+}
+
+extern "C" void __stdcall SetExceptionTrackingEnabled(bool enabled) {
+    auto *const profiler = CorProfilerCallback::GetInstance();
+
+    if (profiler == nullptr)
+    {
+        Log::Error("SetExceptionTrackingEnabled is called BEFORE CLR initialize");
+        return;
+    }
+
+    if (!profiler->GetClrLifetime()->IsRunning())
+    {
+        return;
+    }
+    profiler->SetExceptionTrackingEnabled(enabled);
 }
