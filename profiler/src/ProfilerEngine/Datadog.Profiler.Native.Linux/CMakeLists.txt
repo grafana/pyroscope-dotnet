@@ -119,7 +119,6 @@ target_link_libraries(${PROFILER_STATIC_LIB_NAME}
     libprotobuf
     chmike::CxxUrl
     nlohmann_json::nlohmann_json
-    cppcodec
     crypto
     ssl
     -static-libgcc

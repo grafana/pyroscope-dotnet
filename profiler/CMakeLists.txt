@@ -128,7 +128,7 @@ set_property(TARGET libprotobuf PROPERTY POSITION_INDEPENDENT_CODE ON)
 set(JSON_BuildTests OFF CACHE INTERNAL "")
 set(JSON_Install OFF CACHE INTERNAL "")
 add_subdirectory(third_party/nlohmann_json)
-add_subdirectory(third_party/cppcodec)
+include_directories(third_party/cppcodec)
 
 add_subdirectory(src/ProfilerEngine/Datadog.Profiler.Native.Linux)
 add_subdirectory(src/ProfilerEngine/Datadog.Linux.ApiWrapper)
