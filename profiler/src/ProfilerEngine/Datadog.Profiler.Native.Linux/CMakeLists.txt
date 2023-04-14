@@ -118,6 +118,8 @@ target_link_libraries(${PROFILER_STATIC_LIB_NAME}
     spdlog-headers
     libprotobuf
     chmike::CxxUrl
+    nlohmann_json::nlohmann_json
+    cppcodec
     crypto
     ssl
     -static-libgcc
