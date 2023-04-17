@@ -367,6 +367,7 @@ bool CorProfilerCallback::InitializeServices()
         _pConfiguration->PyroscopeServerAddress(),
         _pConfiguration->PyroscopeApplicationName(),
         _pConfiguration->PyroscopeAuthToken(),
+        _pConfiguration->PyroscopeScopeOrgID(),
         PyroscopePprofSink::ParseHeadersJSON(std::move(_pConfiguration->PyroscopeHttpHeaders())));
     _pExporter = std::make_unique<PprofExporter>(_pApplicationStore,
                                                  std::move(pyroscopeSink),

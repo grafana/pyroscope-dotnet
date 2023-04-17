@@ -63,6 +63,7 @@ public:
     std::string PyroscopeApplicationName() const override;
     std::string PyroscopeAuthToken() const override;
     std::string PyroscopeHttpHeaders() const override;
+    std::string PyroscopeScopeOrgID() const override;
 private:
     static tags ExtractUserTags();
     static std::string GetDefaultSite();
@@ -140,5 +141,6 @@ private:
     std::string _pyroscopeApplicationName;
     std::string _pyroscopeAuthToken;
     std::string _pyroscopeHttpHeaders;
+    std::string _pyroscopeScopeOrgID;
     std::vector<std::pair<std::string, std::string>> _pyroscopeTags;
 };

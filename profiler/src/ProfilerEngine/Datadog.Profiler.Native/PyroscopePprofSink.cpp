@@ -8,7 +8,13 @@
 #include "nlohmann/json.hpp"
 #include "cppcodec/base64_rfc4648.hpp"
 
-PyroscopePprofSink::PyroscopePprofSink(std::string server, std::string appName, std::string authToken, std::map<std::string, std::string> extraHeaders) :
+PyroscopePprofSink::PyroscopePprofSink(
+    std::string server,
+    std::string appName,
+    std::string authToken,
+    std::string scopeOrgID,
+    std::map<std::string, std::string> extraHeaders
+    ) :
     _appName(appName),
     _url(server),
     _client(SchemeHostPort(_url)),
@@ -21,6 +27,10 @@ PyroscopePprofSink::PyroscopePprofSink(std::string server, std::string appName, 
     } else if (!_url.user_info().empty())
     {
         headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(_url.user_info()));
+    }
+    if (!scopeOrgID.empty())
+    {
+        headers.emplace("X-Scope-OrgID", scopeOrgID);
     }
     for (const auto& item : extraHeaders) {
         headers.emplace(item.first, item.second);
