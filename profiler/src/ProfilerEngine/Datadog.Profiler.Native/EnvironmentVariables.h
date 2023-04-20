@@ -36,6 +36,8 @@ public:
     inline static const shared::WSTRING PyroscopeApplicationName       = WStr("PYROSCOPE_APPLICATION_NAME");
     inline static const shared::WSTRING PyroscopeHTTPHeaders           = WStr("PYROSCOPE_HTTP_HEADERS");
     inline static const shared::WSTRING PyroscopeScopeOrgID            = WStr("PYROSCOPE_SCOPE_ORGID");
+    inline static const shared::WSTRING PyroscopeBasicAuthUser         = WStr("PYROSCOPE_BASIC_AUTH_USER");
+    inline static const shared::WSTRING PyroscopeBasicAuthPassword     = WStr("PYROSCOPE_BASIC_AUTH_PASSWORD");
 
     // only available on .NET 5+
     inline static const shared::WSTRING AllocationProfilingEnabled = WStr("DD_PROFILING_ALLOCATION_ENABLED");

@@ -5,16 +5,17 @@
 #include "PyroscopePprofSink.h"
 #include "Log.h"
 #include "OpSysTools.h"
-#include "nlohmann/json.hpp"
 #include "cppcodec/base64_rfc4648.hpp"
+#include "nlohmann/json.hpp"
 
 PyroscopePprofSink::PyroscopePprofSink(
     std::string server,
     std::string appName,
     std::string authToken,
+    std::string basicAuthUser,
+    std::string basicAuthPassword,
     std::string scopeOrgID,
-    std::map<std::string, std::string> extraHeaders
-    ) :
+    std::map<std::string, std::string> extraHeaders) :
     _appName(appName),
     _url(server),
     _client(SchemeHostPort(_url)),
@@ -24,7 +25,12 @@ PyroscopePprofSink::PyroscopePprofSink(
     if (!authToken.empty())
     {
         headers.emplace("Authorization", "Bearer " + authToken);
-    } else if (!_url.user_info().empty())
+    }
+    else if (!basicAuthUser.empty() && !basicAuthPassword.empty())
+    {
+        headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(basicAuthUser + ":" + basicAuthPassword));
+    }
+    else if (!_url.user_info().empty())
     {
         headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(_url.user_info()));
     }
@@ -32,7 +38,8 @@ PyroscopePprofSink::PyroscopePprofSink(
     {
         headers.emplace("X-Scope-OrgID", scopeOrgID);
     }
-    for (const auto& item : extraHeaders) {
+    for (const auto& item : extraHeaders)
+    {
         headers.emplace(item.first, item.second);
     }
     _client.set_default_headers(std::move(headers));
@@ -172,27 +179,37 @@ std::string PyroscopePprofSink::SchemeHostPort(Url& url)
     return url.scheme() + "://" + url.host() + ":" + url.port();
 }
 
-std::map<std::string, std::string> PyroscopePprofSink::ParseHeadersJSON(std::string headers) {
+std::map<std::string, std::string> PyroscopePprofSink::ParseHeadersJSON(std::string headers)
+{
     std::map<std::string, std::string> result;
     if (headers.empty())
     {
         return result;
     }
-    try {
+    try
+    {
         nlohmann::json json = nlohmann::json::parse(headers);
-        if (json.is_object()) {
-            for (auto it = json.begin(); it != json.end(); ++it) {
+        if (json.is_object())
+        {
+            for (auto it = json.begin(); it != json.end(); ++it)
+            {
                 if (it.value().is_string())
                 {
                     result[it.key()] = it.value();
-                } else {
+                }
+                else
+                {
                     Log::Error("PyroscopePprofSink: header value is not a string: ", it.key(), " ", it.value());
                 }
             }
-        } else {
+        }
+        else
+        {
             Log::Error("PyroscopePprofSink: headers is not a JSON object");
         }
-    } catch (...) {
+    }
+    catch (...)
+    {
         Log::Error("PyroscopePprofSink: failed to parse headers json", headers);
     }
     return result;

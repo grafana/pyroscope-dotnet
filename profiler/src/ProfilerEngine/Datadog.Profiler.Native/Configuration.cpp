@@ -72,6 +72,8 @@ Configuration::Configuration()
     _pyroscopeApplicationName = GetEnvironmentValue(EnvironmentVariables::PyroscopeApplicationName, DefaultEmptyString);
     _pyroscopeHttpHeaders = GetEnvironmentValue(EnvironmentVariables::PyroscopeHTTPHeaders, DefaultEmptyString);
     _pyroscopeScopeOrgID = GetEnvironmentValue(EnvironmentVariables::PyroscopeScopeOrgID, DefaultEmptyString);
+    _pyroscopeBasicAuthUser = GetEnvironmentValue(EnvironmentVariables::PyroscopeBasicAuthUser, DefaultEmptyString);
+    _pyroscopeBasicAuthPassword = GetEnvironmentValue(EnvironmentVariables::PyroscopeBasicAuthPassword, DefaultEmptyString);
     if (_pyroscopeApplicationName.empty())
     {
         _pyroscopeApplicationName = "dotnetspy." + std::to_string(rand());
@@ -470,6 +472,16 @@ std::string Configuration::PyroscopeHttpHeaders() const
 std::string Configuration::PyroscopeScopeOrgID() const
 {
     return _pyroscopeScopeOrgID;
+}
+
+std::string Configuration::PyroscopeBasicAuthUser() const
+{
+    return _pyroscopeBasicAuthUser;
+}
+
+std::string Configuration::PyroscopeBasicAuthPassword() const
+{
+    return _pyroscopeBasicAuthPassword;
 }
 
 bool convert_to(shared::WSTRING const& s, bool& result)

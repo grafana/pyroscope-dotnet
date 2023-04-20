@@ -13,7 +13,13 @@
 class PyroscopePprofSink: public PProfExportSink
 {
 public:
-    PyroscopePprofSink(std::string server, std::string appName, std::string authToken, std::string scopeOrgID, std::map<std::string, std::string> extraHeaders);
+    PyroscopePprofSink(std::string server,
+                       std::string appName,
+                       std::string authToken,
+                       std::string scopeOrgID,
+                       std::string basicAuthUser,
+                       std::string basicAuthPassword,
+                       std::map<std::string, std::string> extraHeaders);
     void Export(Pprof pprof, ProfileTime &startTime, ProfileTime &endTime) override;
     ~PyroscopePprofSink() override;
     static std::map<std::string, std::string> ParseHeadersJSON(std::string headers);
