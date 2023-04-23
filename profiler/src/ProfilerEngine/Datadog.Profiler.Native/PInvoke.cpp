@@ -154,7 +154,8 @@ extern "C" void __stdcall SetDynamicTag(const char* key, const char* value)
         .Set(key, google::javaprofiler::AsyncRefCountedString(value));
 }
 
-extern "C" void __stdcall ClearDynamicTags() {
+extern "C" void __stdcall ClearDynamicTags()
+{
     const auto profiler = CorProfilerCallback::GetInstance();
 
     if (profiler == nullptr)
@@ -180,8 +181,9 @@ extern "C" void __stdcall ClearDynamicTags() {
         .ClearAll();
 }
 
-extern "C" void __stdcall SetCPUTrackingEnabled(bool enabled) {
-    auto *const profiler = CorProfilerCallback::GetInstance();
+extern "C" void __stdcall SetCPUTrackingEnabled(bool enabled)
+{
+    auto* const profiler = CorProfilerCallback::GetInstance();
 
     if (profiler == nullptr)
     {
@@ -196,8 +198,9 @@ extern "C" void __stdcall SetCPUTrackingEnabled(bool enabled) {
     profiler->SetStackSamplerEnabled(enabled);
 }
 
-extern "C" void __stdcall SetAllocationTrackingEnabled(bool enabled) {
-    auto *const profiler = CorProfilerCallback::GetInstance();
+extern "C" void __stdcall SetAllocationTrackingEnabled(bool enabled)
+{
+    auto* const profiler = CorProfilerCallback::GetInstance();
 
     if (profiler == nullptr)
     {
@@ -212,9 +215,9 @@ extern "C" void __stdcall SetAllocationTrackingEnabled(bool enabled) {
     profiler->SetAllocationTrackingEnabled(enabled);
 }
 
-
-extern "C" void __stdcall SetContentionTrackingEnabled(bool enabled) {
-    auto *const profiler = CorProfilerCallback::GetInstance();
+extern "C" void __stdcall SetContentionTrackingEnabled(bool enabled)
+{
+    auto* const profiler = CorProfilerCallback::GetInstance();
 
     if (profiler == nullptr)
     {
@@ -229,8 +232,9 @@ extern "C" void __stdcall SetContentionTrackingEnabled(bool enabled) {
     profiler->SetContentionTrackingEnabled(enabled);
 }
 
-extern "C" void __stdcall SetExceptionTrackingEnabled(bool enabled) {
-    auto *const profiler = CorProfilerCallback::GetInstance();
+extern "C" void __stdcall SetExceptionTrackingEnabled(bool enabled)
+{
+    auto* const profiler = CorProfilerCallback::GetInstance();
 
     if (profiler == nullptr)
     {
@@ -243,4 +247,48 @@ extern "C" void __stdcall SetExceptionTrackingEnabled(bool enabled) {
         return;
     }
     profiler->SetExceptionTrackingEnabled(enabled);
+}
+
+extern "C" void __stdcall SetPyroscopeAuthToken(const char* authToken)
+{
+    auto* const profiler = CorProfilerCallback::GetInstance();
+
+    if (profiler == nullptr)
+    {
+        Log::Error("SetAuthToken is called BEFORE CLR initialize");
+        return;
+    }
+
+    if (!profiler->GetClrLifetime()->IsRunning())
+    {
+        return;
+    }
+    auto sink = profiler->GetPyroscopePprofSink();
+    if (!sink)
+    {
+        return;
+    }
+    sink->SetAuthToken(authToken);
+}
+
+extern "C" void __stdcall SetPyroscopeBasicAuth(const char* username, const char* password)
+{
+    auto* const profiler = CorProfilerCallback::GetInstance();
+
+    if (profiler == nullptr)
+    {
+        Log::Error("SetAuthToken is called BEFORE CLR initialize");
+        return;
+    }
+
+    if (!profiler->GetClrLifetime()->IsRunning())
+    {
+        return;
+    }
+    auto sink = profiler->GetPyroscopePprofSink();
+    if (!sink)
+    {
+        return;
+    }
+    sink->SetBasicAuth(username, password);
 }

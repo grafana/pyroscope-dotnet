@@ -10,7 +10,7 @@
 #include "httplib.h"
 #include "url.hpp"
 
-class PyroscopePprofSink: public PProfExportSink
+class PyroscopePprofSink : public PProfExportSink
 {
 public:
     PyroscopePprofSink(std::string server,
@@ -20,21 +20,25 @@ public:
                        std::string basicAuthUser,
                        std::string basicAuthPassword,
                        std::map<std::string, std::string> extraHeaders);
-    void Export(Pprof pprof, ProfileTime &startTime, ProfileTime &endTime) override;
     ~PyroscopePprofSink() override;
+    void Export(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime) override;
+    void SetAuthToken(std::string authToken);
+    void SetBasicAuth(std::string user, std::string password);
     static std::map<std::string, std::string> ParseHeadersJSON(std::string headers);
 
 private:
-    static std::string SchemeHostPort(Url &url);
+    static std::string SchemeHostPort(Url& url);
 
-    struct PyroscopeRequest {
+    struct PyroscopeRequest
+    {
         Pprof pprof;
         ProfileTime startTime;
         ProfileTime endTime;
     };
 
     void work();
-    void upload(Pprof pprof, ProfileTime &startTime, ProfileTime &endTime);
+    void upload(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime);
+    httplib::Headers getHeaders();
 
     std::string _appName;
     Url _url;
@@ -42,6 +46,11 @@ private:
     std::atomic<bool> _running;
     LockingQueue<PyroscopeRequest> _queue;
     std::thread _workerThread;
+
+    std::string _authToken;
+    std::string _basicAuthUser;
+    std::string _basicAuthPassword;
+    std::string _scopeOrgId;
+    std::map<std::string, std::string> _extraHeaders;
+    std::mutex _authLock;
 };
-
-

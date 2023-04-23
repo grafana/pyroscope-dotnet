@@ -35,7 +35,7 @@ class PprofExporter : public IExporter
 
 public:
     PprofExporter(IApplicationStore* _applicationStore,
-                  std::unique_ptr<PProfExportSink> sin,
+                  std::shared_ptr<PProfExportSink> sin,
                   std::vector<SampleValueType> sampleTypeDefinitions,
                   const std::vector<std::pair<std::string, std::string>>& staticTags
     );
@@ -47,7 +47,7 @@ private:
     PprofBuilder& GetPprofBuilder(std::string_view runtimeId);
 
     IApplicationStore* _applicationStore;
-    std::unique_ptr<PProfExportSink> _sink;
+    std::shared_ptr<PProfExportSink> _sink;
     std::vector<SampleValueType> _sampleTypeDefinitions;
     std::unordered_map<std::string_view, std::unique_ptr<PprofBuilder>> _perAppBuilder;
     std::mutex _perAppBuilderLock;

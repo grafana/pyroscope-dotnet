@@ -102,6 +102,11 @@ void CorProfilerCallback::SetExceptionTrackingEnabled(bool enabled)
     _exceptionTrackingEnabled = enabled;
 }
 
+std::shared_ptr<PyroscopePprofSink> CorProfilerCallback::GetPyroscopePprofSink() {
+    return _pyroscopePprofSink;
+};
+
+
 // Initialization
 
 CorProfilerCallback* CorProfilerCallback::_this = nullptr;
@@ -363,7 +368,7 @@ bool CorProfilerCallback::InitializeServices()
 
     // The different elements of the libddprof pipeline are created and linked together
     // i.e. the exporter is passed to the aggregator and each provider is added to the aggregator.
-    auto pyroscopeSink = std::make_unique<PyroscopePprofSink>(
+    _pyroscopePprofSink = std::make_shared<PyroscopePprofSink>(
         _pConfiguration->PyroscopeServerAddress(),
         _pConfiguration->PyroscopeApplicationName(),
         _pConfiguration->PyroscopeAuthToken(),
@@ -372,7 +377,7 @@ bool CorProfilerCallback::InitializeServices()
         _pConfiguration->PyroscopeScopeOrgID(),
         PyroscopePprofSink::ParseHeadersJSON(std::move(_pConfiguration->PyroscopeHttpHeaders())));
     _pExporter = std::make_unique<PprofExporter>(_pApplicationStore,
-                                                 std::move(pyroscopeSink),
+                                                 _pyroscopePprofSink,
                                                  sampleTypeDefinitions,
                                                  _pConfiguration->GetUserTags());
 
@@ -466,6 +471,9 @@ bool CorProfilerCallback::DisposeServices()
     // to avoid using a deleted service...
 
     _services.clear();
+
+    _pExporter = nullptr;
+    _pyroscopePprofSink = nullptr;
 
     _pThreadsCpuManager = nullptr;
     _pStackSamplerLoopManager = nullptr;

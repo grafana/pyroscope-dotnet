@@ -18,31 +18,14 @@ PyroscopePprofSink::PyroscopePprofSink(
     std::map<std::string, std::string> extraHeaders) :
     _appName(appName),
     _url(server),
+    _authToken(authToken),
+    _basicAuthUser(basicAuthUser),
+    _basicAuthPassword(basicAuthPassword),
+    _scopeOrgId(scopeOrgID),
+    _extraHeaders(extraHeaders),
     _client(SchemeHostPort(_url)),
     _running(true)
 {
-    httplib::Headers headers;
-    if (!authToken.empty())
-    {
-        headers.emplace("Authorization", "Bearer " + authToken);
-    }
-    else if (!basicAuthUser.empty() && !basicAuthPassword.empty())
-    {
-        headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(basicAuthUser + ":" + basicAuthPassword));
-    }
-    else if (!_url.user_info().empty())
-    {
-        headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(_url.user_info()));
-    }
-    if (!scopeOrgID.empty())
-    {
-        headers.emplace("X-Scope-OrgID", scopeOrgID);
-    }
-    for (const auto& item : extraHeaders)
-    {
-        headers.emplace(item.first, item.second);
-    }
-    _client.set_default_headers(std::move(headers));
     _client.set_connection_timeout(10);
     _client.set_read_timeout(10);
 
@@ -74,6 +57,17 @@ void PyroscopePprofSink::Export(Pprof pprof, ProfileTime& startTime, ProfileTime
         .endTime = endTime,
     };
     _queue.push(req);
+}
+
+void PyroscopePprofSink::SetAuthToken(std::string authToken) {
+    std::lock_guard<std::mutex> auth_guard(_authLock);
+    _authToken = authToken;
+}
+
+void PyroscopePprofSink::SetBasicAuth(std::string user, std::string password) {
+    std::lock_guard<std::mutex> auth_guard(_authLock);
+    _basicAuthUser = user;
+    _basicAuthPassword = password;
 }
 
 void PyroscopePprofSink::work()
@@ -150,7 +144,9 @@ void PyroscopePprofSink::upload(Pprof pprof, ProfileTime& startTime, ProfileTime
                            .add_query("until", std::to_string(endTime.time_since_epoch().count()))
                            .str();
 
-    auto res = _client.Post(path, data);
+
+    httplib::Headers headers = getHeaders();
+    auto res = _client.Post(path, headers, data);
     if (res)
     {
         Log::Info("PyroscopePprofSink ", res->status);
@@ -160,6 +156,33 @@ void PyroscopePprofSink::upload(Pprof pprof, ProfileTime& startTime, ProfileTime
         auto err = res.error();
         Log::Info("PyroscopePprofSink err ", to_string(err), " ", _url);
     }
+}
+
+httplib::Headers PyroscopePprofSink::getHeaders()
+{
+    httplib::Headers headers;
+    std::lock_guard<std::mutex> auth_guard(_authLock);
+    if (!_authToken.empty())
+    {
+        headers.emplace("Authorization", "Bearer " + _authToken);
+    }
+    else if (!_basicAuthUser.empty() && !_basicAuthPassword.empty())
+    {
+        headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(_basicAuthUser + ":" + _basicAuthPassword));
+    }
+    else if (!_url.user_info().empty())
+    {
+        headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(_url.user_info()));
+    }
+    if (!_scopeOrgId.empty())
+    {
+        headers.emplace("X-Scope-OrgID", _scopeOrgId);
+    }
+    for (const auto& item : _extraHeaders)
+    {
+        headers.emplace(item.first, item.second);
+    }
+    return headers;
 }
 
 std::string PyroscopePprofSink::SchemeHostPort(Url& url)

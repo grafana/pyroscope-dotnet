@@ -7,7 +7,7 @@
 #include <signal.h>
 
 PprofExporter::PprofExporter(IApplicationStore* applicationStore,
-                             std::unique_ptr<PProfExportSink> sink,
+                             std::shared_ptr<PProfExportSink> sink,
                              std::vector<SampleValueType> sampleTypeDefinitions,
                              const std::vector<std::pair<std::string, std::string>>& staticTags) :
     _applicationStore(applicationStore),
