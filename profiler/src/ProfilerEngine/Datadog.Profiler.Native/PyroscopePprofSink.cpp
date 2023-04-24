@@ -59,12 +59,14 @@ void PyroscopePprofSink::Export(Pprof pprof, ProfileTime& startTime, ProfileTime
     _queue.push(req);
 }
 
-void PyroscopePprofSink::SetAuthToken(std::string authToken) {
+void PyroscopePprofSink::SetAuthToken(std::string authToken)
+{
     std::lock_guard<std::mutex> auth_guard(_authLock);
     _authToken = authToken;
 }
 
-void PyroscopePprofSink::SetBasicAuth(std::string user, std::string password) {
+void PyroscopePprofSink::SetBasicAuth(std::string user, std::string password)
+{
     std::lock_guard<std::mutex> auth_guard(_authLock);
     _basicAuthUser = user;
     _basicAuthPassword = password;
@@ -144,7 +146,6 @@ void PyroscopePprofSink::upload(Pprof pprof, ProfileTime& startTime, ProfileTime
                            .add_query("until", std::to_string(endTime.time_since_epoch().count()))
                            .str();
 
-
     httplib::Headers headers = getHeaders();
     auto res = _client.Post(path, headers, data);
     if (res)
@@ -187,19 +188,29 @@ httplib::Headers PyroscopePprofSink::getHeaders()
 
 std::string PyroscopePprofSink::SchemeHostPort(Url& url)
 {
+    std::stringstream url_builder;
     if (url.scheme().empty())
     {
-        throw std::runtime_error("empty scheme " + url.str());
+        Log::Error("PyroscopePprofSink: url scheme empty, falling back to http", url.str());
+        url_builder << "http";
+    } else {
+        url_builder << url.scheme();
     }
+    url_builder << "://";
     if (url.host().empty())
     {
-        throw std::runtime_error("empty host " + url.str());
+        Log::Error("PyroscopePprofSink: url host empty, falling back to localhost", url.str());
+        url_builder << "localhost";
+    } else {
+        url_builder << url.host();
     }
-    if (url.port().empty())
+    if (!url.port().empty())
     {
-        throw std::runtime_error("empty port " + url.str());
+        url_builder << ":" << url.port();
     }
-    return url.scheme() + "://" + url.host() + ":" + url.port();
+    auto res = url_builder.str();
+//    std::cout << "Scheme host port .>> " << res << std::endl;
+    return res;
 }
 
 std::map<std::string, std::string> PyroscopePprofSink::ParseHeadersJSON(std::string headers)
