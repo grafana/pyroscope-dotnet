@@ -63,6 +63,8 @@ void PyroscopePprofSink::SetAuthToken(std::string authToken)
 {
     std::lock_guard<std::mutex> auth_guard(_authLock);
     _authToken = authToken;
+    _basicAuthUser = "";
+    _basicAuthPassword = "";
 }
 
 void PyroscopePprofSink::SetBasicAuth(std::string user, std::string password)
@@ -70,6 +72,7 @@ void PyroscopePprofSink::SetBasicAuth(std::string user, std::string password)
     std::lock_guard<std::mutex> auth_guard(_authLock);
     _basicAuthUser = user;
     _basicAuthPassword = password;
+    _authToken = "";
 }
 
 void PyroscopePprofSink::work()
