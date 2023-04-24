@@ -118,6 +118,7 @@ target_link_libraries(${PROFILER_STATIC_LIB_NAME}
     spdlog-headers
     libprotobuf
     chmike::CxxUrl
+    nlohmann_json::nlohmann_json
     crypto
     ssl
     -static-libgcc
@@ -141,6 +142,7 @@ add_dependencies(${PROFILER_STATIC_LIB_NAME} fmt-lib libdatadog-lib libunwind-li
 add_library(${PROFILER_SHARED_LIB_NAME} SHARED
     ../Datadog.Profiler.Native/DllMain.cpp
 )
+target_include_directories(${PROFILER_SHARED_LIB_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/../../../../profiler/third_party/cpp-httplib)
 
 set_target_properties(${PROFILER_SHARED_LIB_NAME} PROPERTIES PREFIX "")
 

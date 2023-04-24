@@ -145,6 +145,38 @@ namespace Pyroscope
                 _dllNotFound = true;
             }
         }
+
+        public void SetAuthToken(string authToken)
+        {
+            if (_dllNotFound)
+            {
+                return;
+            }
+            try
+            {
+                NativeInterop.SetAuthToken(authToken);
+            }
+            catch (DllNotFoundException)
+            {
+                _dllNotFound = true;
+            }
+        }
+
+        public void SetBasicAuth(string username, string password)
+        {
+            if (_dllNotFound)
+            {
+                return;
+            }
+            try
+            {
+                NativeInterop.SetBasicAuth(username, password);
+            }
+            catch (DllNotFoundException)
+            {
+                _dllNotFound = true;
+            }
+        }
         
         private readonly ContextTracker _contextTracker;
         private bool _dllNotFound;

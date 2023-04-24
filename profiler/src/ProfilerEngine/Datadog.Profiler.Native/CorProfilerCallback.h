@@ -30,6 +30,7 @@
 #include "MetricsRegistry.h"
 #include "ProxyMetric.h"
 #include "IAllocationsRecorder.h"
+#include "PyroscopePprofSink.h"
 
 #include "shared/src/native-src/string.h"
 
@@ -196,6 +197,7 @@ public:
     void SetAllocationTrackingEnabled(bool enabled);
     void SetContentionTrackingEnabled(bool enabled);
     void SetExceptionTrackingEnabled(bool enabled);
+    std::shared_ptr<PyroscopePprofSink> GetPyroscopePprofSink();
 
 private :
     static CorProfilerCallback* _this;
@@ -232,6 +234,7 @@ private :
 
     std::vector<std::unique_ptr<IService>> _services;
 
+    std::shared_ptr<PyroscopePprofSink> _pyroscopePprofSink = nullptr;
     std::unique_ptr<IExporter> _pExporter = nullptr;
     std::unique_ptr<IConfiguration> _pConfiguration = nullptr;
     std::unique_ptr<IAppDomainStore> _pAppDomainStore = nullptr;

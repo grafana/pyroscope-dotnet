@@ -5,17 +5,27 @@
 #include "PyroscopePprofSink.h"
 #include "Log.h"
 #include "OpSysTools.h"
+#include "cppcodec/base64_rfc4648.hpp"
+#include "nlohmann/json.hpp"
 
-PyroscopePprofSink::PyroscopePprofSink(std::string server, std::string appName, std::string authToken) :
+PyroscopePprofSink::PyroscopePprofSink(
+    std::string server,
+    std::string appName,
+    std::string authToken,
+    std::string basicAuthUser,
+    std::string basicAuthPassword,
+    std::string scopeOrgID,
+    std::map<std::string, std::string> extraHeaders) :
     _appName(appName),
     _url(server),
+    _authToken(authToken),
+    _basicAuthUser(basicAuthUser),
+    _basicAuthPassword(basicAuthPassword),
+    _scopeOrgId(scopeOrgID),
+    _extraHeaders(extraHeaders),
     _client(SchemeHostPort(_url)),
     _running(true)
 {
-    if (!authToken.empty())
-    {
-        _client.set_default_headers({{"Authorization", "Bearer " + authToken}});
-    }
     _client.set_connection_timeout(10);
     _client.set_read_timeout(10);
 
@@ -47,6 +57,17 @@ void PyroscopePprofSink::Export(Pprof pprof, ProfileTime& startTime, ProfileTime
         .endTime = endTime,
     };
     _queue.push(req);
+}
+
+void PyroscopePprofSink::SetAuthToken(std::string authToken) {
+    std::lock_guard<std::mutex> auth_guard(_authLock);
+    _authToken = authToken;
+}
+
+void PyroscopePprofSink::SetBasicAuth(std::string user, std::string password) {
+    std::lock_guard<std::mutex> auth_guard(_authLock);
+    _basicAuthUser = user;
+    _basicAuthPassword = password;
 }
 
 void PyroscopePprofSink::work()
@@ -123,7 +144,9 @@ void PyroscopePprofSink::upload(Pprof pprof, ProfileTime& startTime, ProfileTime
                            .add_query("until", std::to_string(endTime.time_since_epoch().count()))
                            .str();
 
-    auto res = _client.Post(path, data);
+
+    httplib::Headers headers = getHeaders();
+    auto res = _client.Post(path, headers, data);
     if (res)
     {
         Log::Info("PyroscopePprofSink ", res->status);
@@ -133,6 +156,33 @@ void PyroscopePprofSink::upload(Pprof pprof, ProfileTime& startTime, ProfileTime
         auto err = res.error();
         Log::Info("PyroscopePprofSink err ", to_string(err), " ", _url);
     }
+}
+
+httplib::Headers PyroscopePprofSink::getHeaders()
+{
+    httplib::Headers headers;
+    std::lock_guard<std::mutex> auth_guard(_authLock);
+    if (!_authToken.empty())
+    {
+        headers.emplace("Authorization", "Bearer " + _authToken);
+    }
+    else if (!_basicAuthUser.empty() && !_basicAuthPassword.empty())
+    {
+        headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(_basicAuthUser + ":" + _basicAuthPassword));
+    }
+    else if (!_url.user_info().empty())
+    {
+        headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(_url.user_info()));
+    }
+    if (!_scopeOrgId.empty())
+    {
+        headers.emplace("X-Scope-OrgID", _scopeOrgId);
+    }
+    for (const auto& item : _extraHeaders)
+    {
+        headers.emplace(item.first, item.second);
+    }
+    return headers;
 }
 
 std::string PyroscopePprofSink::SchemeHostPort(Url& url)
@@ -150,4 +200,40 @@ std::string PyroscopePprofSink::SchemeHostPort(Url& url)
         throw std::runtime_error("empty port " + url.str());
     }
     return url.scheme() + "://" + url.host() + ":" + url.port();
+}
+
+std::map<std::string, std::string> PyroscopePprofSink::ParseHeadersJSON(std::string headers)
+{
+    std::map<std::string, std::string> result;
+    if (headers.empty())
+    {
+        return result;
+    }
+    try
+    {
+        nlohmann::json json = nlohmann::json::parse(headers);
+        if (json.is_object())
+        {
+            for (auto it = json.begin(); it != json.end(); ++it)
+            {
+                if (it.value().is_string())
+                {
+                    result[it.key()] = it.value();
+                }
+                else
+                {
+                    Log::Error("PyroscopePprofSink: header value is not a string: ", it.key(), " ", it.value());
+                }
+            }
+        }
+        else
+        {
+            Log::Error("PyroscopePprofSink: headers is not a JSON object");
+        }
+    }
+    catch (...)
+    {
+        Log::Error("PyroscopePprofSink: failed to parse headers json", headers);
+    }
+    return result;
 }

@@ -64,6 +64,18 @@ namespace Pyroscope
             NativeMethods.SetExceptionTrackingEnabled(enabled);
         }
 
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void SetAuthToken(string authToken)
+        {
+            NativeMethods.SetPyroscopeAuthToken(authToken);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void SetBasicAuth(string username, string password)
+        {
+            NativeMethods.SetPyroscopeBasicAuth(username, password);
+        }
+
         // These methods are rewritten by the native tracer to use the correct paths
         private static class NativeMethods
         {
@@ -93,6 +105,12 @@ namespace Pyroscope
 
             [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetExceptionTrackingEnabled")]
             public static extern void SetExceptionTrackingEnabled(bool enabled);
+
+            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetPyroscopeAuthToken")]
+            public static extern void SetPyroscopeAuthToken(string authToken);
+
+            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetPyroscopeBasicAuth")]
+            public static extern void SetPyroscopeBasicAuth(string username, string password);
 
         }
     }
