@@ -59,7 +59,7 @@ public:
     virtual std::string PyroscopeApplicationName() const = 0;
     virtual std::string PyroscopeAuthToken() const = 0;
     virtual std::string PyroscopeHttpHeaders() const = 0;
-    virtual std::string PyroscopeScopeOrgID() const = 0;
+    virtual std::string PyroscopeTenantID() const = 0;
     virtual std::string PyroscopeBasicAuthUser() const = 0;
     virtual std::string PyroscopeBasicAuthPassword() const = 0;
 };

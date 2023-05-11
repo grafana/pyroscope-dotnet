@@ -14,14 +14,14 @@ PyroscopePprofSink::PyroscopePprofSink(
     std::string authToken,
     std::string basicAuthUser,
     std::string basicAuthPassword,
-    std::string scopeOrgID,
+    std::string tenantID,
     std::map<std::string, std::string> extraHeaders) :
     _appName(appName),
     _url(server),
     _authToken(authToken),
     _basicAuthUser(basicAuthUser),
     _basicAuthPassword(basicAuthPassword),
-    _scopeOrgId(scopeOrgID),
+    _tenantID(tenantID),
     _extraHeaders(extraHeaders),
     _client(SchemeHostPort(_url)),
     _running(true)
@@ -178,9 +178,9 @@ httplib::Headers PyroscopePprofSink::getHeaders()
     {
         headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(_url.user_info()));
     }
-    if (!_scopeOrgId.empty())
+    if (!_tenantID.empty())
     {
-        headers.emplace("X-Scope-OrgID", _scopeOrgId);
+        headers.emplace("X-Scope-OrgID", _tenantID);
     }
     for (const auto& item : _extraHeaders)
     {
