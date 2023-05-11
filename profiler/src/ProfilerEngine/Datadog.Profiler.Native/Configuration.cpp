@@ -71,7 +71,7 @@ Configuration::Configuration()
     _pyroscopeAuthToken = GetEnvironmentValue(EnvironmentVariables::PyroscopeAuthToken, DefaultEmptyString);
     _pyroscopeApplicationName = GetEnvironmentValue(EnvironmentVariables::PyroscopeApplicationName, DefaultEmptyString);
     _pyroscopeHttpHeaders = GetEnvironmentValue(EnvironmentVariables::PyroscopeHTTPHeaders, DefaultEmptyString);
-    _pyroscopeScopeOrgID = GetEnvironmentValue(EnvironmentVariables::PyroscopeScopeOrgID, DefaultEmptyString);
+    _pyroscopeTenantID = GetEnvironmentValue(EnvironmentVariables::PyroscopeTenantID, DefaultEmptyString);
     _pyroscopeBasicAuthUser = GetEnvironmentValue(EnvironmentVariables::PyroscopeBasicAuthUser, DefaultEmptyString);
     _pyroscopeBasicAuthPassword = GetEnvironmentValue(EnvironmentVariables::PyroscopeBasicAuthPassword, DefaultEmptyString);
     if (_pyroscopeApplicationName.empty())
@@ -469,9 +469,9 @@ std::string Configuration::PyroscopeHttpHeaders() const
     return _pyroscopeHttpHeaders;
 }
 
-std::string Configuration::PyroscopeScopeOrgID() const
+std::string Configuration::PyroscopeTenantID() const
 {
-    return _pyroscopeScopeOrgID;
+    return _pyroscopeTenantID;
 }
 
 std::string Configuration::PyroscopeBasicAuthUser() const

@@ -16,7 +16,7 @@ public:
     PyroscopePprofSink(std::string server,
                        std::string appName,
                        std::string authToken,
-                       std::string scopeOrgID,
+                       std::string tenantID,
                        std::string basicAuthUser,
                        std::string basicAuthPassword,
                        std::map<std::string, std::string> extraHeaders);
@@ -50,7 +50,7 @@ private:
     std::string _authToken;
     std::string _basicAuthUser;
     std::string _basicAuthPassword;
-    std::string _scopeOrgId;
+    std::string _tenantID;
     std::map<std::string, std::string> _extraHeaders;
     std::mutex _authLock;
 };
