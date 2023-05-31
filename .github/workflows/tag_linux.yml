@@ -6,7 +6,7 @@ on:
       - v*-pyroscope
 
 jobs:
-  release-linux-profiler-glibc:
+  release-linux-profiler:
     runs-on: ubuntu-latest
     env:
       DOCKER_BUILDKIT: 1
