@@ -19,11 +19,11 @@ jobs:
           dotnet-version: '6.0'
       - run: dotnet build -c Release
         working-directory: Pyroscope
-#      - name: Publish the package to nuget.org
-#        run: dotnet nuget push Pyroscope/bin/Release/*.nupkg -k $NUGET_AUTH_TOKEN -s https://api.nuget.org/v3/index.json
-#        working-directory: Pyroscope
-#        env:
-#          NUGET_AUTH_TOKEN: ${{ secrets.NUGET_API_KEY }}
+      - name: Publish the package to nuget.org
+        run: dotnet nuget push Pyroscope/bin/Release/*.nupkg -k $NUGET_AUTH_TOKEN -s https://api.nuget.org/v3/index.json
+        working-directory: Pyroscope
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.NUGET_API_KEY }}
       - name: Release
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
