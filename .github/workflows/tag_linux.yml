@@ -8,31 +8,36 @@ on:
 jobs:
   release-linux-profiler-glibc:
     runs-on: ubuntu-latest
+    env:
+      DOCKER_BUILDKIT: 1
+      DOCKER_PUSH_REPOSITORY: korniltsev
+    strategy:
+      matrix:
+        include:
+          - name: glibc
+            dockerfile: Pyroscope.Dockerfile
+          - name: musl
+            dockerfile: Pyroscope.musl.Dockerfile
     steps:
       - name: Checkout
         uses: actions/checkout@v2
         with:
           submodules: 'true'
+      - name: Set env
+        run: |
+          echo "RELEASE_VERSION=$(echo $GITHUB_REF | grep -oP '(?<=refs/tags/v).*(?=-pyroscope)')" >> $GITHUB_ENV
+      - uses: docker/login-action@v2
+        name: Login to Docker Hub
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Build in Docker
-        run: DOCKER_BUILDKIT=1 docker build -f ./Pyroscope.Dockerfile -o out.glibc .
+        run: docker build -t ${DOCKER_PUSH_REPOSITORY}/pyroscope-dotnet:${RELEASE_VERSION}-${{ matrix.name }} -f ${{ matrix.dockerfile }} .
       - name: Create tar archive
-        run: tar -czvf pyroscope.glibc.tar.gz -C out.glibc .
+        run: docker build -f ${{ matrix.dockerfile }} -o out.${{ matrix.name }} . && tar -czvf pyroscope.${{ matrix.name }}.tar.gz -C out.${{ matrix.name }} .
+      - name: Docker push
+        run: docker push ${DOCKER_PUSH_REPOSITORY}/pyroscope-dotnet:${RELEASE_VERSION}-${{ matrix.name }}
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          files: ./pyroscope.glibc.tar.gz
-  release-linux-profiler-musl:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          submodules: 'true'
-      - name: Build in Docker
-        run: DOCKER_BUILDKIT=1 docker build -f ./Pyroscope.musl.Dockerfile -o out.musl .
-      - name: Create tar archive
-        run: tar -czvf pyroscope.musl.tar.gz -C out.musl .
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: ./pyroscope.musl.tar.gz
+          files: ./pyroscope.${{ matrix.name }}.tar.gz
