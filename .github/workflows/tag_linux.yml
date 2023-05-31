@@ -29,7 +29,7 @@ jobs:
         name: Login to Docker Hub
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
       - name: Build in Docker
         run: docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/pyroscope-dotnet:${RELEASE_VERSION}-${{ matrix.name }} -f ${{ matrix.dockerfile }} .
       - name: Create tar archive
