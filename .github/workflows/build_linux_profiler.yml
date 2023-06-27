@@ -7,21 +7,21 @@ on:
     branches: [main]
 
 jobs:
-  build-linux-profiler-glibc:
+  build-linux-profiler:
     runs-on: ubuntu-latest
+    env:
+      DOCKER_BUILDKIT: 1
+    strategy:
+      matrix:
+        include:
+          - name: glibc
+            dockerfile: Pyroscope.Dockerfile
+          - name: musl
+            dockerfile: Pyroscope.musl.Dockerfile
     steps:
       - name: Checkout
         uses: actions/checkout@v2
         with:
           submodules: 'true'
       - name: Build in Docker
-        run: DOCKER_BUILDKIT=1 docker build -f ./Pyroscope.Dockerfile .
-  build-linux-profiler-musl:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
-        with:
-          submodules: 'true'
-      - name: Build in Docker
-        run: DOCKER_BUILDKIT=1 docker build -f ./Pyroscope.musl.Dockerfile .
+        run: docker build -f ${{ matrix.dockerfile }} .
