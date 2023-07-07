@@ -30,12 +30,15 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
-      - name: Build in Docker
-        run: docker build -t pyroscope/pyroscope-dotnet:${RELEASE_VERSION}-${{ matrix.name }} -f ${{ matrix.dockerfile }} .
+      - name: Build in Docker & push
+        run: >
+          docker build
+          -t pyroscope/pyroscope-dotnet:${RELEASE_VERSION}-${{ matrix.name }}
+          -t pyroscope/pyroscope-dotnet:latest-${{ matrix.name }}
+          --push -f ${{ matrix.dockerfile }}
+          .
       - name: Create tar archive
         run: docker build -f ${{ matrix.dockerfile }} -o out.${{ matrix.name }} . && tar -czvf pyroscope.${{ matrix.name }}.tar.gz -C out.${{ matrix.name }} .
-      - name: Docker push
-        run: docker push pyroscope/pyroscope-dotnet:${RELEASE_VERSION}-${{ matrix.name }}
       - name: Release
         uses: softprops/action-gh-release@v1
         with:

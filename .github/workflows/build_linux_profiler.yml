@@ -24,4 +24,7 @@ jobs:
         with:
           submodules: 'true'
       - name: Build in Docker
-        run: docker build -f ${{ matrix.dockerfile }} .
+        run: >
+          docker build -f ${{ matrix.dockerfile }} 
+          -t pyroscope/pyroscope-dotnet:latest-${{ matrix.name }}
+          .
