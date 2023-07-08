@@ -1,0 +1,65 @@
+---
+kind: pipeline
+name: 'docker glibc amd  '
+platform:
+  arch: amd64
+  os: linux
+steps:
+- commands:
+  - LIBC=glibc ARCH=amd   make docker/build
+  image: grafana/agent-build-image:0.26.0
+  name: LIBC=glibc ARCH=amd   make docker/build
+trigger:
+  event:
+  - pull_request
+type: docker
+---
+kind: pipeline
+name: 'docker musl  amd  '
+platform:
+  arch: amd64
+  os: linux
+steps:
+- commands:
+  - LIBC=musl  ARCH=amd   make docker/build
+  image: grafana/agent-build-image:0.26.0
+  name: LIBC=musl  ARCH=amd   make docker/build
+trigger:
+  event:
+  - pull_request
+type: docker
+---
+kind: pipeline
+name: docker glibc arm64
+platform:
+  arch: arm64
+  os: linux
+steps:
+- commands:
+  - LIBC=glibc ARCH=arm64 make docker/build
+  image: grafana/agent-build-image:0.26.0
+  name: LIBC=glibc ARCH=arm64 make docker/build
+trigger:
+  event:
+  - pull_request
+type: docker
+---
+kind: pipeline
+name: docker musl  arm64
+platform:
+  arch: arm64
+  os: linux
+steps:
+- commands:
+  - LIBC=musl  ARCH=arm64 make docker/build
+  image: grafana/agent-build-image:0.26.0
+  name: LIBC=musl  ARCH=arm64 make docker/build
+trigger:
+  event:
+  - pull_request
+type: docker
+---
+kind: signature
+hmac: ca4529368fe59b1b3d85859604a46c9e56997628183cdb4b6e7b40d60bcd1831
+
+...
