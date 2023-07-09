@@ -2,6 +2,7 @@ local build_image = import '../util/build_image.jsonnet';
 local pipelines = import '../util/pipelines.jsonnet';
 
 local make(cmd) = {
+    # tood mount docker? use image with docker and make installed - take from grafana
     trigger: { event: ['pull_request'] },
     steps: [
       {
