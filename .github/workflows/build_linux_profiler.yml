@@ -21,7 +21,7 @@ jobs:
           submodules: 'true'
       - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=x86_64 LIBC=${{ matrix.name }}  make docker/build
   build-linux-profiler-aarch64:
-    runs-on: ubuntu-latest
+    runs-on: [self-hosted, Linux, ARM64]
     env:
       DOCKER_BUILDKIT: 1
     strategy:
