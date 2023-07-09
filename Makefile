@@ -38,7 +38,7 @@ endif
 ifeq ($(ARCH),x86_64)
 else ifeq ($(ARCH),aarch64)
 else
-    $(error ARCH must be either x86_64, arm64 or arm)
+    $(error ARCH must be either x86_64, aarch64)
 endif
 
 .phony: docker/build
@@ -56,8 +56,8 @@ docker/push:
 docker/manifest:
 	docker manifest create \
 		$(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)                 \
-		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-amd64   \
-		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-arm64
+		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-x86_64   \
+		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-aarch64
 
     docker manifest push $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)
 
