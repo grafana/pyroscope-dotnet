@@ -43,8 +43,8 @@ endif
 
 .phony: docker/build
 docker/build:
-	uname -a
-	uname -a | grep $(ARCH)
+	docker run --rm  debian:10 uname -a
+	docker run --rm  debian:10 uname -a | grep $(ARCH)
 	docker build -f $(DOCKERFILE) -t $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-$(ARCH) .
 
 
