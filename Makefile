@@ -61,7 +61,3 @@ docker/manifest:
 
     docker manifest push $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)
 
-drone:
-	drone jsonnet -V BUILD_IMAGE_VERSION=$(BUILD_IMAGE_VERSION) --stream --format --source .drone/drone.jsonnet --target .drone/drone.yml
-	drone lint .drone/drone.yml
-	drone sign --save grafana/pyroscope-rs .drone/drone.yml
