@@ -7,24 +7,29 @@ on:
     branches: [main]
 
 jobs:
-  build-linux-profiler:
+  build-linux-profiler-x86_64:
     runs-on: ubuntu-latest
     env:
       DOCKER_BUILDKIT: 1
     strategy:
       matrix:
-        include:
-          - name: glibc
-            dockerfile: Pyroscope.Dockerfile
-          - name: musl
-            dockerfile: Pyroscope.musl.Dockerfile
+        name: ['glibc', 'musl']
     steps:
       - name: Checkout
         uses: actions/checkout@v2
         with:
           submodules: 'true'
-      - name: Build in Docker
-        run: >
-          docker build -f ${{ matrix.dockerfile }} 
-          -t pyroscope/pyroscope-dotnet:latest-${{ matrix.name }}
-          .
+      - run: ARCH=x86_64 LIBC=${{ matrix.name }}  make docker/build
+  build-linux-profiler-aarch64:
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_BUILDKIT: 1
+    strategy:
+      matrix:
+        name: ['glibc', 'musl']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: 'true'
+      - run: ARCH=aarch64 LIBC=${{ matrix.name }}  make docker/build

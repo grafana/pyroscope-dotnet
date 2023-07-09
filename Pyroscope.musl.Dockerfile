@@ -31,5 +31,5 @@ RUN mkdir build-release && cd build-release && cmake .. -DCMAKE_C_COMPILER=clang
 RUN cd build-release && make -j16 Datadog.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
 FROM scratch
-COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-musl-x64/Datadog.Profiler.Native.so /Pyroscope.Profiler.Native.so
-COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-musl-x64/Datadog.Linux.ApiWrapper.x64.so /Pyroscope.Linux.ApiWrapper.x64.so
+COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-musl/Datadog.Profiler.Native.so /Pyroscope.Profiler.Native.so
+COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-musl/Datadog.Linux.ApiWrapper.x64.so /Pyroscope.Linux.ApiWrapper.x64.so

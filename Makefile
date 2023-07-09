@@ -23,7 +23,7 @@
 #$ docker manifest push your-username/multiarch-example:manifest-latest
 
 LIBC ?= glibc
-ARCH ?= amd64
+ARCH ?= x86_64
 RELEASE_VERSION ?= $(shell git describe --tags --always --dirty | grep -oP '(?<=v).*(?=-pyroscope)')
 DOCKER_IMAGE ?= korniltsev/pyroscope-dotnet
 
@@ -32,17 +32,19 @@ ifeq ($(LIBC),musl)
 else ifeq ($(LIBC),glibc)
 	DOCKERFILE := Pyroscope.Dockerfile
 else
-	$(error LIBC must be either musl or glibc)
+    $(error LIBC must be either musl or glibc)
 endif
 
-ifeq ($(ARCH),amd64)
-else ifeq ($(ARCH),arm64)
+ifeq ($(ARCH),x86_64)
+else ifeq ($(ARCH),aarch64)
 else
-	$(error ARCH must be either amd64, arm64 or arm)
+    $(error ARCH must be either x86_64, arm64 or arm)
 endif
 
 .phony: docker/build
 docker/build:
+	uname -a
+	uname -a | grep $(ARCH)
 	docker build -f $(DOCKERFILE) -t $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-$(ARCH) .
 
 
