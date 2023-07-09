@@ -6,41 +6,75 @@ on:
       - v*-pyroscope
 
 jobs:
-  release-linux-profiler:
+  release-linux-profiler-x86_64:
     runs-on: ubuntu-latest
     env:
       DOCKER_BUILDKIT: 1
+      ARCH: x86_64
+      LIBC: ${{ matrix.name }}
     strategy:
       matrix:
-        include:
-          - name: glibc
-            dockerfile: Pyroscope.Dockerfile
-          - name: musl
-            dockerfile: Pyroscope.musl.Dockerfile
+        name: ['glibc', 'musl']
     steps:
       - name: Checkout
         uses: actions/checkout@v2
         with:
           submodules: 'true'
-      - name: Set env
-        run: |
-          echo "RELEASE_VERSION=$(echo $GITHUB_REF | grep -oP '(?<=refs/tags/v).*(?=-pyroscope)')" >> $GITHUB_ENV
       - uses: docker/login-action@v2
         name: Login to Docker Hub
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
-      - name: Build in Docker & push
-        run: >
-          docker buildx build
-          -t pyroscope/pyroscope-dotnet:${RELEASE_VERSION}-${{ matrix.name }}
-          -t pyroscope/pyroscope-dotnet:latest-${{ matrix.name }}
-          --push
-          -f ${{ matrix.dockerfile }}
-          .
-      - name: Create tar archive
-        run: docker build -f ${{ matrix.dockerfile }} -o out.${{ matrix.name }} . && tar -czvf pyroscope.${{ matrix.name }}.tar.gz -C out.${{ matrix.name }} .
+      - run: make docker/build
+      - run: make docker/push
+      - run: make docker/archive
       - name: Release
         uses: softprops/action-gh-release@v1
         with:
-          files: ./pyroscope.${{ matrix.name }}.tar.gz
+          files: ./*.tar.gz
+  release-linux-profiler-aarch64:
+    runs-on: [self-hosted, Linux, ARM64]
+    env:
+      DOCKER_BUILDKIT: 1
+      ARCH: aarch64
+      LIBC: ${{ matrix.name }}
+    strategy:
+      matrix:
+        name: ['glibc', 'musl']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: 'true'
+      - uses: docker/login-action@v2
+        name: Login to Docker Hub
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      - run: make docker/build
+      - run: make docker/push
+      - run: make docker/archive
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: ./*.tar.gz
+  release-linux-profiler:
+    needs: ['release-linux-profiler-x86_64', 'release-linux-profiler-aarch64']
+    runs-on: ubuntu-latest
+    env:
+      DOCKER_BUILDKIT: 1
+      LIBC: ${{ matrix.name }}
+    strategy:
+      matrix:
+        name: ['glibc', 'musl']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: 'true'
+      - uses: docker/login-action@v2
+        name: Login to Docker Hub
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      - run: make docker/manifest

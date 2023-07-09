@@ -11,8 +11,8 @@ ADD shared shared
 ADD CMakeLists.txt CMakeLists.txt
 
 RUN mkdir build-release && cd build-release && cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release
-RUN cd build-release && make -j6 Datadog.Profiler.Native Datadog.Linux.ApiWrapper.x64
+RUN cd build-release && make -j16 Datadog.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
 FROM scratch
-COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-x64/Datadog.Profiler.Native.so /Pyroscope.Profiler.Native.so
-COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-x64/Datadog.Linux.ApiWrapper.x64.so /Pyroscope.Linux.ApiWrapper.x64.so
+COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux/Datadog.Profiler.Native.so /Pyroscope.Profiler.Native.so
+COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux/Datadog.Linux.ApiWrapper.x64.so /Pyroscope.Linux.ApiWrapper.x64.so

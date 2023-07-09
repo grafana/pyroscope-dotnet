@@ -365,7 +365,6 @@ obj/*
 .ionide/
 /devenv.bat
 CMakeCache.txt
-Makefile
 _deps/
 CMakeFiles/
 lib/
