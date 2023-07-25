@@ -89,12 +89,26 @@ void CorProfilerCallback::SetStackSamplerEnabled(bool enabled)
 
 void CorProfilerCallback::SetAllocationTrackingEnabled(bool enabled)
 {
-    _pClrEventsParser->SetAllocationTrackingEnabled(enabled);
+    if (_pClrEventsParser)
+    {
+        _pClrEventsParser->SetAllocationTrackingEnabled(enabled);
+    }
+    else 
+    {
+        Log::Debug("SetAllocationTrackingEnabled: trying to enable/disable while it was not configured"); 
+    }
 }
 
 void CorProfilerCallback::SetContentionTrackingEnabled(bool enabled)
 {
-    _pClrEventsParser->SetContentionTrackingEnabled(enabled);
+    if (_pClrEventsParser)
+    {
+        _pClrEventsParser->SetContentionTrackingEnabled(enabled);
+    }
+    else
+    {
+        Log::Debug("SetContentionTrackingEnabled: trying to enable/disable while it was not configured"); 
+    }
 }
 
 void CorProfilerCallback::SetExceptionTrackingEnabled(bool enabled)
