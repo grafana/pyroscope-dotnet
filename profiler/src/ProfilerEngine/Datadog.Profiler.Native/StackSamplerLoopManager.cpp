@@ -91,6 +91,12 @@ bool StackSamplerLoopManager::Start()
     {
         return true;
     }
+
+    if (_pWallTimeCollector == nullptr && _pCpuTimeCollector == nullptr)
+    {
+        Log::Warn("StackSamplerLoopManager::Start cpu & wall disabled - not starting");
+        return true;
+    }
     _isWatcherShutdownRequested = false;
     this->RunStackSampling();
     this->RunWatcher();

@@ -77,6 +77,7 @@ IClrLifetime* CorProfilerCallback::GetClrLifetime() const
 
 void CorProfilerCallback::SetStackSamplerEnabled(bool enabled)
 {
+        Log::Debug("CorProfilerCallback::SetStackSamplerEnabled: ", enabled);
     if (enabled)
     {
         _pStackSamplerLoopManager->Start();
@@ -91,11 +92,12 @@ void CorProfilerCallback::SetAllocationTrackingEnabled(bool enabled)
 {
     if (_pClrEventsParser)
     {
+        Log::Debug("CorProfilerCallback::SetAllocationTrackingEnabled: ", enabled);
         _pClrEventsParser->SetAllocationTrackingEnabled(enabled);
     }
     else 
     {
-        Log::Debug("SetAllocationTrackingEnabled: trying to enable/disable while it was not configured"); 
+        Log::Debug("CorProfilerCallback::SetAllocationTrackingEnabled: trying to enable/disable while it was not configured (PYROSCOPE_PROFILING_ALLOCATION_ENABLED)");
     }
 }
 
@@ -103,17 +105,24 @@ void CorProfilerCallback::SetContentionTrackingEnabled(bool enabled)
 {
     if (_pClrEventsParser)
     {
+        Log::Debug("CorProfilerCallback::SetContentionTrackingEnabled: ", enabled);
         _pClrEventsParser->SetContentionTrackingEnabled(enabled);
     }
     else
     {
-        Log::Debug("SetContentionTrackingEnabled: trying to enable/disable while it was not configured"); 
+        Log::Debug("CorProfilerCallback::SetContentionTrackingEnabled: trying to enable/disable while it was not configured (PYROSCOPE_PROFILING_CONTENTION_ENABLED)");
     }
 }
 
 void CorProfilerCallback::SetExceptionTrackingEnabled(bool enabled)
 {
-    _exceptionTrackingEnabled = enabled;
+    if (_pExceptionsProvider != nullptr)
+    {
+        Log::Debug("CorProfilerCallback::SetExceptionTrackingEnabled: ", enabled);
+        _exceptionTrackingEnabled = enabled;
+    } else {
+        Log::Debug("CorProfilerCallback::SetExceptionTrackingEnabled: trying to enable/disable while it was not configured (PYROSCOPE_PROFILING_EXCEPTION_ENABLED)");
+    }
 }
 
 std::shared_ptr<PyroscopePprofSink> CorProfilerCallback::GetPyroscopePprofSink() {
