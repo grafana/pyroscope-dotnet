@@ -87,6 +87,7 @@ int64_t PprofBuilder::AddLocation(int64_t functionName, int64_t moduleName)
     assert(_profile.location_size() == _locations.size());
     assert(_profile.function_size() == _locations.size());
     auto* pFunction = _profile.add_function();
+    pFunction->set_id(id);
     pFunction->set_name(functionName);
     pFunction->set_filename(moduleName);
     auto* pLocation = _profile.add_location();
