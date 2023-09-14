@@ -21,8 +21,8 @@
 
 std::vector<SampleValueType> AllocationsProvider::SampleTypeDefinitions(
     {
-        {"alloc-samples", "count"},
-        {"alloc-size", "bytes"}
+        {"alloc_samples", "count"},
+        {"alloc_size", "bytes"}
     });
 
 
