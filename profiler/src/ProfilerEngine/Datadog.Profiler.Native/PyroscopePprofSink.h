@@ -9,7 +9,7 @@
 #include "LockingQueue.h"
 #include "httplib.h"
 #include "url.hpp"
-
+#define PYROSCOPE_SPY_VERSION "0.8.9"
 class PyroscopePprofSink : public PProfExportSink
 {
 public:

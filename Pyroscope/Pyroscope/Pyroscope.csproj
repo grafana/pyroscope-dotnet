@@ -5,9 +5,9 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-        <PackageVersion>0.8.8</PackageVersion>
-        <AssemblyVersion>0.8.8</AssemblyVersion>
-        <FileVersion>0.8.8</FileVersion>
+        <PackageVersion>0.8.9</PackageVersion>
+        <AssemblyVersion>0.8.9</AssemblyVersion>
+        <FileVersion>0.8.9</FileVersion>
         <LangVersion>10</LangVersion>
     </PropertyGroup>
 
