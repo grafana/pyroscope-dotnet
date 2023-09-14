@@ -46,3 +46,12 @@ docker/manifest:
 		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-aarch64 
 	docker manifest push $(DOCKER_IMAGE):latest-$(LIBC)
 
+
+VERSION?=
+.phony: bump_version
+bump_version:
+	sed -i "Pyroscope/Pyroscope/Pyroscope.csproj" -e "s/<PackageVersion>.*<\/PackageVersion>/<PackageVersion>$(VERSION)<\/PackageVersion>/"
+	sed -i "Pyroscope/Pyroscope/Pyroscope.csproj" -e "s/<AssemblyVersion>.*<\/AssemblyVersion>/<AssemblyVersion>$(VERSION)<\/AssemblyVersion>/"
+	sed -i "Pyroscope/Pyroscope/Pyroscope.csproj" -e "s/<FileVersion>.*<\/FileVersion>/<FileVersion>$(VERSION)<\/FileVersion>/"
+	sed -i "profiler/src/ProfilerEngine/Datadog.Profiler.Native/PyroscopePprofSink.h" -e "s/#define PYROSCOPE_SPY_VERSION \".*\"/#define PYROSCOPE_SPY_VERSION \"$(VERSION)\"/"
+

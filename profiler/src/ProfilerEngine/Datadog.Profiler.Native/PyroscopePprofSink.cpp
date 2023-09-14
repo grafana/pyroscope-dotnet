@@ -148,6 +148,7 @@ void PyroscopePprofSink::upload(Pprof pprof, ProfileTime& startTime, ProfileTime
                            .add_query("from", std::to_string(startTime.time_since_epoch().count()))
                            .add_query("until", std::to_string(endTime.time_since_epoch().count()))
                            .add_query("spyName", "dotnetspy")
+                           .add_query("spyVersion", PYROSCOPE_SPY_VERSION)
                            .str();
 
     httplib::Headers headers = getHeaders();
