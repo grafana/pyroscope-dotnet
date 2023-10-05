@@ -113,7 +113,7 @@ void PprofBuilder::Reset()
     }
     _profile.set_period(1);
     auto* pPeriodType = new perftools::profiles::ValueType();
-    pPeriodType->set_type(0);
+    pPeriodType->set_type(AddString("cpu"));
     pPeriodType->set_unit(AddString("nanoseconds"));
     _profile.set_allocated_period_type(pPeriodType);
 }
