@@ -16,8 +16,7 @@ class PprofBuilder
 {
 
 public:
-    PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions,
-                 std::vector<std::pair<std::string, std::string>>& staticTags);
+    PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions);
 
     void AddSample(const Sample& sample);
     int SamplesCount();
@@ -35,5 +34,4 @@ private:
     std::map<std::pair<int64_t, int64_t>, int64_t> _locations;
     std::vector<SampleValueType>& _sampleTypeDefinitions;
 
-    std::vector<std::pair<std::string, std::string>> _staticTags;
 };

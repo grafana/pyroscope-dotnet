@@ -15,8 +15,10 @@ PyroscopePprofSink::PyroscopePprofSink(
     std::string basicAuthUser,
     std::string basicAuthPassword,
     std::string tenantID,
-    std::map<std::string, std::string> extraHeaders) :
+    std::map<std::string, std::string> extraHeaders,
+    const std::vector<std::pair<std::string, std::string>>& staticTags) :
     _appName(appName),
+    _appNameWithLabels(AppNameWithLabels(appName, staticTags)),
     _url(server),
     _authToken(authToken),
     _basicAuthUser(basicAuthUser),
@@ -144,7 +146,7 @@ void PyroscopePprofSink::upload(Pprof pprof, ProfileTime& startTime, ProfileTime
 
     std::string path = Url()
                            .path(_url.path() + "/ingest")
-                           .add_query("name", _appName)
+                           .add_query("name", _appNameWithLabels)
                            .add_query("from", std::to_string(startTime.time_since_epoch().count()))
                            .add_query("until", std::to_string(endTime.time_since_epoch().count()))
                            .add_query("spyName", "dotnetspy")
@@ -216,6 +218,24 @@ std::string PyroscopePprofSink::SchemeHostPort(Url& url)
     auto res = url_builder.str();
 //    std::cout << "Scheme host port .>> " << res << std::endl;
     return res;
+}
+
+std::string PyroscopePprofSink::AppNameWithLabels(const std::string& appName, const std::vector<std::pair<std::string, std::string>>& staticTags)
+{
+    std::stringstream app_name_builder;
+    app_name_builder << appName << "{";
+    int i = 0;
+    for (const auto& item : staticTags)
+    {
+        if (i != 0)
+        {
+            app_name_builder << ",";
+        }
+        app_name_builder << item.first << "=" << item.second;
+        i++;
+    }
+    app_name_builder << "}";
+    return app_name_builder.str();
 }
 
 std::map<std::string, std::string> PyroscopePprofSink::ParseHeadersJSON(std::string headers)

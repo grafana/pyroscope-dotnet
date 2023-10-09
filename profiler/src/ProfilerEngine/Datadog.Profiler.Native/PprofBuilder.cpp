@@ -5,9 +5,8 @@
 #include "PprofBuilder.h"
 #include "Log.h"
 
-PprofBuilder::PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions,
-                           std::vector<std::pair<std::string, std::string>>& staticTags) :
-    _sampleTypeDefinitions(sampleTypeDefinitions), _staticTags(staticTags)
+PprofBuilder::PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions) :
+    _sampleTypeDefinitions(sampleTypeDefinitions)
 {
     Reset();
 }
@@ -37,12 +36,6 @@ void PprofBuilder::AddSample(const Sample& sample)
             pLabel->set_key(AddString(label.first));
             pLabel->set_str(AddString(*label.second.Get()));
         }
-    }
-    for (const auto& tag : _staticTags)
-    {
-        auto* pLabel = pSample->add_label();
-        pLabel->set_key(AddString(tag.first));
-        pLabel->set_str(AddString(tag.second));
     }
     _samplesCount++;
 }
