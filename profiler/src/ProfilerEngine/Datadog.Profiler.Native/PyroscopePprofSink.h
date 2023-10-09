@@ -21,7 +21,8 @@ public:
                        std::string tenantID,
                        std::string basicAuthUser,
                        std::string basicAuthPassword,
-                       std::map<std::string, std::string> extraHeaders);
+                       std::map<std::string, std::string> extraHeaders,
+                       const std::vector<std::pair<std::string, std::string>>& staticTags);
     ~PyroscopePprofSink() override;
     void Export(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime) override;
     void SetAuthToken(std::string authToken);
@@ -30,6 +31,7 @@ public:
 
 private:
     static std::string SchemeHostPort(Url& url);
+    static std::string AppNameWithLabels(const std::string& appName, const std::vector<std::pair<std::string, std::string>>& staticTags);
 
     struct PyroscopeRequest
     {
@@ -43,6 +45,7 @@ private:
     httplib::Headers getHeaders();
 
     std::string _appName;
+    std::string _appNameWithLabels;
     Url _url;
     httplib::Client _client;
     std::atomic<bool> _running;

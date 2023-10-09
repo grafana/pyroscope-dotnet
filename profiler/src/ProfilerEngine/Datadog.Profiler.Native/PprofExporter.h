@@ -36,8 +36,7 @@ class PprofExporter : public IExporter
 public:
     PprofExporter(IApplicationStore* _applicationStore,
                   std::shared_ptr<PProfExportSink> sin,
-                  std::vector<SampleValueType> sampleTypeDefinitions,
-                  const std::vector<std::pair<std::string, std::string>>& staticTags
+                  std::vector<SampleValueType> sampleTypeDefinitions
     );
     void Add(std::shared_ptr<Sample> const& sample) override;
     void SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint) override;
@@ -51,6 +50,4 @@ private:
     std::vector<SampleValueType> _sampleTypeDefinitions;
     std::unordered_map<std::string_view, std::unique_ptr<PprofBuilder>> _perAppBuilder;
     std::mutex _perAppBuilderLock;
-    std::vector<std::pair<std::string, std::string>> _staticTags;
-
 };

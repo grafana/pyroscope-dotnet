@@ -398,11 +398,11 @@ bool CorProfilerCallback::InitializeServices()
         _pConfiguration->PyroscopeBasicAuthUser(),
         _pConfiguration->PyroscopeBasicAuthPassword(),
         _pConfiguration->PyroscopeTenantID(),
-        PyroscopePprofSink::ParseHeadersJSON(std::move(_pConfiguration->PyroscopeHttpHeaders())));
+        PyroscopePprofSink::ParseHeadersJSON(std::move(_pConfiguration->PyroscopeHttpHeaders())),
+        _pConfiguration->GetUserTags());
     _pExporter = std::make_unique<PprofExporter>(_pApplicationStore,
                                                  _pyroscopePprofSink,
-                                                 sampleTypeDefinitions,
-                                                 _pConfiguration->GetUserTags());
+                                                 sampleTypeDefinitions);
 
     _pSamplesCollector = RegisterService<SamplesCollector>(
         _pConfiguration.get(),

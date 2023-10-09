@@ -8,12 +8,11 @@
 
 PprofExporter::PprofExporter(IApplicationStore* applicationStore,
                              std::shared_ptr<PProfExportSink> sink,
-                             std::vector<SampleValueType> sampleTypeDefinitions,
-                             const std::vector<std::pair<std::string, std::string>>& staticTags) :
+                             std::vector<SampleValueType> sampleTypeDefinitions
+                             ) :
     _applicationStore(applicationStore),
     _sink(std::move(sink)),
-    _sampleTypeDefinitions(sampleTypeDefinitions),
-    _staticTags(staticTags)
+    _sampleTypeDefinitions(sampleTypeDefinitions)
 {
     signal(SIGPIPE, SIG_IGN);
 }
@@ -60,7 +59,7 @@ PprofBuilder& PprofExporter::GetPprofBuilder(std::string_view runtimeId)
     {
         return *it->second;
     }
-    auto instance = std::make_unique<PprofBuilder>(_sampleTypeDefinitions, _staticTags);
+    auto instance = std::make_unique<PprofBuilder>(_sampleTypeDefinitions);
     auto res = _perAppBuilder.emplace(runtimeId, std::move(instance));
     return *res.first->second;
 }
