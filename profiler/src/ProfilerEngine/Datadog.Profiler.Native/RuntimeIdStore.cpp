@@ -103,7 +103,6 @@ const char* RuntimeIdStore::GetId(AppDomainID appDomainId)
 
 void* RuntimeIdStore::LoadDynamicLibrary(std::string filePath)
 {
-    Log::Debug("LoadDynamicLibrary: ", filePath);
 
 #if _WINDOWS
     HMODULE dynLibPtr = LoadLibrary(::shared::ToWSTRING(filePath).c_str());
@@ -127,7 +126,6 @@ void* RuntimeIdStore::LoadDynamicLibrary(std::string filePath)
     if (dynLibPtr == nullptr)
     {
         char* errorMessage = dlerror();
-        Log::Warn("LoadDynamicLibrary: Error loading dynamic library '", filePath, "': ", errorMessage);
     }
     return dynLibPtr;
 #endif

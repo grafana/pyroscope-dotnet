@@ -10,7 +10,7 @@
 #include "httplib.h"
 #include "url.hpp"
 
-#define PYROSCOPE_SPY_VERSION "0.8.11"
+#define PYROSCOPE_SPY_VERSION "0.8.12"
 
 class PyroscopePprofSink : public PProfExportSink
 {
