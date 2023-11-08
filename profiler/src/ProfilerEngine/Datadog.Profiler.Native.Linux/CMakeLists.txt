@@ -129,9 +129,8 @@ target_link_libraries(${PROFILER_STATIC_LIB_NAME}
 )
 
 target_include_directories(${PROFILER_STATIC_LIB_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/../../../../profiler/third_party/cpp-httplib)
-target_compile_definitions(${PROFILER_STATIC_LIB_NAME} PUBLIC -DCPPHTTPLIB_USE_POLL)
 target_compile_options(${PROFILER_STATIC_LIB_NAME} PUBLIC -isystem${PROJECT_SOURCE_DIR}/../../../../profiler/third_party/boringssl/include)
-target_compile_definitions(${PROFILER_STATIC_LIB_NAME} PUBLIC -DCPPHTTPLIB_OPENSSL_SUPPORT)
+target_compile_definitions(${PROFILER_STATIC_LIB_NAME} PUBLIC -DCPPHTTPLIB_OPENSSL_SUPPORT -DCPPHTTPLIB_USE_POLL)
 
 add_dependencies(${PROFILER_STATIC_LIB_NAME} fmt-lib libdatadog-lib libunwind-lib coreclr spdlog-headers PPDB)
 
