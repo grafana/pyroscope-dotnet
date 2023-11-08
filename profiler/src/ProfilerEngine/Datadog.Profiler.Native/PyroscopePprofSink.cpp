@@ -8,6 +8,12 @@
 #include "cppcodec/base64_rfc4648.hpp"
 #include "nlohmann/json.hpp"
 
+
+extern "C" {
+int httplib_debug_log_enabled = 1;
+}
+
+
 PyroscopePprofSink::PyroscopePprofSink(
     std::string server,
     std::string appName,
