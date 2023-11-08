@@ -6,7 +6,7 @@
 	url = https://github.com/google/boringssl.git
 [submodule "profiler/third_party/cpp-httplib"]
 	path = profiler/third_party/cpp-httplib
-	url = https://github.com/yhirose/cpp-httplib.git
+	url = https://github.com/pyroscope-io/cpp-httplib.git
 [submodule "profiler/third_party/cppcodec"]
 	path = profiler/third_party/cppcodec
 	url = https://github.com/tplgy/cppcodec.git
