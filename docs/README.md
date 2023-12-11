@@ -6,6 +6,7 @@ The .NET profiling agent for Pyroscope.io. Based on [dd-trace-dotnet](https://gi
 
 ## Supported .NET versions:
  - .NET 6.0
+ - .Net 7.0
  
 ## Supported platforms
 
