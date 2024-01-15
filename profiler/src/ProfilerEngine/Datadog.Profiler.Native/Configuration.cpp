@@ -29,7 +29,7 @@ std::string const Configuration::DefaultPyroscopeServerAddress = "http://localho
 
 Configuration::Configuration()
 {
-    _debugLogEnabled = GetEnvironmentValue(EnvironmentVariables::DebugLogEnabled, GetDefaultDebugLogEnabled());
+    _minimumLogLevel = GetEnvironmentValue(EnvironmentVariables::PyroscopeMinimumLogLevel, GetDefaultMinimumLogLevel());
     _logDirectory = ExtractLogDirectory();
     _pprofDirectory = ExtractPprofDirectory();
     _isOperationalMetricsEnabled = GetEnvironmentValue(EnvironmentVariables::OperationalMetricsEnabled, false);
@@ -210,9 +210,9 @@ tags const& Configuration::GetUserTags() const
     return _userTags;
 }
 
-bool Configuration::IsDebugLogEnabled() const
+int32_t Configuration::MinimumLogLevel() const
 {
-    return _debugLogEnabled;
+    return _minimumLogLevel;
 }
 
 std::string const& Configuration::GetVersion() const
@@ -431,12 +431,13 @@ bool Configuration::GetContention()
     return GetEnvironmentValue(EnvironmentVariables::DeprecatedContentionProfilingEnabled, false);
 }
 
-bool Configuration::GetDefaultDebugLogEnabled()
+int32_t Configuration::GetDefaultMinimumLogLevel()
 {
     auto r = shared::GetEnvironmentValue(EnvironmentVariables::DevelopmentConfiguration);
 
     bool isDev;
-    return shared::TryParseBooleanEnvironmentValue(r, isDev) && isDev;
+    // Minimum log level is by default 0 (debug) on dev and 1 (info) otherwise
+    return (shared::TryParseBooleanEnvironmentValue(r, isDev) && isDev) ? 0 : 1;
 }
 
 bool Configuration::IsAgentless() const

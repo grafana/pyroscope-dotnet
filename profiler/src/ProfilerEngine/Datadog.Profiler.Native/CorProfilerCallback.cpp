@@ -828,46 +828,24 @@ void CorProfilerCallback::InspectRuntimeVersion(ICorProfilerInfo5* pCorProfilerI
     }
 }
 
-void CorProfilerCallback::ConfigureDebugLog()
+void CorProfilerCallback::ConfigureLogging()
 {
     // For now we want debug log to be ON by default. In future releases, this may require explicit opt-in.
     // For that, change 'IsLogDebugEnabledDefault' to be initialized to 'false' by default (@ToDo).
+    shared::WSTRING minimumLogLevelStr = shared::GetEnvironmentValue(EnvironmentVariables::PyroscopeMinimumLogLevel);
+    int32_t minimumLogLevel = _pConfiguration->MinimumLogLevel();
 
-    constexpr const bool IsLogDebugEnabledDefault = false;
-    bool isLogDebugEnabled;
-
-    shared::WSTRING isLogDebugEnabledStr = shared::GetEnvironmentValue(EnvironmentVariables::DebugLogEnabled);
-
-    // no environment variable set
-    if (isLogDebugEnabledStr.empty())
+    if (minimumLogLevelStr.empty())
     {
-        Log::Info("No \"", EnvironmentVariables::DebugLogEnabled, "\" environment variable has been found.",
-                  " Enable debug log = ", IsLogDebugEnabledDefault, " (default).");
-
-        isLogDebugEnabled = IsLogDebugEnabledDefault;
+        // No environment variable set
+        Log::Info("Minimum log level = ", minimumLogLevel, " (default).");
     }
     else
     {
-        if (!shared::TryParseBooleanEnvironmentValue(isLogDebugEnabledStr, isLogDebugEnabled))
-        {
-            // invalid value for environment variable
-            Log::Info("Non boolean value \"", isLogDebugEnabledStr, "\" for \"",
-                      EnvironmentVariables::DebugLogEnabled, "\" environment variable.",
-                      " Enable debug log = ", IsLogDebugEnabledDefault, " (default).");
-
-            isLogDebugEnabled = IsLogDebugEnabledDefault;
-        }
-        else
-        {
-            // take environment variable into account
-            Log::Info("Enable debug log = ", isLogDebugEnabled, " from (", EnvironmentVariables::DebugLogEnabled, " environment variable)");
-        }
+        Log::Info("Minimum log level = ", minimumLogLevel, " (from '", EnvironmentVariables::PyroscopeMinimumLogLevel, "' environment variable)");
     }
 
-    if (isLogDebugEnabled)
-    {
-        Log::EnableDebug();
-    }
+    Log::SetMinimumLogLevel(minimumLogLevel);
 }
 
 #define PRINT_ENV_VAR_IF_SET(name)                            \
@@ -895,9 +873,9 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::Initialize(IUnknown* corProfilerI
 {
     Log::Info("CorProfilerCallback is initializing.");
 
-    ConfigureDebugLog();
-
     _pConfiguration = std::make_unique<Configuration>();
+
+    ConfigureLogging();
 
     PrintEnvironmentVariables();
 

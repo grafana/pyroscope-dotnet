@@ -41,15 +41,19 @@ public:
 
     inline void Flush();
 
-    inline void EnableDebug();
-    inline bool IsDebugEnabled() const;
+    inline void SetMinimumLogLevel(int32_t minimumLogLevel);
 
+    inline bool IsDebugEnabled() const;
+    inline bool IsInfoEnabled() const;
+    inline bool IsWarningEnabled() const;
+    inline bool IsErrorEnabled() const;
+    inline bool IsCriticalEnabled() const;
 
 private:
 
     friend class LogManager;
 
-    Logger(std::shared_ptr<spdlog::logger> const& logger) : _internalLogger{logger}, m_debug_logging_enabled{false}
+    Logger(std::shared_ptr<spdlog::logger> const& logger) : _internalLogger{logger}, m_minimum_log_level{0}
     {
     }
 
@@ -72,7 +76,7 @@ private:
     static std::shared_ptr<spdlog::logger> CreateInternalLogger();
 
     std::shared_ptr<spdlog::logger> _internalLogger;
-    bool m_debug_logging_enabled;
+    int32_t m_minimum_log_level;
 };
 
 template <class LoggerPolicy>
@@ -200,25 +204,37 @@ void Logger::Debug(const Args&... args)
 template <typename... Args>
 void Logger::Info(const Args&... args)
 {
-    _internalLogger->info(LogToString(args...));
+    if (IsInfoEnabled())
+    {
+        _internalLogger->info(LogToString(args...));
+    }
 }
 
 template <typename... Args>
 void Logger::Warn(const Args&... args)
 {
-    _internalLogger->warn(LogToString(args...));
+    if (IsWarningEnabled())
+    {
+        _internalLogger->warn(LogToString(args...));
+    }
 }
 
 template <typename... Args>
 void Logger::Error(const Args&... args)
 {
-    _internalLogger->error(LogToString(args...));
+    if (IsErrorEnabled())
+    {
+        _internalLogger->error(LogToString(args...));
+    }
 }
 
 template <typename... Args>
 void Logger::Critical(const Args&... args)
 {
-    _internalLogger->critical(LogToString(args...));
+    if (IsCriticalEnabled())
+    {
+        _internalLogger->critical(LogToString(args...));
+    }
 }
 
 inline void Logger::Flush()
@@ -226,13 +242,33 @@ inline void Logger::Flush()
     _internalLogger->flush();
 }
 
-inline void Logger::EnableDebug()
+inline void Logger::SetMinimumLogLevel(int32_t minimumLogLevel)
 {
-    m_debug_logging_enabled = true;
+    m_minimum_log_level = minimumLogLevel;
 }
 
 inline bool Logger::IsDebugEnabled() const
 {
-    return m_debug_logging_enabled;
+    return m_minimum_log_level <= 0;
+}
+
+inline bool Logger::IsInfoEnabled() const
+{
+    return m_minimum_log_level <= 1;
+}
+
+inline bool Logger::IsWarningEnabled() const
+{
+    return m_minimum_log_level <= 2;
+}
+
+inline bool Logger::IsErrorEnabled() const
+{
+    return m_minimum_log_level <= 3;
+}
+
+inline bool Logger::IsCriticalEnabled() const
+{
+    return m_minimum_log_level <= 4;
 }
 } // namespace datadog::shared

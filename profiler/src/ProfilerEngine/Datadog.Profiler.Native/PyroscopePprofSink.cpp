@@ -157,12 +157,12 @@ void PyroscopePprofSink::upload(Pprof pprof, ProfileTime& startTime, ProfileTime
     auto res = _client.Post(path, headers, data);
     if (res)
     {
-        Log::Info("PyroscopePprofSink ", res->status);
+        Log::Debug("PyroscopePprofSink ", res->status);
     }
     else
     {
         auto err = res.error();
-        Log::Info("PyroscopePprofSink err ", to_string(err), " ", _url);
+        Log::Error("PyroscopePprofSink err ", to_string(err), " ", _url);
     }
 }
 

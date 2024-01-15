@@ -37,9 +37,9 @@ public:
         return Instance->IsDebugEnabled();
     }
 
-    static void EnableDebug()
+    static void SetMinimumLogLevel(int32_t minimumLogLevel)
     {
-        Instance->EnableDebug();
+        Instance->SetMinimumLogLevel(minimumLogLevel);
     }
 
     template <typename... Args>

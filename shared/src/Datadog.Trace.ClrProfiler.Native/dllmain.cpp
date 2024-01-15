@@ -57,7 +57,7 @@ EXTERN_C BOOL STDMETHODCALLTYPE DllMain(HMODULE hModule, DWORD ul_reason_for_cal
 
             if (isLogDebugEnabled)
             {
-                Log::EnableDebug();
+                Log::SetMinimumLogLevel(0);
             }
 
             Log::Debug("DllMain: DLL_PROCESS_ATTACH");
