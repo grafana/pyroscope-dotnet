@@ -17,7 +17,7 @@ class IConfiguration
 {
 public:
     virtual ~IConfiguration() = default;
-    virtual bool IsDebugLogEnabled() const = 0;
+    virtual int32_t MinimumLogLevel() const = 0;
     virtual fs::path const& GetLogDirectory() const = 0;
     virtual fs::path const& GetProfilesOutputDirectory() const = 0;
     virtual bool IsNativeFramesEnabled() const = 0;

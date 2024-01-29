@@ -40,6 +40,12 @@ private:
     inline static ds::Logger* const Instance = ds::LogManager::Get<TracerLoggerPolicy>();
 
 public:
+
+    static bool IsDebugEnabled()
+    {
+        return Instance->IsDebugEnabled();
+    }
+
     template <typename... Args>
     static void Debug(const Args&... args)
     {
@@ -57,25 +63,22 @@ public:
     {
         Instance->Warn(args...);
     }
+
     template <typename... Args>
     static void Error(const Args&... args)
     {
         Instance->Error(args...);
     }
+
     template <typename... Args>
     static void Critical(const Args&... args)
     {
         Instance->Critical(args...);
     }
 
-    static void EnableDebug()
+    static void SetMinimumLogLevel(int32_t minimumLogLevel)
     {
-        Instance->EnableDebug();
-    }
-
-    static bool IsDebugEnabled()
-    {
-        return Instance->IsDebugEnabled();
+        Instance->SetMinimumLogLevel(minimumLogLevel);
     }
 
     static void Flush()

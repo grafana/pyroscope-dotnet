@@ -46,7 +46,7 @@ HRESULT STDMETHODCALLTYPE CorProfiler::Initialize(IUnknown* cor_profiler_info_un
     // check if debug mode is enabled
     if (IsDebugEnabled())
     {
-        Logger::EnableDebug();
+        Logger::SetMinimumLogLevel(0);
     }
 
     CorProfilerBase::Initialize(cor_profiler_info_unknown);

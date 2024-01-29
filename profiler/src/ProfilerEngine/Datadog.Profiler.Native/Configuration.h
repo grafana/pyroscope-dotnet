@@ -25,7 +25,7 @@ public:
     bool IsNativeFramesEnabled() const override;
     std::chrono::seconds GetUploadInterval() const override;
     tags const& GetUserTags() const override;
-    bool IsDebugLogEnabled() const override;
+    int32_t MinimumLogLevel() const override;
 
     std::string const& GetVersion() const override;
     std::string const& GetEnvironment() const override;
@@ -76,7 +76,7 @@ private:
     static fs::path ExtractLogDirectory();
     static fs::path ExtractPprofDirectory();
     static std::chrono::seconds GetDefaultUploadInterval();
-    static bool GetDefaultDebugLogEnabled();
+    static int32_t GetDefaultMinimumLogLevel();
     template <typename T>
     static T GetEnvironmentValue(shared::WSTRING const& name, T const& defaultValue);
     template <typename T>
@@ -106,7 +106,7 @@ private:
     bool _isContentionProfilingEnabled;
     bool _isGarbageCollectionProfilingEnabled;
     bool _isHeapProfilingEnabled;
-    bool _debugLogEnabled;
+    int32_t _minimumLogLevel;
     fs::path _logDirectory;
     fs::path _pprofDirectory;
     bool _isOperationalMetricsEnabled;

@@ -31,6 +31,7 @@ public:
     inline static const shared::WSTRING WallTimeProfilingEnabled    = WStr("DD_PROFILING_WALLTIME_ENABLED");
     inline static const shared::WSTRING ExceptionProfilingEnabled   = WStr("DD_PROFILING_EXCEPTION_ENABLED");
 
+    inline static const shared::WSTRING PyroscopeMinimumLogLevel       = WStr("PYROSCOPE_MINIMUM_LOG_LEVEL");
     inline static const shared::WSTRING PyroscopeServerAddress         = WStr("PYROSCOPE_SERVER_ADDRESS");
     inline static const shared::WSTRING PyroscopeAuthToken             = WStr("PYROSCOPE_AUTH_TOKEN");
     inline static const shared::WSTRING PyroscopeApplicationName       = WStr("PYROSCOPE_APPLICATION_NAME");
