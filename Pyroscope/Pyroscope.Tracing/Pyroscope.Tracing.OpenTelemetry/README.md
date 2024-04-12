@@ -1,18 +1,22 @@
 ## Span profiles for OpenTelemetry
 
-This package enables application that already rely on OpenTelemetry for tracing and Pyroscope for profiling to link the tracing and profiling data. 
+This package enables applications that already rely on [OpenTelemetry](https://opentelemetry.io/docs/instrumentation/net/getting-started/) for distributed tracing and Pyroscope for continuous profiling to link the tracing and profiling data together.
 
 See https://grafana.com/docs/pyroscope/latest/configure-client/trace-span-profiles/ for more information.
 
+### Prerequisites
+- Your .NET application is instrumented with [Pyroscope's profiler](https://grafana.com/docs/pyroscope/latest/configure-client/language-sdks/dotnet/)
+- Your .NET application is instrumented (manually) with [OpenTelemetry](https://opentelemetry.io/docs/instrumentation/net/getting-started/)
+
 ### Integration
 
-Add the package to your project:
+Add the following package to your project:
 
 ```shell
 dotnet add package Pyroscope.Tracing.OpenTelemetry
 ```
 
-Register the `PyroscopeSpanProcessor`:
+Register the `PyroscopeSpanProcessor` in your OpenTelemetry integration:
 
 ```csharp
 
@@ -27,7 +31,3 @@ builder.Services.AddOpenTelemetry()
     });
 
 ```
-
-### Example
-
-TODO: Link to an example project
