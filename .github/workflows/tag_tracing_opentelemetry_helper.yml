@@ -1,0 +1,32 @@
+name: Release OpenTelemetry tracing library
+
+on:
+  push:
+    tags:
+      - v*-tracing-opentelemetry
+
+jobs:
+  release-tracing-lib-opentelemetry:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          submodules: 'true'
+      - uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '6.0'
+      - run: dotnet build -c Release
+        working-directory: Pyroscope/Pyroscope.Tracing/Pyroscope.Tracing.OpenTelemetry
+      - name: Publish the package to nuget.org
+        run: dotnet nuget push bin/Release/*.nupkg -k $NUGET_AUTH_TOKEN -s https://api.nuget.org/v3/index.json
+        working-directory: Pyroscope/Pyroscope.Tracing/Pyroscope.Tracing.OpenTelemetry
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.NUGET_API_KEY }}
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            ./Pyroscope/Pyroscope.Tracing/Pyroscope.Tracing.OpenTelemetry/bin/Release/net6.0/Pyroscope.Tracing.OpenTelemetry.dll
+            ./Pyroscope/Pyroscope.Tracing/Pyroscope.Tracing.OpenTelemetry/bin/Release/Pyroscope.Tracing.OpenTelemetry*.nupkg
