@@ -27,9 +27,7 @@ builder.Services.AddOpenTelemetry()
         .AddAspNetCoreInstrumentation()
         .AddConsoleExporter()
         .AddOtlpExporter()
-        .AddProcessor(new PyroscopeSpanProcessor.Builder()
-            .WithRootSpanOnly(true)
-            .Build());
+        .AddProcessor(new PyroscopeSpanProcessor());
     });
 
 ```

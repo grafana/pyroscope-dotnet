@@ -25,7 +25,5 @@ var tracingConfig = Configuration.FromEnv(loggerFactory);
 var tracer = tracingConfig.GetTracer();
 
 // wrap the OpenTracing tracer with the PyroscopeTracer and register it
-GlobalTracer.Register(new PyroscopeTracer.Builder(tracer)
-    .WithRootSpanOnly(true)
-    .Build()));
+GlobalTracer.Register(new PyroscopeTracer(tracer));
 ```
