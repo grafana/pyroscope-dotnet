@@ -5,15 +5,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-    <PackageVersion>0.1.0</PackageVersion>
-    <AssemblyVersion>0.1.0</AssemblyVersion>
-    <FileVersion>0.1.0</FileVersion>
+    <PackageVersion>0.2.0</PackageVersion>
+    <AssemblyVersion>0.2.0</AssemblyVersion>
+    <FileVersion>0.2.0</FileVersion>
     <LangVersion>10</LangVersion>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-  </PropertyGroup>
+ </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="OpenTracing" Version="0.12.1" />
+    <PackageReference Include="OpenTelemetry" Version="1.8.0" />
     <PackageReference Include="Pyroscope" Version="0.8.14" />
     <None Include="README.md" Pack="true" PackagePath="\"/>
   </ItemGroup>

@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using OpenTelemetry;
 
-namespace Pyroscope.Tracing.OpenTelemetry;
+namespace Pyroscope.OpenTelemetry;
 
 public class PyroscopeSpanProcessor : BaseProcessor<Activity>
 {

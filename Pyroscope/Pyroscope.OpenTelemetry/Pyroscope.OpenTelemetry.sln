@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.5.002.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pyroscope.Tracing.OpenTelemetry", "Pyroscope.Tracing.OpenTelemetry.csproj", "{42160563-B7D4-41D6-89DE-9CEDEEB542AA}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Pyroscope.OpenTelemetry", "Pyroscope.OpenTelemetry.csproj", "{42160563-B7D4-41D6-89DE-9CEDEEB542AA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

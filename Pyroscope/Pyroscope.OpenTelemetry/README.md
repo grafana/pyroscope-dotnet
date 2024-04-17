@@ -13,7 +13,7 @@ See https://grafana.com/docs/pyroscope/latest/configure-client/trace-span-profil
 Add the following package to your project:
 
 ```shell
-dotnet add package Pyroscope.Tracing.OpenTelemetry
+dotnet add package Pyroscope.OpenTelemetry
 ```
 
 Register the `PyroscopeSpanProcessor` in your OpenTelemetry integration:
@@ -27,7 +27,7 @@ builder.Services.AddOpenTelemetry()
         .AddAspNetCoreInstrumentation()
         .AddConsoleExporter()
         .AddOtlpExporter()
-        .AddProcessor(new PyroscopeSpanProcessor());
+        .AddProcessor(new Pyroscope.OpenTelemetry.PyroscopeSpanProcessor());
     });
 
 ```

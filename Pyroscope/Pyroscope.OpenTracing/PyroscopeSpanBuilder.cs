@@ -1,7 +1,7 @@
 using OpenTracing;
 using OpenTracing.Tag;
 
-namespace Pyroscope.Tracing.OpenTracing;
+namespace Pyroscope.OpenTracing;
 
 public class PyroscopeSpanBuilder : ISpanBuilder
 {

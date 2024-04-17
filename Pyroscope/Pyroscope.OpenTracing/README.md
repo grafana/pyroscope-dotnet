@@ -13,7 +13,7 @@ See https://grafana.com/docs/pyroscope/latest/configure-client/trace-span-profil
 Add the following package to your project:
 
 ```shell
-dotnet add package Pyroscope.Tracing.OpenTracing
+dotnet add package Pyroscope.OpenTracing
 ```
 
 Wrap your existing tracer with the `PyroscopeTracer` and register it globally:
@@ -25,5 +25,5 @@ var tracingConfig = Configuration.FromEnv(loggerFactory);
 var tracer = tracingConfig.GetTracer();
 
 // wrap the OpenTracing tracer with the PyroscopeTracer and register it
-GlobalTracer.Register(new PyroscopeTracer(tracer));
+GlobalTracer.Register(new Pyroscope.OpenTracing.PyroscopeTracer(tracer));
 ```

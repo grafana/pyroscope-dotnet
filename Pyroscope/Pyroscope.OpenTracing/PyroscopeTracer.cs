@@ -1,7 +1,7 @@
 using OpenTracing;
 using OpenTracing.Propagation;
 
-namespace Pyroscope.Tracing.OpenTracing;
+namespace Pyroscope.OpenTracing;
 
 public class PyroscopeTracer : ITracer
 {
