@@ -1,4 +1,4 @@
-name: Build tracing libraries
+name: Build OpenTelemetry and OpenTracing libraries
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  build-tracing-lib-opentracing:
+  build-opentracing-lib:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -19,7 +19,7 @@ jobs:
           dotnet-version: '6.0'
       - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTracing
-  build-tracing-lib-opentelemetry:
+  build-opentelemetry-lib:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

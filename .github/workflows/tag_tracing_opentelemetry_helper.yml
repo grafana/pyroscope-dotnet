@@ -1,12 +1,12 @@
-name: Release OpenTelemetry tracing library
+name: Release OpenTelemetry library
 
 on:
   push:
     tags:
-      - v*-tracing-opentelemetry
+      - v*-opentelemetry
 
 jobs:
-  release-tracing-lib-opentelemetry:
+  release-opentelemetry-lib:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

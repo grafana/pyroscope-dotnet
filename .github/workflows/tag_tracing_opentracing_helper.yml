@@ -1,12 +1,12 @@
-name: Release OpenTracing tracing library
+name: Release OpenTracing library
 
 on:
   push:
     tags:
-      - v*-tracing-opentracing
+      - v*-opentracing
 
 jobs:
-  release-tracing-lib-opentracing:
+  release-opentracing-lib:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
