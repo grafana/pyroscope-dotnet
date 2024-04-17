@@ -18,7 +18,7 @@ jobs:
         with:
           dotnet-version: '6.0'
       - run: dotnet build -c Release
-        working-directory: Pyroscope/Pyroscope.Tracing/Pyroscope.Tracing.OpenTracing
+        working-directory: Pyroscope/Pyroscope.OpenTracing
   build-tracing-lib-opentelemetry:
     runs-on: ubuntu-latest
     steps:
@@ -30,4 +30,4 @@ jobs:
         with:
           dotnet-version: '6.0'
       - run: dotnet build -c Release
-        working-directory: Pyroscope/Pyroscope.Tracing/Pyroscope.Tracing.OpenTelemetry
+        working-directory: Pyroscope/Pyroscope.OpenTelemetry

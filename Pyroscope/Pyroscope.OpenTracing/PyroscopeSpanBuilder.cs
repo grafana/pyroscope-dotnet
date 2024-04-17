@@ -1,19 +1,17 @@
 using OpenTracing;
 using OpenTracing.Tag;
 
-namespace Pyroscope.Tracing.OpenTracing;
+namespace Pyroscope.OpenTracing;
 
 public class PyroscopeSpanBuilder : ISpanBuilder
 {
     private const string ProfileIdSpanTagKey = "pyroscope.profile.id";
 
     private readonly ISpanBuilder _delegate;
-    private readonly Config _config;
     private ISpanContext? _parent;
 
-    internal PyroscopeSpanBuilder(Config config, ISpanBuilder spanBuilder, ISpanContext? parent)
+    internal PyroscopeSpanBuilder(ISpanBuilder spanBuilder, ISpanContext? parent)
     {
-        _config = config;
         _delegate = spanBuilder;
         _parent = parent;
     }
@@ -29,19 +27,19 @@ public class PyroscopeSpanBuilder : ISpanBuilder
     {
         var scope = _delegate.StartActive();
         ConnectSpanWithProfiling(scope.Span);
-        return new PyroscopeScope(_config, scope, _parent);
+        return new PyroscopeScope(scope, _parent);
     }
 
     public IScope StartActive(bool finishSpanOnDispose)
     {
         var scope = _delegate.StartActive(finishSpanOnDispose);
         ConnectSpanWithProfiling(scope.Span);
-        return new PyroscopeScope(_config, scope, _parent);
+        return new PyroscopeScope(scope, _parent);
     }
 
     private void ConnectSpanWithProfiling(ISpan span)
     {
-        if (_parent != null && _config.RootSpanOnly)
+        if (_parent != null)
         {
             return;
         }
@@ -139,15 +137,13 @@ public class PyroscopeSpanBuilder : ISpanBuilder
 
     class PyroscopeScope : IScope
     {
-        private readonly Config _config;
         private readonly IScope _delegate;
         private readonly ISpanContext? _parent;
 
         public ISpan Span => _delegate.Span;
 
-        internal PyroscopeScope(Config _config, IScope _delegate, ISpanContext? _parent)
+        internal PyroscopeScope(IScope _delegate, ISpanContext? _parent)
         {
-            this._config = _config;
             this._delegate = _delegate;
             this._parent = _parent;
         }
@@ -159,21 +155,6 @@ public class PyroscopeSpanBuilder : ISpanBuilder
             {
                 Profiler.Instance.SetProfileId(0); // TODO: Replace with ResetContext()
                 return;
-            }
-            if (_config.RootSpanOnly)
-            {
-                return;
-            }
-            try
-            {
-                var spanId = _parent.SpanId;
-                var spanIdLong = Convert.ToUInt64(spanId.ToUpper(), 16);
-
-                Profiler.Instance.SetProfileId(spanIdLong);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Caught exception while setting profile id in profiler instance: {ex.Message}");
             }
         }
     }
