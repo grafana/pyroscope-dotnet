@@ -1,7 +1,11 @@
 LIBC ?= glibc
 ARCH ?= x86_64
-RELEASE_VERSION ?= $(shell git describe --tags --always --dirty | grep -oP '(?<=v).*(?=-pyroscope)')
+RELEASE_VERSION ?=
 DOCKER_IMAGE ?= pyroscope/pyroscope-dotnet
+
+ifeq ($(RELEASE_VERSION),)
+  $(error "no release version specified")
+endif
 
 ifeq ($(LIBC),musl)
 	DOCKERFILE := Pyroscope.musl.Dockerfile
