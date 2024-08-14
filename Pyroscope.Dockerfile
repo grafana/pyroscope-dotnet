@@ -1,4 +1,4 @@
-FROM debian:10 as builder
+FROM debian:10 AS builder
 
 RUN apt-get update && apt-get -y install cmake clang make git curl golang libtool
 

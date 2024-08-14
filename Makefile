@@ -30,7 +30,8 @@ docker/build:
 .phony: docker/archive
 docker/archive:
 	docker build -f $(DOCKERFILE) -o out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH)  .
-	tar -czvf pyroscope.$(RELEASE_VERSION)-$(LIBC)-$(ARCH).tar.gz -C out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH) .
+	cd out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH) && tar -czvf ../pyroscope.$(RELEASE_VERSION)-$(LIBC)-$(ARCH).tar.gz *.so 
+	rm -rf out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH)
 
 .phony: docker/push
 docker/push:
