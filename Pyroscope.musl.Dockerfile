@@ -1,4 +1,4 @@
-FROM alpine:3.15 as builder
+FROM alpine:3.15 AS builder
 
 RUN apk add  \
             clang \
@@ -30,6 +30,7 @@ ADD CMakeLists.txt CMakeLists.txt
 RUN mkdir build-release && cd build-release && cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release
 RUN cd build-release && make -j16 Datadog.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
-FROM scratch
+FROM busybox:1.36.1-musl
 COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-musl/Datadog.Profiler.Native.so /Pyroscope.Profiler.Native.so
 COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-musl/Datadog.Linux.ApiWrapper.x64.so /Pyroscope.Linux.ApiWrapper.x64.so
+

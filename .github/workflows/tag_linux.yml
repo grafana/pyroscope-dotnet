@@ -12,6 +12,7 @@ jobs:
       DOCKER_BUILDKIT: 1
       ARCH: x86_64
       LIBC: ${{ matrix.name }}
+      RELEASE_VERSION: ${{  github.ref_name }}
     strategy:
       matrix:
         name: ['glibc', 'musl']
@@ -33,7 +34,7 @@ jobs:
         with:
           files: ./*.tar.gz
   release-linux-profiler-aarch64:
-    runs-on: [self-hosted, Linux, ARM64]
+    runs-on: github-hosted-ubuntu-arm64-large
     env:
       DOCKER_BUILDKIT: 1
       ARCH: aarch64

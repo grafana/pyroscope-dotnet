@@ -1,4 +1,4 @@
-FROM debian:10 as builder
+FROM debian:10 AS builder
 
 RUN apt-get update && apt-get -y install cmake clang make git curl golang libtool
 
@@ -13,6 +13,7 @@ ADD CMakeLists.txt CMakeLists.txt
 RUN mkdir build-release && cd build-release && cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release
 RUN cd build-release && make -j16 Datadog.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
-FROM scratch
+FROM busybox:1.36.1-glibc
 COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux/Datadog.Profiler.Native.so /Pyroscope.Profiler.Native.so
 COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux/Datadog.Linux.ApiWrapper.x64.so /Pyroscope.Linux.ApiWrapper.x64.so
+

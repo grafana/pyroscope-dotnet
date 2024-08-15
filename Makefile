@@ -1,7 +1,11 @@
 LIBC ?= glibc
 ARCH ?= x86_64
-RELEASE_VERSION ?= $(shell git describe --tags --always --dirty | grep -oP '(?<=v).*(?=-pyroscope)')
+RELEASE_VERSION ?=
 DOCKER_IMAGE ?= pyroscope/pyroscope-dotnet
+
+ifeq ($(RELEASE_VERSION),)
+  $(error "no release version specified")
+endif
 
 ifeq ($(LIBC),musl)
 	DOCKERFILE := Pyroscope.musl.Dockerfile
@@ -26,7 +30,8 @@ docker/build:
 .phony: docker/archive
 docker/archive:
 	docker build -f $(DOCKERFILE) -o out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH)  .
-	tar -czvf pyroscope.$(RELEASE_VERSION)-$(LIBC)-$(ARCH).tar.gz -C out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH) .
+	cd out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH) && tar -czvf ../pyroscope.$(RELEASE_VERSION)-$(LIBC)-$(ARCH).tar.gz *.so 
+	rm -rf out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH)
 
 .phony: docker/push
 docker/push:
