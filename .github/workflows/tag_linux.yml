@@ -39,6 +39,7 @@ jobs:
       DOCKER_BUILDKIT: 1
       ARCH: aarch64
       LIBC: ${{ matrix.name }}
+      RELEASE_VERSION: ${{  github.ref_name }}
     strategy:
       matrix:
         name: ['glibc', 'musl']
