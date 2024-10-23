@@ -4,16 +4,16 @@ using Samples.Probes.TestRuns.Shared;
 
 namespace Samples.Probes.TestRuns.SmokeTests
 {
-    [LineProbeTestData(35, expectedNumberOfSnapshots: 0 /* Generic value type is not supported at the moment */)]
+    [LogLineProbeTestData(35, expectedNumberOfSnapshots: 0 /* Generic value type is not supported at the moment */, expectProbeStatusFailure: true)]
     public class GenericInnerValueTypeTest : IRun
     {
         public void Run()
         {
             var place = new Place { Type = PlaceType.City, Name = "New York" };
-            var address = new Address { City = place, HomeType = BuildingType.Duplex, Number = 15, Street = "Harlem" };
+            var adr = new Address { City = place, HomeType = BuildingType.Duplex, Number = 15, Street = "Harlem" };
             var children = new List<Person>();
-            children.Add(new Person("Ralph Jr.", 31, address, Guid.Empty, null));
-            var person = new Person("Ralph", 99, address, Guid.Empty, children);
+            children.Add(new Person("Ralph Jr.", 31, adr, Guid.Empty, null));
+            var person = new Person("Ralph", 99, adr, Guid.Empty, children);
 
             new InnerGenericStruct<Person>(person).InstrumentMe();
         }

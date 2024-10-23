@@ -3,28 +3,47 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
-using System;
+#nullable enable
+
 using System.Collections.Generic;
 
 namespace Datadog.Trace.AppSec.Waf
 {
     internal interface IResult
     {
-        ReturnCode ReturnCode { get; }
+        WafReturnCode ReturnCode { get; }
 
         /// <summary>
         /// Gets a value indicating whether to block the request or not
         /// </summary>
         public bool ShouldBlock { get; }
 
-        public bool ShouldBeReported { get; }
+        public Dictionary<string, object?>? BlockInfo { get; }
 
-        string Data { get; }
+        public Dictionary<string, object?>? RedirectInfo { get; }
 
-        List<string> Actions { get; }
+        public Dictionary<string, object?>? SendStackInfo { get; }
+
+        IReadOnlyCollection<object>? Data { get; }
+
+        Dictionary<string, object?>? Actions { get; }
 
         ulong AggregatedTotalRuntime { get; }
 
         ulong AggregatedTotalRuntimeWithBindings { get; }
+
+        ulong AggregatedTotalRuntimeRasp { get; }
+
+        ulong AggregatedTotalRuntimeWithBindingsRasp { get; }
+
+        uint RaspRuleEvaluations { get; }
+
+        bool Timeout { get; }
+
+        Dictionary<string, object?> Derivatives { get; }
+
+        bool ShouldReportSchema { get; }
+
+        bool ShouldReportSecurityResult { get; }
     }
 }

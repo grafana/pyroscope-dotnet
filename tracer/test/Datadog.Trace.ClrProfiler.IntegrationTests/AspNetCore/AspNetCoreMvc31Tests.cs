@@ -40,6 +40,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.AspNetCore
         protected AspNetCoreMvc31Tests(AspNetCoreTestFixture fixture, ITestOutputHelper output, bool enableRouteTemplateResourceNames)
             : base("AspNetCoreMvc31", fixture, output, enableRouteTemplateResourceNames)
         {
+            SetEnvironmentVariable("ADD_EXTRA_MIDDLEWARE", "1");
             _testName = GetTestName(nameof(AspNetCoreMvc31Tests));
         }
 
@@ -52,7 +53,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.AspNetCore
             await Fixture.TryStartApp(this);
 
             var spans = await Fixture.WaitForSpans(path);
-            ValidateIntegrationSpans(spans, expectedServiceName: "Samples.AspNetCoreMvc31", isExternalSpan: false);
+            ValidateIntegrationSpans(spans, metadataSchemaVersion: "v0", expectedServiceName: "Samples.AspNetCoreMvc31", isExternalSpan: false);
 
             var sanitisedPath = VerifyHelper.SanitisePathsForVerify(path);
             var settings = VerifyHelper.GetSpanVerifierSettings(sanitisedPath, (int)statusCode);

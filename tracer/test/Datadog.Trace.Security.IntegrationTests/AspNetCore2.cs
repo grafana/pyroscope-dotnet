@@ -7,6 +7,7 @@
 #pragma warning disable SA1402 // File may only contain a single class
 #pragma warning disable SA1649 // File name must match first type name
 
+using System;
 using System.Net;
 using System.Threading.Tasks;
 using Datadog.Trace.AppSec;
@@ -19,7 +20,7 @@ namespace Datadog.Trace.Security.IntegrationTests
     public class AspNetCore2TestsSecurityDisabled : AspNetCoreBase
     {
         public AspNetCore2TestsSecurityDisabled(AspNetCoreTestFixture fixture, ITestOutputHelper outputHelper)
-            : base("AspNetCore2", fixture, outputHelper, "/shutdown", enableSecurity: false, testName: "AspNetCore2.SecurityDisabled")
+            : base("AspNetCore2", fixture, outputHelper, "/shutdown", enableSecurity: false, testName: "AspNetCore2.SecurityDisabled", clearMetaStruct: true)
         {
         }
     }
@@ -27,7 +28,7 @@ namespace Datadog.Trace.Security.IntegrationTests
     public class AspNetCore2TestsSecurityEnabled : AspNetCoreBase
     {
         public AspNetCore2TestsSecurityEnabled(AspNetCoreTestFixture fixture, ITestOutputHelper outputHelper)
-            : base("AspNetCore2", fixture, outputHelper, "/shutdown", enableSecurity: true, testName: "AspNetCore2.SecurityEnabled")
+            : base("AspNetCore2", fixture, outputHelper, "/shutdown", enableSecurity: true, testName: "AspNetCore2.SecurityEnabled", clearMetaStruct: true)
         {
         }
     }
@@ -44,6 +45,16 @@ namespace Datadog.Trace.Security.IntegrationTests
     {
         public AspNetCore2TestsSecurityEnabledWithDefaultExternalRulesFile(AspNetCoreTestFixture fixture, ITestOutputHelper outputHelper)
             : base("AspNetCore2", fixture, outputHelper, "/shutdown", ruleFile: DefaultRuleFile, testName: "AspNetCore2.SecurityEnabled")
+        {
+        }
+    }
+
+    [Collection("IisTests")]
+    [Trait("Category", "LinuxUnsupported")]
+    public class AspNetCore2TestsSecurityEnabledWithDefaultExternalRulesFileIIS : AspNetCoreSecurityEnabledWithExternalRulesFileIIS
+    {
+        public AspNetCore2TestsSecurityEnabledWithDefaultExternalRulesFileIIS(IisFixture fixture, ITestOutputHelper outputHelper)
+            : base("AspNetCore2", fixture, outputHelper, "/shutdown", IisAppType.AspNetCoreOutOfProcess, ruleFile: AppDomain.CurrentDomain.BaseDirectory + DefaultRuleFile, testName: "AspNetCore2.SecurityEnabled")
         {
         }
     }

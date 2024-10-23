@@ -16,16 +16,28 @@ using System.Text.RegularExpressions;
 using System.Collections.Generic;
 using Nuke.Common.Utilities;
 using System.Collections;
+using System.Threading.Tasks;
+using DiffMatchPatch;
+using Logger = Serilog.Log;
 
 partial class Build
 {
     const string ClangTidyChecks = "-clang-analyzer-osx*,-clang-analyzer-optin.osx*,-cppcoreguidelines-avoid-magic-numbers,-cppcoreguidelines-pro-type-vararg,-readability-braces-around-statements";
+    const string LinuxApiWrapperLibrary = "Datadog.Linux.ApiWrapper.x64.so";
+
+    AbsolutePath ProfilerDeployDirectory => ProfilerOutputDirectory / "DDProf-Deploy";
 
     Target CompileProfilerNativeSrc => _ => _
         .Unlisted()
         .Description("Compiles the native profiler assets")
         .DependsOn(CompileProfilerNativeSrcWindows)
-        .DependsOn(CompileProfilerNativeSrcAndTestLinux);
+        .DependsOn(CompileProfilerNativeSrcLinux);
+
+    Target CompileProfilerNativeTests => _ => _
+        .Unlisted()
+        .Description("Compiles the native profiler assets")
+        .DependsOn(CompileProfilerNativeTestsWindows)
+        .DependsOn(CompileProfilerNativeTestsLinux);
 
     Target CompileProfilerNativeSrcWindows => _ => _
         .Unlisted()
@@ -60,7 +72,7 @@ partial class Build
                     .SetTargetPlatform(platform)));
         });
 
-    Target CompileProfilerNativeSrcAndTestLinux => _ => _
+    Target CompileProfilerNativeTestsLinux => _ => _
         .Unlisted()
         .Description("Compile Profiler native code")
         .OnlyWhenStatic(() => IsLinux)
@@ -72,7 +84,7 @@ partial class Build
                 arguments: $"-DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -B {NativeBuildDirectory} -S {RootDirectory} -DCMAKE_BUILD_TYPE={BuildConfiguration}");
 
             CMake.Value(
-                arguments: $"--build {NativeBuildDirectory} --parallel {Environment.ProcessorCount} --target all-profiler");
+                arguments: $"--build {NativeBuildDirectory} --parallel {Environment.ProcessorCount} --target profiler-native-tests");
 
             if (IsAlpine)
             {
@@ -82,19 +94,169 @@ partial class Build
             }
         });
 
+    Target CompileProfilerNativeSrcLinux => _ => _
+        .Unlisted()
+        .Description("Compile Profiler native code")
+        .OnlyWhenStatic(() => IsLinux)
+        .Executes(() =>
+        {
+            EnsureExistingDirectory(NativeBuildDirectory);
+
+            CMake.Value(
+                arguments: $"-DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -B {NativeBuildDirectory} -S {RootDirectory} -DCMAKE_BUILD_TYPE={BuildConfiguration}");
+
+            CMake.Value(
+                arguments: $"--build {NativeBuildDirectory} --parallel {Environment.ProcessorCount} --target profiler");
+
+            if (IsAlpine)
+            {
+                // On Alpine, we do not have permission to access the file libunwind-prefix/src/libunwind/config/config.guess
+                // Make the whole folder and its content accessible by everyone to make sure the upload process does not fail
+                Chmod.Value.Invoke(" -R 777 " + NativeBuildDirectory);
+            }
+        });
+
+    Target CompileNativeWrapper => _ => _
+        .Unlisted()
+        .Description("Compile Native wrapper")
+        .OnlyWhenStatic(() => IsLinux)
+        .Executes(() =>
+        {
+            EnsureExistingDirectory(NativeBuildDirectory);
+
+            var additionalArgs = $"-DUNIVERSAL={(AsUniversal ? "ON" : "OFF")}";
+
+            if (AsUniversal)
+            {
+                additionalArgs += $" -DCMAKE_TOOLCHAIN_FILE=./build/cmake/Universal.cmake.{(IsArm64 ? "aarch64" : "x86_64")}";
+            }
+
+            CMake.Value(
+                arguments: $"-DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -B {NativeBuildDirectory} -S {RootDirectory} -DCMAKE_BUILD_TYPE={BuildConfiguration} {additionalArgs}");
+
+            CMake.Value(
+                arguments: $"--build {NativeBuildDirectory} --parallel {Environment.ProcessorCount} --target wrapper");
+        });
+
+    Target TestNativeWrapper => _ => _
+        .Unlisted()
+        .Description("Test that the Native wrapper symbols haven't changed")
+        .After(CompileNativeWrapper)
+        .OnlyWhenStatic(() => IsLinux)
+        .Executes(() =>
+        {
+            var (arch, _) = GetUnixArchitectureAndExtension();
+            var libraryPath = ProfilerDeployDirectory / arch / LinuxApiWrapperLibrary;
+
+            var output = Nm.Value($"-D {libraryPath}").Select(x => x.Text).ToList();
+
+            // Gives output similar to this:
+            // 0000000000006bc8 D DdDotnetFolder
+            // 0000000000006bd0 D DdDotnetMuslFolder
+            //                  w _ITM_deregisterTMCloneTable
+            //                  w _ITM_registerTMCloneTable
+            //                  w __cxa_finalize
+            //                  w __deregister_frame_info
+            //                  U __errno_location
+            //                  U __tls_get_addr
+            // 0000000000002d1b T _fini
+            // 0000000000002d18 T _init
+            // 0000000000003d70 T accept
+            // 0000000000003e30 T accept4
+            //                  U access
+            //
+            // The types of symbols are:
+            // D: Data section symbol. These symbols are initialized global variables.
+            // w: Weak symbol. These symbols are weakly referenced and can be overridden by other symbols.
+            // U: Undefined symbol. These symbols are referenced in the file but defined elsewhere.
+            // T: Text section symbol. These symbols are functions or executable code.
+            // B: BSS (Block Started by Symbol) section symbol. These symbols are uninitialized global variables.
+            //
+            // We only care about the Undefined symbols - we don't want to accidentally add more of them
+
+            Logger.Debug("NM output: {Output}", string.Join(Environment.NewLine, output));
+
+            var symbols = output
+                .Select(x => x.Trim())
+                .Where(x => x.StartsWith("U "))
+                .Select(x => x.TrimStart("U "))
+                .OrderBy(x => x)
+                .ToList();
+
+
+            var received = string.Join(Environment.NewLine, symbols);
+            var verifiedPath = TestsDirectory / "snapshots" / $"native-wrapper-symbols-{UnixArchitectureIdentifier}.verified.txt";
+            var verified = File.Exists(verifiedPath)
+                ? File.ReadAllText(verifiedPath)
+                : string.Empty;
+
+            Logger.Information("Comparing snapshot of Undefined symbols in the Native Wrapper library using {Path}...", verifiedPath);
+
+            var dmp = new diff_match_patch();
+            var diff = dmp.diff_main(verified, received);
+            dmp.diff_cleanupSemantic(diff);
+
+            var changedSymbols = diff
+                .Where(x => x.operation != Operation.EQUAL)
+                .Select(x => x.text.Trim())
+                .ToList();
+
+            if (changedSymbols.Count == 0)
+            {
+                Logger.Information("No changes found in Undefined symbols in the Native Wrapper library");
+                return;
+            }
+
+            PrintDiff(diff);
+
+            throw new Exception($"Found differences in undefined symbols ({string.Join(",", changedSymbols)}) in the Native Wrapper library. " +
+                                "Verify that these changes are expected, and will not cause problems. " +
+                                "Removing symbols is generally a safe operation, but adding them could cause crashes. " +
+                                $"If the new symbols are safe to add, update the snapshot file at {verifiedPath} with the " +
+                                "new values");
+        });
+
+    Target CompileNativeWrapperNativeTests => _ => _
+        .Unlisted()
+        .Description("Compile Native wrapper unit tests")
+        .OnlyWhenStatic(() => IsLinux)
+        .Executes(() =>
+        {
+            EnsureExistingDirectory(NativeBuildDirectory);
+
+            CMake.Value(
+                arguments: $"-DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -B {NativeBuildDirectory} -S {RootDirectory} -DCMAKE_BUILD_TYPE={BuildConfiguration}");
+
+            CMake.Value(
+                arguments: $"--build {NativeBuildDirectory} --parallel {Environment.ProcessorCount} --target wrapper-native-tests");
+        });
+
     Target RunProfilerNativeUnitTestsLinux => _ => _
         .Unlisted()
         .Description("Run profiler native unit tests")
         .OnlyWhenStatic(() => IsLinux)
-        .After(CompileProfilerNativeSrcAndTestLinux)
+        .After(CompileProfilerNativeTestsLinux)
         .Executes(() =>
         {
-            RunProfilerUnitTests(Configuration.Release, MSBuildTargetPlatform.x64, SanitizerKind.None);
+            RunProfilerUnitTests("Datadog.Profiler.Native.Tests", Configuration.Release, MSBuildTargetPlatform.x64, SanitizerKind.None);
+        });
+
+    Target RunNativeWrapperNativeTests => _ => _
+        .Unlisted()
+        .Description("Run native wrapper unit tests")
+        .OnlyWhenStatic(() => IsLinux)
+        .After(CompileNativeWrapperNativeTests)
+        .Executes(() =>
+        {
+            // LD_PRELOAD must be set for this test library to validate that it works correctly.
+            var (arch, _) = GetUnixArchitectureAndExtension();
+            var envVars = new[] { $"LD_PRELOAD={ProfilerDeployDirectory / arch / LinuxApiWrapperLibrary}" };
+            RunProfilerUnitTests("Datadog.Linux.ApiWrapper.Tests", Configuration.Release, MSBuildTargetPlatform.x64, SanitizerKind.None, envVars);
         });
 
     Target CompileProfilerNativeTestsWindows => _ => _
         .Unlisted()
-        .After(CompileProfilerNativeSrc)
+        .After(CompileProfilerNativeSrcWindows)
         .OnlyWhenStatic(() => IsWin)
         .Executes(() =>
         {
@@ -130,7 +292,10 @@ partial class Build
         .OnlyWhenStatic(() => IsWin)
         .Executes(() =>
         {
-            RunProfilerUnitTests(BuildConfiguration, TargetPlatform);
+            foreach (var architecture in ArchitecturesForPlatformForProfiler)
+            {
+                RunProfilerUnitTests("Datadog.Profiler.Native.Tests", BuildConfiguration, architecture);
+            }
         });
 
     Target PublishProfiler => _ => _
@@ -144,17 +309,37 @@ partial class Build
         .After(CompileProfilerNativeSrc)
         .Executes(() =>
         {
-            var (arch, ext) = GetUnixArchitectureAndExtension();
-            var sourceDir = ProfilerOutputDirectory / "DDProf-Deploy" / arch;
+            var (arch, _) = GetUnixArchitectureAndExtension();
+            var sourceDir = ProfilerDeployDirectory / arch;
             EnsureExistingDirectory(MonitoringHomeDirectory / arch);
-            EnsureExistingDirectory(SymbolsDirectory / arch);
 
-            var files = new[] { "Datadog.Profiler.Native.so", "Datadog.Linux.ApiWrapper.x64.so" };
+            var files = new[] { "Datadog.Profiler.Native.so" };
             foreach (var file in files)
             {
                 var source = sourceDir / file;
                 var dest = MonitoringHomeDirectory / arch / file;
                 CopyFile(source, dest, FileExistsPolicy.Overwrite);
+            }
+        });
+
+    Target PublishNativeWrapper => _ => _
+        .Unlisted()
+        .OnlyWhenStatic(() => IsLinux)
+        .After(CompileNativeWrapper)
+        .Executes(() =>
+        {
+            var (arch, _) = GetUnixArchitectureAndExtension();
+            var sourceDir = ProfilerDeployDirectory / arch;
+            EnsureExistingDirectory(MonitoringHomeDirectory / arch);
+
+            var source = sourceDir / LinuxApiWrapperLibrary;
+            var dest = MonitoringHomeDirectory / arch / LinuxApiWrapperLibrary;
+            CopyFile(source, dest, FileExistsPolicy.Overwrite);
+
+            if (AsUniversal)
+            {
+                var libc = IsArm64 ? "libc.musl-aarch64.so.1" : "libc.musl-x86_64.so.1";
+                PatchElf.Value.Invoke($"--remove-needed {libc} {dest} --remove-rpath");
             }
         });
 
@@ -164,9 +349,9 @@ partial class Build
         .After(CompileProfilerNativeSrc)
         .Executes(() =>
         {
-            foreach (var architecture in ArchitecturesForPlatform)
+            foreach (var architecture in ArchitecturesForPlatformForProfiler)
             {
-                var sourceDir = ProfilerOutputDirectory / "DDProf-Deploy" / $"win-{architecture}";
+                var sourceDir = ProfilerDeployDirectory / $"win-{architecture}";
                 var source = sourceDir / "Datadog.Profiler.Native.dll";
                 var dest = MonitoringHomeDirectory / $"win-{architecture}";
                 CopyFileToDirectory(source, dest, FileExistsPolicy.Overwrite);
@@ -215,6 +400,8 @@ partial class Build
 
     private void BuildAndRunProfilerIntegrationTestsInternal(string filter)
     {
+        var isDebugRun = IsDebugRun();
+
         EnsureExistingDirectory(ProfilerTestLogsDirectory);
 
         var integrationTestProjects = ProfilerDirectory.GlobFiles("test/*.IntegrationTests/*.csproj")
@@ -231,8 +418,10 @@ partial class Build
                                 .SetNoWarnDotNetCore3()
                                 .When(TestAllPackageVersions, o => o.SetProperty("TestAllPackageVersions", "true"))
                                 .When(IncludeMinorPackageVersions, o => o.SetProperty("IncludeMinorPackageVersions", "true"))
+                                .EnableCrashDumps()
                                 .SetFilter(filter)
                                 .SetProcessLogOutput(true)
+                                .SetIsDebugRun(isDebugRun)
                                 .SetProcessEnvironmentVariable("DD_TESTING_OUPUT_DIR", ProfilerBuildDataDirectory)
                                 .SetProcessEnvironmentVariable("MonitoringHomeDirectory", MonitoringHomeDirectory)
                                 .CombineWith(integrationTestProjects, (s, project) => s
@@ -244,6 +433,8 @@ partial class Build
         finally
         {
             CopyDumpsTo(ProfilerBuildDataDirectory);
+            // A crashed occured on linux and the memory dump copy failed due a lack of permission.
+            Chmod.Value.Invoke("-R 777 " + ProfilerBuildDataDirectory);
         }
     }
 
@@ -276,7 +467,7 @@ partial class Build
                 .SetTargets("BuildCpp")
                 .AddProperty("RunCodeAnalysis", "true")
                 .AddProperty("EnableClangTidyCodeAnalysis", "true")
-                .AddProperty("ClangTidyChecks", $"\"{ClangTidyChecks}\"")
+                .AddProperty("ClangTidyChecks", $"\"{ClangTidyChecks}\" --list-checks")
                 .CombineWith(platforms, (m, platform) => m
                     .SetTargetPlatform(platform)
                     .SetLoggers($"FileLogger,Microsoft.Build;logfile={ProfilerBuildDataDirectory / $"windows-profiler-clang-tidy-{platform}.txt"}")));
@@ -299,12 +490,12 @@ partial class Build
             {
                 var project = ProfilerSolution.GetProject(projectName);
                 var cppCheckResultFile = ProfilerBuildDataDirectory / $"{project.Name}-cppcheck-{platform}";
-                CppCheck.Value($"--enable=all  --project={project.Path} --xml --output-file={cppCheckResultFile}.xml");
+                CppCheck.Value($"--inline-suppr  --enable=all  --project={project.Path} --xml --output-file={cppCheckResultFile}.xml  --suppressions-list={ProfilerDirectory}/cppcheck-suppressions.txt ");
             }
 
             foreach (var platform in new[] { MSBuildTargetPlatform.x64, MSBuildTargetPlatform.x86 })
             {
-                Logger.Info($"======= Run CppCheck for platform {platform}");
+                Logger.Information($"======= Run CppCheck for platform {platform}");
                 RunCppCheck("Datadog.Profiler.Native", platform);
                 RunCppCheck("Datadog.Profiler.Native.Windows", platform);
             }
@@ -334,18 +525,32 @@ partial class Build
 
             foreach (var result in cppcheckResults)
             {
-                Logger.Info($"Check result file {result}");
+                Logger.Information($"Check result file {result}");
                 var doc = XDocument.Load(result);
                 var messages = doc.Descendants("errors").First();
 
-                var foundError = messages.Descendants("error").Where(message =>
+                const int maxErrors = 50;
+
+                var foundErrors = messages.Descendants("error").Where(message =>
                 {
                     return string.Equals(message.Attribute("severity").Value, "error", StringComparison.OrdinalIgnoreCase);
-                }).Any();
+                })
+                .ToList();
 
-                if (foundError)
+                if (foundErrors.Count > 0)
                 {
-                    Logger.Error($"::error::Error(s) was/were detected by CppCheck in {Path.GetFileName(result)}");
+                    Logger.Error($"{foundErrors.Count} error(s) was/were detected by CppCheck in {Path.GetFileName(result)}");
+
+                    foreach (var error in foundErrors.Take(maxErrors))
+                    {
+                        Logger.Error($"{error}");
+                    }
+
+                    if (foundErrors.Count > maxErrors)
+                    {
+                        Logger.Error($"... and {foundErrors.Count - maxErrors} more errors");
+                    }
+
                     throw new Exception($"Error(s) was/were detected by CppCheck in {Path.GetFileName(result)}");
                 }
             }
@@ -369,7 +574,7 @@ partial class Build
 
             foreach (var result in clangTidyResults)
             {
-                Logger.Info($"Check result file {result}");
+                Logger.Information($"Check result file {result}");
                 using var sr = new StreamReader(result); ;
 
                 string line;
@@ -389,7 +594,7 @@ partial class Build
     Target RunClangTidyProfilerLinux => _ => _
         .Unlisted()
         .OnlyWhenStatic(() => IsLinux)
-        .Executes(() =>
+        .Executes(async () =>
         {
             EnsureExistingDirectory(ProfilerBuildDataDirectory);
 
@@ -403,7 +608,14 @@ partial class Build
             CMake.Value(
                 arguments: $"--build {NativeBuildDirectory} --parallel {Environment.ProcessorCount} --target all-profiler");
 
-            RunClangTidy.Value($"-j {Environment.ProcessorCount} -checks=\"{ClangTidyChecks}\" -p {NativeBuildDirectory}", logFile: outputFile, logOutput: false);
+            var output = RunClangTidy.Value($"-j {Environment.ProcessorCount} -checks=\"{ClangTidyChecks}\" -p {NativeBuildDirectory}", logOutput: false);
+
+            await using var file = new StreamWriter(outputFile);
+
+            foreach (var line in output)
+            {
+                await file.WriteLineAsync(line.Text);
+            }
         });
 
     Target RunCppCheckProfilerLinux => _ => _
@@ -419,16 +631,24 @@ partial class Build
             CMake.Value(
                 arguments: $"-DCMAKE_CXX_COMPILER=clang++ -DCMAKE_C_COMPILER=clang -DRUN_ANALYSIS=1 -B {NativeBuildDirectory} -S {RootDirectory} -DCMAKE_BUILD_TYPE={BuildConfiguration}");
 
-            CppCheck.Value($"-j {Environment.ProcessorCount} --enable=all --project={NativeBuildDirectory}/compile_commands.json -D__linux__ -D__x86_64__ --suppressions-list={ProfilerDirectory}/cppcheck-suppressions.txt --xml --output-file={outputFile}");
+            CppCheck.Value($"-j {Environment.ProcessorCount} --inline-suppr --enable=all --project={NativeBuildDirectory}/compile_commands.json -D__linux__ -D__x86_64__ --suppressions-list={ProfilerDirectory}/cppcheck-suppressions.txt --xml --output-file={outputFile}");
         });
+
+    Target BuildProfilerAsanTest => _ => _
+        .Unlisted()
+        .Description("Compile the profiler with Clang Address sanitizer")
+        .DependsOn(BuildNativeLoader)
+        .DependsOn(CompileProfilerWithAsanLinux)
+        .DependsOn(CompileProfilerWithAsanWindows)
+        .DependsOn(BuildNativeWrapper)
+        .DependsOn(PublishNativeWrapper)
+        .DependsOn(PublishProfiler);
 
     Target RunProfilerAsanTest => _ => _
         .Unlisted()
         .Description("Compile and run the profiler with Clang Address sanitizer")
-        .DependsOn(BuildNativeLoader)
-        .DependsOn(CompileProfilerWithAsanLinux)
-        .DependsOn(CompileProfilerWithAsanWindows)
-        .DependsOn(PublishProfiler)
+        .DependsOn(BuildProfilerAsanTest)
+        .DependsOn(BuildProfilerSampleForSanitiserTests)
         .DependsOn(RunSampleWithProfilerAsan);
 
     Target CompileProfilerWithAsanLinux => _ => _
@@ -452,7 +672,7 @@ partial class Build
         .OnlyWhenStatic(() => IsLinux)
         .Executes(() =>
         {
-            RunProfilerUnitTests(Configuration.Release, MSBuildTargetPlatform.x64, SanitizerKind.Asan);
+            RunProfilerUnitTests("Datadog.Profiler.Native.Tests", Configuration.Release, MSBuildTargetPlatform.x64, SanitizerKind.Asan);
         });
 
     Target CompileProfilerWithAsanWindows => _ => _
@@ -496,7 +716,7 @@ partial class Build
         {
             foreach (var platform in new[] { MSBuildTargetPlatform.x64, MSBuildTargetPlatform.x86 })
             {
-                RunProfilerUnitTests(Configuration.Release, platform);
+                RunProfilerUnitTests("Datadog.Profiler.Native.Tests", Configuration.Release, platform, SanitizerKind.Asan);
             }
         });
 
@@ -504,10 +724,7 @@ partial class Build
         .Unlisted()
         .Requires(() => Framework)
         .OnlyWhenStatic(() => IsWin || IsLinux)
-        .After(BuildNativeLoader)
-        .After(PublishProfiler)
-        .After(CompileProfilerWithAsanLinux)
-        .After(CompileProfilerWithAsanWindows)
+        .After(BuildProfilerSampleForSanitiserTests)
         .Triggers(CheckTestResultForProfilerWithSanitizer)
         .Executes(() =>
         {
@@ -515,8 +732,6 @@ partial class Build
                 IsWin
                 ? new[] { MSBuildTargetPlatform.x64, MSBuildTargetPlatform.x86 }
                 : new[] { MSBuildTargetPlatform.x64 };
-
-            var sampleApp = ProfilerSamplesSolution.GetProject("Samples.Computer01");
 
             foreach (var platform in platforms)
             {
@@ -537,7 +752,7 @@ partial class Build
             {
                 var baseOutputDir = ProfilerBuildDataDirectory / platform.ToString();
                 var pprofsOutputDir = baseOutputDir / "pprofs";
-                Logger.Info($"Check if pprofs file(s) was/were generated at {pprofsOutputDir}");
+                Logger.Information($"Check if pprofs file(s) was/were generated at {pprofsOutputDir}");
 
                 var pprofFiles = pprofsOutputDir.GlobFiles(
                     $"*.pprof"
@@ -550,7 +765,7 @@ partial class Build
                 }
 
                 var logsOutputDir = baseOutputDir / "logs";
-                Logger.Info($"Look for profiler log file(s) in {logsOutputDir}");
+                Logger.Information($"Look for profiler log file(s) in {logsOutputDir}");
 
                 var logFiles = logsOutputDir.GlobFiles(
                     $"DD-DotNet-Profiler-Native-*.log"
@@ -564,13 +779,22 @@ partial class Build
             }
         });
 
+    Target BuildProfilerUbsanTest => _ => _
+        .Unlisted()
+        .Description("Compile the profiler with Clang Undefined-behavior sanitizer")
+        .OnlyWhenStatic(() => IsLinux)
+        .DependsOn(BuildNativeLoader)
+        .DependsOn(CompileProfilerWithUbsanLinux)
+        .DependsOn(BuildNativeWrapper)
+        .DependsOn(PublishNativeWrapper)
+        .DependsOn(PublishProfiler);
+
     Target RunProfilerUbsanTest => _ => _
         .Unlisted()
         .Description("Compile and run the profiler with Clang Undefined-behavior sanitizer")
         .OnlyWhenStatic(() => IsLinux)
-        .DependsOn(BuildNativeLoader)
-        .DependsOn(CompileProfilerWithUbsanLinux)
-        .DependsOn(PublishProfiler)
+        .DependsOn(BuildProfilerUbsanTest)
+        .DependsOn(BuildProfilerSampleForSanitiserTests)
         .DependsOn(RunSampleWithProfilerUbsan);
 
 
@@ -595,7 +819,37 @@ partial class Build
         .OnlyWhenStatic(() => IsLinux)
         .Executes(() =>
         {
-            RunProfilerUnitTests(Configuration.Release, MSBuildTargetPlatform.x64, SanitizerKind.Ubsan);
+            RunProfilerUnitTests("Datadog.Profiler.Native.Tests", Configuration.Release, MSBuildTargetPlatform.x64, SanitizerKind.Ubsan);
+        });
+
+
+    Target BuildProfilerSampleForSanitiserTests => _ => _
+        .Unlisted()
+        .Requires(() => Framework)
+        .OnlyWhenStatic(() => IsWin || IsLinux)
+        .After(BuildNativeLoader)
+        .After(PublishProfiler)
+        .After(CompileProfilerWithAsanLinux)
+        .After(CompileProfilerWithAsanWindows)
+        .After(CompileProfilerWithUbsanLinux)
+        .Executes(() =>
+        {
+            var platforms =
+                IsWin
+                ? new[] { MSBuildTargetPlatform.x64, MSBuildTargetPlatform.x86 }
+                : new[] { MSBuildTargetPlatform.x64 };
+
+            var sampleApp = ProfilerSamplesSolution.GetProject("Samples.Computer01");
+
+            foreach (var platform in platforms)
+            {
+                DotNetBuild(s => s
+                                .SetFramework(Framework)
+                                .SetProjectFile(sampleApp)
+                                .SetConfiguration(Configuration.Release)
+                                .SetNoWarnDotNetCore3()
+                                .SetTargetPlatform(platform));
+            }
         });
 
     Target RunSampleWithProfilerUbsan => _ => _
@@ -620,14 +874,18 @@ partial class Build
 
     void RunSampleWithSanitizer(MSBuildTargetPlatform platform, SanitizerKind sanitizer)
     {
+        var sampleApp = ProfilerSamplesSolution.GetProject("Samples.Computer01");
+
         var envVars = new Dictionary<string, string>()
             {
                 { "DD_TRACE_ENABLED", "0" }, // Disable tracer for this test
                 { "DD_PROFILING_ENABLED", "1" },
                 { "DD_PROFILING_EXCEPTION_ENABLED", "1" },
                 { "DD_PROFILING_ALLOCATION_ENABLED", "1"},
-                { "DD_PROFILING_CONTENTION_ENABLED","1" },
-                { "DD_TRACE_DEBUG", "1" },
+                { "DD_PROFILING_LOCK_ENABLED","1" },
+                { "DD_PROFILING_HEAP_ENABLED", "1"},
+                { "DD_INTERNAL_PROFILING_DEBUG_INFO_ENABLED", "1" },
+                { "DD_INTERNAL_GC_THREADS_CPUTIME_ENABLED", "1" },
             };
 
         if (IsLinux)
@@ -651,44 +909,34 @@ partial class Build
 
         AddContinuousProfilerEnvironmentVariables(envVars);
 
-        var sampleApp = ProfilerSamplesSolution.GetProject("Samples.Computer01");
-
         var baseOutputDir = ProfilerBuildDataDirectory / platform.ToString();
 
         envVars["DD_INTERNAL_PROFILING_OUTPUT_DIR"] = baseOutputDir / "pprofs";
         envVars["DD_TRACE_LOG_DIRECTORY"] = baseOutputDir / "logs";
-
-        DotNetBuild(s => s
-            .SetFramework(Framework)
-            .SetProjectFile(sampleApp)
-            .SetConfiguration(Configuration.Release)
-            .SetNoWarnDotNetCore3()
-            .SetTargetPlatform(platform));
 
         var sampleBaseOutputDir = ProfilerOutputDirectory / "bin" / $"{Configuration.Release}-{platform}" / "profiler" / "src" / "Demos";
         var sampleAppDll = sampleBaseOutputDir / sampleApp.Name / Framework / $"{sampleApp.Name}.dll";
 
         DotNet($"{sampleAppDll} --scenario 1 --timeout 120", platform, environmentVariables: envVars);
 
-        static IReadOnlyCollection<Output> DotNet(string arguments, MSBuildTargetPlatform platform, string workingDirectory = null, IReadOnlyDictionary<string, string> environmentVariables = null, int? timeout = null, bool? logOutput = null, bool? logInvocation = null, bool? logTimestamp = null, string logFile = null, Func<string, string> outputFilter = null)
+        static IReadOnlyCollection<Output> DotNet(string arguments, MSBuildTargetPlatform platform, IReadOnlyDictionary<string, string> environmentVariables)
         {
             var dotnetPath = DotNetSettingsExtensions.GetDotNetPath(platform);
-
-            using var process = ProcessTasks.StartProcess(dotnetPath, arguments, workingDirectory, environmentVariables, timeout, logOutput, logInvocation, logTimestamp, logFile, DotNetTasks.DotNetLogger, outputFilter);
+            using var process = ProcessTasks.StartProcess(toolPath: dotnetPath, arguments: arguments, environmentVariables: environmentVariables, customLogger: DotNetTasks.DotNetLogger);
             process.AssertZeroExitCode();
             return process.Output;
 
         }
     }
 
-    void RunProfilerUnitTests(Configuration configuration, MSBuildTargetPlatform platform, SanitizerKind sanitizer = SanitizerKind.None)
+    void RunProfilerUnitTests(string testLibrary, Configuration configuration, MSBuildTargetPlatform platform, SanitizerKind sanitizer = SanitizerKind.None, string[] additionalEnvVars = null)
     {
         var intermediateDirPath =
             IsWin
             ? (RelativePath)$"{configuration}-{platform}" / "profiler" / "test"
             : string.Empty;
 
-        var workingDirectory = ProfilerOutputDirectory / "bin" / intermediateDirPath / "Datadog.Profiler.Native.Tests";
+        var workingDirectory = ProfilerOutputDirectory / "bin" / intermediateDirPath / testLibrary;
         EnsureExistingDirectory(workingDirectory);
 
         // Nuke.Tool creates a Process and run the executable inside.
@@ -710,7 +958,7 @@ partial class Build
         }
 
         var ext = IsWin ? ".exe" : string.Empty;
-        var exePath = workingDirectory / $"Datadog.Profiler.Native.Tests{ext}";
+        var exePath = workingDirectory / $"{testLibrary}{ext}";
 
         if (IsLinux)
         {
@@ -718,7 +966,7 @@ partial class Build
 
             if (sanitizer is SanitizerKind.Asan)
             {
-                envVars["ASAN_OPTIONS"] = "detect_leaks=0";
+                envVars["ASAN_OPTIONS"] = "detect_leaks=1";
             }
             else if (sanitizer is SanitizerKind.Ubsan)
             {
@@ -726,7 +974,9 @@ partial class Build
             }
         }
 
-        var testsResultFile = ProfilerBuildDataDirectory / $"Datadog.Profiler.Tests.Results.{Platform}.{configuration}.{platform}.xml";
+        AddExtraEnvVariables(envVars, additionalEnvVars);
+
+        var testsResultFile = ProfilerBuildDataDirectory / "tests" / $"{testLibrary}.Results.{Platform}.{configuration}.{platform}.xml";
         var testExe = ToolResolver.GetLocalTool(exePath);
         testExe($"--gtest_output=xml:{testsResultFile}", workingDirectory: workingDirectory, environmentVariables: envVars);
     }

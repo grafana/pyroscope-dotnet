@@ -9,8 +9,15 @@ public static class Program
 {
     private static ActivitySource _source;
 
+    private static string SpanLinkTraceId1;
+    private static string SpanLinkTraceId2;
+
+    private static string SpanLinkSpanId1;
+    private static string SpanLinkSpanId2;
+
     public static async Task Main(string[] args)
     {
+        Console.WriteLine($"SpanId 1: {SpanLinkSpanId1} SpanId 2: {SpanLinkSpanId2}");
         _source = new ActivitySource("Samples.NetActivitySdk");
 
         var activityListener = new ActivityListener
@@ -23,18 +30,27 @@ public static class Program
 
         ActivitySource.AddActivityListener(activityListener);
 
+        RunCreateSpanLinkSpans();
+
+        RunActivityLinks();
+
         using (var rootSpan = _source.StartActivity("RootSpan")) // 1 span (total 1)
         {
             RunActivityAddTags(); // 1 span (total 2)
             RunActivitySetTags(); // 1 span (total 3)
             RunActivityAddEvent(); // 5 spans (total 8)
             RunActivityAddBaggage(); // 2 spans (total 10)
+            RunActivityOperationName(); // 21 spans (total 31)
         }
 
         // needs to be outside of the above root span as we don't want a parent here
-        RunActivityConstructors(); // 4 spans (total 14)
-        RunActivityUpdate(); //  9 spans (total 23)
-        RunNonW3CId(); // 2 spans (total 25)
+        RunActivityConstructors(); // 4 spans (total 35)
+        RunActivityUpdate(); //  9 spans (total 44)
+        RunNonW3CId(); // 2 spans (total 46)
+        RunActivityReservedAttributes(); // 1 span (47 total)
+
+        RunManuallyUpdatedStartTime(); // 3 spans (50 total)
+
         await Task.Delay(1000);
     }
 
@@ -56,6 +72,7 @@ public static class Program
         Console.WriteLine($"Activity.StatusDescription: {activity.StatusDescription}");
         Console.WriteLine($"Activity.TraceStateString: {activity.TraceStateString}");
         Console.WriteLine($"Activity.Source.Name: {activity.Source.Name}");
+        Console.WriteLine($"Activity.STartTime: {activity.StartTimeUtc}");
         Console.WriteLine("Tags:");
         foreach(var tag in activity.TagObjects)
         {
@@ -125,8 +142,8 @@ public static class Program
         span4?.AddEvent(tagsEvent);
 
         using var span5 = _source.StartActivity("MultipleEvents");
-        var event1 = new ActivityEvent("event-1", DateTimeOffset.Now);
-        var event2 = new ActivityEvent("event-2", DateTimeOffset.Now);
+        var event1 = new ActivityEvent("event-1", new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero));
+        var event2 = new ActivityEvent("event-2", new DateTimeOffset(1970, 1, 1, 0, 0, 1, TimeSpan.Zero));
         span5?.AddEvent(event1);
         span5?.AddEvent(event2);
     }
@@ -153,6 +170,40 @@ public static class Program
             {
                 child.SetIdFormat(ActivityIdFormat.Hierarchical);
                 child.Start();
+            }
+        }
+    }
+
+    private static void RunManuallyUpdatedStartTime()
+    {
+        using (var parent = new Activity("TimeParent"))
+        {
+            parent.SetIdFormat(ActivityIdFormat.Hierarchical);
+            parent.SetStartTime(new DateTime(1980, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+            parent.Start();
+            using (var manuallySetStartTime = new Activity("TimeTrigger"))
+            {
+                manuallySetStartTime.SetIdFormat(ActivityIdFormat.Hierarchical);
+                manuallySetStartTime.Start();
+                // ISSUE: Activity's can have their start time modified after they are started
+                //        We use the Activity.Parent.StartTime as a basis to check whether to 
+                //        nest an Activity as a child node. 
+                //        This code then clears/updates various Span/Trace ID values on the Activity
+                //        and resets the Activity.Id value.
+                //        The issue here is that for Hierarchical IDs we were setting a Span/Trace ID
+                //        when we shouldn't have been and then clearing out the Activity.Id.
+                //        The Activity.Id would then be null and would cause issues for us and the customer's
+                //        application if they did anything with the ID.
+                manuallySetStartTime.SetStartTime(new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+                using (var child = new Activity("TimeChild"))
+                {
+                    child.SetIdFormat(ActivityIdFormat.Hierarchical);
+                    child.Start();
+
+                    // Without the fix, this child.Id.Substring(1) call would throw an NRE
+                    // as we cleared out the ID wrongly.
+                    Console.WriteLine(child.Id.Substring(1));
+                }
             }
         }
     }
@@ -217,6 +268,112 @@ public static class Program
         links.Add(new ActivityLink(someContext));
 
         using var ctor4 = _source.StartActivity("Ctor4", ActivityKind.Server, default(ActivityContext), tags, links);
+        ctor4.DisplayName = "Ctor4DisplayName";
+    }
+
+    /// <summary>
+    /// Note: These test cases were copy/pasted from parametric tests (with some find/replace to make it work here)
+    /// </summary>
+    private static IEnumerable<object[]> OperationNameData =>
+    new List<object[]>
+    {
+                // expected_operation_name, span_kind, tags_related_to_operation_name
+                new object[] { "http.server.request", ActivityKind.Server, new Dictionary<string, object>() { { "http.request.method", "GET" } } },
+                new object[] { "http.client.request", ActivityKind.Client, new Dictionary<string, object>() { { "http.request.method", "GET" } } },
+                new object[] { "redis.query", ActivityKind.Client, new Dictionary<string, object>() { { "db.system", "Redis" } } },
+                new object[] { "kafka.receive", ActivityKind.Client, new Dictionary<string, object>() { { "messaging.system", "Kafka" }, { "messaging.operation", "Receive" } } },
+                new object[] { "kafka.receive", ActivityKind.Server, new Dictionary<string, object>() { { "messaging.system", "Kafka" }, { "messaging.operation", "Receive" } } },
+                new object[] { "kafka.receive", ActivityKind.Producer, new Dictionary<string, object>() { { "messaging.system", "Kafka" }, { "messaging.operation", "Receive" } } },
+                new object[] { "kafka.receive", ActivityKind.Consumer, new Dictionary<string, object>() { { "messaging.system", "Kafka" }, { "messaging.operation", "Receive" } } },
+                new object[] { "aws.s3.request", ActivityKind.Client, new Dictionary<string, object>() { { "rpc.system", "aws-api" }, { "rpc.service", "S3" } } },
+                new object[] { "aws.client.request", ActivityKind.Client, new Dictionary<string, object>() { { "rpc.system", "aws-api" } } },
+                new object[] { "grpc.client.request", ActivityKind.Client, new Dictionary<string, object>() { { "rpc.system", "GRPC" } } },
+                new object[] { "grpc.server.request", ActivityKind.Server, new Dictionary<string, object>() { { "rpc.system", "GRPC" } } },
+                new object[] { "aws.my-function.invoke", ActivityKind.Client, new Dictionary<string, object>() { { "faas.invoked_provider", "aws" }, { "faas.invoked_name", "My-Function" } } },
+                new object[] { "datasource.invoke", ActivityKind.Server, new Dictionary<string, object>() { { "faas.trigger", "Datasource" } } },
+                new object[] { "graphql.server.request", ActivityKind.Server, new Dictionary<string, object>() { { "graphql.operation.type", "query" } } },
+                new object[] { "amqp.server.request", ActivityKind.Server, new Dictionary<string, object>() { { "network.protocol.name", "Amqp" } } },
+                new object[] { "server.request", ActivityKind.Server, new Dictionary<string, object>() },
+                new object[] { "amqp.client.request", ActivityKind.Client, new Dictionary<string, object>() { { "network.protocol.name", "Amqp" } } },
+                new object[] { "client.request", ActivityKind.Client, new Dictionary<string, object>() },
+                new object[] { "internal", ActivityKind.Internal, new Dictionary<string, object>() },
+                new object[] { "consumer", ActivityKind.Consumer, new Dictionary<string, object>() },
+                new object[] { "producer", ActivityKind.Producer, new Dictionary<string, object>() },
+                // new object[] { "otel_unknown", null, new Dictionary<string, object>() }, // always should have a span kind for Activity5+
+    };
+
+    private static void RunActivityOperationName()
+    {
+        foreach(var data in OperationNameData)
+        {
+            using var activity = _source.StartActivity(name: $"operation name should be-> {data[0]}", kind: (ActivityKind)data[1], tags: (Dictionary<string, object>)data[2]);
+        }
+    }
+
+    private static void RunActivityReservedAttributes()
+    {
+        var tags = new Dictionary<string, object>();
+        tags.Add("http.request.method", "GET"); // operation name would be "http.server.request" (without the override)
+        tags.Add("resource.name", "ResourceNameOverride");
+        tags.Add("operation.name", "OperationNameOverride");
+        tags.Add("service.name", "ServiceNameOverride");
+        tags.Add("span.type", "SpanTypeOverride");
+        tags.Add("analytics.event", "true"); // metric->  _dd1.sr.eausr: 1.0
+        using var activity = _source.StartActivity(name: "This name should not be in the snapshot", kind: ActivityKind.Server, tags: tags);
+    }
+
+    private static void RunCreateSpanLinkSpans()
+    {
+        using var activity1 = _source.StartActivity("SpanLinkSpan1", ActivityKind.Server);
+        SpanLinkTraceId1 = activity1?.TraceId.ToHexString();
+        SpanLinkSpanId1 = activity1?.SpanId.ToHexString();
+
+        using var activity2 = _source.StartActivity("SpanLinkSpan2", ActivityKind.Server);
+        SpanLinkTraceId2 = activity2?.TraceId.ToHexString();
+        SpanLinkSpanId2 = activity2?.SpanId.ToHexString();
+    }
+
+    private static void RunActivityLinks()
+    {
+        var activityTags = new ActivityTagsCollection();
+
+        activityTags["some_tag"] = "value";
+
+        var activityLinks = new List<ActivityLink>();
+
+        var activityLinkTags1 = new ActivityTagsCollection();
+        activityLinkTags1.Add("some_unserializeable_object", null); // can't serialize
+        activityLinkTags1.Add("some_string", "five");
+        activityLinkTags1.Add("some_string[]",new [] { "a", "b", "c" });
+        activityLinkTags1.Add("some_bool", false);
+        activityLinkTags1.Add("some_bool[]", new [] { true, false });
+        activityLinkTags1.Add("some_int", 5);
+        activityLinkTags1.Add("some_int[]", new [] { 5, 55, 555 } );
+        activityLinkTags1.Add("some_int[][]", new [,] {{5, 55}, {555, 5555}}); // can't serialize
+
+        // basic linked context
+        var context1 = new ActivityContext(
+            ActivityTraceId.CreateFromString(SpanLinkTraceId1.AsSpan()),
+            ActivitySpanId.CreateFromString(SpanLinkSpanId1.AsSpan()),
+            ActivityTraceFlags.None);
+
+        // basic linked context - with flat set to 1
+        var context2 = new ActivityContext(
+            ActivityTraceId.CreateFromString(SpanLinkTraceId2.AsSpan()),
+            ActivitySpanId.CreateFromString(SpanLinkSpanId2.AsSpan()),
+            ActivityTraceFlags.Recorded,
+            "foo=1,dd=t.dm:-4;s:2,bar=baz",
+            true);
+
+        activityLinks.Add(new ActivityLink(context1, activityLinkTags1));
+        activityLinks.Add(new ActivityLink(context2));
+
+        using var activity = _source.StartActivity(
+            "ActivityWithLinks",
+            ActivityKind.Server,
+            default(ActivityContext),
+            activityTags,
+            activityLinks);
     }
 
     private static IEnumerable<KeyValuePair<string, object>> GenerateKeyValuePairs()

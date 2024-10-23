@@ -3,10 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
-using System;
-using System.Net.Http;
 using Datadog.Trace.Configuration;
-using OpenTracing;
+using Datadog.Trace.SourceGenerators;
 
 namespace Datadog.Trace.OpenTracing
 {
@@ -15,6 +13,8 @@ namespace Datadog.Trace.OpenTracing
     /// </summary>
     public static class OpenTracingTracerFactory
     {
+        private const string DeprecationMessage = "OpenTracing support has been deprecated and will be removed in a future release. We recommend using OpenTelemetry instead.";
+
         /// <summary>
         /// Create a new Datadog compatible ITracer implementation with the given parameters
         /// </summary>
@@ -22,6 +22,9 @@ namespace Datadog.Trace.OpenTracing
         /// <param name="defaultServiceName">Default name of the service (default is the name of the executing assembly).</param>
         /// <param name="isDebugEnabled">Turns on all debug logging (this may have an impact on application performance).</param>
         /// <returns>A Datadog compatible ITracer implementation</returns>
+        [PublicApi]
+        [Obsolete(DeprecationMessage)]
+        [Instrumented]
         public static global::OpenTracing.ITracer CreateTracer(Uri agentEndpoint = null, string defaultServiceName = null, bool isDebugEnabled = false)
         {
             // Keep supporting this older public method by creating a TracerConfiguration
@@ -31,7 +34,7 @@ namespace Datadog.Trace.OpenTracing
 
             if (agentEndpoint != null)
             {
-                configuration.Exporter.AgentUri = agentEndpoint;
+                configuration.AgentUri = agentEndpoint;
             }
 
             if (defaultServiceName != null)
@@ -40,7 +43,8 @@ namespace Datadog.Trace.OpenTracing
             }
 
             Tracer.Configure(configuration);
-            return new OpenTracingTracer(Tracer.Instance);
+            var tracer = Tracer.Instance;
+            return new OpenTracingTracer(tracer, OpenTracingTracer.CreateDefaultScopeManager(), tracer.DefaultServiceName);
         }
 
         /// <summary>
@@ -48,9 +52,12 @@ namespace Datadog.Trace.OpenTracing
         /// </summary>
         /// <param name="tracer">Existing Datadog Tracer instance</param>
         /// <returns>A Datadog compatible ITracer implementation</returns>
+        [PublicApi]
+        [Obsolete(DeprecationMessage)]
+        [Instrumented]
         public static global::OpenTracing.ITracer WrapTracer(Tracer tracer)
         {
-            return new OpenTracingTracer(tracer);
+            return new OpenTracingTracer(tracer, OpenTracingTracer.CreateDefaultScopeManager(), tracer.DefaultServiceName);
         }
     }
 }

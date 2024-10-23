@@ -8,20 +8,23 @@
 #include <memory>
 #include <mutex>
 
+#include "CallstackProvider.h"
 #include "ManagedThreadInfo.h"
 #include "StackSnapshotResultBuffer.h"
+
+class IConfiguration;
 
 class StackFramesCollectorBase
 {
 protected:
-    StackFramesCollectorBase();
+    StackFramesCollectorBase(IConfiguration const * _configuration, CallstackProvider* callstackProvider);
 
     bool TryApplyTraceContextDataFromCurrentCollectionThreadToSnapshot();
     bool AddFrame(std::uintptr_t ip);
     void AddFakeFrame();
     void SetFrameCount(std::uint16_t count);
 
-    std::pair<uintptr_t*, std::uint16_t> Data();
+    shared::span<uintptr_t> Data();
 
     StackSnapshotResultBuffer* GetStackSnapshotResult();
     bool IsCurrentCollectionAbortRequested();
@@ -50,6 +53,7 @@ public:
 
 protected:
     ManagedThreadInfo* _pCurrentCollectionThreadInfo;
+    CallstackProvider* _callstackProvider;
 
 private:
     std::unique_ptr<StackSnapshotResultBuffer> _pStackSnapshotResult;
@@ -57,4 +61,8 @@ private:
     std::condition_variable _collectionAbortPerformedSignal;
     std::mutex _collectionAbortNotificationLock;
     bool _isRequestedCollectionAbortSuccessful;
+
+    // CI Visibility support
+    bool _isCIVisibilityEnabled;
+    uint64_t _ciVisibilitySpanId;
 };

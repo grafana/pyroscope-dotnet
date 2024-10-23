@@ -4,6 +4,9 @@
 // </copyright>
 
 #if NETFRAMEWORK
+using System;
+using System.Collections.Immutable;
+using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Datadog.Trace.AppSec;
@@ -52,10 +55,10 @@ namespace Datadog.Trace.Security.IntegrationTests
         }
     }
 
-    public abstract class AspNetWebApi : AspNetBase, IClassFixture<IisFixture>
+    public abstract class AspNetWebApi : AspNetBase, IClassFixture<IisFixture>, IAsyncLifetime
     {
         private readonly IisFixture _iisFixture;
-        private readonly string _testName;
+        private readonly bool _classicMode;
 
         public AspNetWebApi(IisFixture iisFixture, ITestOutputHelper output, bool classicMode, bool enableSecurity)
             : base("WebApi", output, "/api/home/shutdown", @"test\test-applications\security\aspnet")
@@ -63,12 +66,11 @@ namespace Datadog.Trace.Security.IntegrationTests
             SetSecurity(enableSecurity);
             SetEnvironmentVariable(Configuration.ConfigurationKeys.AppSec.Rules, DefaultRuleFile);
 
+            _classicMode = classicMode;
             _iisFixture = iisFixture;
-            _iisFixture.TryStartIis(this, classicMode ? IisAppType.AspNetClassic : IisAppType.AspNetIntegrated);
             _testName = "Security." + nameof(AspNetWebApi)
                      + (classicMode ? ".Classic" : ".Integrated")
                      + ".enableSecurity=" + enableSecurity; // assume that arm is the same
-            SetHttpPort(iisFixture.HttpPort);
         }
 
         [Trait("Category", "EndToEnd")]
@@ -103,6 +105,30 @@ namespace Datadog.Trace.Security.IntegrationTests
             var settings = VerifyHelper.GetSpanVerifierSettings(test);
             await TestAppSecRequestWithVerifyAsync(_iisFixture.Agent, url, null, 5, 1, settings, userAgent: "Hello/V");
         }
+
+        [SkippableFact]
+        public async Task TestNullAction()
+        {
+            // test integrations like ReflectedHttpActionDescriptor_ExecuteAsync_Integration and ControllerActionInvoker_InvokeAction_Integration dont crash
+            var url = "/api/home/null-action/pathparam/appscan_fingerprint";
+            var url2 = "/api/home/null-action-async/pathparam/appscan_fingerprint";
+            var settings = VerifyHelper.GetSpanVerifierSettings();
+            settings.UseTextForParameters($"scenario=null-action");
+            var dateTime = DateTime.UtcNow;
+            var res = await SubmitRequest(url, null, null);
+            var res2 = await SubmitRequest(url2, null, null);
+            var spans = WaitForSpans(_iisFixture.Agent, 2, null, minDateTime: dateTime, url: url);
+            var spans2 = WaitForSpans(_iisFixture.Agent, 2, null, minDateTime: dateTime, url: url2);
+            await VerifySpans(spans.Concat(spans2).ToImmutableList(), settings);
+        }
+
+        public async Task InitializeAsync()
+        {
+            await _iisFixture.TryStartIis(this, _classicMode ? IisAppType.AspNetClassic : IisAppType.AspNetIntegrated);
+            SetHttpPort(_iisFixture.HttpPort);
+        }
+
+        public Task DisposeAsync() => Task.CompletedTask;
 
         protected override string GetTestName() => _testName;
     }

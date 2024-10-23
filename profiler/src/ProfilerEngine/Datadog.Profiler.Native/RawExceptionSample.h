@@ -5,9 +5,31 @@
 class RawExceptionSample : public RawSample
 {
 public:
-    inline void OnTransform(std::shared_ptr<Sample>& sample, uint32_t valueOffset) const override
+    RawExceptionSample() = default;
+
+    RawExceptionSample(RawExceptionSample&& other) noexcept
+        :
+        RawSample(std::move(other)),
+        ExceptionMessage(std::move(other.ExceptionMessage)),
+        ExceptionType(std::move(other.ExceptionType))
     {
-        sample->AddValue(1, valueOffset);
+    }
+
+    RawExceptionSample& operator=(RawExceptionSample&& other) noexcept
+    {
+        if (this != &other)
+        {
+            RawSample::operator=(std::move(other));
+            ExceptionMessage = std::move(other.ExceptionMessage);
+            ExceptionType = std::move(other.ExceptionType);
+        }
+        return *this;
+    }
+
+    inline void OnTransform(std::shared_ptr<Sample>& sample, std::vector<SampleValueTypeProvider::Offset> const& valueOffsets) const override
+    {
+        assert(valueOffsets.size() == 1);
+        sample->AddValue(1, valueOffsets[0]);
     }
 
     std::string ExceptionMessage;

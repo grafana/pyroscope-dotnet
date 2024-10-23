@@ -3,7 +3,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "duration": "ScrubbedValue",
@@ -12,15 +11,16 @@
         "probe": {
           "id": "ScrubbedValue",
           "location": {
-            "method": null,
+            "method": "MoveNext",
             "type": "Unknown"
-          }
+          },
+          "version": 0
         },
         "timestamp": "ScrubbedValue"
       }
     },
     "logger": {
-      "method": null,
+      "method": "MoveNext",
       "name": null,
       "thread_id": "ScrubbedValue",
       "thread_name": "ScrubbedValue",

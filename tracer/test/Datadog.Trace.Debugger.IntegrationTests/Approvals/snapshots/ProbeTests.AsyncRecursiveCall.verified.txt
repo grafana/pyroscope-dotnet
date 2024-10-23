@@ -3,7 +3,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -12,69 +11,6 @@
               "i": {
                 "type": "Int32",
                 "value": "0"
-              },
-              "this": {
-                "type": "AsyncRecursiveCall",
-                "value": "AsyncRecursiveCall"
-              }
-            }
-          },
-          "return": {
-            "arguments": {
-              "i": {
-                "type": "Int32",
-                "value": "0"
-              },
-              "this": {
-                "type": "AsyncRecursiveCall",
-                "value": "AsyncRecursiveCall"
-              }
-            },
-            "locals": {
-              "@return": {
-                "type": "Int32",
-                "value": "3"
-              }
-            }
-          }
-        },
-        "duration": "ScrubbedValue",
-        "id": "ScrubbedValue",
-        "language": "dotnet",
-        "probe": {
-          "id": "ScrubbedValue",
-          "location": {
-            "method": "Recursive",
-            "type": "Samples.Probes.TestRuns.SmokeTests.AsyncRecursiveCall"
-          }
-        },
-        "stack": "ScrubbedValue",
-        "timestamp": "ScrubbedValue"
-      }
-    },
-    "logger": {
-      "method": "Recursive",
-      "name": "Samples.Probes.TestRuns.SmokeTests.AsyncRecursiveCall",
-      "thread_id": "ScrubbedValue",
-      "thread_name": "ScrubbedValue",
-      "version": "2"
-    },
-    "message": "ScrubbedValue",
-    "service": "probes"
-  },
-  {
-    "dd.span_id": "ScrubbedValue",
-    "dd.trace_id": "ScrubbedValue",
-    "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
-    "debugger": {
-      "snapshot": {
-        "captures": {
-          "entry": {
-            "arguments": {
-              "i": {
-                "type": "Int32",
-                "value": "1"
               },
               "this": {
                 "type": "AsyncRecursiveCall",
@@ -109,7 +45,8 @@
           "location": {
             "method": "Recursive",
             "type": "Samples.Probes.TestRuns.SmokeTests.AsyncRecursiveCall"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -129,7 +66,69 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
+    "debugger": {
+      "snapshot": {
+        "captures": {
+          "entry": {
+            "arguments": {
+              "i": {
+                "type": "Int32",
+                "value": "1"
+              },
+              "this": {
+                "type": "AsyncRecursiveCall",
+                "value": "AsyncRecursiveCall"
+              }
+            }
+          },
+          "return": {
+            "arguments": {
+              "i": {
+                "type": "Int32",
+                "value": "2"
+              },
+              "this": {
+                "type": "AsyncRecursiveCall",
+                "value": "AsyncRecursiveCall"
+              }
+            },
+            "locals": {
+              "@return": {
+                "type": "Int32",
+                "value": "3"
+              }
+            }
+          }
+        },
+        "duration": "ScrubbedValue",
+        "id": "ScrubbedValue",
+        "language": "dotnet",
+        "probe": {
+          "id": "ScrubbedValue",
+          "location": {
+            "method": "Recursive",
+            "type": "Samples.Probes.TestRuns.SmokeTests.AsyncRecursiveCall"
+          },
+          "version": 0
+        },
+        "stack": "ScrubbedValue",
+        "timestamp": "ScrubbedValue"
+      }
+    },
+    "logger": {
+      "method": "Recursive",
+      "name": "Samples.Probes.TestRuns.SmokeTests.AsyncRecursiveCall",
+      "thread_id": "ScrubbedValue",
+      "thread_name": "ScrubbedValue",
+      "version": "2"
+    },
+    "message": "ScrubbedValue",
+    "service": "probes"
+  },
+  {
+    "dd.span_id": "ScrubbedValue",
+    "dd.trace_id": "ScrubbedValue",
+    "ddsource": "dd_debugger",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -172,7 +171,8 @@
           "location": {
             "method": "Recursive",
             "type": "Samples.Probes.TestRuns.SmokeTests.AsyncRecursiveCall"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"

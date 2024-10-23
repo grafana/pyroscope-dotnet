@@ -5,10 +5,14 @@
 
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Datadog.Trace.Ci;
 using Datadog.Trace.DataStreamsMonitoring;
+using Datadog.Trace.SourceGenerators;
 using Datadog.Trace.Tagging;
+using Datadog.Trace.Telemetry;
+using Datadog.Trace.Telemetry.Metrics;
 using Datadog.Trace.Util;
 
 namespace Datadog.Trace
@@ -16,7 +20,7 @@ namespace Datadog.Trace
     /// <summary>
     /// The SpanContext contains all the information needed to express relationships between spans inside or outside the process boundaries.
     /// </summary>
-    public class SpanContext : ISpanContext, IReadOnlyDictionary<string, string>
+    public partial class SpanContext : ISpanContext, IReadOnlyDictionary<string, string>
     {
         private static readonly string[] KeyNames =
         {
@@ -28,6 +32,7 @@ namespace Datadog.Trace
             Keys.RawSpanId,
             Keys.PropagatedTags,
             Keys.AdditionalW3CTraceState,
+            Keys.LastParentId,
 
             // For mismatch version support we need to keep supporting old keys.
             HttpHeaderNames.TraceId,
@@ -41,29 +46,37 @@ namespace Datadog.Trace
         /// <see cref="SpanCreationSettings.Parent"/> in <see cref="Tracer.StartActive(string, SpanCreationSettings)"/>
         /// to specify that the new span should not inherit the currently active scope as its parent.
         /// </summary>
-        public static readonly ISpanContext None = new ReadOnlySpanContext(traceId: 0, spanId: 0, serviceName: null);
+        public static readonly ISpanContext None = new ReadOnlySpanContext(traceId: Trace.TraceId.Zero, spanId: 0, serviceName: null);
 
+        private string _rawTraceId;
+        private string _rawSpanId;
         private string _origin;
+        private string _additionalW3CTraceState;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SpanContext"/> class
-        /// from a propagated context. <see cref="Parent"/> will be null
+        /// from a propagated context. <see cref="ParentInternal"/> will be null
         /// since this is a root context locally.
         /// </summary>
         /// <param name="traceId">The propagated trace id.</param>
         /// <param name="spanId">The propagated span id.</param>
         /// <param name="samplingPriority">The propagated sampling priority.</param>
         /// <param name="serviceName">The service name to propagate to child spans.</param>
+        [PublicApi]
         public SpanContext(ulong? traceId, ulong spanId, SamplingPriority? samplingPriority = null, string serviceName = null)
-            : this(traceId, serviceName)
+            : this((TraceId)(traceId ?? 0), serviceName)
         {
+            TelemetryFactory.Metrics.Record(PublicApiUsage.SpanContext_Ctor);
+            // public ctor must keep accepting legacy types:
+            // - traceId: ulong? => TraceId
+            // - samplingPriority: SamplingPriority? => int?
             SpanId = spanId;
             SamplingPriority = (int?)samplingPriority;
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SpanContext"/> class
-        /// from a propagated context. <see cref="Parent"/> will be null
+        /// from a propagated context. <see cref="ParentInternal"/> will be null
         /// since this is a root context locally.
         /// </summary>
         /// <param name="traceId">The propagated trace id.</param>
@@ -71,17 +84,19 @@ namespace Datadog.Trace
         /// <param name="samplingPriority">The propagated sampling priority.</param>
         /// <param name="serviceName">The service name to propagate to child spans.</param>
         /// <param name="origin">The propagated origin of the trace.</param>
-        internal SpanContext(ulong? traceId, ulong spanId, int? samplingPriority, string serviceName, string origin)
+        /// <param name="isRemote">Whether this <see cref="SpanContext"/> was from a distributed context.</param>
+        internal SpanContext(TraceId traceId, ulong spanId, int? samplingPriority, string serviceName, string origin, bool isRemote = false)
             : this(traceId, serviceName)
         {
             SpanId = spanId;
             SamplingPriority = samplingPriority;
             Origin = origin;
+            IsRemote = isRemote;
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SpanContext"/> class
-        /// from a propagated context. <see cref="Parent"/> will be null
+        /// from a propagated context. <see cref="ParentInternal"/> will be null
         /// since this is a root context locally.
         /// </summary>
         /// <param name="traceId">The propagated trace id.</param>
@@ -91,14 +106,16 @@ namespace Datadog.Trace
         /// <param name="origin">The propagated origin of the trace.</param>
         /// <param name="rawTraceId">The raw propagated trace id</param>
         /// <param name="rawSpanId">The raw propagated span id</param>
-        internal SpanContext(ulong? traceId, ulong spanId, int? samplingPriority, string serviceName, string origin, string rawTraceId, string rawSpanId)
+        /// <param name="isRemote">Whether this <see cref="SpanContext"/> was from a distributed context.</param>
+        internal SpanContext(TraceId traceId, ulong spanId, int? samplingPriority, string serviceName, string origin, string rawTraceId, string rawSpanId, bool isRemote = false)
             : this(traceId, serviceName)
         {
             SpanId = spanId;
             SamplingPriority = samplingPriority;
             Origin = origin;
-            RawTraceId = rawTraceId;
-            RawSpanId = rawSpanId;
+            _rawTraceId = rawTraceId;
+            _rawSpanId = rawSpanId;
+            IsRemote = isRemote;
         }
 
         /// <summary>
@@ -112,33 +129,39 @@ namespace Datadog.Trace
         /// <param name="spanId">The propagated span id.</param>
         /// <param name="rawTraceId">Raw trace id value</param>
         /// <param name="rawSpanId">Raw span id value</param>
-        internal SpanContext(ISpanContext parent, TraceContext traceContext, string serviceName, ulong? traceId = null, ulong? spanId = null, string rawTraceId = null, string rawSpanId = null)
-            : this(parent?.TraceId > 0 ? parent.TraceId : traceId, serviceName)
+        /// <param name="isRemote">Whether this <see cref="SpanContext"/> was from a distributed context.</param>
+        internal SpanContext(ISpanContext parent, TraceContext traceContext, string serviceName, TraceId traceId = default, ulong spanId = 0, string rawTraceId = null, string rawSpanId = null, bool isRemote = false)
+            : this(GetTraceId(parent, traceId), serviceName)
         {
-            SpanId = spanId ?? RandomIdGenerator.Shared.NextSpanId();
-            Parent = parent;
+            // if 128-bit trace ids are enabled, also use full uint64 for span id,
+            // otherwise keep using the legacy so-called uint63s.
+            var useAllBits = traceContext?.Tracer?.Settings?.TraceId128BitGenerationEnabled ?? true;
+
+            SpanId = spanId > 0 ? spanId : RandomIdGenerator.Shared.NextSpanId(useAllBits);
+            ParentInternal = parent;
             TraceContext = traceContext;
 
             if (parent is SpanContext spanContext)
             {
-                RawTraceId = spanContext.RawTraceId ?? rawTraceId;
+                _rawTraceId = spanContext._rawTraceId ?? rawTraceId;
                 PathwayContext = spanContext.PathwayContext;
             }
             else
             {
-                RawTraceId = rawTraceId;
+                _rawTraceId = rawTraceId;
             }
 
-            RawSpanId = rawSpanId;
+            _rawSpanId = rawSpanId;
+            IsRemote = isRemote;
         }
 
-        private SpanContext(ulong? traceId, string serviceName)
+        private SpanContext(TraceId traceId, string serviceName)
         {
-            TraceId = traceId > 0
-                          ? traceId.Value
-                          : RandomIdGenerator.Shared.NextSpanId();
+            TraceId128 = traceId == Trace.TraceId.Zero
+                          ? RandomIdGenerator.Shared.NextTraceId(useAllBits: false)
+                          : traceId;
 
-            ServiceName = serviceName;
+            ServiceNameInternal = serviceName;
 
             // Because we have a ctor as part of the public api without accepting the origin tag,
             // we need to ensure new SpanContext created by this .ctor has the CI Visibility origin
@@ -153,27 +176,36 @@ namespace Datadog.Trace
         /// <summary>
         /// Gets the parent context.
         /// </summary>
-        public ISpanContext Parent { get; }
+        [GeneratePublicApi(PublicApiUsage.SpanContext_Parent_Get)]
+        internal ISpanContext ParentInternal { get; }
 
         /// <summary>
-        /// Gets the trace id
+        /// Gets the 128-bit trace id.
         /// </summary>
-        public ulong TraceId { get; }
+        internal TraceId TraceId128 { get; }
 
         /// <summary>
-        /// Gets the span id of the parent span
+        /// Gets the 64-bit trace id, or the lower 64 bits of a 128-bit trace id.
         /// </summary>
-        public ulong? ParentId => Parent?.SpanId;
+        [PublicApi]
+        public ulong TraceId => TraceId128.Lower;
 
         /// <summary>
-        /// Gets the span id
+        /// Gets the span id of the parent span.
         /// </summary>
-        public ulong SpanId { get; }
+        [GeneratePublicApi(PublicApiUsage.SpanContext_ParentId_Get)]
+        internal ulong? ParentIdInternal => ParentInternal?.SpanId;
+
+        /// <summary>
+        /// Gets the span id.
+        /// </summary>
+        public ulong SpanId { get; internal set; }
 
         /// <summary>
         /// Gets or sets the service name to propagate to child spans.
         /// </summary>
-        public string ServiceName { get; set; }
+        [GeneratePublicApi(PublicApiUsage.SpanContext_ServiceName_Get, PublicApiUsage.SpanContext_ServiceName_Set)]
+        internal string ServiceNameInternal { get; set; }
 
         /// <summary>
         /// Gets or sets the origin of the trace.
@@ -213,23 +245,52 @@ namespace Datadog.Trace
         internal int? SamplingPriority { get; }
 
         /// <summary>
-        /// Gets the raw traceId (to support > 64bits)
+        /// Gets the trace id as a hexadecimal string of length 32,
+        /// padded with zeros to the left if needed.
         /// </summary>
-        internal string RawTraceId { get; }
+        internal string RawTraceId => _rawTraceId ??= HexString.ToHexString(TraceId128);
 
         /// <summary>
-        /// Gets the raw spanId
+        /// Gets or sets the span id as a hexadecimal string of length 16,
+        /// padded with zeros to the left if needed.
         /// </summary>
-        internal string RawSpanId { get; }
+        internal string RawSpanId
+        {
+            get => _rawSpanId ??= HexString.ToHexString(SpanId);
+            set => _rawSpanId = value;
+        }
 
         /// <summary>
         /// Gets or sets additional key/value pairs from an upstream "tracestate" W3C header that we will propagate downstream.
         /// This value will _not_ include the "dd" key, which is parsed out into other individual values
         /// (e.g. sampling priority, origin, propagates tags, etc).
         /// </summary>
-        internal string AdditionalW3CTraceState { get; set; }
+        internal string AdditionalW3CTraceState
+        {
+            get => TraceContext?.AdditionalW3CTraceState ?? _additionalW3CTraceState;
+            set
+            {
+                _additionalW3CTraceState = value;
+
+                if (TraceContext is not null)
+                {
+                    TraceContext.AdditionalW3CTraceState = value;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the last span ID of the most recently seen Datadog span that will be propagated downstream
+        /// to allow for the re-parenting of spans in cases where spans in distributed traces have missing spans.
+        /// </summary>
+        internal string LastParentId { get; set; }
 
         internal PathwayContext? PathwayContext { get; private set; }
+
+        /// <summary>
+        ///  Gets a value indicating whether this <see cref="SpanContext"/> was propagated from a remote parent.
+        /// </summary>
+        internal bool IsRemote { get; }
 
         /// <inheritdoc/>
         int IReadOnlyCollection<KeyValuePair<string, string>>.Count => KeyNames.Length;
@@ -304,18 +365,19 @@ namespace Datadog.Trace
             {
                 case Keys.TraceId:
                 case HttpHeaderNames.TraceId:
-                    value = TraceId.ToString(invariant);
+                    // use the lower 64-bits for backwards compat, truncate using TraceId128.Lower
+                    value = TraceId128.Lower.ToString(invariant);
                     return true;
 
                 case Keys.ParentId:
                 case HttpHeaderNames.ParentId:
+                    // returns the 64-bit span id in decimal encoding
                     value = SpanId.ToString(invariant);
                     return true;
 
                 case Keys.SamplingPriority:
                 case HttpHeaderNames.SamplingPriority:
-                    // return the value from TraceContext if available
-                    var samplingPriority = TraceContext?.SamplingPriority ?? SamplingPriority;
+                    var samplingPriority = GetOrMakeSamplingDecision();
                     value = samplingPriority?.ToString(invariant);
                     return true;
 
@@ -325,22 +387,27 @@ namespace Datadog.Trace
                     return true;
 
                 case Keys.RawTraceId:
+                    // returns the full 128-bit trace id in hexadecimal encoding
                     value = RawTraceId;
                     return true;
 
                 case Keys.RawSpanId:
+                    // returns the 64-bit span id in hexadecimal encoding
                     value = RawSpanId;
                     return true;
 
                 case Keys.PropagatedTags:
                 case HttpHeaderNames.PropagatedTags:
-                    // return the value from TraceContext if available
-                    value = TraceContext?.Tags.ToPropagationHeader() ?? PropagatedTags?.ToPropagationHeader();
+                    value = PrepareTagsHeaderForPropagation();
                     return true;
 
                 case Keys.AdditionalW3CTraceState:
                     // return the value from TraceContext if available
                     value = TraceContext?.AdditionalW3CTraceState ?? AdditionalW3CTraceState;
+                    return true;
+
+                case Keys.LastParentId:
+                    value = LastParentId;
                     return true;
 
                 default:
@@ -349,42 +416,92 @@ namespace Datadog.Trace
             }
         }
 
+        private static TraceId GetTraceId(ISpanContext context, TraceId fallback)
+        {
+            return context switch
+                   {
+                       // if there is no context or it has a zero trace id,
+                       // use the specified fallback value
+                       null or { TraceId: 0 } => fallback,
+
+                       // use the 128-bit trace id from SpanContext if possible
+                       SpanContext sc => sc.TraceId128,
+
+                       // otherwise use the 64-bit trace id from ISpanContext
+                       _ => (TraceId)context.TraceId
+                   };
+        }
+
+        /// <summary>
+        /// If <see cref="TraceContext"/> is not null, returns <see cref="Trace.TraceContext.GetOrMakeSamplingDecision"/>.
+        /// Otherwise, returns <see cref="SamplingPriority"/>.
+        /// </summary>
+        internal int? GetOrMakeSamplingDecision() =>
+            TraceContext?.GetOrMakeSamplingDecision() ?? // this SpanContext belongs to a local trace
+            SamplingPriority; // this a propagated context (also some tests rely on this)
+
+        [return: MaybeNull]
+        internal TraceTagCollection PrepareTagsForPropagation()
+        {
+            TraceTagCollection propagatedTags;
+
+            // use the value from TraceContext if available
+            if (TraceContext != null)
+            {
+                propagatedTags = TraceContext.Tags;
+            }
+            else
+            {
+                if (TraceId128.Upper > 0 && PropagatedTags == null)
+                {
+                    // we need to add the "_dd.p.tid" propagated tag, so create a new collection if we don't have one
+                    PropagatedTags = new TraceTagCollection();
+                }
+
+                propagatedTags = PropagatedTags;
+            }
+
+            // add, replace, or remove the "_dd.p.tid" tag
+            propagatedTags?.FixTraceIdTag(TraceId128);
+            return propagatedTags;
+        }
+
+        [return: MaybeNull]
+        internal string PrepareTagsHeaderForPropagation()
+        {
+            // try to get max length from tracer settings, but do NOT access Tracer.Instance
+            var headerMaxLength = TraceContext?.Tracer?.Settings?.OutgoingTagPropagationHeaderMaxLength;
+
+            var propagatedTags = PrepareTagsForPropagation();
+            return propagatedTags?.ToPropagationHeader(headerMaxLength);
+        }
+
         /// <summary>
         /// Sets a DataStreams checkpoint
         /// </summary>
         /// <param name="manager">The <see cref="DataStreamsManager"/> to use</param>
+        /// <param name="checkpointKind">The type of the checkpoint</param>
         /// <param name="edgeTags">The edge tags for this checkpoint. NOTE: These MUST be sorted alphabetically</param>
-        internal void SetCheckpoint(DataStreamsManager manager, string[] edgeTags)
+        /// <param name="payloadSizeBytes">Payload size in bytes</param>
+        /// <param name="timeInQueueMs">Edge start time extracted from the message metadata. Used only if this is start of the pathway</param>
+        /// <param name="parent">The parent context, if known</param>
+        internal void SetCheckpoint(DataStreamsManager manager, CheckpointKind checkpointKind, string[] edgeTags, long payloadSizeBytes, long timeInQueueMs, PathwayContext? parent)
         {
-            PathwayContext = manager.SetCheckpoint(PathwayContext, edgeTags);
+            if (manager != null)
+            {
+                PathwayContext = manager.SetCheckpoint(parent, checkpointKind, edgeTags, payloadSizeBytes, timeInQueueMs);
+            }
         }
 
         /// <summary>
-        /// Merges two DataStreams <see cref="PathwayContext"/>
-        /// Should be called when a pathway context is extracted from an incoming span
-        /// Used to merge contexts in a "fan in" scenario.
+        /// There shouldn't be any need to manually set the pathway context to a known value,
+        /// except in the case where messages are consumed in batch, and then processed individually to produce more messages,
+        /// in which case we need to recover the consume checkpoint so that the produce checkpoint is properly linked to it.
+        /// Kafka is the only integration offering that feature for now.
         /// </summary>
-        internal void MergePathwayContext(PathwayContext? pathwayContext)
+        internal void ManuallySetPathwayContextToPairMessages(PathwayContext? pathwayContext)
         {
-            if (pathwayContext is null)
-            {
-                return;
-            }
-
-            if (PathwayContext is null)
-            {
-                PathwayContext = pathwayContext;
-                return;
-            }
-
-            // This is purposely not thread safe
-            // The code randomly chooses between the two PathwayContexts.
-            // If there is a race, then that's okay
-            // Randomly select between keeping the current context (0) or replacing (1)
-            if (ThreadSafeRandom.Shared.Next(2) == 1)
-            {
-                PathwayContext = pathwayContext;
-            }
+            PathwayContext = pathwayContext;
         }
 
         internal static class Keys
@@ -399,6 +516,7 @@ namespace Datadog.Trace
             public const string RawSpanId = $"{Prefix}RawSpanId";
             public const string PropagatedTags = $"{Prefix}PropagatedTags";
             public const string AdditionalW3CTraceState = $"{Prefix}AdditionalW3CTraceState";
+            public const string LastParentId = $"{Prefix}LastParentId";
         }
     }
 }

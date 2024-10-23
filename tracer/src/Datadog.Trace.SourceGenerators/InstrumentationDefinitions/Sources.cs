@@ -14,65 +14,82 @@ namespace Datadog.Trace.SourceGenerators.InstrumentationDefinitions
     internal static class Sources
     {
         private const string InstrumentationsCollectionName = "Instrumentations";
-        private const string DerivedInstrumentationsCollectionName = "DerivedInstrumentations";
-        private const string InterfaceInstrumentationsCollectionName = "InterfaceInstrumentations";
 
         public static string CreateCallTargetDefinitions(IReadOnlyCollection<CallTargetDefinitionSource> definitions)
         {
-            void BuildInstrumentationDefinitions(StringBuilder sb, List<CallTargetDefinitionSource> orderedDefinitions, int integrationType, string instrumentationsCollectionName)
+            static void BuildInstrumentationDefinitions(StringBuilder sb, List<CallTargetDefinitionSource> orderedDefinitions, string instrumentationsCollectionName)
             {
                 string? integrationName = null;
-                var enumType = typeof(InstrumentationCategory);
-                var enumNames = Enum.GetNames(enumType);
-                var filteredDefs = orderedDefinitions.Where(o => o.IntegrationType == integrationType);
 
-                foreach (var name in enumNames)
+                sb.Append($@"
+            // CallTarget types
+            {instrumentationsCollectionName} = new NativeCallTargetDefinition2[]
+            {{
+");
+                foreach (var definition in orderedDefinitions)
                 {
-                    var defAttri = enumType.GetField(name).GetCustomAttributes(false).OfType<DefinitionsIdAttribute>().Single();
-                    var enumDefinitions = filteredDefs.Where(d => d.InstrumentationCategory == (InstrumentationCategory)Enum.Parse(enumType, name));
+                    integrationName = WriteDefinition(definition, integrationName, sb);
+                }
 
-                    // Template values
-                    var integrationTypeString = integrationType switch
-                    {
-                        0 => "root",
-                        1 => "derived",
-                        2 => "interface",
-                        _ => throw new ArgumentException(nameof(integrationType)),
-                    };
-                    Func<DefinitionsIdAttribute, string> getDefinitionsId = integrationType switch
-                    {
-                        0 => (DefinitionsIdAttribute def) => def.DefinitionsId,
-                        1 => (DefinitionsIdAttribute def) => def.DerivedDefinitionsId,
-                        2 => (DefinitionsIdAttribute def) => def.InterfaceDefinitionsId,
-                        _ => throw new ArgumentException(nameof(integrationType)),
-                    };
+                sb.Append($@"
+            }};");
+            }
 
-                    sb.Append($@"
-                // {integrationTypeString} types for InstrumentationCategory {name}
-                payload = new Payload
-                {{
-                    DefinitionsId = ""{getDefinitionsId(defAttri)}"",
-                    Definitions = new NativeCallTargetDefinition[]
-                    {{");
-                    foreach (var definition in enumDefinitions)
+            static void BuildInstrumentedAssemblies(StringBuilder sb, IReadOnlyCollection<CallTargetDefinitionSource> orderedDefinitions)
+            {
+                var hashSet = new HashSet<string>();
+                foreach (var orderedDefinition in orderedDefinitions)
+                {
+                    if (!IsKnownAssemblyPrefix(orderedDefinition.AssemblyName))
                     {
-                        integrationName = WriteDefinition(definition, integrationName, sb);
+                        hashSet.Add(orderedDefinition.AssemblyName);
+                    }
+                }
+
+                var doneFirst = false;
+
+                foreach (var assembly in hashSet.OrderBy(x => x))
+                {
+                    if (doneFirst)
+                    {
+                        sb
+                           .Append(
+                                """
+                                
+                                            || 
+                                """);
                     }
 
-                    sb.Append($@"
-                    }}
-                }};
-                {instrumentationsCollectionName}.Add(InstrumentationCategory.{name}, payload);
-                {instrumentationsCollectionName}Natives = {instrumentationsCollectionName}Natives.Concat(payload.Definitions);
-                ");
+                    sb
+                       .Append("assemblyName.StartsWith(\"")
+                       .Append(assembly)
+                      .Append(",\", StringComparison.Ordinal)");
+                    doneFirst = true;
+                }
+
+                if (!doneFirst)
+                {
+                    sb.Append("false");
+                }
+
+                return;
+
+                // NOTE: Keep this in sync with ExceptionRedactor.IsKnownAssemblyPrefix()
+                static bool IsKnownAssemblyPrefix(string assemblyName)
+                {
+                    return assemblyName.StartsWith("Datadog.", StringComparison.Ordinal)
+                        || assemblyName.StartsWith("mscorlib,", StringComparison.Ordinal) // note that this uses ',' not '.' as it's the full assembly name
+                        || assemblyName.StartsWith("Microsoft.", StringComparison.Ordinal)
+                        || assemblyName.StartsWith("System.", StringComparison.Ordinal)
+                        || assemblyName.StartsWith("Azure.", StringComparison.Ordinal)
+                        || assemblyName.StartsWith("AWSSDK.", StringComparison.Ordinal);
                 }
             }
 
             var sb = new StringBuilder();
-            sb.Append($@"// <auto-generated/>
-#nullable enable
-
-using System;
+            sb.Append(Datadog.Trace.SourceGenerators.Constants.FileHeader);
+            sb.Append(
+                $@"using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -81,16 +98,10 @@ namespace Datadog.Trace.ClrProfiler
 {{
     internal static partial class InstrumentationDefinitions
     {{
-        private static IDictionary<InstrumentationCategory, Payload> {InstrumentationsCollectionName} = new Dictionary<InstrumentationCategory, Payload>();
-        private static IDictionary<InstrumentationCategory, Payload> {DerivedInstrumentationsCollectionName} = new Dictionary<InstrumentationCategory, Payload>();
-        private static IDictionary<InstrumentationCategory, Payload> {InterfaceInstrumentationsCollectionName} = new Dictionary<InstrumentationCategory, Payload>();
-        private static IEnumerable<NativeCallTargetDefinition> {InstrumentationsCollectionName}Natives = new List<NativeCallTargetDefinition>();
-        private static IEnumerable<NativeCallTargetDefinition> {DerivedInstrumentationsCollectionName}Natives = new List<NativeCallTargetDefinition>();
-        private static IEnumerable<NativeCallTargetDefinition> {InterfaceInstrumentationsCollectionName}Natives = new List<NativeCallTargetDefinition>();
+        internal static NativeCallTargetDefinition2[] {InstrumentationsCollectionName};
 
         static InstrumentationDefinitions()
-        {{
-            Payload payload = default;");
+        {{");
             var orderedDefinitions = definitions
                                     .OrderBy(static x => x.IntegrationName)
                                     .ThenBy(static x => x.AssemblyName)
@@ -98,34 +109,29 @@ namespace Datadog.Trace.ClrProfiler
                                     .ThenBy(static x => x.TargetMethodName)
                                     .ToList();
 
-            string? integrationName = null;
-            var enumType = typeof(InstrumentationCategory);
-            var enumNames = Enum.GetNames(enumType);
+            BuildInstrumentationDefinitions(sb, orderedDefinitions, InstrumentationsCollectionName);
+            sb.Append(@$"
+        }}
 
-            BuildInstrumentationDefinitions(sb, orderedDefinitions, 0, InstrumentationsCollectionName);
-            BuildInstrumentationDefinitions(sb, orderedDefinitions, 1, DerivedInstrumentationsCollectionName);
-            BuildInstrumentationDefinitions(sb, orderedDefinitions, 2, InterfaceInstrumentationsCollectionName);
+        /// <summary>
+        /// Checks if the provided <see cref=""System.Reflection.Assembly.FullName""/> assembly
+        /// is one we instrument. Assumes you have already checked for ""well-known"" prefixes
+        /// like ""System"" and ""Microsoft"".
+        /// </summary>
+        internal static bool IsInstrumentedAssembly(string assemblyName)
+            => ");
 
-            sb.Append(@"
-        }
+            BuildInstrumentedAssemblies(sb, definitions);
 
-        private static Payload GetDefinitionsArray(InstrumentationCategory instrumentationCategory = InstrumentationCategory.Tracing)
-            => Instrumentations[instrumentationCategory];
+            sb.Append($@";
 
-        private static Payload GetDerivedDefinitionsArray(InstrumentationCategory instrumentationCategory = InstrumentationCategory.Tracing)
-            => DerivedInstrumentations[instrumentationCategory];
-
-        private static Payload GetInterfaceDefinitionsArray(InstrumentationCategory instrumentationCategory = InstrumentationCategory.Tracing)
-            => InterfaceInstrumentations[instrumentationCategory];
-
-        internal static Datadog.Trace.Configuration.IntegrationId? GetIntegrationId(
-            string? integrationTypeName, System.Type targetType)
-        {
+        internal static Datadog.Trace.Configuration.IntegrationId? GetIntegrationId(string? integrationTypeName, System.Type targetType)
+        {{
             return integrationTypeName switch
-            {
+            {{
                 // integrations with a single IntegrationId per implementation type
                 ");
-            integrationName = null;
+            string? integrationName = null;
             foreach (var definition in orderedDefinitions)
             {
                 if (definition.IsAdoNetIntegration)
@@ -211,8 +217,7 @@ namespace Datadog.Trace.ClrProfiler
             };
         }
 
-        public static Datadog.Trace.Configuration.IntegrationId? GetAdoNetIntegrationId(
-            string? integrationTypeName, string? targetTypeName, string? assemblyName)
+        public static Datadog.Trace.Configuration.IntegrationId? GetAdoNetIntegrationId(string? integrationTypeName, string? targetTypeName, string? assemblyName)
         {
             return new System.Collections.Generic.KeyValuePair<string?, string?>(assemblyName, targetTypeName) switch
             {
@@ -221,7 +226,7 @@ namespace Datadog.Trace.ClrProfiler
             integrationName = null;
             foreach (var definition in orderedDefinitions)
             {
-                if (!definition.IsAdoNetIntegration || definition.IntegrationType != 0)
+                if (!definition.IsAdoNetIntegration || definition.IntegrationKind != 0)
                 {
                     // only non-derived "adonet" integrations
                     continue;
@@ -261,7 +266,6 @@ namespace Datadog.Trace.ClrProfiler
                 sb.Append(@"=> Datadog.Trace.Configuration.IntegrationId.")
                   .Append(integrationName)
                   .Append(@",
-
                 ");
             }
 
@@ -287,36 +291,62 @@ namespace Datadog.Trace.ClrProfiler
 
                 integrationName = definition.IntegrationName;
                 sb.Append(
-                    $@"
+                $@"
                 // {integrationName}");
             }
 
             sb.Append(
-                   @"
-               new (""")
+               @"
+                new (NativeCallTargetUnmanagedMemoryHelper.AllocateAndWriteUtf16String(""")
               .Append(definition.AssemblyName)
-              .Append(@""", """)
+              .Append(@"""), NativeCallTargetUnmanagedMemoryHelper.AllocateAndWriteUtf16String(""")
               .Append(definition.TargetTypeName)
-              .Append(@""", """)
+              .Append(@"""), NativeCallTargetUnmanagedMemoryHelper.AllocateAndWriteUtf16String(""")
               .Append(definition.TargetMethodName)
-              .Append(@""",  new[] { """)
-              .Append(definition.TargetReturnType)
-              .Append(@"""");
+              .Append(@"""), ");
 
-            if (definition.TargetParameterTypes is { Length: > 0 } types)
+            var paramLengths = (definition.TargetParameterTypes.Count) + 1;
+            if (paramLengths > 9)
             {
-                foreach (var parameterType in types)
+                sb.Append(@"NativeCallTargetUnmanagedMemoryHelper.AllocateAndWriteUtf16StringArray(new[] { """)
+                  .Append(definition.TargetReturnType)
+                  .Append(@"""");
+
+                foreach (var parameterType in definition.TargetParameterTypes!)
                 {
                     sb.Append(@", """)
                       .Append(parameterType)
                       .Append('"');
                 }
+
+                sb.Append(" }), ")
+                  .Append(paramLengths)
+                  .Append(", ");
+            }
+            else
+            {
+                sb.Append(@"NativeCallTargetUnmanagedMemoryHelper.AllocateAndWriteUtf16StringArray(""")
+                  .Append(definition.TargetReturnType)
+                  .Append(@"""");
+
+                if (definition.TargetParameterTypes is { Count: > 0 } types)
+                {
+                    foreach (var parameterType in types)
+                    {
+                        sb.Append(@", """)
+                          .Append(parameterType)
+                          .Append('"');
+                    }
+                }
+
+                sb.Append("), ")
+                  .Append(paramLengths)
+                  .Append(", ");
             }
 
             var min = definition.MinimumVersion;
             var max = definition.MaximumVersion;
-            sb.Append(" }, ")
-              .Append(min.Major)
+            sb.Append(min.Major)
               .Append(", ")
               .Append(min.Minor)
               .Append(", ")
@@ -328,9 +358,11 @@ namespace Datadog.Trace.ClrProfiler
               .Append(", ")
               .Append(max.Patch);
 
-            sb.Append(@", assemblyFullName, """)
+            sb.Append(@", NativeCallTargetUnmanagedMemoryHelper.AllocateAndWriteUtf16String(assemblyFullName), NativeCallTargetUnmanagedMemoryHelper.AllocateAndWriteUtf16String(""")
               .Append(definition.InstrumentationTypeName)
-              .Append(@"""),");
+              .Append(@"""), ")
+              .Append($"{definition.IntegrationKind}, ")
+              .Append($"{(int)definition.InstrumentationCategory}),");
             return integrationName;
         }
     }

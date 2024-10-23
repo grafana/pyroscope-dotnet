@@ -4,10 +4,13 @@
 // </copyright>
 
 using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using Datadog.Trace.Agent;
 using Datadog.Trace.Configuration;
 using Datadog.Trace.Sampling;
 using Datadog.Trace.Util;
+using FluentAssertions;
 using Moq;
 using Xunit;
 
@@ -116,7 +119,20 @@ namespace Datadog.Trace.ClrProfiler.Managed.Tests
         public void CleanUri_HttpUrlTag(string uri, string expected, bool includeQuerystring)
         {
             // Set up Tracer
-            var settings = new TracerSettings { QueryStringReportingEnabled = includeQuerystring };
+            var dictionary = new Dictionary<string, object>
+            {
+                { ConfigurationKeys.QueryStringReportingEnabled, includeQuerystring },
+                { ConfigurationKeys.ObfuscationQueryStringRegexTimeout, "5000" }
+            };
+
+#if NETCOREAPP2_1
+            // Add old one otherwise NullReferenceException on arm64/netcoreapp2.1
+            if (RuntimeInformation.OSArchitecture == Architecture.Arm64)
+            {
+                dictionary.Add(ConfigurationKeys.ObfuscationQueryStringRegex, """((?i)(?:p(?:ass)?w(?:or)?d|pass(?:_?phrase)?|secret|(?:api_?|private_?|public_?|access_?|secret_?)key(?:_?id)?|token|consumer_?(?:id|key|secret)|sign(?:ed|ature)?|auth(?:entication|orization)?)(?:(?:\s|%20)*(?:=|%3D)[^&]+|(?:"|%22)(?:\s|%20)*(?::|%3A)(?:\s|%20)*(?:"|%22)(?:%2[^2]|%[^2]|[^"%])+(?:"|%22))|bearer(?:\s|%20)+[a-z0-9\._\-]|token(?::|%3A)[a-z0-9]{13}|gh[opsu]_[0-9a-zA-Z]{36}|ey[I-L](?:[\w=-]|%3D)+\.ey[I-L](?:[\w=-]|%3D)+(?:\.(?:[\w.+\/=-]|%3D|%2F|%2B)+)?|[\-]{5}BEGIN(?:[a-z\s]|%20)+PRIVATE(?:\s|%20)KEY[\-]{5}[^\-]+[\-]{5}END(?:[a-z\s]|%20)+PRIVATE(?:\s|%20)KEY|ssh-rsa(?:\s|%20)*(?:[a-z0-9\/\.+]|%2F|%5C|%2B){100,})""");
+            }
+#endif
+            var settings = TracerSettings.Create(dictionary);
             var writerMock = new Mock<IAgentWriter>();
             var samplerMock = new Mock<ITraceSampler>();
             var tracer = new Tracer(settings, writerMock.Object, samplerMock.Object, scopeManager: null, statsd: null);
@@ -125,8 +141,8 @@ namespace Datadog.Trace.ClrProfiler.Managed.Tests
 
             using (var automaticScope = ScopeFactory.CreateOutboundHttpScope(tracer, method, new Uri(uri), IntegrationId.HttpMessageHandler, out var tags))
             {
-                Assert.Equal(expected, automaticScope.Span.GetTag(Tags.HttpUrl));
-                Assert.Equal(expected, tags.HttpUrl);
+                expected.Should().Be(automaticScope.Span.GetTag(Tags.HttpUrl));
+                expected.Should().Be(tags.HttpUrl);
             }
         }
 

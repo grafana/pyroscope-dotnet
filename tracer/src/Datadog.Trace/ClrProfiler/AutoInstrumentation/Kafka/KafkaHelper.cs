@@ -3,10 +3,13 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
+#nullable enable
+
 using System;
-using System.Collections.Generic;
 using System.Text;
 using Datadog.Trace.DataStreamsMonitoring;
+using Datadog.Trace.DataStreamsMonitoring.Utils;
+using Datadog.Trace.DuckTyping;
 using Datadog.Trace.Logging;
 using Datadog.Trace.Propagators;
 using Datadog.Trace.Tagging;
@@ -15,13 +18,22 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Kafka
 {
     internal static class KafkaHelper
     {
+        internal const string GroupIdKey = "group.id";
+        internal const string BootstrapServersKey = "bootstrap.servers";
+        internal const string EnableDeliveryReportsField = "dotnet.producer.enable.delivery.reports";
+        private const string MessagingType = "kafka";
         private static readonly IDatadogLogger Log = DatadogLogging.GetLoggerFor(typeof(KafkaHelper));
         private static bool _headersInjectionEnabled = true;
         private static string[] defaultProduceEdgeTags = new[] { "direction:out", "type:kafka" };
 
-        internal static Scope CreateProducerScope(Tracer tracer, ITopicPartition topicPartition, bool isTombstone, bool finishOnClose)
+        internal static Scope? CreateProducerScope(
+            Tracer tracer,
+            object producer,
+            ITopicPartition topicPartition,
+            bool isTombstone,
+            bool finishOnClose)
         {
-            Scope scope = null;
+            Scope? scope = null;
 
             try
             {
@@ -33,18 +45,19 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Kafka
                 }
 
                 var parent = tracer.ActiveScope?.Span;
+                string operationName = tracer.CurrentTraceSettings.Schema.Messaging.GetOutboundOperationName(MessagingType);
                 if (parent is not null &&
-                    parent.OperationName == KafkaConstants.ProduceOperationName &&
+                    parent.OperationName == operationName &&
                     parent.GetTag(Tags.InstrumentationName) != null)
                 {
                     return null;
                 }
 
-                string serviceName = settings.GetServiceName(tracer, KafkaConstants.ServiceName);
-                var tags = new KafkaTags(SpanKinds.Producer);
+                string serviceName = tracer.CurrentTraceSettings.Schema.Messaging.GetServiceName(MessagingType);
+                KafkaTags tags = tracer.CurrentTraceSettings.Schema.Messaging.CreateKafkaTags(SpanKinds.Producer);
 
                 scope = tracer.StartActiveInternal(
-                    KafkaConstants.ProduceOperationName,
+                    operationName,
                     tags: tags,
                     serviceName: serviceName,
                     finishOnClose: finishOnClose);
@@ -59,14 +72,20 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Kafka
                     tags.Partition = (topicPartition?.Partition).ToString();
                 }
 
+                if (ProducerCache.TryGetProducer(producer, out var bootstrapServers))
+                {
+                    tags.BootstrapServers = bootstrapServers;
+                }
+
                 if (isTombstone)
                 {
                     tags.Tombstone = "true";
                 }
 
                 // Producer spans should always be measured
-                span.SetTag(Tags.Measured, "1");
+                span.SetMetric(Trace.Tags.Measured, 1.0);
 
+                tracer.CurrentTraceSettings.Schema.RemapPeerService(tags);
                 tags.SetAnalyticsSampleRate(KafkaConstants.IntegrationId, settings, enabledWithGlobalSetting: false);
                 tracer.TracerManager.Telemetry.IntegrationGeneratedSpan(KafkaConstants.IntegrationId);
             }
@@ -78,7 +97,37 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Kafka
             return scope;
         }
 
-        internal static Scope CreateConsumerScope(
+        private static long GetMessageSize<T>(T message)
+            where T : IMessage
+        {
+            if (((IDuckType)message).Instance is null)
+            {
+                return 0;
+            }
+
+            var size = MessageSizeHelper.TryGetSize(message.Key);
+            size += MessageSizeHelper.TryGetSize(message.Value);
+
+            if (message.Headers == null)
+            {
+                return size;
+            }
+
+            for (var i = 0; i < message.Headers.Count; i++)
+            {
+                var header = message.Headers[i];
+                size += Encoding.UTF8.GetByteCount(header.Key);
+                var value = header.GetValueBytes();
+                if (value != null)
+                {
+                    size += value.Length;
+                }
+            }
+
+            return size;
+        }
+
+        internal static Scope? CreateConsumerScope(
             Tracer tracer,
             DataStreamsManager dataStreamsManager,
             object consumer,
@@ -87,7 +136,7 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Kafka
             Offset? offset,
             IMessage message)
         {
-            Scope scope = null;
+            Scope? scope = null;
 
             try
             {
@@ -98,14 +147,15 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Kafka
                 }
 
                 var parent = tracer.ActiveScope?.Span;
+                string operationName = tracer.CurrentTraceSettings.Schema.Messaging.GetInboundOperationName(MessagingType);
                 if (parent is not null &&
-                    parent.OperationName == KafkaConstants.ConsumeOperationName &&
+                    parent.OperationName == operationName &&
                     parent.GetTag(Tags.InstrumentationName) != null)
                 {
                     return null;
                 }
 
-                SpanContext propagatedContext = null;
+                SpanContext? propagatedContext = null;
                 PathwayContext? pathwayContext = null;
 
                 // Try to extract propagated context from headers
@@ -135,11 +185,11 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Kafka
                     }
                 }
 
-                string serviceName = tracer.Settings.GetServiceName(tracer, KafkaConstants.ServiceName);
+                var serviceName = tracer.CurrentTraceSettings.Schema.Messaging.GetServiceName(MessagingType);
+                var tags = tracer.CurrentTraceSettings.Schema.Messaging.CreateKafkaTags(SpanKinds.Consumer);
 
-                var tags = new KafkaTags(SpanKinds.Consumer);
-
-                scope = tracer.StartActiveInternal(KafkaConstants.ConsumeOperationName, parent: propagatedContext, tags: tags, serviceName: serviceName);
+                scope = tracer.StartActiveInternal(operationName, parent: propagatedContext, tags: tags, serviceName: serviceName);
+                tracer.TracerManager.Telemetry.IntegrationGeneratedSpan(KafkaConstants.IntegrationId);
 
                 string resourceName = $"Consume Topic {(string.IsNullOrEmpty(topic) ? "kafka" : topic)}";
 
@@ -157,9 +207,10 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Kafka
                     tags.Offset = offset.ToString();
                 }
 
-                if (ConsumerGroupHelper.TryGetConsumerGroup(consumer, out var groupId))
+                if (ConsumerCache.TryGetConsumerGroup(consumer, out var groupId, out var bootstrapServers))
                 {
                     tags.ConsumerGroup = groupId;
+                    tags.BootstrapServers = bootstrapServers;
                 }
 
                 if (message is not null && message.Timestamp.Type != 0)
@@ -181,42 +232,28 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Kafka
 
                 if (dataStreamsManager.IsEnabled)
                 {
-                    // remove any leftover junk they may be left in the headers
-                    message?.Headers?.Remove(DataStreamsPropagationHeaders.TemporaryBase64PathwayContext);
-                    message?.Headers?.Remove(DataStreamsPropagationHeaders.TemporaryEdgeTags);
+                    // TODO: we could pool these arrays to reduce allocations
+                    // NOTE: the tags must be sorted in alphabetical order
+                    var edgeTags = string.IsNullOrEmpty(topic)
+                                       ? new[] { "direction:in", $"group:{groupId}", "type:kafka" }
+                                       : new[] { "direction:in", $"group:{groupId}", $"topic:{topic}", "type:kafka" };
 
-                    if (!tracer.Settings.KafkaCreateConsumerScopeEnabled && message?.Headers is not null)
+                    span.SetDataStreamsCheckpoint(
+                        dataStreamsManager,
+                        CheckpointKind.Consume,
+                        edgeTags,
+                        message is null ? 0 : GetMessageSize(message),
+                        tags.MessageQueueTimeMs == null ? 0 : (long)tags.MessageQueueTimeMs,
+                        pathwayContext);
+
+                    message?.Headers?.Remove(DataStreamsPropagationHeaders.TemporaryBase64PathwayContext); // remove eventual junk
+                    if (!tracer.Settings.KafkaCreateConsumerScopeEnabledInternal && message?.Headers is not null && span.Context.PathwayContext != null)
                     {
-                        // This is a brilliant and horrible approach to let customers who are already
-                        // extracting the span context from a Kafka message automatically get
-                        // checkpointing support in their custom instrumentation
-                        if (message.Headers.TryGetLastBytes(DataStreamsPropagationHeaders.PropagationKey, out var bytes))
-                        {
-                            // annoyingly we have to re-encode the pathwayContext as base64 so we can read it as
-                            // a string in SpanContextExtractor.Extract
-                            // if there was no pathway context, we don't need to encode it
-                            var base64PathwayContext = System.Convert.ToBase64String(bytes);
-                            message.Headers.Add(DataStreamsPropagationHeaders.TemporaryBase64PathwayContext, Encoding.UTF8.GetBytes(base64PathwayContext));
-                        }
-
-                        // ','is not a valid character in kafka topic or group names, so we use as the
-                        // separator here NOTE: the tags must be sorted in alphabetical order
-                        var edgeTags = string.IsNullOrEmpty(topic)
-                                           ? $"direction:in,group:{groupId},type:kafka"
-                                           : $"direction:in,group:{groupId},topic:{topic},type:kafka";
-                        message.Headers.Add(DataStreamsPropagationHeaders.TemporaryEdgeTags, Encoding.UTF8.GetBytes(edgeTags));
-                    }
-                    else
-                    {
-                        span.Context.MergePathwayContext(pathwayContext);
-
-                        // TODO: we could pool these arrays to reduce allocations
-                        // NOTE: the tags must be sorted in alphabetical order
-                        var edgeTags = string.IsNullOrEmpty(topic)
-                                           ? new[] { "direction:in", $"group:{groupId}", "type:kafka" }
-                                           : new[] { "direction:in", $"group:{groupId}", $"topic:{topic}", "type:kafka" };
-
-                        span.SetDataStreamsCheckpoint(dataStreamsManager, edgeTags);
+                        // write the _new_ pathway (the "consume" checkpoint that we just set above) to the headers as a way to pass its value to an eventual
+                        // call to SpanContextExtractor.Extract by a user who'd like to re-pair pathways after a batch consume.
+                        // Note that this header only exists on the consume side, and Kafka never sees it.
+                        var base64PathwayContext = Convert.ToBase64String(BitConverter.GetBytes(span.Context.PathwayContext.Value.Hash.Value));
+                        message.Headers.Add(DataStreamsPropagationHeaders.TemporaryBase64PathwayContext, Encoding.UTF8.GetBytes(base64PathwayContext));
                     }
                 }
             }
@@ -233,7 +270,7 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Kafka
             try
             {
                 if (!tracer.Settings.IsIntegrationEnabled(KafkaConstants.IntegrationId)
-                    || !tracer.Settings.KafkaCreateConsumerScopeEnabled)
+                    || !tracer.Settings.KafkaCreateConsumerScopeEnabledInternal)
                 {
                     // integration disabled, skip this trace
                     return;
@@ -241,14 +278,14 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Kafka
 
                 var activeScope = tracer.InternalActiveScope;
                 var currentSpan = activeScope?.Span;
-                if (currentSpan?.OperationName != KafkaConstants.ConsumeOperationName)
+                if (currentSpan?.OperationName != tracer.CurrentTraceSettings.Schema.Messaging.GetInboundOperationName(MessagingType))
                 {
                     // Not currently in a consumer operation
                     return;
                 }
 
                 // TODO: record end-to-end time?
-                activeScope.Dispose();
+                activeScope!.Dispose();
             }
             catch (Exception ex)
             {
@@ -272,7 +309,7 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Kafka
             TMessage message)
             where TMessage : IMessage
         {
-            if (!_headersInjectionEnabled)
+            if (!_headersInjectionEnabled || message.Instance is null)
             {
                 return;
             }
@@ -293,7 +330,8 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Kafka
                     var edgeTags = string.IsNullOrEmpty(topic)
                         ? defaultProduceEdgeTags
                         : new[] { "direction:out", $"topic:{topic}", "type:kafka" };
-                    span.SetDataStreamsCheckpoint(dataStreamsManager, edgeTags);
+                    // produce is always the start of the edge, so defaultEdgeStartMs is always 0
+                    span.SetDataStreamsCheckpoint(dataStreamsManager, CheckpointKind.Produce, edgeTags, GetMessageSize(message), 0);
                     dataStreamsManager.InjectPathwayContext(span.Context.PathwayContext, adapter);
                 }
             }

@@ -67,7 +67,7 @@ namespace Datadog.Trace.Configuration
             internal const string OperatingSystemKey = "WEBSITE_OS";
 
             /// <summary>
-            /// Used to force the loader to start the tracer agent (in case automatic instrumentation is disabled)
+            /// Used to force the loader to start the trace agent (in case automatic instrumentation is disabled)
             /// </summary>
             public const string AasEnableCustomTracing = "DD_AAS_ENABLE_CUSTOM_TRACING";
 
@@ -75,6 +75,12 @@ namespace Datadog.Trace.Configuration
             /// Used to force the loader to start dogstatsd (in case automatic instrumentation is disabled)
             /// </summary>
             public const string AasEnableCustomMetrics = "DD_AAS_ENABLE_CUSTOM_METRICS";
+
+            /// <summary>
+            /// Used to identify consumption plan functions. Consumption plans will either not have this variable,
+            /// or will have a value of "dynamic".
+            /// </summary>
+            public const string WebsiteSKU = "WEBSITE_SKU";
         }
     }
 }

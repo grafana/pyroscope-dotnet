@@ -3,6 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
+#nullable enable
+
 using System;
 using System.Text;
 using System.Threading;
@@ -22,8 +24,9 @@ namespace Datadog.Trace.RemoteConfigurationManagement.Transport
         private static readonly IDatadogLogger Log = DatadogLogging.GetLoggerFor(typeof(RemoteConfigurationApi));
 
         private readonly IApiRequestFactory _apiRequestFactory;
-        private readonly string _containerId;
-        private string _configEndpoint = null;
+        private readonly string? _containerId;
+        private readonly string? _entityId;
+        private string? _configEndpoint = null;
 
         private RemoteConfigurationApi(IApiRequestFactory apiRequestFactory, IDiscoveryService discoveryService)
         {
@@ -35,6 +38,7 @@ namespace Datadog.Trace.RemoteConfigurationManagement.Transport
                 });
 
             _containerId = ContainerMetadata.GetContainerId();
+            _entityId = ContainerMetadata.GetEntityId();
         }
 
         public static RemoteConfigurationApi Create(IApiRequestFactory apiRequestFactory, IDiscoveryService discoveryService)
@@ -42,7 +46,7 @@ namespace Datadog.Trace.RemoteConfigurationManagement.Transport
             return new RemoteConfigurationApi(apiRequestFactory, discoveryService);
         }
 
-        public async Task<GetRcmResponse> GetConfigs(GetRcmRequest request)
+        public async Task<GetRcmResponse?> GetConfigs(GetRcmRequest request)
         {
             var configEndpoint = Volatile.Read(ref _configEndpoint);
             if (string.IsNullOrEmpty(configEndpoint))
@@ -64,6 +68,11 @@ namespace Datadog.Trace.RemoteConfigurationManagement.Transport
                 apiRequest.AddHeader(AgentHttpHeaderNames.ContainerId, _containerId);
             }
 
+            if (_entityId != null)
+            {
+                apiRequest.AddHeader(AgentHttpHeaderNames.EntityId, _entityId);
+            }
+
             using var apiResponse = await apiRequest.PostAsync(payload, MimeTypes.Json).ConfigureAwait(false);
             var isRcmDisabled = apiResponse.StatusCode == 404;
             if (isRcmDisabled)
@@ -80,7 +89,14 @@ namespace Datadog.Trace.RemoteConfigurationManagement.Transport
                 return null;
             }
 
-            return await apiResponse.ReadAsTypeAsync<GetRcmResponse>().ConfigureAwait(false);
+            try
+            {
+                return await apiResponse.ReadAsTypeAsync<GetRcmResponse>().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                throw new RemoteConfigurationDeserializationException(ex);
+            }
         }
     }
 }

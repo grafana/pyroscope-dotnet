@@ -15,6 +15,20 @@
 
 namespace trace
 {
+class ModuleMetadataBase {
+public:
+    const ComPtr<IMetaDataImport2> metadata_import{};
+    const ComPtr<IMetaDataEmit2> metadata_emit{};
+    const ComPtr<IMetaDataAssemblyImport> assembly_import{};
+    const ComPtr<IMetaDataAssemblyEmit> assembly_emit{};
+
+    ModuleMetadataBase(ComPtr<IMetaDataImport2> metadata_import, ComPtr<IMetaDataEmit2> metadata_emit,
+                       ComPtr<IMetaDataAssemblyImport> assembly_import, ComPtr<IMetaDataAssemblyEmit> assembly_emit):
+        metadata_import(metadata_import),
+        metadata_emit(metadata_emit),
+        assembly_import(assembly_import),
+        assembly_emit(assembly_emit){}
+};
 class ModuleMetadata;
 
 const size_t kNameMaxSize = 1024;
@@ -177,6 +191,16 @@ static Enumerator<mdAssemblyRef> EnumAssemblyRefs(const ComPtr<IMetaDataAssembly
         },
         [assembly_import](HCORENUM ptr) -> void { assembly_import->CloseEnum(ptr); });
 }
+
+static Enumerator<mdTypeSpec> EnumTypeSpecs(const ComPtr<IMetaDataImport2>& metadata_import)
+{
+    return Enumerator<mdTypeSpec>(
+        [metadata_import](HCORENUM* ptr, mdTypeSpec arr[], ULONG max, ULONG* cnt) -> HRESULT {
+            return metadata_import->EnumTypeSpecs(ptr, arr, max, cnt);
+        },
+        [metadata_import](HCORENUM ptr) -> void { metadata_import->CloseEnum(ptr); });
+}
+
 
 static Enumerator<mdInterfaceImpl> EnumInterfaceImpls(const ComPtr<IMetaDataImport2>& metadata_import, const mdTypeDef typeDef)
 {
@@ -424,7 +448,8 @@ enum MethodArgumentTypeFlag
 {
     TypeFlagByRef = 0x01,
     TypeFlagVoid = 0x02,
-    TypeFlagBoxedType = 0x04
+    TypeFlagBoxedType = 0x04,
+    TypeFlagPinnedType = 0x08
 };
 
 // Represents a segment inside a larger signature (Method Signature / Local Var Signature) of
@@ -434,7 +459,7 @@ struct TypeSignature
     ULONG offset;
     ULONG length;
     PCCOR_SIGNATURE pbBase;
-    mdToken GetTypeTok(ComPtr<IMetaDataEmit2>& pEmit, mdAssemblyRef corLibRef) const;
+    mdToken GetTypeTok(const ComPtr<IMetaDataEmit2>& pEmit, mdAssemblyRef corLibRef) const;
     shared::WSTRING GetTypeTokName(ComPtr<IMetaDataImport2>& pImport) const;
     std::tuple<unsigned, int> GetElementTypeAndFlags() const;
     ULONG GetSignature(PCCOR_SIGNATURE& data) const;
@@ -489,6 +514,11 @@ public:
     bool IsEmpty() const
     {
         return len == 0;
+    }
+
+    std::tuple<PCCOR_SIGNATURE, unsigned> GetFunctionSignatureAndLength()
+    {
+        return {pbBase, len};
     }
 };
 
@@ -632,8 +662,15 @@ HRESULT ResolveType(ICorProfilerInfo4* info, const ComPtr<IMetaDataImport2>& met
                     const ComPtr<IMetaDataAssemblyImport>& assembly_import,
                     mdTypeRef typeRefToken, mdTypeDef& resolvedTypeDefToken,
                     ComPtr<IMetaDataImport2>& resolvedMetadataImport);
+shared::WSTRING GetStringValueFromBlob(PCCOR_SIGNATURE& signature);
 
 void LogManagedProfilerAssemblyDetails();
+
+HRESULT IsTypeByRefLike(ICorProfilerInfo4* corProfilerInfo4, const ModuleMetadataBase& module_metadata, const TypeSignature& typeSig,
+                        const mdAssemblyRef& corLibAssemblyRef, bool& isTypeIsByRefLike);
+
+HRESULT IsTypeTokenByRefLike(ICorProfilerInfo4* corProfilerInfo4, const ModuleMetadataBase& module_metadata, mdToken typeDefOrRefOrSpecToken,
+                             bool& isTypeIsByRefLike);
 } // namespace trace
 
 #endif // DD_CLR_PROFILER_CLR_HELPERS_H_

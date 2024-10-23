@@ -12,9 +12,9 @@
 #include "IBatchedSamplesProvider.h"
 #include "IGarbageCollectionsListener.h"
 #include "ISampledAllocationsListener.h"
-#include "IService.h"
 #include "LiveObjectInfo.h"
 #include "Sample.h"
+#include "ServiceBase.h"
 
 class IManagedThreadList;
 class IFrameStore;
@@ -23,18 +23,16 @@ class IAppDomainStore;
 class IRuntimeIdStore;
 class IConfiguration;
 class ISampledAllocationsListener;
+class SampleValueTypeProvider;
 
-class LiveObjectsProvider : public IService,
+class LiveObjectsProvider : public ServiceBase,
                             public IBatchedSamplesProvider,
                             public ISampledAllocationsListener,
                             public IGarbageCollectionsListener
 {
 public:
-    static std::vector<SampleValueType> SampleTypeDefinitions;
-
-public:
     LiveObjectsProvider(
-        uint32_t valueOffset,
+        SampleValueTypeProvider& valueTypeProvider,
         ICorProfilerInfo13* pCorProfilerInfo,
         IManagedThreadList* pManagedThreadList,
         IFrameStore* pFrameStore,
@@ -45,12 +43,10 @@ public:
         MetricsRegistry& metricsRegistry);
 
 public:
-    // Inherited via IService
-    bool Start() override;
-    bool Stop() override;
 
     // Inherited via IBatchedSamplesProvider
-    std::list<std::shared_ptr<Sample>> GetSamples() override;
+    std::unique_ptr<SamplesEnumerator> GetSamples() override;
+
     const char* GetName() override;
 
     // Inherited via ISampledAllocationsListener
@@ -58,6 +54,7 @@ public:
 
     // Inherited via IGarbageCollectionsListener
     void OnGarbageCollectionStart(
+        uint64_t timestamp,
         int32_t number,
         uint32_t generation,
         GCReason reason,
@@ -70,20 +67,24 @@ public:
         bool isCompacting,
         uint64_t pauseDuration,
         uint64_t totalDuration,
-        uint64_t endTimestamp) override;
+        uint64_t endTimestamp,
+        uint64_t gen2Size,
+        uint64_t lohSize,
+        uint64_t pohSize) override;
 
 private:
     ObjectHandleID CreateWeakHandle(uintptr_t address) const;
     void CloseWeakHandle(ObjectHandleID handle) const;
     bool IsAlive(ObjectHandleID handle) const;
 
+    // Inherited via ServiceBase
+    bool StartImpl() override;
+    bool StopImpl() override;
+
 private:
-    uint32_t _valueOffset = 0;
+    static std::vector<SampleValueType> SampleTypeDefinitions;
+
     ICorProfilerInfo13* _pCorProfilerInfo = nullptr;
-    IFrameStore* _pFrameStore = nullptr;
-    IAppDomainStore* _pAppDomainStore = nullptr;
-    IRuntimeIdStore* _pRuntimeIdStore = nullptr;
-    IThreadsCpuManager* _pThreadsCpuManager = nullptr;
     std::unique_ptr<AllocationsProvider> _pAllocationsProvider;
 
     bool _isTimestampsAsLabelEnabled = false;

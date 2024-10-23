@@ -51,7 +51,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
     }
 
     [UsesVerify]
-    public abstract class OwinIisWebApi2Tests : TracingIntegrationTest, IClassFixture<IisFixture>
+    public abstract class OwinIisWebApi2Tests : TracingIntegrationTest, IClassFixture<IisFixture>, IAsyncLifetime
     {
         private readonly IisFixture _iisFixture;
         private readonly string _testName;
@@ -66,14 +66,11 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
             _iisFixture = iisFixture;
             _iisFixture.ShutdownPath = "/shutdown";
 
-            // OWIN can only run in integrated mode
-            _iisFixture.TryStartIis(this, IisAppType.AspNetIntegrated);
-
             _iisFixture = iisFixture;
             _testName = nameof(AspNetWebApi2Tests) // Note that these spans are identical to the non-owin webapi2 version
                       + ".Integrated"
                       + (enableRouteTemplateExpansion ? ".WithExpansion" :
-                        (enableRouteTemplateResourceNames ?  ".WithFF" : ".NoFF"));
+                        (enableRouteTemplateResourceNames ? ".WithFF" : ".NoFF"));
         }
 
         public static TheoryData<string, int, int> Data() => new()
@@ -100,7 +97,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
             { "/api2/transientfailure/true", 200, 2 },
             { "/api2/transientfailure/false", 500, 3 },
             { "/api2/statuscode/201", 201, 2 },
-            { "/api2/statuscode/503", 503, 3 },
+            { "/api2/statuscode/503", 503, 2 },
 
             // The global message handler will fail when ps=false
             // The per-route message handler is not invoked with the route /api2, so ts=true|false has no effect
@@ -117,11 +114,11 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
             { "/handler-api/api?ps=false&ts=false", 500, 2 },
         };
 
-        public override Result ValidateIntegrationSpan(MockSpan span) =>
+        public override Result ValidateIntegrationSpan(MockSpan span, string metadataSchemaVersion) =>
             span.Name switch
             {
-                "aspnet.request" => span.IsAspNet(),
-                "aspnet-webapi.request" => span.IsAspNetWebApi2(),
+                "aspnet.request" => span.IsAspNet(metadataSchemaVersion),
+                "aspnet-webapi.request" => span.IsAspNetWebApi2(metadataSchemaVersion),
                 _ => Result.DefaultSuccess,
             };
 
@@ -134,7 +131,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
         {
             // Append virtual directory to the actual request
             var spans = await GetWebServerSpans(_iisFixture.VirtualApplicationPath + path, _iisFixture.Agent, _iisFixture.HttpPort, statusCode, expectedSpanCount);
-            ValidateIntegrationSpans(spans, expectedServiceName: "sample", isExternalSpan: false);
+            ValidateIntegrationSpans(spans, metadataSchemaVersion: "v0", expectedServiceName: "sample", isExternalSpan: false);
 
             var sanitisedPath = VerifyHelper.SanitisePathsForVerify(path);
             var settings = VerifyHelper.GetSpanVerifierSettings(sanitisedPath, (int)statusCode);
@@ -146,6 +143,11 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
                           .UseFileName($"{_testName}.__path={sanitisedPath}_statusCode={(int)statusCode}")
                           .DisableRequireUniquePrefix(); // sharing snapshots between web api and owin
         }
+
+        // OWIN can only run in integrated mode
+        public Task InitializeAsync() => _iisFixture.TryStartIis(this, IisAppType.AspNetIntegrated);
+
+        public Task DisposeAsync() => Task.CompletedTask;
     }
 }
 #endif

@@ -1,4 +1,4 @@
-﻿[
+[
   {
     TraceId: Id_1,
     SpanId: Id_2,
@@ -25,7 +25,12 @@
   "vulnerabilities": [
     {
       "type": "SQL_INJECTION",
-      
+      "hash": -1673193954,
+      "location": {
+        "spanId": XXX,
+        "path": "Samples.Security.AspNetCore5.Controllers.IastController",
+        "method": "SqlQuery"
+      },
       "evidence": {
         "valueParts": [
           {
@@ -38,20 +43,18 @@
   ],
   "sources": [
     {
-      "origin": "http.request.parameter.value",
+      "origin": "http.request.parameter",
       "name": "query",
       "value": "SELECT Surname from Persons where name = 'Vicent'"
     }
   ]
-},
-      _dd.p.dm: -0
+}
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
-      _sampling_priority_v1: 1.0
+      _sampling_priority_v1: 2.0
     }
   },
   {

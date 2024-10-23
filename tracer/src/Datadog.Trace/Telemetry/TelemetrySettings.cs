@@ -6,8 +6,9 @@
 #nullable enable
 
 using System;
-using Datadog.Trace.Ci;
 using Datadog.Trace.Configuration;
+using Datadog.Trace.Configuration.Telemetry;
+using Datadog.Trace.Logging;
 using Datadog.Trace.Util;
 
 namespace Datadog.Trace.Telemetry
@@ -19,13 +20,19 @@ namespace Datadog.Trace.Telemetry
             string? configurationError,
             AgentlessSettings? agentlessSettings,
             bool agentProxyEnabled,
-            TimeSpan heartbeatInterval)
+            TimeSpan heartbeatInterval,
+            bool dependencyCollectionEnabled,
+            bool metricsEnabled,
+            bool debugEnabled)
         {
             TelemetryEnabled = telemetryEnabled;
             ConfigurationError = configurationError;
             Agentless = agentlessSettings;
-            HeartbeatInterval = heartbeatInterval;
             AgentProxyEnabled = agentProxyEnabled;
+            HeartbeatInterval = heartbeatInterval;
+            DependencyCollectionEnabled = dependencyCollectionEnabled;
+            MetricsEnabled = metricsEnabled;
+            DebugEnabled = debugEnabled;
         }
 
         /// <summary>
@@ -42,97 +49,138 @@ namespace Datadog.Trace.Telemetry
 
         public bool AgentProxyEnabled { get; }
 
-        public static TelemetrySettings FromDefaultSources()
-            => FromSource(GlobalConfigurationSource.Instance, IsAgentAvailable);
+        public bool DependencyCollectionEnabled { get; }
 
-        public static TelemetrySettings FromSource(IConfigurationSource? source, Func<bool?> isAgentAvailable)
+        public bool DebugEnabled { get; }
+
+        public bool MetricsEnabled { get; }
+
+        public static TelemetrySettings FromSource(IConfigurationSource source, IConfigurationTelemetry telemetry, ImmutableTracerSettings tracerSettings, bool? isAgentAvailable)
+            => FromSource(source, telemetry, isAgentAvailable, isServerless: tracerSettings.LambdaMetadata.IsRunningInLambda || tracerSettings.IsRunningMiniAgentInAzureFunctions || tracerSettings.IsRunningInGCPFunctions);
+
+        public static TelemetrySettings FromSource(IConfigurationSource source, IConfigurationTelemetry telemetry, bool? isAgentAvailable, bool isServerless)
         {
             string? configurationError = null;
+            var config = new ConfigurationBuilder(source, telemetry);
 
-            var apiKey = source?.GetString(ConfigurationKeys.ApiKey);
-            var agentlessExplicitlyEnabled = source?.GetBool(ConfigurationKeys.Telemetry.AgentlessEnabled);
-            var agentProxyEnabled = source?.GetBool(ConfigurationKeys.Telemetry.AgentProxyEnabled)
-                                 ?? isAgentAvailable()
-                                 ?? true;
+            // TODO: we already fetch this, so this will overwrite the telemetry.... Need a solution to that...
+            var apiKey = config
+                        .WithKeys(ConfigurationKeys.ApiKey)
+                        .AsRedactedString();
 
-            var agentlessEnabled = false;
+            var haveApiKey = !string.IsNullOrEmpty(apiKey);
 
-            if (agentlessExplicitlyEnabled == true)
-            {
-                if (string.IsNullOrEmpty(apiKey))
-                {
-                    configurationError = "Telemetry configuration error: Agentless mode was enabled, but no API key was available.";
-                }
-                else
-                {
-                    agentlessEnabled = true;
-                }
-            }
-            else if (agentlessExplicitlyEnabled is null)
-            {
-                // if there's an API key, we can use agentless mode, otherwise we can only use the agent
-                agentlessEnabled = !string.IsNullOrEmpty(apiKey);
-            }
+            var agentlessEnabled = config
+                                  .WithKeys(ConfigurationKeys.Telemetry.AgentlessEnabled)
+                                  .AsBool(
+                                       defaultValue: haveApiKey, // if there's an API key, we can use agentless mode by default, otherwise we can only use the agent
+                                       validator: isEnabled =>
+                                       {
+                                           if (isEnabled && !haveApiKey)
+                                           {
+                                               configurationError = "Telemetry configuration error: Agentless mode was enabled, but no API key was available.";
+                                               return false;
+                                           }
+
+                                           return true;
+                                       });
+
+            var agentProxyEnabled = config
+                                   .WithKeys(ConfigurationKeys.Telemetry.AgentProxyEnabled)
+                                   .AsBool(isAgentAvailable ?? true);
 
             // enabled by default if we have any transports
-            var telemetryEnabled = source?.GetBool(ConfigurationKeys.Telemetry.Enabled)
-                                ?? (agentlessEnabled || agentProxyEnabled);
+            var telemetryEnabled = config
+                                  .WithKeys(ConfigurationKeys.Telemetry.Enabled)
+                                  .AsBool(agentlessEnabled || agentProxyEnabled);
 
             AgentlessSettings? agentless = null;
             if (telemetryEnabled && agentlessEnabled)
             {
                 // We have an API key, so try to send directly to intake
-                Uri agentlessUri;
+                var agentlessUri = config
+                                  .WithKeys(ConfigurationKeys.Telemetry.Uri)
+                                  .AsString(
+                                       getDefaultValue: () =>
+                                       {
+                                           // use the default intake. Use DD_SITE if provided, otherwise use default
+                                           // TODO: we already fetch this, so this will overwrite the telemetry.... Need a solution to that...
+                                           var ddSite = config
+                                                       .WithKeys(ConfigurationKeys.Site)
+                                                       .AsString(
+                                                            defaultValue: "datadoghq.com",
+                                                            validator: siteFromEnv => !string.IsNullOrEmpty(siteFromEnv));
+                                           return $"{TelemetryConstants.TelemetryIntakePrefix}.{ddSite}/";
+                                       },
+                                       validator: requestedTelemetryUri =>
+                                       {
+                                           if (string.IsNullOrEmpty(requestedTelemetryUri)
+                                            || !Uri.TryCreate(requestedTelemetryUri, UriKind.Absolute, out _))
+                                           {
+                                               // URI parsing failed
+                                               configurationError = configurationError is null
+                                                                        ? $"Telemetry configuration error: The provided telemetry Uri '{requestedTelemetryUri}' was not a valid absolute Uri. Using default intake Uri."
+                                                                        : configurationError + $", The provided telemetry Uri '{requestedTelemetryUri}' was not a valid absolute Uri. Using default intake Uri.";
+                                               return false;
+                                           }
 
-                var requestedTelemetryUri = source?.GetString(ConfigurationKeys.Telemetry.Uri);
-                if (!string.IsNullOrEmpty(requestedTelemetryUri)
-                 && Uri.TryCreate(requestedTelemetryUri, UriKind.Absolute, out var telemetryUri))
-                {
-                    // telemetry URI provided and well-formed
-                    agentlessUri = UriHelpers.Combine(telemetryUri, "/");
-                }
-                else
-                {
-                    if (!string.IsNullOrEmpty(requestedTelemetryUri))
-                    {
-                        // URI parsing failed
-                        configurationError = configurationError is null
-                                                 ? $"Telemetry configuration error: The provided telemetry Uri '{requestedTelemetryUri}' was not a valid absolute Uri. Using default intake Uri."
-                                                 : configurationError + ", The provided telemetry Uri '{requestedTelemetryUri}' was not a valid absolute Uri. Using default intake Uri.";
-                    }
+                                           return true;
+                                       });
 
-                    // use the default intake. Use DD_SITE if provided, otherwise use default
-                    var siteFromEnv = source?.GetString(ConfigurationKeys.Site);
-                    var ddSite = string.IsNullOrEmpty(siteFromEnv) ? "datadoghq.com" : siteFromEnv;
-                    agentlessUri = new Uri($"{TelemetryConstants.TelemetryIntakePrefix}.{ddSite}/");
-                }
-
-                agentless = new AgentlessSettings(agentlessUri, apiKey!);
+                // The uri is already validated in the above code, so this won't fail
+                var finalUri = UriHelpers.Combine(new Uri(agentlessUri, UriKind.Absolute), "/");
+                agentless = AgentlessSettings.Create(finalUri, apiKey!);
             }
 
-            var rawInterval = source?.GetInt32(ConfigurationKeys.Telemetry.HeartbeatIntervalSeconds);
-            var heartbeatInterval = rawInterval is { } interval and > 0 and <= 3600 ? interval : 60;
+            var heartbeatInterval = config
+                                   .WithKeys(ConfigurationKeys.Telemetry.HeartbeatIntervalSeconds)
+                                   .AsDouble(defaultValue: 60, rawInterval => rawInterval is > 0 and <= 3600)
+                                   .Value;
 
-            return new TelemetrySettings(telemetryEnabled, configurationError, agentless, agentProxyEnabled, TimeSpan.FromSeconds(heartbeatInterval));
-        }
+            var dependencyCollectionEnabled = config.WithKeys(ConfigurationKeys.Telemetry.DependencyCollectionEnabled).AsBool(true);
 
-        private static bool? IsAgentAvailable()
-        {
-            // if CIVisibility is enabled and in agentless mode, we probably don't have an agent available
-            if (CIVisibility.IsRunning || CIVisibility.Enabled)
+            // For testing purposes only
+            var debugEnabled = config.WithKeys(ConfigurationKeys.Telemetry.DebugEnabled).AsBool(false);
+
+            bool metricsEnabled;
+            if (isServerless)
             {
-                return !CIVisibility.Settings.Agentless;
+                // disable metrics by default in serverless, because we can't guarantee the correctness
+                metricsEnabled = false;
+                telemetry.Record(ConfigurationKeys.Telemetry.MetricsEnabled, false, ConfigurationOrigins.Default);
+            }
+            else
+            {
+                metricsEnabled = config
+                                .WithKeys(ConfigurationKeys.Telemetry.MetricsEnabled)
+                                .AsBool(defaultValue: true);
             }
 
-            return null;
+            return new TelemetrySettings(
+                telemetryEnabled,
+                configurationError,
+                agentless,
+                agentProxyEnabled,
+                TimeSpan.FromSeconds(heartbeatInterval),
+                dependencyCollectionEnabled,
+                metricsEnabled,
+                debugEnabled);
         }
 
         public class AgentlessSettings
         {
-            public AgentlessSettings(Uri agentlessUri, string apiKey)
+            /// <summary>
+            /// Initializes a new instance of the <see cref="AgentlessSettings"/> class.
+            /// For testing only, prefer using <see cref="Create"/> instead
+            /// </summary>
+            public AgentlessSettings(
+                Uri agentlessUri,
+                string apiKey,
+                CloudSettings? cloudSettings)
             {
                 AgentlessUri = agentlessUri;
                 ApiKey = apiKey;
+                Cloud = cloudSettings;
             }
 
             /// <summary>
@@ -144,6 +192,49 @@ namespace Datadog.Trace.Telemetry
             /// Gets the api key to use when sending requests to the agentless telemetry intake
             /// </summary>
             public string ApiKey { get; }
+
+            public CloudSettings? Cloud { get; }
+
+            public static AgentlessSettings Create(Uri agentlessUri, string apiKey)
+            {
+                CloudSettings? cloud = null;
+                if (EnvironmentHelpers.GetEnvironmentVariable(TelemetryConstants.GcpServiceVariable) is { Length: >0 } gcp)
+                {
+                    cloud = new("GCP", "GCPCloudRun", gcp);
+                }
+                else if (EnvironmentHelpers.GetEnvironmentVariable(TelemetryConstants.AzureContainerAppVariable) is { Length: >0 } aca)
+                {
+                    cloud = new("Azure", "AzureContainerApp", aca);
+                }
+                else if (!string.IsNullOrEmpty(EnvironmentHelpers.GetEnvironmentVariable(TelemetryConstants.AzureAppServiceVariable1))
+                    || !string.IsNullOrEmpty(EnvironmentHelpers.GetEnvironmentVariable(TelemetryConstants.AzureAppServiceVariable2)))
+                {
+                    cloud = new("Azure", "AzureAppService", EnvironmentHelpers.GetEnvironmentVariable(TelemetryConstants.AzureAppServiceIdentifierVariable));
+                }
+
+                // TODO: Handle AWS Lambda. We don't currently have a good way to get the ARN as the identifier so skip for now
+
+                return new AgentlessSettings(agentlessUri, apiKey, cloud);
+            }
+
+            public class CloudSettings
+            {
+                public CloudSettings(
+                    string provider,
+                    string resourceType,
+                    string? resourceIdentifier)
+                {
+                    Provider = provider;
+                    ResourceType = resourceType;
+                    ResourceIdentifier = resourceIdentifier;
+                }
+
+                public string Provider { get; }
+
+                public string ResourceType { get; }
+
+                public string? ResourceIdentifier { get; }
+            }
         }
     }
 }

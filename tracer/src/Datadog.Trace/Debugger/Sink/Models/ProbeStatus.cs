@@ -10,12 +10,12 @@ namespace Datadog.Trace.Debugger.Sink.Models
 {
     internal record ProbeStatus
     {
-        public ProbeStatus(string service, string probeId, Status status, Exception exception = null, string errorMessage = null)
+        public ProbeStatus(string service, string probeId, Status status, int probeVersion = 0, Exception exception = null, string errorMessage = null)
         {
             Message = GetMessage();
             Service = service;
 
-            DebuggerDiagnostics = new DebuggerDiagnostics(new Diagnostics(probeId, status));
+            DebuggerDiagnostics = new DebuggerDiagnostics(new Diagnostics(probeId, status, probeVersion));
 
             if (status == Status.ERROR)
             {
@@ -28,6 +28,7 @@ namespace Datadog.Trace.Debugger.Sink.Models
                 {
                     Status.RECEIVED => $"Received probe {probeId}.",
                     Status.INSTALLED => $"Installed probe {probeId}.",
+                    Status.EMITTING => $"Emitted probe {probeId}.",
                     Status.BLOCKED => $"Blocked probe {probeId}.",
                     Status.ERROR => $"Error installing probe {probeId}.",
                     _ => throw new ArgumentOutOfRangeException(nameof(status), $"Not expected status value: {status}"),

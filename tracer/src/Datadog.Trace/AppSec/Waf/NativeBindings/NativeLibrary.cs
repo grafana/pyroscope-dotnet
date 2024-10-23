@@ -61,11 +61,36 @@ namespace Datadog.Trace.AppSec.Waf.NativeBindings
             catch (Exception ex)
             {
                 // as this method is prefixed "Try" we shouldn't throw, but experience has
-                // shown that unforseen circumstance can lead to exceptions being thrown
-                Log.Error(ex, "Error occured while trying to load library from {LibraryPath}", libraryPath);
+                // shown that unforeseen circumstances can lead to exceptions being thrown
+                Log.Error(ex, "Error occurred while trying to load library from {LibraryPath}", libraryPath);
             }
 
             return handle != IntPtr.Zero;
+        }
+
+        internal static bool CloseLibrary(IntPtr library)
+        {
+            try
+            {
+                if (library == IntPtr.Zero)
+                {
+                    Log.Error("Trying to close WAF library with a null pointer");
+                    return false;
+                }
+
+                if (isPosixLike)
+                {
+                    var result = NonWindows.dddlclose(library);
+                    return result == 0;
+                }
+
+                return FreeLibrary(library);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Error occurred while trying to unload WAF library");
+                return false;
+            }
         }
 
         private static IntPtr LoadWindowsLibrary(string libraryPath)
@@ -138,6 +163,9 @@ namespace Datadog.Trace.AppSec.Waf.NativeBindings
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern IntPtr LoadLibrary(string dllToLoad);
 
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool FreeLibrary(IntPtr libraryToFree);
+
         [DllImport("Kernel32.dll", SetLastError = true)]
         private static extern IntPtr GetProcAddress(IntPtr hModule, string lpProcName);
 
@@ -161,6 +189,9 @@ namespace Datadog.Trace.AppSec.Waf.NativeBindings
 #pragma warning disable SA1300 // Element should begin with upper-case letter
             [DllImport("Datadog.Tracer.Native")]
             internal static extern IntPtr dddlopen(string fileName, int flags);
+
+            [DllImport("Datadog.Tracer.Native")]
+            internal static extern int dddlclose(IntPtr library);
 
             [DllImport("Datadog.Tracer.Native")]
             internal static extern IntPtr dddlerror();

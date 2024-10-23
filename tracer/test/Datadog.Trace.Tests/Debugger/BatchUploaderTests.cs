@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Datadog.Trace.Debugger.Sink;
+using Datadog.Trace.Debugger.Upload;
 using FluentAssertions;
 using Xunit;
 
@@ -160,9 +161,9 @@ public class BatchUploaderTests
     {
         public List<byte[]> Segments { get; } = new List<byte[]>();
 
-        public Task<bool> SendBatchAsync(ArraySegment<byte> snapshots)
+        public Task<bool> SendBatchAsync(ArraySegment<byte> symbols)
         {
-            Segments.Add(snapshots.ToArray());
+            Segments.Add(symbols.ToArray());
             return Task.FromResult(true);
         }
     }

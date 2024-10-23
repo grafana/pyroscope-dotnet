@@ -16,12 +16,10 @@
       language: dotnet,
       runtime-id: Guid_1,
       span.kind: server,
-      usr.id: user3,
-      _dd.p.dm: -0
+      usr.id: user3
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
       _sampling_priority_v1: 1.0
@@ -44,12 +42,10 @@
       language: dotnet,
       runtime-id: Guid_1,
       span.kind: server,
-      usr.id: user3,
-      _dd.p.dm: -0
+      usr.id: user3
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
       _sampling_priority_v1: 1.0

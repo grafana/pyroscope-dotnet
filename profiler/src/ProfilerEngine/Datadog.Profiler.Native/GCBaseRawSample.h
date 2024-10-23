@@ -9,12 +9,36 @@
 class GCBaseRawSample : public RawSample
 {
 public:
+    GCBaseRawSample() = default;
+
+    GCBaseRawSample(GCBaseRawSample&& other) noexcept
+        :
+        RawSample(std::move(other)),
+        Number(other.Number),
+        Generation(other.Generation),
+        Duration(other.Duration)
+    {
+    }
+
+    GCBaseRawSample& operator=(GCBaseRawSample&& other) noexcept
+    {
+        if (this != &other)
+        {
+            RawSample::operator=(std::move(other));
+            Number = other.Number;
+            Generation = other.Generation;
+            Duration = other.Duration;
+        }
+        return *this;
+    }
+
     // This base class is in charge of storing garbage collection number and generation as labels
     // and fill up the callstack based on generation.
     // The default value is the Duration field; derived class could override by implementing GetValue()
-    inline void OnTransform(std::shared_ptr<Sample>& sample, uint32_t valueOffset) const override
+    inline void OnTransform(std::shared_ptr<Sample>& sample, std::vector<SampleValueTypeProvider::Offset> const& valueOffsets) const override
     {
-        uint32_t durationIndex = valueOffset;
+        assert(valueOffsets.size() == 1);
+        auto durationIndex = valueOffsets[0];
 
         sample->AddValue(GetValue(), durationIndex);
 
@@ -24,7 +48,7 @@ public:
         BuildCallStack(sample, Generation);
 
         // let child classes transform additional fields if needed
-        DoAdditionalTransform(sample, valueOffset);
+        DoAdditionalTransform(sample, valueOffsets);
     }
 
     // Each derived class provides the duration to store as the value for this sample
@@ -35,8 +59,7 @@ public:
     }
 
     // Derived classes are expected to set the event type + any additional field as label
-    virtual void DoAdditionalTransform(std::shared_ptr<Sample> sample, uint32_t valueOffset) const = 0;
-
+    virtual void DoAdditionalTransform(std::shared_ptr<Sample> sample, std::vector<SampleValueTypeProvider::Offset> const& valueOffset) const = 0;
 
 public:
     int32_t Number;
@@ -101,9 +124,9 @@ private:
 
     // each Stop the World garbage collection will share the same root frame and the second one will show the collected generation
     static constexpr inline std::string_view EmptyModule = "CLR";
-    static constexpr inline std::string_view RootFrame = "|lm: |ns: |ct: |fn:Garbage Collector";
-    static constexpr inline std::string_view Gen0Frame = "|lm: |ns: |ct: |fn:gen0";
-    static constexpr inline std::string_view Gen1Frame = "|lm: |ns: |ct: |fn:gen1";
-    static constexpr inline std::string_view Gen2Frame = "|lm: |ns: |ct: |fn:gen2";
-    static constexpr inline std::string_view UnknownGenerationFrame = "|lm: |ns: |ct: |fn:unknown";
+    static constexpr inline std::string_view RootFrame = "|lm: |ns: |ct: |cg: |fn:Garbage Collector |fg: |sg:";
+    static constexpr inline std::string_view Gen0Frame = "|lm: |ns: |ct: |cg: |fn:gen0 |fg: |sg:";
+    static constexpr inline std::string_view Gen1Frame = "|lm: |ns: |ct: |cg: |fn:gen1 |fg: |sg:";
+    static constexpr inline std::string_view Gen2Frame = "|lm: |ns: |ct: |cg: |fn:gen2 |fg: |sg:";
+    static constexpr inline std::string_view UnknownGenerationFrame = "|lm: |ns: |ct: |cg: |fn:unknown |fg: |sg:";
 };

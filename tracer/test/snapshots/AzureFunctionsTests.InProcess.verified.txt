@@ -23,12 +23,10 @@
       env: integration_tests,
       language: dotnet,
       runtime-id: Guid_1,
-      span.kind: server,
-      _dd.p.dm: -0
+      span.kind: server
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
       _sampling_priority_v1: 1.0
@@ -51,6 +49,8 @@
       http.method: GET,
       http.status_code: 200,
       http.url: http://localhost:00000/api/trigger,
+      language: dotnet,
+      out.host: localhost,
       runtime-id: Guid_1,
       span.kind: client
     },
@@ -87,8 +87,7 @@
       http.url: http://localhost:00000/api/trigger,
       language: dotnet,
       runtime-id: Guid_1,
-      span.kind: server,
-      _dd.p.dm: -0
+      span.kind: server
     },
     Metrics: {
       process_id: 0,
@@ -143,6 +142,8 @@
       http.method: GET,
       http.status_code: 200,
       http.url: http://localhost:00000/api/simple,
+      language: dotnet,
+      out.host: localhost,
       runtime-id: Guid_1,
       span.kind: client
     },
@@ -167,6 +168,8 @@
       http.method: GET,
       http.status_code: 500,
       http.url: http://localhost:00000/api/exception,
+      language: dotnet,
+      out.host: localhost,
       runtime-id: Guid_1,
       span.kind: client
     },
@@ -191,6 +194,8 @@
       http.method: GET,
       http.status_code: 500,
       http.url: http://localhost:00000/api/error,
+      language: dotnet,
+      out.host: localhost,
       runtime-id: Guid_1,
       span.kind: client
     },
@@ -217,6 +222,8 @@
       http.method: GET,
       http.status_code: 400,
       http.url: http://localhost:00000/api/badrequest,
+      language: dotnet,
+      out.host: localhost,
       runtime-id: Guid_1,
       span.kind: client
     },
@@ -253,8 +260,7 @@
       http.url: http://localhost:00000/api/simple,
       language: dotnet,
       runtime-id: Guid_1,
-      span.kind: server,
-      _dd.p.dm: -0
+      span.kind: server
     },
     Metrics: {
       process_id: 0,
@@ -299,8 +305,7 @@ at Samples.AzureFunctions.AllTriggers.AllTriggers.Exception(HttpRequest req, ILo
       http.url: http://localhost:00000/api/exception,
       language: dotnet,
       runtime-id: Guid_1,
-      span.kind: server,
-      _dd.p.dm: -0
+      span.kind: server
     },
     Metrics: {
       process_id: 0,
@@ -340,8 +345,7 @@ at Samples.AzureFunctions.AllTriggers.AllTriggers.Exception(HttpRequest req, ILo
       http.url: http://localhost:00000/api/error,
       language: dotnet,
       runtime-id: Guid_1,
-      span.kind: server,
-      _dd.p.dm: -0
+      span.kind: server
     },
     Metrics: {
       process_id: 0,
@@ -379,8 +383,7 @@ at Samples.AzureFunctions.AllTriggers.AllTriggers.Exception(HttpRequest req, ILo
       http.url: http://localhost:00000/api/badrequest,
       language: dotnet,
       runtime-id: Guid_1,
-      span.kind: server,
-      _dd.p.dm: -0
+      span.kind: server
     },
     Metrics: {
       process_id: 0,

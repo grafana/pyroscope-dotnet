@@ -73,6 +73,11 @@ namespace PrepareRelease
             return Regex.Replace(text, $"<PackageReference Include=\"Datadog.Trace\" Version=\"{VersionPattern(withPrereleasePostfix: true)}\" />", $"<PackageReference Include=\"Datadog.Trace\" Version=\"{VersionString(withPrereleasePostfix: true)}\" />", RegexOptions.Singleline);
         }
 
+        private string DatadogTraceBundleNugetDependencyVersionReplace(string text)
+        {
+            return Regex.Replace(text, $"<PackageReference Include=\"Datadog.Trace.Bundle\" Version=\"{VersionPattern(withPrereleasePostfix: true)}\" />", $"<PackageReference Include=\"Datadog.Trace.Bundle\" Version=\"{VersionString(withPrereleasePostfix: true)}\" />", RegexOptions.Singleline);
+        }
+
         private string NugetVersionReplace(string text)
         {
             return Regex.Replace(text, $"<Version>{VersionPattern(withPrereleasePostfix: true)}</Version>", $"<Version>{VersionString(withPrereleasePostfix: true)}</Version>", RegexOptions.Singleline);
@@ -179,22 +184,22 @@ namespace PrepareRelease
                 // Sample application package updates
                 SynchronizeVersion(
                     "samples/AutomaticTraceIdInjection/MicrosoftExtensionsExample/MicrosoftExtensionsExample.csproj",
-                    DatadogTraceNugetDependencyVersionReplace);
+                    DatadogTraceBundleNugetDependencyVersionReplace);
                 SynchronizeVersion(
                     "samples/AutomaticTraceIdInjection/Log4NetExample/Log4NetExample.csproj",
-                    DatadogTraceNugetDependencyVersionReplace);
+                    DatadogTraceBundleNugetDependencyVersionReplace);
                 SynchronizeVersion(
                     "samples/AutomaticTraceIdInjection/NLog40Example/NLog40Example.csproj",
-                    DatadogTraceNugetDependencyVersionReplace);
+                    DatadogTraceBundleNugetDependencyVersionReplace);
                 SynchronizeVersion(
                     "samples/AutomaticTraceIdInjection/NLog45Example/NLog45Example.csproj",
-                    DatadogTraceNugetDependencyVersionReplace);
+                    DatadogTraceBundleNugetDependencyVersionReplace);
                 SynchronizeVersion(
                     "samples/AutomaticTraceIdInjection/NLog46Example/NLog46Example.csproj",
-                    DatadogTraceNugetDependencyVersionReplace);
+                    DatadogTraceBundleNugetDependencyVersionReplace);
                 SynchronizeVersion(
                     "samples/AutomaticTraceIdInjection/SerilogExample/SerilogExample.csproj",
-                    DatadogTraceNugetDependencyVersionReplace);
+                    DatadogTraceBundleNugetDependencyVersionReplace);
 
                 // Dockerfile updates
                 SynchronizeVersion(
@@ -207,6 +212,10 @@ namespace PrepareRelease
 
                 SynchronizeVersion(
                     "samples/ConsoleApp/Debian.dockerfile",
+                    text => Regex.Replace(text, $"ARG TRACER_VERSION={VersionPattern()}", $"ARG TRACER_VERSION={VersionString()}"));
+
+                SynchronizeVersion(
+                    "samples/OpenTelemetry/Debian.dockerfile",
                     text => Regex.Replace(text, $"ARG TRACER_VERSION={VersionPattern()}", $"ARG TRACER_VERSION={VersionString()}"));
 
                 SynchronizeVersion(
@@ -234,6 +243,11 @@ namespace PrepareRelease
             {
                 Console.WriteLine($"Updating source version instances to {VersionString()}");
 
+                // Pipeline
+                SynchronizeVersion(
+                    "../.azure-pipelines/ultimate-pipeline.yml",
+                    text => Regex.Replace(text, $"ToolVersion: {VersionPattern(withPrereleasePostfix: true)}", $"ToolVersion: {VersionString(withPrereleasePostfix: true)}"));
+
                 // Nuke build
                 SynchronizeVersion(
                     "build/_build/Build.cs",
@@ -253,11 +267,11 @@ namespace PrepareRelease
                     NugetVersionReplace);
 
                 SynchronizeVersion(
-                    "src/Datadog.Trace.AspNet/Datadog.Trace.AspNet.csproj",
+                    "src/Datadog.Trace.ClrProfiler.Managed.Loader/Datadog.Trace.ClrProfiler.Managed.Loader.csproj",
                     NugetVersionReplace);
 
                 SynchronizeVersion(
-                    "src/Datadog.Trace.ClrProfiler.Managed.Loader/Datadog.Trace.ClrProfiler.Managed.Loader.csproj",
+                    "src/Datadog.Trace.Manual/Datadog.Trace.Manual.csproj",
                     NugetVersionReplace);
 
                 SynchronizeVersion(
@@ -274,6 +288,14 @@ namespace PrepareRelease
 
                 SynchronizeVersion(
                     "src/Datadog.Trace.Tools.Runner/Datadog.Trace.Tools.Runner.csproj",
+                    NugetVersionReplace);
+
+                SynchronizeVersion(
+                    "src/Datadog.Trace.Tools.dd_dotnet/Datadog.Trace.Tools.dd_dotnet.csproj",
+                    NugetVersionReplace);
+
+                SynchronizeVersion(
+                    "src/Datadog.Trace.Trimming/Datadog.Trace.Trimming.csproj",
                     NugetVersionReplace);
 
                 // Fully qualified name updates
@@ -314,10 +336,6 @@ namespace PrepareRelease
                         return text;
                     });
 
-                SynchronizeVersion(
-                    "src/Datadog.Tracer.Native/version.h",
-                    text => FullVersionReplace(text, "."));
-
                 // .NET profiler
 
                 SynchronizeVersion(
@@ -356,15 +374,18 @@ namespace PrepareRelease
                     "../shared/src/Datadog.Trace.ClrProfiler.Native/CMakeLists.txt",
                     text => FullVersionReplace(text, ".", prefix: "VERSION "));
 
-                // Misc
-
                 SynchronizeVersion(
-                    "../.github/scripts/package_and_deploy.sh",
-                    text => FullVersionReplace(text, ".", prefix: "current_profiler_version=\""));
+                    "../shared/src/native-src/version.h",
+                    text => FullVersionReplace(text, "."));
+
+                // Misc
 
                 SynchronizeVersion(
                     "../profiler/src/ProfilerEngine/ProductVersion.props",
                     PropsVersionReplace);
+
+                SynchronizeVersion("build/artifacts/dd-dotnet.sh",
+                    text => FullVersionReplace(text, "."));
 
                 // Deployment updates
                 SynchronizeVersion(

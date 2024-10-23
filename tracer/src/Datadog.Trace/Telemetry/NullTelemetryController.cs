@@ -4,11 +4,8 @@
 // </copyright>
 
 using System.Threading.Tasks;
-using Datadog.Trace.AppSec;
 using Datadog.Trace.Configuration;
 using Datadog.Trace.ContinuousProfiler;
-using Datadog.Trace.Iast.Settings;
-using Datadog.Trace.PlatformHelpers;
 
 namespace Datadog.Trace.Telemetry
 {
@@ -32,20 +29,15 @@ namespace Datadog.Trace.Telemetry
         {
         }
 
-        public void RecordSecuritySettings(SecuritySettings settings)
-        {
-        }
-
         public void RecordProfilerSettings(Profiler profiler)
         {
         }
 
-        public Task DisposeAsync(bool sendAppClosingTelemetry)
+        public void Start()
         {
-            return Task.CompletedTask;
         }
 
-        public void Start()
+        public void ProductChanged(TelemetryProductType product, bool enabled, ErrorData? error)
         {
         }
 
@@ -54,7 +46,9 @@ namespace Datadog.Trace.Telemetry
             return Task.CompletedTask;
         }
 
-        public void RecordIastSettings(IastSettings settings)
+        public Task DumpTelemetry(string filePath) => Task.CompletedTask;
+
+        public void RecordGitMetadata(GitMetadata gitMetadata)
         {
         }
     }

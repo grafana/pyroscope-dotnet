@@ -1,4 +1,4 @@
-﻿// <copyright file="AdoNetClientInstrumentMethodsAttribute.cs" company="Datadog">
+// <copyright file="AdoNetClientInstrumentMethodsAttribute.cs" company="Datadog">
 // Unless explicitly stated otherwise all files in this repository are licensed under the Apache 2 License.
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
@@ -11,6 +11,10 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.AdoNet
     /// Attribute that indicates that the decorated class is meant to intercept a method
     /// by modifying the method body with callbacks. Used to generate the integration definitions file.
     /// </summary>
+    /// <remarks>
+    /// Beware that the fullname of this class is being used for App Trimming support in the _build/Build.Steps.cs file
+    /// as string. Avoid changing the name and/or namespace of this class.
+    /// </remarks>
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true)]
     internal sealed class AdoNetClientInstrumentMethodsAttribute : Attribute
     {
@@ -105,7 +109,7 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.AdoNet
             /// <summary>
             /// Gets or sets the CallTarget integration type
             /// </summary>
-            public IntegrationType CallTargetIntegrationType { get; set; } = IntegrationType.Default;
+            public CallTargetKind CallTargetIntegrationKind { get; set; } = CallTargetKind.Default;
 
             /// <summary>
             /// Gets or sets the return type to use with this signature
@@ -127,7 +131,7 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.AdoNet
             MethodName = AdoNetConstants.MethodNames.ExecuteNonQuery,
             ReturnTypeName = ClrNames.Int32,
             CallTargetType = typeof(CommandExecuteNonQueryIntegration),
-            CallTargetIntegrationType = IntegrationType.Default)]
+            CallTargetIntegrationKind = CallTargetKind.Default)]
         [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
         internal class CommandExecuteNonQueryAttribute : Attribute
         {
@@ -137,7 +141,7 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.AdoNet
             MethodName = AdoNetConstants.MethodNames.ExecuteNonQuery,
             ReturnTypeName = ClrNames.Int32,
             CallTargetType = typeof(CommandExecuteNonQueryIntegration),
-            CallTargetIntegrationType = IntegrationType.Derived)]
+            CallTargetIntegrationKind = CallTargetKind.Derived)]
         [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
         internal class CommandExecuteNonQueryDerivedAttribute : Attribute
         {
@@ -235,7 +239,7 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.AdoNet
             MethodName = AdoNetConstants.MethodNames.ExecuteDbDataReader,
             ReturnTypeName = AdoNetConstants.TypeNames.DbDataReaderType,
             ParameterTypeNames = new[] { AdoNetConstants.TypeNames.CommandBehavior },
-            CallTargetIntegrationType = IntegrationType.Derived,
+            CallTargetIntegrationKind = CallTargetKind.Derived,
             CallTargetType = typeof(CommandExecuteReaderWithBehaviorIntegration))]
         [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
         internal class CommandExecuteDbDataReaderWithBehaviorDerivedAttribute : Attribute
@@ -264,7 +268,7 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.AdoNet
         [AdoNetTargetSignature(
             MethodName = AdoNetConstants.MethodNames.ExecuteScalar,
             ReturnTypeName = ClrNames.Object,
-            CallTargetIntegrationType = IntegrationType.Derived,
+            CallTargetIntegrationKind = CallTargetKind.Derived,
             CallTargetType = typeof(CommandExecuteScalarIntegration))]
         [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
         internal class CommandExecuteScalarDerivedAttribute : Attribute
@@ -278,6 +282,54 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.AdoNet
             CallTargetType = typeof(CommandExecuteScalarWithBehaviorIntegration))]
         [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
         internal class CommandExecuteScalarWithBehaviorAttribute : Attribute
+        {
+        }
+
+        [AdoNetTargetSignature(
+            MethodName = AdoNetConstants.MethodNames.Read,
+            ReturnTypeName = ClrNames.Bool,
+            CallTargetType = typeof(ReaderReadIntegration))]
+        [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
+        internal class ReaderReadAttribute : Attribute
+        {
+        }
+
+        [AdoNetTargetSignature(
+            MethodName = AdoNetConstants.MethodNames.ReadAsync,
+            ReturnTypeName = AdoNetConstants.TypeNames.ObjectTaskType,
+            ParameterTypeNames = new[] { ClrNames.CancellationToken },
+            CallTargetType = typeof(ReaderReadAsyncIntegration))]
+        [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
+        internal class ReaderReadAsyncAttribute : Attribute
+        {
+        }
+
+        [AdoNetTargetSignature(
+            MethodName = AdoNetConstants.MethodNames.Close,
+            ReturnTypeName = ClrNames.Void,
+            CallTargetType = typeof(ReaderCloseIntegration))]
+        [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
+        internal class ReaderCloseAttribute : Attribute
+        {
+        }
+
+        [AdoNetTargetSignature(
+            MethodName = AdoNetConstants.MethodNames.GetString,
+            ReturnTypeName = ClrNames.String,
+            ParameterTypeNames = new[] { ClrNames.Int32 },
+            CallTargetType = typeof(ReaderGetStringIntegration))]
+        [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
+        internal class ReaderGetStringAttribute : Attribute
+        {
+        }
+
+        [AdoNetTargetSignature(
+            MethodName = AdoNetConstants.MethodNames.GetValue,
+            ReturnTypeName = ClrNames.Object,
+            ParameterTypeNames = new[] { ClrNames.Int32 },
+            CallTargetType = typeof(ReaderGetStringIntegration))]
+        [AttributeUsage(AttributeTargets.Class, AllowMultiple = true, Inherited = false)]
+        internal class ReaderGetValueAttribute : Attribute
         {
         }
     }

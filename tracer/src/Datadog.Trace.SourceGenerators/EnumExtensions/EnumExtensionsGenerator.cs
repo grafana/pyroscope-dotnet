@@ -6,13 +6,12 @@
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
+using Datadog.Trace.SourceGenerators.EnumExtensions;
 using Datadog.Trace.SourceGenerators.EnumExtensions.Diagnostics;
 using Datadog.Trace.SourceGenerators.Helpers;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
-
-namespace Datadog.Trace.SourceGenerators.EnumExtensions;
 
 /// <inheritdoc />
 [Generator]
@@ -28,21 +27,25 @@ public class EnumExtensionsGenerator : IIncrementalGenerator
         context.RegisterPostInitializationOutput(ctx => ctx.AddSource(
             "EnumExtensionsAttribute.g.cs", SourceText.From(Sources.Attributes, Encoding.UTF8)));
 
-        var enumsToGenerate = context.SyntaxProvider
-                                     .ForAttributeWithMetadataName(
-                                          EnumExtensionsAttribute,
-                                          predicate: (node, _) => node is EnumDeclarationSyntax,
-                                          transform: GetTypeToGenerate)
-                                     .Where(static m => m is not null);
+        IncrementalValuesProvider<Result<(EnumToGenerate Enum, bool IsValid)>> enumsToGenerate =
+            context.SyntaxProvider
+                   .ForAttributeWithMetadataName(
+                        EnumExtensionsAttribute,
+                        predicate: (node, _) => node is EnumDeclarationSyntax,
+                        transform: GetTypeToGenerate)
+                   .WithTrackingName(TrackingNames.PostTransform)
+                   .Where(static m => m is not null);
 
         context.ReportDiagnostics(
             enumsToGenerate
                .Where(static m => m.Errors.Count > 0)
-               .SelectMany(static (x, _) => x.Errors));
+               .SelectMany(static (x, _) => x.Errors)
+               .WithTrackingName(TrackingNames.Diagnostics));
 
         var validEnumsToGenerate = enumsToGenerate
                                   .Where(static m => m.Value.IsValid)
-                                  .Select(static (x, _) => x.Value.Enum);
+                                  .Select(static (x, _) => x.Value.Enum)
+                                  .WithTrackingName(TrackingNames.ValidValues);
 
         context.RegisterSourceOutput(
             validEnumsToGenerate,

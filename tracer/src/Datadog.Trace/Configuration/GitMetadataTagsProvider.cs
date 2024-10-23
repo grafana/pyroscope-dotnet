@@ -1,4 +1,4 @@
-﻿// <copyright file="GitMetadataTagsProvider.cs" company="Datadog">
+// <copyright file="GitMetadataTagsProvider.cs" company="Datadog">
 // Unless explicitly stated otherwise all files in this repository are licensed under the Apache 2 License.
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
@@ -6,8 +6,12 @@
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Threading;
+using Datadog.Trace.Configuration.Telemetry;
+using Datadog.Trace.ContinuousProfiler;
 using Datadog.Trace.Logging;
 using Datadog.Trace.Pdb;
+using Datadog.Trace.Telemetry;
+using Datadog.Trace.Util;
 
 #nullable enable
 
@@ -15,13 +19,17 @@ namespace Datadog.Trace.Configuration;
 
 internal class GitMetadataTagsProvider : IGitMetadataTagsProvider
 {
+    private readonly ITelemetryController _telemetry;
     private readonly ImmutableTracerSettings _immutableTracerSettings;
+    private readonly IScopeManager _scopeManager;
     private GitMetadata? _cachedGitTags = null;
     private int _tryCount = 0;
 
-    public GitMetadataTagsProvider(ImmutableTracerSettings immutableTracerSettings)
+    public GitMetadataTagsProvider(ImmutableTracerSettings immutableTracerSettings, IScopeManager scopeManager, ITelemetryController telemetry)
     {
         _immutableTracerSettings = immutableTracerSettings;
+        _scopeManager = scopeManager;
+        _telemetry = telemetry;
     }
 
     private IDatadogLogger Log { get; } = DatadogLogging.GetLoggerFor(typeof(GitMetadataTagsProvider));
@@ -52,18 +60,49 @@ internal class GitMetadataTagsProvider : IGitMetadataTagsProvider
                 return true;
             }
 
+            string? gitCommitSha = null;
+            string? gitRespositoryUrl = null;
+
             // Get the tag from configuration. These may originate from the DD_GIT_REPOSITORY_URL and DD_GIT_COMMIT_SHA environment variables,
             // but if those were not available, they may have been extracted from the DD_TAGS environment variable.
-            if (string.IsNullOrWhiteSpace(_immutableTracerSettings.GitCommitSha) == false &&
-                string.IsNullOrWhiteSpace(_immutableTracerSettings.GitRepositoryUrl) == false)
+            if (!string.IsNullOrWhiteSpace(_immutableTracerSettings.GitCommitSha))
             {
-                gitMetadata = _cachedGitTags = new GitMetadata(_immutableTracerSettings.GitCommitSha, _immutableTracerSettings.GitRepositoryUrl);
+                gitCommitSha = _immutableTracerSettings.GitCommitSha!;
+            }
+
+            if (!string.IsNullOrWhiteSpace(_immutableTracerSettings.GitRepositoryUrl))
+            {
+                gitRespositoryUrl = _immutableTracerSettings.GitRepositoryUrl!;
+            }
+
+            if (gitCommitSha is not null && gitRespositoryUrl is not null)
+            {
+                // we have everything
+                gitMetadata = _cachedGitTags = new GitMetadata(gitCommitSha, gitRespositoryUrl);
+                // For now, we do not need to call the profiler here. The profiler is able to get those information from the environment.
                 return true;
             }
 
             if (TryGetGitTagsFromSourceLink(out gitMetadata))
             {
+                if (gitMetadata.IsEmpty)
+                {
+                    // If data extracted was empty, we try to keep with partial data from DD_TAGS
+                    gitMetadata = new GitMetadata(gitCommitSha ?? string.Empty, gitRespositoryUrl ?? string.Empty);
+                }
+
                 _cachedGitTags = gitMetadata;
+                // These tags could be GitMetadata.Empty but record it anyway, as it gives us an indication
+                // that we failed to extract the information
+                _telemetry.RecordGitMetadata(gitMetadata);
+                PropagateGitMetadataToTheProfiler(gitMetadata);
+                return true;
+            }
+
+            if (gitCommitSha is not null || gitRespositoryUrl is not null)
+            {
+                // if we have partial data we go with that
+                gitMetadata = _cachedGitTags = new GitMetadata(gitCommitSha ?? string.Empty, gitRespositoryUrl ?? string.Empty);
                 return true;
             }
 
@@ -73,8 +112,25 @@ internal class GitMetadataTagsProvider : IGitMetadataTagsProvider
         catch (Exception e)
         {
             Log.Error(e, "Error while extracting SourceLink information");
-            gitMetadata = GitMetadata.Empty;
+            gitMetadata = _cachedGitTags = GitMetadata.Empty;
             return true;
+        }
+    }
+
+    private void PropagateGitMetadataToTheProfiler(GitMetadata gitMetadata)
+    {
+        try
+        {
+            // Avoid P/Invoke if the profiler is not ready (for obvious reason)
+            // but also if both repository url and commit sha are empty
+            if (Profiler.Instance.Status.IsProfilerReady && !gitMetadata.IsEmpty)
+            {
+                NativeInterop.SetGitMetadata(RuntimeId.Get(), gitMetadata.RepositoryUrl, gitMetadata.CommitSha);
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Failed to share git metadata with the Continuous Profiler.");
         }
     }
 
@@ -93,11 +149,12 @@ internal class GitMetadataTagsProvider : IGitMetadataTagsProvider
         {
             // Cannot determine the entry assembly. This may mean this method was called too early.
             // Return false to indicate that we should try again later.
-
+            // We'll try up to 100 times, but if a span is active, we'll give up immediately, as that means
+            // the application is already fully up and running and we're not going to be able to retrieve the entry assembly.
             var nbTries = Interlocked.Increment(ref _tryCount);
-            if (nbTries > 100)
+            if (nbTries > 100 || _scopeManager.Active?.Span != null)
             {
-                Log.Debug("Tried 100 times to get the SourceLink information. Giving up.");
+                Log.Debug("Giving up on trying to locate entry assembly. SourceLink information will not be retrieved.");
                 result = GitMetadata.Empty;
                 return true;
             }

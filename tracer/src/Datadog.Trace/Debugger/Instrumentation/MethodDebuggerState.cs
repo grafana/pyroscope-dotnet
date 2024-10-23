@@ -7,6 +7,7 @@ using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Datadog.Trace.Debugger.Configurations.Models;
+using Datadog.Trace.Debugger.Expressions;
 using Datadog.Trace.Debugger.Instrumentation.Collections;
 using Datadog.Trace.Debugger.Snapshots;
 
@@ -17,12 +18,18 @@ namespace Datadog.Trace.Debugger.Instrumentation
     /// </summary>
     [Browsable(false)]
     [EditorBrowsable(EditorBrowsableState.Never)]
-    public ref struct MethodDebuggerState
+    public struct MethodDebuggerState
     {
+        /// <summary>
+        /// Gets a disabled states
+        /// </summary>
+        internal static readonly MethodDebuggerState[] DisabledStates = { new() { IsActive = false } };
+
         private readonly string _probeId;
         private readonly Scope _scope;
 
         /// <summary>
+        /// Backing field of <see cref="MethodMetadataIndex"/>.
         /// Used to perform a fast lookup to grab the proper <see cref="Collections.MethodMetadataInfo"/>.
         /// This index is hard-coded into the method's instrumented bytecode.
         /// </summary>
@@ -30,7 +37,6 @@ namespace Datadog.Trace.Debugger.Instrumentation
 
         // Determines whether we should still be capturing values, or halt for any reason (e.g an exception was caused by our instrumentation, rate limiter threshold reached).
         internal bool IsActive = true;
-
         internal bool HasLocalsOrReturnValue;
         internal object InvocationTarget;
 
@@ -49,9 +55,22 @@ namespace Datadog.Trace.Debugger.Instrumentation
             _methodMetadataIndex = methodMetadataIndex;
             HasLocalsOrReturnValue = false;
             InvocationTarget = invocationTarget;
-            SnapshotCreator = DebuggerSnapshotCreator.BuildSnapshotCreator(probeData.Processor);
+            var processor = probeData.Processor;
+            SnapshotCreator = processor.CreateSnapshotCreator();
             ProbeData = probeData;
             MethodPhase = EvaluateAt.Entry;
+        }
+
+        /// <summary>
+        /// Gets an index that is used as a fast lookup to grab the proper <see cref="Collections.MethodMetadataInfo"/>.
+        /// This index is hard-coded into the method's instrumented bytecode.
+        /// </summary>
+        internal int MethodMetadataIndex
+        {
+            get
+            {
+                return _methodMetadataIndex;
+            }
         }
 
         internal EvaluateAt MethodPhase { get; set; }
@@ -63,7 +82,7 @@ namespace Datadog.Trace.Debugger.Instrumentation
         /// <summary>
         /// Gets the LiveDebugger SnapshotCreator
         /// </summary>
-        internal DebuggerSnapshotCreator SnapshotCreator { get; }
+        internal IDebuggerSnapshotCreator SnapshotCreator { get; }
 
         /// <summary>
         /// Gets the LiveDebugger BeginMethod scope

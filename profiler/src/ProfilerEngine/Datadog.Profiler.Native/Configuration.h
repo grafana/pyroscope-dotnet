@@ -6,12 +6,17 @@
 #include <memory>
 #include <string>
 
+#include "DeploymentMode.h"
+#include "EnablementStatus.h"
+#include "CpuProfilerType.h"
 #include "IConfiguration.h"
 #include "TagsHelper.h"
 #include "shared/src/native-src/string.h"
 
 #include "shared/src/native-src/dd_filesystem.hpp"
 // namespace fs is an alias defined in "dd_filesystem.hpp"
+
+using namespace std::literals::chrono_literals;
 
 class Configuration final : public IConfiguration
 {
@@ -58,6 +63,23 @@ public:
     bool UseBacktrace2() const override;
     bool IsAllocationRecorderEnabled() const override;
     bool IsDebugInfoEnabled() const override;
+    bool IsGcThreadsCpuTimeEnabled() const override;
+    bool IsThreadLifetimeEnabled() const override;
+    std::string const& GetGitRepositoryUrl() const override;
+    std::string const& GetGitCommitSha() const override;
+    bool IsInternalMetricsEnabled() const override;
+    bool IsSystemCallsShieldEnabled() const override;
+    bool IsCIVisibilityEnabled() const override;
+    std::uint64_t GetCIVisibilitySpanId() const override;
+    bool IsEtwEnabled() const override;
+    bool IsEtwLoggingEnabled() const override;
+    EnablementStatus GetEnablementStatus() const override;
+    DeploymentMode GetDeploymentMode() const override;
+    std::chrono::milliseconds GetSsiLongLivedThreshold() const override;
+    bool IsTelemetryToDiskEnabled() const override;
+    bool IsSsiTelemetryEnabled() const override;
+    CpuProfilerType GetCpuProfilerType() const override;
+    std::chrono::milliseconds GetCpuProfilingInterval() const override;
 
     std::string PyroscopeServerAddress() const override;
     std::string PyroscopeApplicationName() const override;
@@ -71,6 +93,7 @@ private:
     static std::string GetDefaultSite();
     static std::string ExtractSite();
     static std::chrono::seconds ExtractUploadInterval();
+    static std::chrono::milliseconds ExtractCpuProfilingInterval(std::chrono::milliseconds minimum = DefaultCpuProfilingInterval);
     static fs::path GetDefaultLogDirectoryPath();
     static fs::path GetApmBaseDirectory();
     static fs::path ExtractLogDirectory();
@@ -81,11 +104,13 @@ private:
     static T GetEnvironmentValue(shared::WSTRING const& name, T const& defaultValue);
     template <typename T>
     static bool IsEnvironmentValueSet(shared::WSTRING const& name, T& value);
-    static std::chrono::nanoseconds ExtractCpuWallTimeSamplingRate();
+    static std::chrono::nanoseconds ExtractCpuWallTimeSamplingRate(int minimum = 5);
     static int32_t ExtractWallTimeThreadsThreshold();
     static int32_t ExtractCpuThreadsThreshold();
     static int32_t ExtractCodeHotspotsThreadsThreshold();
     static bool GetContention();
+    EnablementStatus ExtractEnablementStatus();
+    std::chrono::milliseconds ExtractSsiLongLivedThreshold() const;
 
 private:
     static std::string const DefaultProdSite;
@@ -95,6 +120,11 @@ private:
     static std::string const DefaultAgentHost;
     static std::string const DefaultEmptyString;
     static int32_t const DefaultAgentPort;
+    static std::chrono::seconds const DefaultDevUploadInterval;
+    static std::chrono::seconds const DefaultProdUploadInterval;
+    static std::chrono::milliseconds const DefaultCpuProfilingInterval;
+
+
     static std::string const DefaultPyroscopeServerAddress;
     static std::string const DefaultPyroscopeApplicationName;
 
@@ -106,6 +136,7 @@ private:
     bool _isContentionProfilingEnabled;
     bool _isGarbageCollectionProfilingEnabled;
     bool _isHeapProfilingEnabled;
+    bool _isThreadLifetimeEnabled;
     bool _debugLogEnabled;
     fs::path _logDirectory;
     fs::path _pprofDirectory;
@@ -133,11 +164,30 @@ private:
     int32_t _codeHotspotsThreadsThreshold;
     bool _useBacktrace2;
     bool _isAllocationRecorderEnabled;
+    bool _isGcThreadsCpuTimeEnabled;
+    std::string _gitRepositoryUrl;
+    std::string _gitCommitSha;
 
     double _minimumCores;
     std::string _namedPipeName;
     bool _isTimestampsAsLabelEnabled;
     bool _isDebugInfoEnabled;
+    bool _isInternalMetricsEnabled;
+    bool _isSystemCallsShieldEnabled;
+
+    bool _isCIVisibilityEnabled;
+    std::uint64_t _internalCIVisibilitySpanId;
+    bool _isEtwEnabled;
+    DeploymentMode _deploymentMode;
+    bool _isEtwLoggingEnabled;
+    EnablementStatus _enablementStatus;
+    std::chrono::milliseconds _ssiLongLivedThreshold;
+    bool _isTelemetryToDiskEnabled;
+    bool _isSsiTelemetryEnabled;
+
+    CpuProfilerType _cpuProfilerType;
+    std::chrono::milliseconds _cpuProfilingInterval;
+
 
     std::string _pyroscopeServerAddress;
     std::string _pyroscopeApplicationName;

@@ -72,8 +72,6 @@ namespace Datadog.Trace.TestHelpers
             }
         }
 
-        public event EventHandler<EventArgs<HttpListenerContext>> RequestReceived;
-
         public event EventHandler<EventArgs<IList<T>>> RequestDeserialized;
 
         /// <summary>
@@ -130,7 +128,6 @@ namespace Datadog.Trace.TestHelpers
                 try
                 {
                     var ctx = _listener.GetContext();
-                    RequestReceived?.Invoke(this, new EventArgs<HttpListenerContext>(ctx));
                     if (ShouldDeserializeLogs)
                     {
                         var logs = DeserializeFromStream(ctx.Request.InputStream);
@@ -221,7 +218,7 @@ namespace Datadog.Trace.TestHelpers
             public string SpanId { get; set; }
 
             [JsonExtensionData]
-            internal Dictionary<string, JToken> OtherProperties { get; } = new();
+            public Dictionary<string, object> OtherProperties { get; } = new();
 
             [JsonProperty("service")]
             private string Service1

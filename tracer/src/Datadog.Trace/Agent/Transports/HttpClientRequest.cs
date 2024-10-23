@@ -11,15 +11,15 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Datadog.Trace.AppSec;
+using Datadog.Trace.HttpOverStreams;
 using Datadog.Trace.Logging;
 using Datadog.Trace.Util;
 using Datadog.Trace.Vendors.Newtonsoft.Json;
 
 namespace Datadog.Trace.Agent.Transports
 {
-    internal class HttpClientRequest : IApiRequest, IMultipartApiRequest
+    internal class HttpClientRequest : IApiRequest
     {
-        private const string Boundary = "faa0a896-8bc8-48f3-b46d-016f2b15a884";
         private static readonly IDatadogLogger Log = DatadogLogging.GetLoggerFor<HttpClientRequest>();
 
         private readonly HttpClient _client;
@@ -99,7 +99,31 @@ namespace Datadog.Trace.Agent.Transports
             }
         }
 
-        public async Task<IApiResponse> PostAsync(params MultipartFormItem[] items)
+        public async Task<IApiResponse> PostAsync(Func<Stream, Task> writeToRequestStream, string contentType, string contentEncoding, string multipartBoundary)
+        {
+            // re-create HttpContent on every retry because some versions of HttpClient always dispose of it, so we can't reuse.
+            using var content = new PushStreamContent(writeToRequestStream);
+
+            var contentTypeHeader = new MediaTypeHeaderValue(contentType);
+            if (!string.IsNullOrEmpty(multipartBoundary))
+            {
+                contentTypeHeader.Parameters.Add(new NameValueHeaderValue("boundary", multipartBoundary));
+            }
+
+            content.Headers.ContentType = contentTypeHeader;
+
+            if (!string.IsNullOrEmpty(contentEncoding))
+            {
+                content.Headers.ContentEncoding.Add(contentEncoding);
+            }
+
+            _postRequest.Content = content;
+            var response = await _client.SendAsync(_postRequest).ConfigureAwait(false);
+
+            return new HttpClientResponse(response);
+        }
+
+        public async Task<IApiResponse> PostAsync(MultipartFormItem[] items, MultipartCompression multipartCompression = MultipartCompression.None)
         {
             if (items is null)
             {
@@ -108,11 +132,14 @@ namespace Datadog.Trace.Agent.Transports
 
             Log.Debug<int>("Sending multipart form request with {Count} items.", items.Length);
 
-            using var formDataContent = new MultipartFormDataContent(boundary: Boundary);
-            _postRequest.Content = formDataContent;
-
+            using var formDataContent = new MultipartFormDataContent(boundary: DatadogHttpValues.Boundary);
             foreach (var item in items)
             {
+                if (!item.IsValid(Log))
+                {
+                    continue;
+                }
+
                 HttpContent content = null;
 
                 // Adds a form data item
@@ -140,6 +167,16 @@ namespace Datadog.Trace.Agent.Transports
                 {
                     formDataContent.Add(content, item.Name);
                 }
+            }
+
+            if (multipartCompression == MultipartCompression.GZip)
+            {
+                Log.Debug("Using MultipartCompression.GZip");
+                _postRequest.Content = new GzipCompressedContent(formDataContent);
+            }
+            else
+            {
+                _postRequest.Content = formDataContent;
             }
 
             var response = await _client.SendAsync(_postRequest).ConfigureAwait(false);

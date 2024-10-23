@@ -9,13 +9,42 @@
 class RawAllocationSample : public RawSample
 {
 public:
-    inline void OnTransform(std::shared_ptr<Sample>& sample, uint32_t valueOffset) const override
-    {
-        uint32_t allocationCountIndex = valueOffset;
-        uint32_t allocationSizeIndex = valueOffset + 1;
+    RawAllocationSample() = default;
 
+    RawAllocationSample(RawAllocationSample&& other) noexcept
+        :
+        RawSample(std::move(other)),
+        AllocationClass(std::move(other.AllocationClass)),
+        AllocationSize(other.AllocationSize),
+        Address(other.Address),
+        MethodTable(other.MethodTable)
+    {
+    }
+
+    RawAllocationSample& operator=(RawAllocationSample&& other) noexcept
+    {
+        if (this != &other)
+        {
+            RawSample::operator=(std::move(other));
+            AllocationClass = std::move(other.AllocationClass);
+            AllocationSize = other.AllocationSize;
+            Address = other.Address;
+            MethodTable = other.MethodTable;
+        }
+        return *this;
+    }
+
+    inline void OnTransform(std::shared_ptr<Sample>& sample, std::vector<SampleValueTypeProvider::Offset> const& valueOffsets) const override
+    {
+        auto allocationCountIndex = valueOffsets[0];
         sample->AddValue(1, allocationCountIndex);
-        sample->AddValue(AllocationSize, allocationSizeIndex);
+
+        // in .NET Framework, no size is available
+        if (valueOffsets.size() == 2)
+        {
+            auto allocationSizeIndex = valueOffsets[1];
+            sample->AddValue(AllocationSize, allocationSizeIndex);
+        }
     }
 
     std::string AllocationClass;

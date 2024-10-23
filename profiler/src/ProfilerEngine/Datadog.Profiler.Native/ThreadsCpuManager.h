@@ -9,8 +9,12 @@
 
 #include "ThreadCpuInfo.h"
 #include "IThreadsCpuManager.h"
+#include "ServiceBase.h"
 
-class ThreadsCpuManager : public IThreadsCpuManager
+class ThreadsCpuManager
+    :
+    public IThreadsCpuManager,
+    public ServiceBase
 {
 public:
     ThreadsCpuManager();
@@ -21,12 +25,13 @@ public:
 // interfaces implementation
 public:
     const char* GetName() override;
-    bool Start() override;
-    bool Stop() override;
     void Map(DWORD threadOSId, const WCHAR* name) override;
     void LogCpuTimes() override;
 
 private:
+    bool StartImpl() override;
+    bool StopImpl() override;
+
     const char* _serviceName = "ThreadsCpuManager";
 
     // Need to protect access to the map. However, it should not trigger a lot of contention
@@ -34,5 +39,5 @@ private:
     std::recursive_mutex _lockThreads;
 
     // map thread OS id to ThreadCpuInfo that stores name
-    std::unordered_map<DWORD, ThreadCpuInfo*> _threads;
+    std::unordered_map<DWORD, std::unique_ptr<ThreadCpuInfo>> _threads;
 };

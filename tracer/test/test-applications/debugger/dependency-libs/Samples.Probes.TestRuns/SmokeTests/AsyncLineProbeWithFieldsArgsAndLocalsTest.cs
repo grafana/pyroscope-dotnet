@@ -6,15 +6,15 @@ using Samples.Probes.TestRuns.Shared;
 
 namespace Samples.Probes.TestRuns.SmokeTests
 {
-    [LineProbeTestData(23)]
-    [LineProbeTestData(25)]
-    [LineProbeTestData(26)]
-    [LineProbeTestData(27)]
-    [LineProbeTestData(28)]
-    [LineProbeTestData(29)]
-    [LineProbeTestData(45)]
-    [LineProbeTestData(46)]
-    [LineProbeTestData(47)]
+    [LogLineProbeTestData(23)]
+    [LogLineProbeTestData(25)]
+    [LogLineProbeTestData(26)]
+    [LogLineProbeTestData(27)]
+    [LogLineProbeTestData(28)]
+    [LogLineProbeTestData(29)]
+    [LogLineProbeTestData(45)]
+    [LogLineProbeTestData(46)]
+    [LogLineProbeTestData(47)]
     public class AsyncLineProbeWithFieldsArgsAndLocalsTest : IAsyncRun
     {
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -22,10 +22,10 @@ namespace Samples.Probes.TestRuns.SmokeTests
         {
             var place = new Place { Type = PlaceType.City, Name = "New York" };
 
-            var address = new Address { City = place, HomeType = BuildingType.Duplex, Number = 15, Street = "Harlem" };
+            var adr = new Address { City = place, HomeType = BuildingType.Duplex, Number = 15, Street = "Harlem" };
             var children = new List<Person>();
-            children.Add(new Person("Ralph Jr.", 31, address, Guid.Empty, null));
-            var person = new Person("Ralph", 99, address, Guid.Empty, children);
+            children.Add(new Person("Ralph Jr.", 31, adr, Guid.Empty, null));
+            var person = new Person("Ralph", 99, adr, Guid.Empty, children);
             await new NestedAsyncGenericStruct(person).Method(new Generic { Message = "NestedAsyncGenericStruct" }, $".{nameof(RunAsync)}", person);
         }
 
@@ -39,7 +39,7 @@ namespace Samples.Probes.TestRuns.SmokeTests
             }
 
             [MethodImpl(MethodImplOptions.NoInlining)]
-            [MethodProbeTestData]
+            [LogMethodProbeTestData]
             public async Task<string> Method(Generic someGenericObject, string input, Person goodPerson)
             {
                 var output = goodPerson.ToString() + someGenericObject.ToString() + goodPerson.Name;

@@ -8,11 +8,9 @@
 #include "corprof.h"
 // end
 
-#include "IService.h"
-
 #include <string>
 
-class IAllocationsRecorder : public IService
+class IAllocationsRecorder
 {
 public:
     virtual ~IAllocationsRecorder() = default;

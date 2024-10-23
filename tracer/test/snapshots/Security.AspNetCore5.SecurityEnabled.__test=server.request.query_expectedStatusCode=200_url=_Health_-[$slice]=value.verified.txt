@@ -31,18 +31,19 @@
       span.kind: server,
       _dd.appsec.json: {"triggers":[{"rule":{"id":"crs-942-290","name":"Finds basic MongoDB SQL injection attempts","tags":{"category":"attack_attempt","type":"nosql_injection"}},"rule_matches":[{"operator":"match_regex","operator_value":"(?i:(?:\\[?\\$(?:(?:s(?:lic|iz)|wher)e|e(?:lemMatch|xists|q)|n(?:o[rt]|in?|e)|l(?:ike|te?)|t(?:ext|ype)|a(?:ll|nd)|jsonSchema|between|regex|x?or|div|mod)\\]?)\\b)","parameters":[{"address":"server.request.query","highlight":["[$slice"],"key_path":["[$slice]"],"value":"[$slice]"}]}]}]},
       _dd.origin: appsec,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.appsec.waf.duration: 0.0,
       _dd.appsec.waf.duration_ext: 0.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
       _sampling_priority_v1: 2.0
+    },
+    MetaStruct: {
+      appsec: 
     }
   },
   {
@@ -77,18 +78,19 @@
       span.kind: server,
       _dd.appsec.json: {"triggers":[{"rule":{"id":"crs-942-290","name":"Finds basic MongoDB SQL injection attempts","tags":{"category":"attack_attempt","type":"nosql_injection"}},"rule_matches":[{"operator":"match_regex","operator_value":"(?i:(?:\\[?\\$(?:(?:s(?:lic|iz)|wher)e|e(?:lemMatch|xists|q)|n(?:o[rt]|in?|e)|l(?:ike|te?)|t(?:ext|ype)|a(?:ll|nd)|jsonSchema|between|regex|x?or|div|mod)\\]?)\\b)","parameters":[{"address":"server.request.query","highlight":["[$slice"],"key_path":["[$slice]"],"value":"[$slice]"}]}]}]},
       _dd.origin: appsec,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.appsec.waf.duration: 0.0,
       _dd.appsec.waf.duration_ext: 0.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
       _sampling_priority_v1: 2.0
+    },
+    MetaStruct: {
+      appsec: 
     }
   },
   {
@@ -123,18 +125,19 @@
       span.kind: server,
       _dd.appsec.json: {"triggers":[{"rule":{"id":"crs-942-290","name":"Finds basic MongoDB SQL injection attempts","tags":{"category":"attack_attempt","type":"nosql_injection"}},"rule_matches":[{"operator":"match_regex","operator_value":"(?i:(?:\\[?\\$(?:(?:s(?:lic|iz)|wher)e|e(?:lemMatch|xists|q)|n(?:o[rt]|in?|e)|l(?:ike|te?)|t(?:ext|ype)|a(?:ll|nd)|jsonSchema|between|regex|x?or|div|mod)\\]?)\\b)","parameters":[{"address":"server.request.query","highlight":["[$slice"],"key_path":["[$slice]"],"value":"[$slice]"}]}]}]},
       _dd.origin: appsec,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.appsec.waf.duration: 0.0,
       _dd.appsec.waf.duration_ext: 0.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
       _sampling_priority_v1: 2.0
+    },
+    MetaStruct: {
+      appsec: 
     }
   },
   {
@@ -169,18 +172,19 @@
       span.kind: server,
       _dd.appsec.json: {"triggers":[{"rule":{"id":"crs-942-290","name":"Finds basic MongoDB SQL injection attempts","tags":{"category":"attack_attempt","type":"nosql_injection"}},"rule_matches":[{"operator":"match_regex","operator_value":"(?i:(?:\\[?\\$(?:(?:s(?:lic|iz)|wher)e|e(?:lemMatch|xists|q)|n(?:o[rt]|in?|e)|l(?:ike|te?)|t(?:ext|ype)|a(?:ll|nd)|jsonSchema|between|regex|x?or|div|mod)\\]?)\\b)","parameters":[{"address":"server.request.query","highlight":["[$slice"],"key_path":["[$slice]"],"value":"[$slice]"}]}]}]},
       _dd.origin: appsec,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.appsec.waf.duration: 0.0,
       _dd.appsec.waf.duration_ext: 0.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
       _sampling_priority_v1: 2.0
+    },
+    MetaStruct: {
+      appsec: 
     }
   },
   {
@@ -215,18 +219,19 @@
       span.kind: server,
       _dd.appsec.json: {"triggers":[{"rule":{"id":"crs-942-290","name":"Finds basic MongoDB SQL injection attempts","tags":{"category":"attack_attempt","type":"nosql_injection"}},"rule_matches":[{"operator":"match_regex","operator_value":"(?i:(?:\\[?\\$(?:(?:s(?:lic|iz)|wher)e|e(?:lemMatch|xists|q)|n(?:o[rt]|in?|e)|l(?:ike|te?)|t(?:ext|ype)|a(?:ll|nd)|jsonSchema|between|regex|x?or|div|mod)\\]?)\\b)","parameters":[{"address":"server.request.query","highlight":["[$slice"],"key_path":["[$slice]"],"value":"[$slice]"}]}]}]},
       _dd.origin: appsec,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.appsec.waf.duration: 0.0,
       _dd.appsec.waf.duration_ext: 0.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
       _sampling_priority_v1: 2.0
+    },
+    MetaStruct: {
+      appsec: 
     }
   }
 ]

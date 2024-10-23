@@ -20,6 +20,11 @@ namespace Datadog.Trace.Debugger.Instrumentation
     public class AsyncMethodDebuggerState
     {
         /// <summary>
+        /// Gets a disabled state
+        /// </summary>
+        internal static readonly AsyncMethodDebuggerState[] DisabledStates = { new() { IsActive = false } };
+
+        /// <summary>
         /// Initializes a new instance of the <see cref="AsyncMethodDebuggerState"/> class.
         /// </summary>
         internal AsyncMethodDebuggerState(string probeId, ref ProbeData probeData)
@@ -27,7 +32,8 @@ namespace Datadog.Trace.Debugger.Instrumentation
             ProbeId = probeId;
             HasLocalsOrReturnValue = false;
             HasArguments = false;
-            SnapshotCreator = DebuggerSnapshotCreator.BuildSnapshotCreator(probeData.Processor);
+            var processor = probeData.Processor;
+            SnapshotCreator = processor.CreateSnapshotCreator();
             ProbeData = probeData;
         }
 
@@ -64,7 +70,7 @@ namespace Datadog.Trace.Debugger.Instrumentation
         /// <summary>
         /// Gets the LiveDebugger SnapshotCreator
         /// </summary>
-        internal DebuggerSnapshotCreator SnapshotCreator { get; }
+        internal IDebuggerSnapshotCreator SnapshotCreator { get; }
 
         /// <summary>
         /// Gets or sets the LiveDebugger BeginMethod scope
@@ -105,11 +111,19 @@ namespace Datadog.Trace.Debugger.Instrumentation
         /// </summary>
         /// <returns>Invalid live debugger state</returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static AsyncMethodDebuggerState[] CreateInvalidatedDebuggerStates()
+        {
+            return DisabledStates;
+        }
+
+        /// <summary>
+        /// Gets invalid live debugger state
+        /// </summary>
+        /// <returns>Invalid live debugger state</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static AsyncMethodDebuggerState CreateInvalidatedDebuggerState()
         {
-            var state = new AsyncMethodDebuggerState();
-            state.IsActive = false;
-            return state;
+            return DisabledStates[0];
         }
 
         /// <summary>

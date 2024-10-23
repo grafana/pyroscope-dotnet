@@ -9,6 +9,8 @@ using Datadog.Trace.Ci;
 using Datadog.Trace.Ci.Logging.DirectSubmission;
 using Datadog.Trace.ClrProfiler.CallTarget;
 using Datadog.Trace.Logging.DirectSubmission;
+using Datadog.Trace.Telemetry;
+using Datadog.Trace.Telemetry.Metrics;
 
 namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Testing.XUnit;
 
@@ -16,11 +18,11 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Testing.XUnit;
 /// Xunit.Sdk.TestOutputHelper.QueueTestOutput calltarget instrumentation
 /// </summary>
 [InstrumentMethod(
-    AssemblyNames = new[] { "xunit.execution.dotnet", "xunit.execution.desktop" },
+    AssemblyNames = ["xunit.execution.dotnet", "xunit.execution.desktop"],
     TypeName = "Xunit.Sdk.TestOutputHelper",
     MethodName = "QueueTestOutput",
     ReturnTypeName = ClrNames.Void,
-    ParameterTypeNames = new[] { ClrNames.String },
+    ParameterTypeNames = [ClrNames.String],
     MinimumVersion = "2.2.0",
     MaximumVersion = "2.*.*",
     IntegrationName = XUnitIntegration.IntegrationName)]
@@ -50,6 +52,7 @@ public static class XUnitTestOutputHelperQueueTestOutputIntegration
 
         if (Test.Current?.GetInternalSpan() is { } span)
         {
+            TelemetryFactory.Metrics.RecordCountDirectLogLogs(MetricTags.IntegrationName.XUnit);
             tracer.TracerManager.DirectLogSubmission.Sink.EnqueueLog(new CIVisibilityLogEvent("xunit", "info", output, span));
         }
 

@@ -8,6 +8,7 @@
 #include "shared/src/native-src/util.h"
 
 #ifdef _WINDOWS
+#include "OsSpecificApi.h"
 #define LIBRARY_FILE_EXTENSION ".dll"
 #elif LINUX
 #define LIBRARY_FILE_EXTENSION ".so"
@@ -21,7 +22,7 @@ const char* const RuntimeIdStore::ServiceName = "RuntimeID Store";
 const char* const RuntimeIdStore::ExternalFunctionName = "GetRuntimeId";
 const char* const RuntimeIdStore::NativeLoaderFilename = "Datadog.Trace.ClrProfiler.Native" LIBRARY_FILE_EXTENSION;
 
-bool RuntimeIdStore::Start()
+bool RuntimeIdStore::StartImpl()
 {
     // should be set by native loader
     shared::WSTRING nativeLoaderPath = shared::GetEnvironmentValue(WStr("DD_INTERNAL_NATIVE_LOADER_PATH"));
@@ -66,7 +67,7 @@ bool RuntimeIdStore::Start()
     return _getIdFn != nullptr;
 }
 
-bool RuntimeIdStore::Stop()
+bool RuntimeIdStore::StopImpl()
 {
     if (_instance != nullptr)
     {
@@ -108,17 +109,8 @@ void* RuntimeIdStore::LoadDynamicLibrary(std::string filePath)
     HMODULE dynLibPtr = LoadLibrary(::shared::ToWSTRING(filePath).c_str());
     if (dynLibPtr == NULL)
     {
-        LPVOID msgBuffer;
-        DWORD errorCode = GetLastError();
-
-        FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                      NULL, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&msgBuffer, 0, NULL);
-
-        if (msgBuffer != NULL)
-        {
-            Log::Warn("LoadDynamicLibrary: Error loading dynamic library '", filePath, "': ", (LPTSTR)msgBuffer);
-            LocalFree(msgBuffer);
-        }
+        auto [errorCode, message] = OsSpecificApi::GetLastErrorMessage();
+        Log::Warn("LoadDynamicLibrary: Error loading dynamic library '", filePath, "' ", message);
     }
     return dynLibPtr;
 #else
@@ -145,17 +137,8 @@ void* RuntimeIdStore::GetExternalFunction(void* instance, const char* const func
     FARPROC dynFunc = GetProcAddress((HMODULE)instance, funcName);
     if (dynFunc == NULL)
     {
-        LPVOID msgBuffer;
-        DWORD errorCode = GetLastError();
-
-        FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS,
-                      NULL, errorCode, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&msgBuffer, 0, NULL);
-
-        if (msgBuffer != NULL)
-        {
-            Log::Warn("GetExternalFunction: Error loading dynamic function '", funcName, "': ", (LPTSTR)msgBuffer);
-            LocalFree(msgBuffer);
-        }
+        auto [errorCode, message] = OsSpecificApi::GetLastErrorMessage();
+        Log::Warn("GetExternalFunction: Error loading dynamic function '", funcName, "' ", message);
     }
     return dynFunc;
 #else

@@ -7,36 +7,67 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using Datadog.Trace.Ci;
+using System.Threading.Tasks;
 using Datadog.Trace.Ci.Tags;
 using Datadog.Trace.Configuration;
+using Datadog.Trace.ExtensionMethods;
 using Datadog.Trace.TestHelpers;
+using FluentAssertions;
+using VerifyXunit;
 using Xunit;
 using Xunit.Abstractions;
+#pragma warning disable SA1402
 
 namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
 {
-    public class MsTestV2Tests : TestHelper
-    {
-        private const string TestSuiteName = "Samples.MSTestTests.TestSuite";
-        private const string TestBundleName = "Samples.MSTestTests";
+    public class MsTestV2Tests(ITestOutputHelper output) : MsTestV2TestsBase("MSTestTests", output, pre224TestCount: 20, post224TestCount: 22);
 
-        public MsTestV2Tests(ITestOutputHelper output)
-            : base("MSTestTests", output)
+    public class MsTestV2Tests2(ITestOutputHelper output) : MsTestV2TestsBase("MSTestTests2", output, pre224TestCount: 19, post224TestCount: 21);
+
+    [Collection("MsTestV2Tests")]
+    [UsesVerify]
+    public abstract class MsTestV2TestsBase : TestingFrameworkTest
+    {
+        private readonly GacFixture _gacFixture;
+
+        public MsTestV2TestsBase(string sampleAppName, ITestOutputHelper output, int pre224TestCount, int post224TestCount)
+            : base(sampleAppName, output)
         {
+            TestBundleName = $"Samples.{sampleAppName}";
+            TestSuiteName = "Samples.MSTestTests.TestSuite";
+            ClassInitializationExceptionTestSuiteName = "Samples.MSTestTests.ClassInitializeExceptionTestSuite";
+            Pre224TestCount = pre224TestCount;
+            Post224TestCount = post224TestCount;
             SetServiceName("mstest-tests");
             SetServiceVersion("1.0.0");
+            _gacFixture = new GacFixture();
+            _gacFixture.AddAssembliesToGac();
+        }
+
+        protected virtual string TestSuiteName { get; }
+
+        protected virtual string TestBundleName { get; }
+
+        protected virtual string ClassInitializationExceptionTestSuiteName { get; }
+
+        protected virtual int Pre224TestCount { get; }
+
+        protected virtual int Post224TestCount { get; }
+
+        public override void Dispose()
+        {
+            _gacFixture.RemoveAssembliesFromGac();
         }
 
         [SkippableTheory]
         [MemberData(nameof(PackageVersions.MSTest), MemberType = typeof(PackageVersions))]
         [Trait("Category", "EndToEnd")]
         [Trait("Category", "TestIntegrations")]
-        public void SubmitTraces(string packageVersion)
+        public async Task SubmitTraces(string packageVersion)
         {
-            var version = string.IsNullOrEmpty(packageVersion) ? new Version("2.2.8") : new Version(packageVersion);
+            var version = string.IsNullOrEmpty(packageVersion) ? new Version("2.2.3") : new Version(packageVersion);
             List<MockSpan> spans = null;
-            var expectedSpanCount = version.CompareTo(new Version("2.2.5")) < 0 ? 13 : 15;
+            var expectedSpanCount = version.CompareTo(new Version("2.2.3")) <= 0 ? Pre224TestCount : Post224TestCount;
 
             try
             {
@@ -45,12 +76,16 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                 using (var agent = EnvironmentHelper.GetMockAgent())
                 {
                     // We remove the evp_proxy endpoint to force the APM protocol compatibility
-                    agent.Configuration.Endpoints = agent.Configuration.Endpoints.Where(e => !e.Contains("evp_proxy/v2")).ToArray();
-                    using (ProcessResult processResult = RunDotnetTestSampleAndWaitForExit(agent, packageVersion: packageVersion))
+                    agent.Configuration.Endpoints = agent.Configuration.Endpoints.Where(e => !e.Contains("evp_proxy/v2") && !e.Contains("evp_proxy/v4")).ToArray();
+                    using (ProcessResult processResult = await RunDotnetTestSampleAndWaitForExit(agent, packageVersion: packageVersion))
                     {
                         spans = agent.WaitForSpans(expectedSpanCount)
                                      .Where(s => !(s.Tags.TryGetValue(Tags.InstrumentationName, out var sValue) && sValue == "HttpMessageHandler"))
                                      .ToList();
+
+                        var settings = VerifyHelper.GetCIVisibilitySpanVerifierSettings(expectedSpanCount == Pre224TestCount ? "pre_2_2_4" : "post_2_2_4");
+                        settings.DisableRequireUniquePrefix();
+                        await Verifier.Verify(spans.OrderBy(s => s.Resource).ThenBy(s => s.Tags.GetValueOrDefault(TestTags.Name)).ThenBy(s => s.Tags.GetValueOrDefault(TestTags.Parameters)), settings);
 
                         // Check the span count
                         Assert.Equal(expectedSpanCount, spans.Count);
@@ -59,10 +94,15 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                         {
                             // Remove decision maker tag (not used by the backend for civisibility)
                             targetSpan.Tags.Remove(Tags.Propagated.DecisionMaker);
+                            targetSpan.Tags.Remove(Tags.Propagated.TraceIdUpper);
 
                             // Remove git metadata added by the apm agent writer.
                             targetSpan.Tags.Remove(Tags.GitCommitSha);
                             targetSpan.Tags.Remove(Tags.GitRepositoryUrl);
+
+                            // Remove EFD tags
+                            targetSpan.Tags.Remove(EarlyFlakeDetectionTags.TestIsNew);
+                            targetSpan.Tags.Remove(EarlyFlakeDetectionTags.TestIsRetry);
 
                             // check the name
                             Assert.Equal("mstestv2.test", targetSpan.Name);
@@ -78,7 +118,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                             AssertTargetSpanEqual(targetSpan, TestTags.Module, TestBundleName);
 
                             // check the suite name
-                            AssertTargetSpanEqual(targetSpan, TestTags.Suite, TestSuiteName);
+                            AssertTargetSpanAnyOf(targetSpan, TestTags.Suite, TestSuiteName, ClassInitializationExceptionTestSuiteName);
 
                             // check the test type
                             AssertTargetSpanEqual(targetSpan, TestTags.Type, TestTags.TypeTest);
@@ -99,9 +139,6 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                             // checks code owners
                             AssertTargetSpanExists(targetSpan, TestTags.CodeOwners);
 
-                            // remove ITR skippeable tags
-                            AssertTargetSpanExists(targetSpan, CommonTags.TestsSkipped);
-
                             // checks the origin tag
                             CheckOriginTag(targetSpan);
 
@@ -118,6 +155,13 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                             AssertTargetSpanExists(targetSpan, TestTags.Command);
                             AssertTargetSpanExists(targetSpan, TestTags.CommandWorkingDirectory);
 
+                            // Unskippable data
+                            if (targetSpan.Tags[TestTags.Name] != "UnskippableTest")
+                            {
+                                AssertTargetSpanEqual(targetSpan, IntelligentTestRunnerTags.UnskippableTag, "false");
+                                AssertTargetSpanEqual(targetSpan, IntelligentTestRunnerTags.ForcedRunTag, "false");
+                            }
+
                             // check specific test span
                             switch (targetSpan.Tags[TestTags.Name])
                             {
@@ -125,8 +169,15 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                                     CheckSimpleTestSpan(targetSpan);
                                     break;
 
+                                case "SkipByITRSimulation":
+                                    AssertTargetSpanEqual(targetSpan, TestTags.Status, TestTags.StatusSkip);
+                                    AssertTargetSpanEqual(targetSpan, TestTags.SkipReason, IntelligentTestRunnerTags.SkippedByReason);
+                                    AssertTargetSpanEqual(targetSpan, IntelligentTestRunnerTags.SkippedBy, "true");
+                                    break;
+
                                 case "SimpleSkipFromAttributeTest":
                                     CheckSimpleSkipFromAttributeTest(targetSpan);
+                                    AssertTargetSpanEqual(targetSpan, IntelligentTestRunnerTags.SkippedBy, "false");
                                     break;
 
                                 case "SimpleErrorTest":
@@ -141,6 +192,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                                 case "TraitSkipFromAttributeTest":
                                     CheckSimpleSkipFromAttributeTest(targetSpan);
                                     CheckTraitsValues(targetSpan);
+                                    AssertTargetSpanEqual(targetSpan, IntelligentTestRunnerTags.SkippedBy, "false");
                                     break;
 
                                 case "TraitErrorTest":
@@ -166,6 +218,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                                         targetSpan,
                                         TestTags.Parameters,
                                         "{\"metadata\":{},\"arguments\":{\"xValue\":\"(default)\",\"yValue\":\"(default)\",\"expectedResult\":\"(default)\"}}");
+                                    AssertTargetSpanEqual(targetSpan, IntelligentTestRunnerTags.SkippedBy, "false");
                                     break;
 
                                 case "SimpleErrorParameterizedTest":
@@ -176,6 +229,27 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                                         "{\"metadata\":{},\"arguments\":{\"xValue\":\"1\",\"yValue\":\"0\",\"expectedResult\":\"2\"}}",
                                         "{\"metadata\":{},\"arguments\":{\"xValue\":\"2\",\"yValue\":\"0\",\"expectedResult\":\"4\"}}",
                                         "{\"metadata\":{},\"arguments\":{\"xValue\":\"3\",\"yValue\":\"0\",\"expectedResult\":\"6\"}}");
+                                    break;
+
+                                case "UnskippableTest":
+                                    AssertTargetSpanEqual(targetSpan, IntelligentTestRunnerTags.UnskippableTag, "true");
+                                    AssertTargetSpanEqual(targetSpan, IntelligentTestRunnerTags.ForcedRunTag, "false");
+                                    CheckSimpleTestSpan(targetSpan);
+                                    break;
+
+                                case "ClassInitializeExceptionTestMethod":
+                                    AssertTargetSpanEqual(targetSpan, TestTags.Status, TestTags.StatusFail);
+                                    targetSpan.Error.Should().Be(1);
+                                    AssertTargetSpanEqual(targetSpan, Tags.ErrorType, "Microsoft.VisualStudio.TestPlatform.MSTest.TestAdapter.ObjectModel.TestFailedException");
+                                    AssertTargetSpanContains(targetSpan, Tags.ErrorStack, "System.Exception: Class initialize exception");
+                                    AssertTargetSpanContains(targetSpan, Tags.ErrorMsg, "Class initialize exception.");
+                                    break;
+
+                                case "My Custom: CustomTestMethodAttributeTest":
+                                case "My Custom 2: CustomRenameTestMethodAttributeTest":
+                                case "My Custom 3|1: CustomMultipleResultsTestMethodAttributeTest":
+                                case "My Custom 3|2: CustomMultipleResultsTestMethodAttributeTest":
+                                    AssertTargetSpanEqual(targetSpan, TestTags.Status, TestTags.StatusPass);
                                     break;
                             }
 
@@ -191,156 +265,10 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                 throw;
             }
         }
+    }
 
-        private static void WriteSpans(List<MockSpan> spans)
-        {
-            if (spans is null || spans.Count == 0)
-            {
-                return;
-            }
-
-            Console.WriteLine("***********************************");
-
-            int i = 0;
-            foreach (var span in spans)
-            {
-                Console.Write($" {i++}) ");
-                Console.Write($"TraceId={span.TraceId}, ");
-                Console.Write($"SpanId={span.SpanId}, ");
-                Console.Write($"Service={span.Service}, ");
-                Console.Write($"Name={span.Name}, ");
-                Console.Write($"Resource={span.Resource}, ");
-                Console.Write($"Type={span.Type}, ");
-                Console.Write($"Error={span.Error}");
-                Console.WriteLine();
-                Console.WriteLine($"   Tags=");
-                foreach (var kv in span.Tags)
-                {
-                    Console.WriteLine($"       => {kv.Key} = {kv.Value}");
-                }
-
-                Console.WriteLine();
-            }
-
-            Console.WriteLine("***********************************");
-        }
-
-        private static void AssertTargetSpanAnyOf(MockSpan targetSpan, string key, params string[] values)
-        {
-            string actualValue = targetSpan.Tags[key];
-            Assert.Contains(actualValue, values);
-            targetSpan.Tags.Remove(key);
-        }
-
-        private static void AssertTargetSpanEqual(MockSpan targetSpan, string key, string value)
-        {
-            Assert.Equal(value, targetSpan.Tags[key]);
-            targetSpan.Tags.Remove(key);
-        }
-
-        private static void AssertTargetSpanExists(MockSpan targetSpan, string key)
-        {
-            Assert.True(targetSpan.Tags.ContainsKey(key));
-            targetSpan.Tags.Remove(key);
-        }
-
-        private static void AssertTargetSpanContains(MockSpan targetSpan, string key, string value)
-        {
-            Assert.Contains(value, targetSpan.Tags[key]);
-            targetSpan.Tags.Remove(key);
-        }
-
-        private static void CheckCIEnvironmentValuesDecoration(MockSpan targetSpan)
-        {
-            var context = new SpanContext(null, null, null, null);
-            var span = new Span(context, DateTimeOffset.UtcNow);
-            CIEnvironmentValues.Instance.DecorateSpan(span);
-
-            AssertEqual(CommonTags.CIProvider);
-            AssertEqual(CommonTags.CIPipelineId);
-            AssertEqual(CommonTags.CIPipelineName);
-            AssertEqual(CommonTags.CIPipelineNumber);
-            AssertEqual(CommonTags.CIPipelineUrl);
-            AssertEqual(CommonTags.CIJobUrl);
-            AssertEqual(CommonTags.CIJobName);
-            AssertEqual(CommonTags.StageName);
-            AssertEqual(CommonTags.CIWorkspacePath);
-            AssertEqual(CommonTags.GitRepository);
-            AssertEqual(CommonTags.GitCommit);
-            AssertEqual(CommonTags.GitBranch);
-            AssertEqual(CommonTags.GitTag);
-            AssertEqual(CommonTags.GitCommitAuthorName);
-            AssertEqual(CommonTags.GitCommitAuthorEmail);
-            AssertEqual(CommonTags.GitCommitAuthorDate);
-            AssertEqual(CommonTags.GitCommitCommitterName);
-            AssertEqual(CommonTags.GitCommitCommitterEmail);
-            AssertEqual(CommonTags.GitCommitCommitterDate);
-            AssertEqual(CommonTags.GitCommitMessage);
-            AssertEqual(CommonTags.BuildSourceRoot);
-
-            void AssertEqual(string key)
-            {
-                if (span.GetTag(key) is not null)
-                {
-                    Assert.Equal(span.GetTag(key), targetSpan.Tags[key]);
-                    targetSpan.Tags.Remove(key);
-                }
-            }
-        }
-
-        private static void CheckRuntimeValues(MockSpan targetSpan)
-        {
-            AssertTargetSpanExists(targetSpan, CommonTags.RuntimeName);
-            AssertTargetSpanExists(targetSpan, CommonTags.RuntimeVersion);
-            AssertTargetSpanExists(targetSpan, CommonTags.RuntimeArchitecture);
-            AssertTargetSpanExists(targetSpan, CommonTags.OSArchitecture);
-            AssertTargetSpanExists(targetSpan, CommonTags.OSPlatform);
-            AssertTargetSpanEqual(targetSpan, CommonTags.OSVersion, CIVisibility.GetOperatingSystemVersion());
-        }
-
-        private static void CheckTraitsValues(MockSpan targetSpan)
-        {
-            // Check the traits tag value
-            AssertTargetSpanEqual(targetSpan, TestTags.Traits, "{\"Category\":[\"Category01\"],\"Compatibility\":[\"Windows\",\"Linux\"]}");
-        }
-
-        private static void CheckOriginTag(MockSpan targetSpan)
-        {
-            // Check the test origin tag
-            AssertTargetSpanEqual(targetSpan, Tags.Origin, TestTags.CIAppTestOriginName);
-        }
-
-        private static void CheckSimpleTestSpan(MockSpan targetSpan)
-        {
-            // Check the Test Status
-            AssertTargetSpanEqual(targetSpan, TestTags.Status, TestTags.StatusPass);
-        }
-
-        private static void CheckSimpleSkipFromAttributeTest(MockSpan targetSpan)
-        {
-            // Check the Test Status
-            AssertTargetSpanEqual(targetSpan, TestTags.Status, TestTags.StatusSkip);
-
-            // Check the Test skip reason
-            AssertTargetSpanEqual(targetSpan, TestTags.SkipReason, "Simple skip reason");
-        }
-
-        private static void CheckSimpleErrorTest(MockSpan targetSpan)
-        {
-            // Check the Test Status
-            AssertTargetSpanEqual(targetSpan, TestTags.Status, TestTags.StatusFail);
-
-            // Check the span error flag
-            Assert.Equal(1, targetSpan.Error);
-
-            // Check the error type
-            AssertTargetSpanEqual(targetSpan, Tags.ErrorType, typeof(DivideByZeroException).FullName);
-
-            // Check the error stack
-            AssertTargetSpanContains(targetSpan, Tags.ErrorStack, typeof(DivideByZeroException).FullName);
-
-            // Check the error message
-            AssertTargetSpanEqual(targetSpan, Tags.ErrorMsg, new DivideByZeroException().Message);
-        }
+    [CollectionDefinition("MsTestV2Tests", DisableParallelization = true)]
+    public class MsTestV2TestCollection
+    {
     }
 }

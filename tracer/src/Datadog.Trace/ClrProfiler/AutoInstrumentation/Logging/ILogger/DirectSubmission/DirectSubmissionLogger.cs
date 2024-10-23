@@ -10,6 +10,8 @@ using Datadog.Trace.DuckTyping;
 using Datadog.Trace.Logging.DirectSubmission;
 using Datadog.Trace.Logging.DirectSubmission.Formatting;
 using Datadog.Trace.Logging.DirectSubmission.Sink;
+using Datadog.Trace.Telemetry;
+using Datadog.Trace.Telemetry.Metrics;
 
 namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Logging.ILogger.DirectSubmission
 {
@@ -20,14 +22,14 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Logging.ILogger.DirectSu
     {
         private readonly string _name;
         private readonly IExternalScopeProvider? _scopeProvider;
-        private readonly IDatadogSink _sink;
+        private readonly IDirectSubmissionLogSink _sink;
         private readonly LogFormatter? _logFormatter;
         private readonly int _minimumLogLevel;
 
         internal DirectSubmissionLogger(
             string name,
             IExternalScopeProvider? scopeProvider,
-            IDatadogSink sink,
+            IDirectSubmissionLogSink sink,
             LogFormatter? logFormatter,
             DirectSubmissionLogLevel minimumLogLevel)
         {
@@ -71,8 +73,9 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Logging.ILogger.DirectSu
             var logFormatter = _logFormatter ?? TracerManager.Instance.DirectLogSubmission.Formatter;
             var serializedLog = LoggerLogFormatter.FormatLogEvent(logFormatter, logEntry);
 
-            var log = new LoggerDatadogLogEvent(serializedLog);
+            var log = new LoggerDirectSubmissionLogEvent(serializedLog);
 
+            TelemetryFactory.Metrics.RecordCountDirectLogLogs(MetricTags.IntegrationName.ILogger);
             _sink.EnqueueLog(log);
         }
 

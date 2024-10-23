@@ -11,6 +11,8 @@ using System.Threading.Tasks;
 using Datadog.Trace.Ci;
 using Datadog.Trace.ClrProfiler.CallTarget;
 using Datadog.Trace.DuckTyping;
+using Datadog.Trace.Tagging;
+using CommonTags = Datadog.Trace.Ci.Tags.CommonTags;
 
 namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Testing.XUnit;
 
@@ -18,11 +20,10 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Testing.XUnit;
 /// Xunit.Sdk.TestAssemblyRunner`1.RunAsync calltarget instrumentation
 /// </summary>
 [InstrumentMethod(
-    AssemblyNames = new[] { "xunit.execution.dotnet", "xunit.execution.desktop" },
+    AssemblyNames = ["xunit.execution.dotnet", "xunit.execution.desktop"],
     TypeName = "Xunit.Sdk.TestAssemblyRunner`1",
     MethodName = "RunAsync",
-    ReturnTypeName = "System.Threading.Tasks.Task`1<Xunit.Sdk.RunSummary>",
-    ParameterTypeNames = new string[0],
+    ReturnTypeName = "System.Threading.Tasks.Task`1[Xunit.Sdk.RunSummary]",
     MinimumVersion = "2.2.0",
     MaximumVersion = "2.*.*",
     IntegrationName = XUnitIntegration.IntegrationName)]
@@ -63,7 +64,9 @@ public static class XUnitTestAssemblyRunnerRunAsyncIntegration
             }
 
             CIVisibility.WaitForSkippableTaskToFinish();
-            return new CallTargetState(null, TestModule.Create(testBundleString, "xUnit", frameworkType.Assembly.GetName().Version?.ToString() ?? string.Empty));
+            var module = TestModule.InternalCreate(testBundleString, CommonTags.TestingFrameworkNameXUnit, frameworkType.Assembly.GetName().Version?.ToString() ?? string.Empty);
+            module.EnableIpcClient();
+            return new CallTargetState(null, module);
         }
 
         return CallTargetState.GetDefault();
@@ -108,6 +111,9 @@ public static class XUnitTestAssemblyRunnerRunAsyncIntegration
         if (state.State is TestModule testModule)
         {
             await testModule.CloseAsync().ConfigureAwait(false);
+
+            // Because we are auto-instrumenting a VSTest testhost process we need to manually call the shutdown process
+            CIVisibility.Close();
         }
 
         return returnValue;

@@ -3,7 +3,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -46,7 +45,8 @@
           "location": {
             "method": "IAmFine",
             "type": "Samples.Probes.TestRuns.SmokeTests.NotSupportedFailureTest+NormalStruct"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -66,7 +66,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -97,6 +96,10 @@
               "@return": {
                 "type": "NormalStruct",
                 "value": "NormalStruct"
+              },
+              "ret": {
+                "type": "NormalStruct",
+                "value": "NormalStruct"
               }
             }
           }
@@ -109,7 +112,8 @@
           "location": {
             "method": "IAmFine",
             "type": "Samples.Probes.TestRuns.SmokeTests.NotSupportedFailureTest"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -129,12 +133,11 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
           "lines": {
-            "23": {
+            "24": {
               "arguments": {
                 "this": {
                   "type": "NotSupportedFailureTest",
@@ -158,9 +161,10 @@
           "location": {
             "file": "NotSupportedFailureTest.cs",
             "lines": [
-              23
+              "24"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -180,58 +184,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
-    "debugger": {
-      "snapshot": {
-        "captures": {
-          "lines": {
-            "24": {
-              "arguments": {
-                "this": {
-                  "type": "NotSupportedFailureTest",
-                  "value": "NotSupportedFailureTest"
-                }
-              },
-              "locals": {
-                "ret": {
-                  "type": "String",
-                  "value": "IAmNotSupported"
-                }
-              }
-            }
-          }
-        },
-        "duration": "ScrubbedValue",
-        "id": "ScrubbedValue",
-        "language": "dotnet",
-        "probe": {
-          "id": "ScrubbedValue",
-          "location": {
-            "file": "NotSupportedFailureTest.cs",
-            "lines": [
-              24
-            ]
-          }
-        },
-        "stack": "ScrubbedValue",
-        "timestamp": "ScrubbedValue"
-      }
-    },
-    "logger": {
-      "method": "Run",
-      "name": "Samples.Probes.TestRuns.SmokeTests.NotSupportedFailureTest",
-      "thread_id": "ScrubbedValue",
-      "thread_name": "ScrubbedValue",
-      "version": "2"
-    },
-    "message": "ScrubbedValue",
-    "service": "probes"
-  },
-  {
-    "dd.span_id": "ScrubbedValue",
-    "dd.trace_id": "ScrubbedValue",
-    "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -260,9 +212,10 @@
           "location": {
             "file": "NotSupportedFailureTest.cs",
             "lines": [
-              25
+              "25"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -282,7 +235,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -311,9 +263,10 @@
           "location": {
             "file": "NotSupportedFailureTest.cs",
             "lines": [
-              26
+              "26"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -333,7 +286,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -362,9 +314,10 @@
           "location": {
             "file": "NotSupportedFailureTest.cs",
             "lines": [
-              27
+              "27"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -384,12 +337,62 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
           "lines": {
-            "50": {
+            "28": {
+              "arguments": {
+                "this": {
+                  "type": "NotSupportedFailureTest",
+                  "value": "NotSupportedFailureTest"
+                }
+              },
+              "locals": {
+                "ret": {
+                  "type": "String",
+                  "value": "IAmNotSupported"
+                }
+              }
+            }
+          }
+        },
+        "duration": "ScrubbedValue",
+        "id": "ScrubbedValue",
+        "language": "dotnet",
+        "probe": {
+          "id": "ScrubbedValue",
+          "location": {
+            "file": "NotSupportedFailureTest.cs",
+            "lines": [
+              "28"
+            ]
+          },
+          "version": 0
+        },
+        "stack": "ScrubbedValue",
+        "timestamp": "ScrubbedValue"
+      }
+    },
+    "logger": {
+      "method": "Run",
+      "name": "Samples.Probes.TestRuns.SmokeTests.NotSupportedFailureTest",
+      "thread_id": "ScrubbedValue",
+      "thread_name": "ScrubbedValue",
+      "version": "2"
+    },
+    "message": "ScrubbedValue",
+    "service": "probes"
+  },
+  {
+    "dd.span_id": "ScrubbedValue",
+    "dd.trace_id": "ScrubbedValue",
+    "ddsource": "dd_debugger",
+    "debugger": {
+      "snapshot": {
+        "captures": {
+          "lines": {
+            "51": {
               "arguments": {
                 "str": {
                   "type": "String",
@@ -411,9 +414,10 @@
           "location": {
             "file": "NotSupportedFailureTest.cs",
             "lines": [
-              50
+              "51"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -433,12 +437,11 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
           "lines": {
-            "63": {
+            "64": {
               "arguments": {
                 "str": {
                   "type": "String",
@@ -447,6 +450,12 @@
                 "this": {
                   "type": "NotSupportedFailureTest",
                   "value": "NotSupportedFailureTest"
+                }
+              },
+              "locals": {
+                "ret": {
+                  "type": "NormalStruct",
+                  "value": "NormalStruct"
                 }
               }
             }
@@ -460,9 +469,10 @@
           "location": {
             "file": "NotSupportedFailureTest.cs",
             "lines": [
-              63
+              "64"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"

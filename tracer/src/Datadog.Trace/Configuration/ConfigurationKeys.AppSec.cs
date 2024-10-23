@@ -3,12 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace Datadog.Trace.Configuration
 {
     internal partial class ConfigurationKeys
@@ -57,12 +51,37 @@ namespace Datadog.Trace.Configuration
             internal const string WafTimeout = "DD_APPSEC_WAF_TIMEOUT";
 
             /// <summary>
-            /// The regex that will be used to obfuscate possible senative data in keys that are highlighted WAF as potentially malicious
+            /// default value to true. Set to false to disable exploit prevention.
+            /// </summary>
+            internal const string RaspEnabled = "DD_APPSEC_RASP_ENABLED";
+
+            /// <summary>
+            /// with a default value of true, it allows a customer to disable the generation of stack traces, for any ASM-specific purpose such as RASP.
+            /// </summary>
+            internal const string StackTraceEnabled = "DD_APPSEC_STACK_TRACE_ENABLED";
+
+            /// <summary>
+            /// with a default value of 2, defines the maximum number of stack traces to be reported due to RASP events. 0 for unlimited.
+            /// </summary>
+            internal const string MaxStackTraces = "DD_APPSEC_MAX_STACK_TRACES";
+
+            /// <summary>
+            /// with a default value of 32, defines the maximum depth of a stack trace to be reported due to RASP events. O for unlimited.
+            /// </summary>
+            internal const string MaxStackTraceDepth = "DD_APPSEC_MAX_STACK_TRACE_DEPTH";
+
+            /// <summary>
+            /// with a default value of 75, defines the percentage of frames taken from the top of the stack when trimming. Min 0, Max 100
+            /// </summary>
+            internal const string MaxStackTraceDepthTopPercent = "DD_APPSEC_MAX_STACK_TRACE_DEPTH_TOP_PERCENT";
+
+            /// <summary>
+            /// The regex that will be used to obfuscate possible sensitive data in keys that are highlighted WAF as potentially malicious
             /// </summary>
             internal const string ObfuscationParameterKeyRegex = "DD_APPSEC_OBFUSCATION_PARAMETER_KEY_REGEXP";
 
             /// <summary>
-            /// The regex that will be used to obfuscate possible senative data in values that are highlighted WAF as potentially malicious
+            /// The regex that will be used to obfuscate possible sensitive data in values that are highlighted WAF as potentially malicious
             /// </summary>
             internal const string ObfuscationParameterValueRegex = "DD_APPSEC_OBFUSCATION_PARAMETER_VALUE_REGEXP";
 
@@ -75,6 +94,47 @@ namespace Datadog.Trace.Configuration
             /// Blocking response template for Json content. This template is used in combination with the status code to craft and send a response upon blocking the request.
             /// </summary>
             internal const string JsonBlockedTemplate = "DD_APPSEC_HTTP_BLOCKED_TEMPLATE_JSON";
+
+            /// <summary>
+            /// Deprecate. Automatic tracking of user events mode. Values can be disabled, safe or extended.
+            /// This config is in the process of being deprecated. Please use DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE
+            /// instead.
+            /// Values will be automatically translated:
+            /// disabled = disabled
+            /// safe = anon
+            /// extended = ident
+            /// </summary>
+            internal const string UserEventsAutomatedTracking = "DD_APPSEC_AUTOMATED_USER_EVENTS_TRACKING";
+
+            /// <summary>
+            /// Automatic instrumentation of user event mode. Values can be ident, disabled, anon.
+            /// </summary>
+            internal const string UserEventsAutoInstrumentationMode = "DD_APPSEC_AUTO_USER_INSTRUMENTATION_MODE";
+
+            /// <summary>
+            /// Unless set to true or 1, tracers don’t collect schemas. After the experiment, the environment variable will be removed and schema collection will be enabled only when ASM is enabled
+            /// </summary>
+            internal const string ApiSecurityEnabled = "DD_API_SECURITY_ENABLED";
+
+            /// <summary>
+            /// Api security sample delay in seconds , should be a float. Set to 0 for testing purposes. default value of 30.
+            /// </summary>
+            internal const string ApiSecuritySampleDelay = "DD_API_SECURITY_SAMPLE_DELAY";
+
+            /// <summary>
+            /// Use new unsafe encoder for the waf
+            /// </summary>
+            internal const string UseUnsafeEncoder = "DD_EXPERIMENTAL_APPSEC_USE_UNSAFE_ENCODER";
+
+            /// <summary>
+            /// Activate debug logs for the WAF
+            /// </summary>
+            internal const string WafDebugEnabled = "DD_APPSEC_WAF_DEBUG";
+
+            /// <summary>
+            /// Activate SCA (Software Composition Analysis), used in the backend
+            /// </summary>
+            internal const string ScaEnabled = "DD_APPSEC_SCA_ENABLED";
         }
     }
 }

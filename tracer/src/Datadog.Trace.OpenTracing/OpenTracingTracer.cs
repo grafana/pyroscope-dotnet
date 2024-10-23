@@ -3,9 +3,6 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
-using System;
-using System.Collections.Generic;
-using Datadog.Trace.Logging;
 using OpenTracing;
 using OpenTracing.Propagation;
 
@@ -13,19 +10,15 @@ namespace Datadog.Trace.OpenTracing
 {
     internal class OpenTracingTracer : global::OpenTracing.ITracer
     {
-        private static readonly IDatadogLogger Log = DatadogLogging.GetLoggerFor<OpenTracingTracer>();
-
         private readonly Dictionary<string, ICodec> _codecs;
 
-        public OpenTracingTracer(IDatadogOpenTracingTracer datadogTracer)
-            : this(datadogTracer, new global::OpenTracing.Util.AsyncLocalScopeManager())
-        {
-        }
-
-        public OpenTracingTracer(IDatadogOpenTracingTracer datadogTracer, global::OpenTracing.IScopeManager scopeManager)
+        internal OpenTracingTracer(
+            IDatadogOpenTracingTracer datadogTracer,
+            global::OpenTracing.IScopeManager scopeManager,
+            string defaultServiceName)
         {
             DatadogTracer = datadogTracer;
-            DefaultServiceName = datadogTracer.DefaultServiceName;
+            DefaultServiceName = defaultServiceName;
             ScopeManager = scopeManager;
             _codecs = new Dictionary<string, ICodec>
             {
@@ -74,5 +67,8 @@ namespace Datadog.Trace.OpenTracing
                 throw new NotSupportedException($"Tracer.Inject is not implemented for {format} by Datadog.Trace");
             }
         }
+
+        internal static global::OpenTracing.IScopeManager CreateDefaultScopeManager()
+            => new global::OpenTracing.Util.AsyncLocalScopeManager();
     }
 }

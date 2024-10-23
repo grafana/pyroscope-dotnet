@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Xunit.Abstractions;
 
 namespace Datadog.Trace.TestHelpers
@@ -20,7 +21,7 @@ namespace Datadog.Trace.TestHelpers
 
         private static string _corFlagsExe;
 
-        public static Process StartProcessWithProfiler(
+        public static async Task<Process> StartProcessWithProfiler(
             string executable,
             EnvironmentHelper environmentHelper,
             MockTracerAgent agent,
@@ -30,7 +31,8 @@ namespace Datadog.Trace.TestHelpers
             string processToProfile = null,
             bool? enableSecurity = null,
             string externalRulesFile = null,
-            string workingDirectory = null)
+            string workingDirectory = null,
+            bool ignoreProfilerProcessesVar = false)
         {
             if (environmentHelper == null)
             {
@@ -59,22 +61,33 @@ namespace Datadog.Trace.TestHelpers
                 startInfo.Environment,
                 processToProfile,
                 enableSecurity,
-                externalRulesFile);
+                externalRulesFile,
+                ignoreProfilerProcessesVar);
 
             startInfo.UseShellExecute = false;
             startInfo.CreateNoWindow = true;
             startInfo.RedirectStandardOutput = true;
             startInfo.RedirectStandardError = true;
             startInfo.RedirectStandardInput = redirectStandardInput;
+
             if (!string.IsNullOrEmpty(workingDirectory))
             {
                 startInfo.WorkingDirectory = workingDirectory;
             }
 
+            if (EnvironmentTools.IsWindows())
+            {
+                using var suspendedProcess = NativeProcess.CreateProcess.StartSuspendedProcess(startInfo);
+
+                await MemoryDumpHelper.MonitorCrashes(suspendedProcess.Id);
+
+                return suspendedProcess.ResumeProcess();
+            }
+
             return Process.Start(startInfo);
         }
 
-        private static void SetCorFlags(string executable, ITestOutputHelper output, bool require32Bit)
+        public static void SetCorFlags(string executable, ITestOutputHelper output, bool require32Bit)
         {
             var corFlagsExe = _corFlagsExe;
             var setBit = require32Bit ? "/32BITREQ+" : "/32BITREQ-";

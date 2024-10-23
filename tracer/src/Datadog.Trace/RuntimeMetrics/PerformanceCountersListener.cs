@@ -19,6 +19,7 @@ namespace Datadog.Trace.RuntimeMetrics
         private const string MemoryCategoryName = ".NET CLR Memory";
         private const string ThreadingCategoryName = ".NET CLR LocksAndThreads";
         private const string GarbageCollectionMetrics = $"{MetricsNames.Gen0HeapSize}, {MetricsNames.Gen1HeapSize}, {MetricsNames.Gen2HeapSize}, {MetricsNames.LohSize}, {MetricsNames.ContentionCount}, {MetricsNames.Gen0CollectionsCount}, {MetricsNames.Gen1CollectionsCount}, {MetricsNames.Gen2CollectionsCount}";
+        internal const string InsufficientPermissionsMessageTemplate = "The process does not have sufficient permissions to read performance counters. Please refer to https://dtdg.co/net-runtime-metrics to learn how to grant those permissions.";
 
         private static readonly IDatadogLogger Log = DatadogLogging.GetLoggerFor<PerformanceCountersListener>();
 
@@ -54,6 +55,7 @@ namespace Datadog.Trace.RuntimeMetrics
             // That's because performance counters may rely on wmiApSrv being started,
             // and the windows service manager only allows one service at a time to be starting: https://docs.microsoft.com/en-us/windows/win32/services/service-startup
             _initializationTask = Task.Run(InitializePerformanceCounters);
+            _initializationTask.ContinueWith(t => Log.Error(t.Exception, "Error in performance counter initialization task"), TaskContinuationOptions.OnlyOnFaulted);
         }
 
         public Task WaitForInitialization() => _initializationTask;
@@ -133,7 +135,7 @@ namespace Datadog.Trace.RuntimeMetrics
                 // Catching error UnauthorizedAccessException: Access to the registry key 'Global' is denied.
                 // The 'Global' part seems consistent across localizations
 
-                Log.Error(ex, "The process does not have sufficient permissions to read performance counters. Please refer to https://dtdg.co/net-runtime-metrics to learn how to grant those permissions.");
+                Log.Error(ex, InsufficientPermissionsMessageTemplate);
                 throw;
             }
             catch (Exception ex)

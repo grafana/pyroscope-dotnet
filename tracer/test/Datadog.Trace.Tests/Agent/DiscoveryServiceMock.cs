@@ -1,4 +1,4 @@
-﻿// <copyright file="DiscoveryServiceMock.cs" company="Datadog">
+// <copyright file="DiscoveryServiceMock.cs" company="Datadog">
 // Unless explicitly stated otherwise all files in this repository are licensed under the Apache 2 License.
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
@@ -17,20 +17,30 @@ internal class DiscoveryServiceMock : IDiscoveryService
     public void TriggerChange(
         string configurationEndpoint = "configurationEndpoint",
         string debuggerEndpoint = "debuggerEndpoint",
+        string diagnosticsEndpoint = "diagnosticsEndpoint",
+        string symbolDbEndpoint = "symbolDbEndpoint",
         string agentVersion = "agentVersion",
         string statsEndpoint = "traceStatsEndpoint",
         string dataStreamsMonitoringEndpoint = "dataStreamsMonitoringEndpoint",
         string eventPlatformProxyEndpoint = "eventPlatformProxyEndpoint",
-        bool clientDropP0 = true)
+        string telemetryProxyEndpoint = "telemetryProxyEndpoint",
+        string tracerFlareEndpoint = "tracerFlareEndpoint",
+        bool clientDropP0 = true,
+        bool spanMetaStructs = true)
         => TriggerChange(
             new AgentConfiguration(
                 configurationEndpoint: configurationEndpoint,
                 debuggerEndpoint: debuggerEndpoint,
+                diagnosticsEndpoint: diagnosticsEndpoint,
+                symbolDbEndpoint: symbolDbEndpoint,
                 agentVersion: agentVersion,
                 statsEndpoint: statsEndpoint,
                 dataStreamsMonitoringEndpoint: dataStreamsMonitoringEndpoint,
                 eventPlatformProxyEndpoint: eventPlatformProxyEndpoint,
-                clientDropP0: clientDropP0));
+                telemetryProxyEndpoint: telemetryProxyEndpoint,
+                tracerFlareEndpoint: tracerFlareEndpoint,
+                clientDropP0: clientDropP0,
+                spanMetaStructs: spanMetaStructs));
 
     public void TriggerChange(AgentConfiguration config)
     {

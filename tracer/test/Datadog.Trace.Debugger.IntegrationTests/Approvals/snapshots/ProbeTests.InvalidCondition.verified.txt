@@ -3,7 +3,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -33,9 +32,9 @@
           }
         },
         "duration": "ScrubbedValue",
-        "errors": [
+        "evaluationErrors": [
           {
-            "expression": "\"undefined\" > 2",
+            "expr": "\"undefined\" > 2",
             "message": "ScrubbedValue"
           }
         ],
@@ -46,7 +45,8 @@
           "location": {
             "method": "Method",
             "type": "Samples.Probes.TestRuns.ExpressionTests.InvalidCondition"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"

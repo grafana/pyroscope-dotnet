@@ -34,8 +34,8 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Azure.Functions
 
             if (tracer.Settings.IsIntegrationEnabled(IntegrationId))
             {
-                if (tracer.Settings.AzureAppServiceMetadata.IsIsolatedFunctionsApp
-                    && tracer.InternalActiveScope is null)
+                if (tracer.Settings.AzureAppServiceMetadata is { IsIsolatedFunctionsApp: true }
+                 && tracer.InternalActiveScope is null)
                 {
                     // in a "timer" trigger, or similar. Context won't be propagated to child, so no
                     // need to create the scope etc.
@@ -111,7 +111,8 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Azure.Functions
 
                 var functionName = instanceParam.FunctionDescriptor.ShortName;
 
-                if (tracer.Settings.AzureAppServiceMetadata.IsIsolatedFunctionsApp
+                // Ignoring null because guaranteed running in AAS
+                if (tracer.Settings.AzureAppServiceMetadata is { IsIsolatedFunctionsApp: true }
                  && tracer.InternalActiveScope is { } activeScope)
                 {
                     // We don't want to create a new scope here when running isolated functions,
@@ -161,6 +162,7 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Azure.Functions
                 scope.Root.Span.Type = SpanType;
                 scope.Span.ResourceName = $"{triggerType} {functionName}";
                 scope.Span.Type = SpanType;
+                tracer.TracerManager.Telemetry.IntegrationGeneratedSpan(IntegrationId);
             }
             catch (Exception ex)
             {
@@ -266,6 +268,7 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Azure.Functions
                 scope.Root.Span.Type = SpanType;
                 scope.Span.ResourceName = $"{triggerType} {functionName}";
                 scope.Span.Type = SpanType;
+                tracer.TracerManager.Telemetry.IntegrationGeneratedSpan(IntegrationId);
             }
             catch (Exception ex)
             {

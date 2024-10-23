@@ -14,10 +14,11 @@ const std::string Sample::SpanIdLabel = "span id";
 const std::string Sample::ExceptionTypeLabel = "exception type";
 const std::string Sample::ExceptionMessageLabel = "exception message";
 const std::string Sample::AllocationClassLabel = "allocation class";
-const std::string Sample::EndTimestampLabel = "end_timestamp_ns";
 
 // garbage collection related labels
 const std::string Sample::TimelineEventTypeLabel = "event";
+    const std::string Sample::TimelineEventTypeThreadStart = "thread start";
+    const std::string Sample::TimelineEventTypeThreadStop = "thread stop";
     const std::string Sample::TimelineEventTypeStopTheWorld = "stw";
     const std::string Sample::TimelineEventTypeGarbageCollection = "gc";
         const std::string Sample::GarbageCollectionReasonLabel = "gc reason";   // look at GCReason enumeration
@@ -42,6 +43,8 @@ Sample::Sample(uint64_t timestamp, std::string_view runtimeId, size_t framesCoun
     _timestamp = timestamp;
     _runtimeId = runtimeId;
     _callstack.reserve(framesCount);
+    _labels.reserve(10);
+    _numericLabels.reserve(10);
 }
 
 Sample::Sample(std::string_view runtimeId) :
@@ -92,7 +95,7 @@ void Sample::AddFrame(FrameInfoView const& frame)
     _callstack.push_back(frame);
 }
 
-const CallStack& Sample::GetCallstack() const
+const std::vector<FrameInfoView>& Sample::GetCallstack() const
 {
     return _callstack;
 }

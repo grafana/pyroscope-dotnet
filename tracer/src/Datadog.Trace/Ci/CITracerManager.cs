@@ -13,6 +13,8 @@ using Datadog.Trace.Configuration;
 using Datadog.Trace.DataStreamsMonitoring;
 using Datadog.Trace.Logging;
 using Datadog.Trace.Logging.DirectSubmission;
+using Datadog.Trace.Logging.TracerFlare;
+using Datadog.Trace.RemoteConfigurationManagement;
 using Datadog.Trace.RuntimeMetrics;
 using Datadog.Trace.Sampling;
 using Datadog.Trace.Telemetry;
@@ -20,12 +22,45 @@ using Datadog.Trace.Vendors.StatsdClient;
 
 namespace Datadog.Trace.Ci
 {
-    internal class CITracerManager : TracerManager, ILockedTracer
+    internal class CITracerManager : TracerManager
     {
         private static readonly IDatadogLogger Log = DatadogLogging.GetLoggerFor<CITracerManager>();
 
-        public CITracerManager(ImmutableTracerSettings settings, IAgentWriter agentWriter, ITraceSampler sampler, IScopeManager scopeManager, IDogStatsd statsd, RuntimeMetricsWriter runtimeMetricsWriter, DirectLogSubmissionManager logSubmissionManager, ITelemetryController telemetry, IDiscoveryService discoveryService, DataStreamsManager dataStreamsManager, string defaultServiceName, IGitMetadataTagsProvider gitMetadataTagsProvider)
-            : base(settings, agentWriter, sampler, scopeManager, statsd, runtimeMetricsWriter, logSubmissionManager, telemetry, discoveryService, dataStreamsManager, defaultServiceName, gitMetadataTagsProvider, GetProcessors(settings.Exporter.PartialFlushEnabled, agentWriter is CIVisibilityProtocolWriter))
+        public CITracerManager(
+            ImmutableTracerSettings settings,
+            IAgentWriter agentWriter,
+            IScopeManager scopeManager,
+            IDogStatsd statsd,
+            RuntimeMetricsWriter runtimeMetricsWriter,
+            DirectLogSubmissionManager logSubmissionManager,
+            ITelemetryController telemetry,
+            IDiscoveryService discoveryService,
+            DataStreamsManager dataStreamsManager,
+            string defaultServiceName,
+            IGitMetadataTagsProvider gitMetadataTagsProvider,
+            ITraceSampler traceSampler,
+            ISpanSampler spanSampler,
+            IRemoteConfigurationManager remoteConfigurationManager,
+            IDynamicConfigurationManager dynamicConfigurationManager,
+            ITracerFlareManager tracerFlareManager)
+            : base(
+                settings,
+                agentWriter,
+                scopeManager,
+                statsd,
+                runtimeMetricsWriter,
+                logSubmissionManager,
+                telemetry,
+                discoveryService,
+                dataStreamsManager,
+                defaultServiceName,
+                gitMetadataTagsProvider,
+                traceSampler,
+                spanSampler,
+                remoteConfigurationManager,
+                dynamicConfigurationManager,
+                tracerFlareManager,
+                GetProcessors(settings.ExporterInternal.PartialFlushEnabledInternal, agentWriter is CIVisibilityProtocolWriter))
         {
         }
 
@@ -90,6 +125,46 @@ namespace Datadog.Trace.Ci
             }
 
             ((IEventWriter)AgentWriter).WriteEvent(@event);
+        }
+
+        internal class LockedManager : CITracerManager, ILockedTracer
+        {
+            public LockedManager(
+                ImmutableTracerSettings settings,
+                IAgentWriter agentWriter,
+                IScopeManager scopeManager,
+                IDogStatsd statsd,
+                RuntimeMetricsWriter runtimeMetricsWriter,
+                DirectLogSubmissionManager logSubmissionManager,
+                ITelemetryController telemetry,
+                IDiscoveryService discoveryService,
+                DataStreamsManager dataStreamsManager,
+                string defaultServiceName,
+                IGitMetadataTagsProvider gitMetadataTagsProvider,
+                ITraceSampler traceSampler,
+                ISpanSampler spanSampler,
+                IRemoteConfigurationManager remoteConfigurationManager,
+                IDynamicConfigurationManager dynamicConfigurationManager,
+                ITracerFlareManager tracerFlareManager)
+            : base(
+                settings,
+                agentWriter,
+                scopeManager,
+                statsd,
+                runtimeMetricsWriter,
+                logSubmissionManager,
+                telemetry,
+                discoveryService,
+                dataStreamsManager,
+                defaultServiceName,
+                gitMetadataTagsProvider,
+                traceSampler,
+                spanSampler,
+                remoteConfigurationManager,
+                dynamicConfigurationManager,
+                tracerFlareManager)
+            {
+            }
         }
     }
 }

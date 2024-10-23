@@ -56,6 +56,8 @@ extern "C" void* __stdcall GetPointerToNativeTraceContext()
         return nullptr;
     }
 
+    profiler->TraceContextHasBeenSet();
+
     // Engine is active. Get info for current thread.
     std::shared_ptr<ManagedThreadInfo> pCurrentThreadInfo;
     HRESULT hr = profiler->GetManagedThreadList()->TryGetCurrentThreadInfo(pCurrentThreadInfo);
@@ -86,7 +88,6 @@ extern "C" void __stdcall SetApplicationInfoForAppDomain(const char* runtimeId, 
         return;
     }
 
-    // Engine is active. Get info for current thread.
     profiler->GetApplicationStore()->SetApplicationInfo(
         runtimeId ? runtimeId : std::string(),
         serviceName ? serviceName : std::string(),
@@ -109,21 +110,84 @@ extern "C" void __stdcall SetEndpointForTrace(const char* runtimeId, uint64_t tr
         return;
     }
 
+    static bool firstEmptyRuntimeId = true;
     if (runtimeId == nullptr)
     {
-        Log::Error("SetEndpointForTrace was called with an empty runtime id");
+        if (firstEmptyRuntimeId)
+        {
+            Log::Error("SetEndpointForTrace was called with an empty runtime id");
+            firstEmptyRuntimeId = false;
+        }
         return;
     }
 
+    static bool firstEmptyEndpoint = true;
     if (endpoint == nullptr)
     {
-        // It could happen that the endpoint is empty, but the tracer should check before making the call,
-        // to avoid the cost of the p/invoke
-        Log::Warn("SetEndpointForTrace was called with an empty endpoint");
+        if (firstEmptyEndpoint)
+        {
+            // It could happen that the endpoint is empty, but the tracer should check before making the call,
+            // to avoid the cost of the p/invoke
+            Log::Warn("SetEndpointForTrace was called with an empty endpoint");
+            firstEmptyEndpoint = false;
+        }
         return;
     }
 
     profiler->GetExporter()->SetEndpoint(runtimeId, traceId, endpoint);
+}
+
+extern "C" void __stdcall SetGitMetadataForApplication(const char* runtimeId, const char* repositoryUrl, const char* commitSha)
+{
+    const auto profiler = CorProfilerCallback::GetInstance();
+
+    if (profiler == nullptr)
+    {
+        Log::Error("SetGitMetadataForApplication is called BEFORE CLR initialize");
+        return;
+    }
+
+    if (!profiler->GetClrLifetime()->IsRunning())
+    {
+        return;
+    }
+
+    static bool firstEmptyRuntimeId = true;
+    if (runtimeId == nullptr)
+    {
+        if (firstEmptyRuntimeId)
+        {
+            Log::Error("SetGitMetadataForApplication was called with an empty runtime id");
+            firstEmptyRuntimeId = false;
+        }
+        return;
+    }
+
+    profiler->GetApplicationStore()->SetGitMetadata(
+        runtimeId,
+        repositoryUrl != nullptr ? repositoryUrl : std::string(),
+        commitSha != nullptr ? commitSha : std::string()
+    );
+}
+
+
+extern "C" void __stdcall FlushProfile()
+{
+    const auto profiler = CorProfilerCallback::GetInstance();
+
+    if (profiler == nullptr)
+    {
+        Log::Error("FlushProfile is called BEFORE CLR initialize");
+        return;
+    }
+
+    if (!profiler->GetClrLifetime()->IsRunning())
+    {
+        return;
+    }
+
+    Log::Debug("FlushProfile called by Managed code. Not implemented in Pyroscope.");
+    //profiler->GetSamplesCollector()->Export();
 }
 
 extern "C" void __stdcall SetDynamicTag(const char* key, const char* value)

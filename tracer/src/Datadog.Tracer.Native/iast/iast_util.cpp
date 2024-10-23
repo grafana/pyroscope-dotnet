@@ -1,5 +1,6 @@
 #include "iast_util.h"
 #include "../../../../shared/src/native-src/pal.h"
+#include "../../../../shared/src/native-src/version.h"
 
 #include <cwctype>
 #include <iterator>
@@ -9,7 +10,6 @@
 #include <sys/stat.h> 
 #include <stdio.h>
 #include "../logger.h"
-#include "../version.h"
 
 using namespace shared;
 
@@ -17,16 +17,23 @@ extern char** environ;
 
 namespace iast
 {
+#ifndef _WIN32
+static thread_local std::unordered_map<void *, bool> locked;
+#endif
     CS::CS()
     {
 #ifdef _WIN32
         InitializeCriticalSection(&cs);
+#else
+        locked[this] = false;
 #endif
     }
     CS::~CS()
     {
 #ifdef _WIN32
         DeleteCriticalSection(&cs);
+#else
+        locked.erase(this); // To avoid uncontrolled map growth
 #endif
     }
     bool CS::Lock()
@@ -34,9 +41,12 @@ namespace iast
 #ifdef _WIN32
         EnterCriticalSection(&cs);
 #else
-        if (locked) { return false; }
+        if (locked[this])
+        {
+            return false;
+        }
         cs.lock();
-        locked = true;
+        locked[this] = true;
 #endif
         return true;
     }
@@ -45,10 +55,10 @@ namespace iast
 #ifdef _WIN32
         LeaveCriticalSection(&cs);
 #else
-        if (locked)
+        if (locked[this])
         {
             cs.unlock();
-            locked = false;
+            locked[this] = false;
         }
 #endif
     }
@@ -209,7 +219,7 @@ namespace iast
     VersionInfo GetVersionInfo(const std::string& version)
     {
         auto v = version;
-        if (StartsWith(v, "V"))
+        if (StartsWith(v, "V") || StartsWith(v, "v"))
         {
             v = v.substr(1);
         }
@@ -234,6 +244,22 @@ namespace iast
             res.rev = ConvertToInt(parts[x++]);
         }
         return res;
+    }
+    int Compare(const VersionInfo& v1, const VersionInfo& v2)
+    {
+        if (v1.major != v2.major)
+        {
+            return v1.major - v2.major;
+        }
+        if (v1.minor != v2.minor)
+        {
+            return v1.minor - v2.minor;
+        }
+        if (v1.build != v2.build)
+        {
+            return v1.build - v2.build;
+        }
+        return v1.rev - v2.rev;
     }
     std::string GetDatadogVersion()
     {

@@ -8,17 +8,11 @@ namespace Samples.XUnitTests
 {
     public class TestSuite
     {
+        public const string SkippedByIntelligentTestRunnerReason = "Skipped by Datadog Intelligent Test Runner";
         private ITestOutputHelper _output;
 
         public TestSuite(ITestOutputHelper output)
         {
-            output.WriteLine($"Pid: {Process.GetCurrentProcess().Id}");
-            output.WriteLine("Environment Variables:");
-            foreach (DictionaryEntry entry in Environment.GetEnvironmentVariables())
-            {
-                output.WriteLine($"  {entry.Key} = {entry.Value}");
-            }
-            output.WriteLine(string.Empty);
             _output = output;
         }
 
@@ -101,6 +95,26 @@ namespace Samples.XUnitTests
         {
             _output.WriteLine("Test:SimpleErrorParameterizedTest");
             Assert.Equal(expectedResult, xValue / yValue);
+        }
+
+        [Fact(Skip = SkippedByIntelligentTestRunnerReason)]
+        public void SkipByITRSimulation()
+        {
+        }
+
+        [Fact]
+        [Trait("datadog_itr_unskippable", null)]
+        public void UnskippableTest()
+        {
+        }
+    }
+
+    [Trait("datadog_itr_unskippable", null)]
+    public class UnSkippableSuite
+    {
+        [Fact]
+        public void UnskippableTest()
+        {
         }
     }
 }

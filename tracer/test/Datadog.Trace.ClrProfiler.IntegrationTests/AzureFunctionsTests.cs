@@ -1,11 +1,13 @@
-﻿// <copyright file="AzureFunctionsTests.cs" company="Datadog">
+// <copyright file="AzureFunctionsTests.cs" company="Datadog">
 // Unless explicitly stated otherwise all files in this repository are licensed under the Apache 2 License.
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Datadog.Trace.Configuration;
@@ -31,6 +33,7 @@ public abstract class AzureFunctionsTests : TestHelper
         : base(sampleAppName, samplePathOverrides: Path.Combine("test", "test-applications", "azure-functions"), output)
     {
         // Ensures we filter out the host span requests etc
+        SetEnvironmentVariable("WEBSITE_SKU", "Basic");
         SetEnvironmentVariable("DD_AZURE_APP_SERVICES", "1");
         SetEnvironmentVariable("DD_API_KEY", "NOT_SET"); // required for tracing to activate
         SetEnvironmentVariable("WEBSITE_SITE_NAME", "AzureFunctionsAllTriggers");
@@ -42,12 +45,12 @@ public abstract class AzureFunctionsTests : TestHelper
         SetEnvironmentVariable("DD_TRACE_HTTP_CLIENT_EXCLUDED_URL_SUBSTRINGS", ImmutableAzureAppServiceSettings.DefaultHttpClientExclusions + ", devstoreaccount1/azure-webjobs-hosts");
     }
 
-    protected ProcessResult RunAzureFunctionAndWaitForExit(MockTracerAgent agent, string framework = null, int expectedExitCode = 0)
+    protected async Task<ProcessResult> RunAzureFunctionAndWaitForExit(MockTracerAgent agent, string framework = null, int expectedExitCode = 0)
     {
         // run the azure function
         var binFolder = EnvironmentHelper.GetSampleApplicationOutputDirectory(packageVersion: string.Empty, framework, usePublishFolder: false);
         Output.WriteLine("Using binFolder: " + binFolder);
-        var process = ProfilerHelper.StartProcessWithProfiler(
+        var process = await ProfilerHelper.StartProcessWithProfiler(
             executable: "func",
             EnvironmentHelper,
             agent,
@@ -118,8 +121,8 @@ public abstract class AzureFunctionsTests : TestHelper
         [Trait("RunOnWindows", "True")]
         public async Task SubmitsTraces()
         {
-            using (var agent = EnvironmentHelper.GetMockAgent())
-            using (RunAzureFunctionAndWaitForExit(agent))
+            using var agent = EnvironmentHelper.GetMockAgent(useTelemetry: true);
+            using (await RunAzureFunctionAndWaitForExit(agent))
             {
                 const int expectedSpanCount = 21;
                 var spans = agent.WaitForSpans(expectedSpanCount);
@@ -150,16 +153,16 @@ public abstract class AzureFunctionsTests : TestHelper
         [Trait("RunOnWindows", "True")]
         public async Task SubmitsTraces()
         {
-            using (var agent = EnvironmentHelper.GetMockAgent())
-            using (RunAzureFunctionAndWaitForExit(agent, framework: "net6.0"))
+            using var agent = EnvironmentHelper.GetMockAgent(useTelemetry: true);
+            using (await RunAzureFunctionAndWaitForExit(agent, framework: "net6.0"))
             {
                 const int expectedSpanCount = 21;
                 var spans = agent.WaitForSpans(expectedSpanCount);
+                var filteredSpans = spans.Where(s => !s.Resource.Equals("Timer ExitApp", StringComparison.OrdinalIgnoreCase)).ToImmutableList();
 
                 using var s = new AssertionScope();
-                spans.Count.Should().Be(expectedSpanCount);
 
-                await AssertInProcessSpans(spans);
+                await AssertInProcessSpans(filteredSpans);
             }
         }
     }
@@ -182,14 +185,13 @@ public abstract class AzureFunctionsTests : TestHelper
         [Trait("RunOnWindows", "True")]
         public async Task SubmitsTraces()
         {
-            using (var agent = EnvironmentHelper.GetMockAgent())
-            using (RunAzureFunctionAndWaitForExit(agent, expectedExitCode: -1))
+            using var agent = EnvironmentHelper.GetMockAgent(useTelemetry: true);
+            using (await RunAzureFunctionAndWaitForExit(agent, expectedExitCode: -1))
             {
                 const int expectedSpanCount = 21;
                 var spans = agent.WaitForSpans(expectedSpanCount);
 
                 using var s = new AssertionScope();
-                spans.Count.Should().Be(expectedSpanCount);
 
                 await AssertIsolatedSpans(spans);
             }

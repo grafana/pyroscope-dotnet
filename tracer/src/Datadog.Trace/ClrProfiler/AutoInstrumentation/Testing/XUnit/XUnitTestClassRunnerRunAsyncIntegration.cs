@@ -16,11 +16,10 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Testing.XUnit;
 /// Xunit.Sdk.TestClassRunner`1.RunAsync calltarget instrumentation
 /// </summary>
 [InstrumentMethod(
-    AssemblyNames = new[] { "xunit.execution.dotnet", "xunit.execution.desktop" },
+    AssemblyNames = ["xunit.execution.dotnet", "xunit.execution.desktop"],
     TypeName = "Xunit.Sdk.TestClassRunner`1",
     MethodName = "RunAsync",
-    ReturnTypeName = "System.Threading.Tasks.Task`1<Xunit.Sdk.RunSummary>",
-    ParameterTypeNames = new string[] { },
+    ReturnTypeName = "System.Threading.Tasks.Task`1[Xunit.Sdk.RunSummary]",
     MinimumVersion = "2.2.0",
     MaximumVersion = "2.*.*",
     IntegrationName = XUnitIntegration.IntegrationName)]
@@ -41,10 +40,10 @@ public static class XUnitTestClassRunnerRunAsyncIntegration
             return CallTargetState.GetDefault();
         }
 
-        var classRunnerInstance = instance.DuckCast<TestClassRunnerStruct>();
         if (TestModule.Current is { } testModule)
         {
-            return new CallTargetState(null, testModule.GetOrCreateSuite(classRunnerInstance.TestClass.Class.Name ?? string.Empty));
+            var classRunnerInstance = instance.DuckCast<TestClassRunnerStruct>();
+            return new CallTargetState(null, testModule.InternalGetOrCreateSuite(classRunnerInstance.TestClass.Class.Name ?? string.Empty));
         }
 
         Common.Log.Warning("Test module cannot be found.");

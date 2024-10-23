@@ -32,12 +32,10 @@
       span.kind: server,
       _dd.appsec.json: {"triggers":[{"rule":{"id":"test-dummy-rule","name":"Dummy rule to test blocking","tags":{"category":"attack_attempt","type":"security_scanner"}},"rule_matches":[{"operator":"phrase_match","operator_value":"","parameters":[{"address":"server.request.body","highlight":["dummy_rule"],"key_path":["Property2"],"value":"dummy_rule"}]}]}]},
       _dd.origin: appsec,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.appsec.waf.duration: 0.0,
       _dd.appsec.waf.duration_ext: 0.0,
@@ -79,12 +77,10 @@
       span.kind: server,
       _dd.appsec.json: {"triggers":[{"rule":{"id":"test-dummy-rule","name":"Dummy rule to test blocking","tags":{"category":"attack_attempt","type":"security_scanner"}},"rule_matches":[{"operator":"phrase_match","operator_value":"","parameters":[{"address":"server.request.body","highlight":["dummy_rule"],"key_path":["Property2"],"value":"dummy_rule"}]}]}]},
       _dd.origin: appsec,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.appsec.waf.duration: 0.0,
       _dd.appsec.waf.duration_ext: 0.0,
@@ -126,12 +122,10 @@
       span.kind: server,
       _dd.appsec.json: {"triggers":[{"rule":{"id":"test-dummy-rule","name":"Dummy rule to test blocking","tags":{"category":"attack_attempt","type":"security_scanner"}},"rule_matches":[{"operator":"phrase_match","operator_value":"","parameters":[{"address":"server.request.body","highlight":["dummy_rule"],"key_path":["Property2"],"value":"dummy_rule"}]}]}]},
       _dd.origin: appsec,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.appsec.waf.duration: 0.0,
       _dd.appsec.waf.duration_ext: 0.0,
@@ -173,12 +167,10 @@
       span.kind: server,
       _dd.appsec.json: {"triggers":[{"rule":{"id":"test-dummy-rule","name":"Dummy rule to test blocking","tags":{"category":"attack_attempt","type":"security_scanner"}},"rule_matches":[{"operator":"phrase_match","operator_value":"","parameters":[{"address":"server.request.body","highlight":["dummy_rule"],"key_path":["Property2"],"value":"dummy_rule"}]}]}]},
       _dd.origin: appsec,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.appsec.waf.duration: 0.0,
       _dd.appsec.waf.duration_ext: 0.0,
@@ -220,12 +212,10 @@
       span.kind: server,
       _dd.appsec.json: {"triggers":[{"rule":{"id":"test-dummy-rule","name":"Dummy rule to test blocking","tags":{"category":"attack_attempt","type":"security_scanner"}},"rule_matches":[{"operator":"phrase_match","operator_value":"","parameters":[{"address":"server.request.body","highlight":["dummy_rule"],"key_path":["Property2"],"value":"dummy_rule"}]}]}]},
       _dd.origin: appsec,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.appsec.waf.duration: 0.0,
       _dd.appsec.waf.duration_ext: 0.0,
