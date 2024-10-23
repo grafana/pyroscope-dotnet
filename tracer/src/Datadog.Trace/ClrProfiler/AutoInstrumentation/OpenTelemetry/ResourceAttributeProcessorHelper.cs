@@ -31,7 +31,17 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.OpenTelemetry
                 return;
             }
 
-            if (DefaultActivityHandler.ActivityMappingById.TryGetValue(activity.Id, out var activityMapping))
+            string key;
+            if (activityData.TryDuckCast<IW3CActivity>(out var w3cActivity) && w3cActivity.TraceId is { } traceId && w3cActivity.SpanId is { } spanId)
+            {
+                key = traceId + spanId;
+            }
+            else
+            {
+                key = activity.Id;
+            }
+
+            if (ActivityHandlerCommon.ActivityMappingById.TryGetValue(key, out var activityMapping))
             {
                 if (baseProcessor.ParentProvider is not null)
                 {
@@ -48,7 +58,20 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.OpenTelemetry
                             {
                                 if (attribute.Key == "service.name")
                                 {
-                                    span.ServiceName = attribute.Value.ToString();
+                                    var resourceServiceName = attribute.Value.ToString();
+
+                                    // if OTEL_SERVICE_NAME isn't set, OpenTelemetry will set "service.name" to:
+                                    // "unknown_service" or "unknown_service:ProcessName"
+                                    if (string.IsNullOrEmpty(resourceServiceName)
+                                     || string.Equals(resourceServiceName, "unknown_service", StringComparison.Ordinal)
+                                     || resourceServiceName.StartsWith("unknown_service:", StringComparison.Ordinal))
+                                    {
+                                        resourceServiceName = Tracer.Instance.DefaultServiceName;
+
+                                        span.SetTag(attribute.Key, resourceServiceName);
+                                    }
+
+                                    span.ServiceName = resourceServiceName;
                                 }
                                 else if (attribute.Key == "service.version")
                                 {

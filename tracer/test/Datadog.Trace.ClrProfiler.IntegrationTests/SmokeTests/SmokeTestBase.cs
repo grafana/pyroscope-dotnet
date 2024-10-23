@@ -6,6 +6,8 @@
 using System;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using Datadog.Trace.TestHelpers;
 using Xunit;
 using Xunit.Abstractions;
@@ -50,7 +52,8 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.SmokeTests
         /// </summary>
         /// <param name="shouldDeserializeTraces">Optimization parameter, pass false when the resulting traces aren't being verified</param>
         /// <param name="expectedExitCode">Expected exit code</param>
-        protected void CheckForSmoke(bool shouldDeserializeTraces = true, int expectedExitCode = 0)
+        /// <returns>Async operation</returns>
+        protected async Task CheckForSmoke(bool shouldDeserializeTraces = true, int expectedExitCode = 0)
         {
             var applicationPath = EnvironmentHelper.GetSampleApplicationPath().Replace(@"\\", @"\");
             Output.WriteLine($"Application path: {applicationPath}");
@@ -78,7 +81,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.SmokeTests
                 // Command becomes: dotnet.exe <applicationPath>
                 var args = EnvironmentHelper.IsCoreClr() ? applicationPath : null;
                 // Using the following code to avoid possible hangs on WaitForExit due to synchronous reads: https://stackoverflow.com/questions/139593/processstartinfo-hanging-on-waitforexit-why
-                using (var process = ProfilerHelper.StartProcessWithProfiler(executable, EnvironmentHelper, agent, arguments: args, aspNetCorePort: aspNetCorePort, processToProfile: executable))
+                using (var process = await ProfilerHelper.StartProcessWithProfiler(executable, EnvironmentHelper, agent, arguments: args, aspNetCorePort: aspNetCorePort, processToProfile: executable))
                 {
                     using var helper = new ProcessHelper(process);
 
@@ -131,21 +134,19 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.SmokeTests
                 Spans = agent.Spans;
             }
 
-#if NETCOREAPP2_1
-            if (result.ExitCode == 139)
+            ErrorHelpers.CheckForKnownSkipConditions(Output, result.ExitCode, result.StandardError, EnvironmentHelper);
+
+#if !NET5_0_OR_GREATER
+            if (result.StandardOutput.Contains("App completed successfully")
+                && Regex.IsMatch(result.StandardError, @"open\(/proc/\d+/mem\) FAILED 2 \(No such file or directory\)"))
             {
-                // Segmentation faults are expected on .NET Core because of a bug in the runtime: https://github.com/dotnet/runtime/issues/11885
-                throw new SkipException("Segmentation fault on .NET Core 2.1");
+                // The above message is the last thing set before we exit.
+                // We can still get flake on shutdown (which we can't isolate), but for some reason
+                // the crash dump _also_ fails. As this doesn't give us any useful information,
+                // Skip the test instead of giving flake
+                throw new SkipException("Error during shutting down but crash dump failed");
             }
 #endif
-            if (result.ExitCode == 134
-             && standardError?.Contains("System.Threading.AbandonedMutexException: The wait completed due to an abandoned mutex") == true
-             && standardError?.Contains("Coverlet.Core.Instrumentation.Tracker") == true)
-            {
-                // Coverlet occasionally throws AbandonedMutexException during clean up
-                throw new SkipException("Coverlet threw AbandonedMutexException during cleanup");
-            }
-
             ExitCodeException.ThrowIfNonExpected(result.ExitCode, expectedExitCode, result.StandardError);
 
             if (expectedExitCode == 0)

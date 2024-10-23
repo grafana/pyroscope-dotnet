@@ -8,13 +8,17 @@
 #include "cor.h"
 #include "corprof.h"
 
+#include "IThreadInfo.h"
+#include "ScopedHandle.h"
 #include "Semaphore.h"
 #include "shared/src/native-src/string.h"
 #include "tags.h"
 
 #include <atomic>
 #include <memory>
-
+#include <mutex>
+#include <shared_mutex>
+#include <utility>
 
 static constexpr int32_t MinFieldAlignRequirement = 8;
 static constexpr int32_t FieldAlignRequirement = (MinFieldAlignRequirement >= alignof(std::uint64_t)) ? MinFieldAlignRequirement : alignof(std::uint64_t);
@@ -27,25 +31,29 @@ public:
     std::uint64_t _currentSpanId;
 };
 
-struct ManagedThreadInfo
+struct ManagedThreadInfo : public IThreadInfo
 {
 private:
-    ManagedThreadInfo(ThreadID clrThreadId, DWORD osThreadId, HANDLE osThreadHandle, shared::WSTRING pThreadName);
+    ManagedThreadInfo(ThreadID clrThreadId, ICorProfilerInfo4* pCorProfilerInfo, DWORD osThreadId, HANDLE osThreadHandle, shared::WSTRING pThreadName);
     static std::uint32_t GenerateProfilerThreadInfoId();
 
 public:
-    explicit ManagedThreadInfo(ThreadID clrThreadId);
+    explicit ManagedThreadInfo(ThreadID clrThreadId, ICorProfilerInfo4* pCorProfilerInfo);
     ~ManagedThreadInfo() = default;
+
+    // This field is set in the CorProfilerCallback. It's based on the assumption that the thread's calling ThreadAssignedToOSThread
+    // is the same native thread assigned to the managed thread.
+    static thread_local std::shared_ptr<ManagedThreadInfo> CurrentThreadInfo;
 
     inline std::uint32_t GetProfilerThreadInfoId() const;
 
     inline ThreadID GetClrThreadId() const;
 
-    inline DWORD GetOsThreadId() const;
-    inline HANDLE GetOsThreadHandle() const;
+    inline DWORD GetOsThreadId() const override;
+    inline HANDLE GetOsThreadHandle() const override;
     inline void SetOsInfo(DWORD osThreadId, HANDLE osThreadHandle);
 
-    inline const shared::WSTRING& GetThreadName() const;
+    inline const shared::WSTRING& GetThreadName() const override;
     inline void SetThreadName(shared::WSTRING pThreadName);
 
     inline std::uint64_t GetLastSampleHighPrecisionTimestampNanoseconds() const;
@@ -74,21 +82,34 @@ public:
     inline bool IsThreadDestroyed();
     inline bool IsDestroyed();
     inline void SetThreadDestroyed();
+    inline std::pair<uint64_t, shared::WSTRING> SetBlockingThread(uint64_t osThreadId, shared::WSTRING name);
 
     inline TraceContextTrackingInfo* GetTraceContextPointer();
     inline std::uint64_t GetLocalRootSpanId() const;
     inline std::uint64_t GetSpanId() const;
-    inline bool CanReadTraceContext() const;
     inline bool HasTraceContext() const;
 
-    inline std::string GetProfileThreadId();
-    inline std::string GetProfileThreadName();
+    inline std::string GetProfileThreadId() override;
+    inline std::string GetProfileThreadName() override;
+
+#ifdef LINUX
+    inline void SetSharedMemory(volatile int* memoryArea);
+    inline void MarkAsInterrupted();
+    inline int32_t SetTimerId(int32_t timerId);
+    inline int32_t GetTimerId() const;
+#endif
+    inline bool CanBeInterrupted() const;
+
+    inline AppDomainID GetAppDomainId();
+
+    inline std::pair<std::uint64_t, std::uint64_t> GetTracingContext() const;
 
     inline google::javaprofiler::Tags& GetTags();
 
 private:
-    inline void BuildProfileThreadId();
-    inline void BuildProfileThreadName();
+    inline std::string BuildProfileThreadId();
+    inline std::string BuildProfileThreadName();
+    inline bool CanReadTraceContext() const;
 
 private:
     static constexpr std::uint32_t MaxProfilerThreadInfoId = 0xFFFFFF; // = 16,777,215
@@ -97,7 +118,7 @@ private:
     std::uint32_t _profilerThreadInfoId;
     ThreadID _clrThreadId;
     DWORD _osThreadId;
-    HANDLE _osThreadHandle;
+    ScopedHandle _osThreadHandle;
     shared::WSTRING _pThreadName;
 
     std::uint64_t _lastSampleHighPrecisionTimestampNanoseconds;
@@ -117,20 +138,45 @@ private:
     bool _isThreadDestroyed;
 
     TraceContextTrackingInfo _traceContextTrackingInfo;
+
+
     google::javaprofiler::Tags _tags;
 
     //  strings to be used by samples: avoid allocations when rebuilding them over and over again
     std::string _profileThreadId;
     std::string _profileThreadName;
+
+    // Linux only
+    // This is pointer to a shared memory area coming from the Datadog.Linux.ApiWrapper library.
+    // This establishes a simple communication channel between the profiler and this library
+    // to know (for now, maybe more later) if the profiler interrupted a thread which was
+    // doing a syscalls.
+    volatile int* _sharedMemoryArea;
+    ICorProfilerInfo4* _info;
+    std::shared_mutex _threadIdMutex;
+    std::shared_mutex _threadNameMutex;
+#ifdef LINUX
+    std::int32_t _timerId;
+#endif
+    uint64_t _blockingThreadId;
+    shared::WSTRING _blockingThreadName;
 };
-
-
 
 std::string ManagedThreadInfo::GetProfileThreadId()
 {
+    {
+        auto l = std::shared_lock(_threadIdMutex);
+        if (!_profileThreadId.empty())
+        {
+            return _profileThreadId;
+        }
+    }
+
+    auto id = BuildProfileThreadId();
+    std::unique_lock l(_threadIdMutex);
     if (_profileThreadId.empty())
     {
-        BuildProfileThreadId();
+        _profileThreadId = std::move(id);
     }
 
     return _profileThreadId;
@@ -138,11 +184,20 @@ std::string ManagedThreadInfo::GetProfileThreadId()
 
 std::string ManagedThreadInfo::GetProfileThreadName()
 {
-    if (_profileThreadName.empty())
     {
-        BuildProfileThreadName();
+        std::shared_lock l(_threadNameMutex);
+        if (!_profileThreadName.empty())
+        {
+            return _profileThreadName;
+        }
     }
 
+    auto s = BuildProfileThreadName();
+    std::unique_lock l(_threadNameMutex);
+    if (_profileThreadName.empty())
+    {
+        _profileThreadName = std::move(s);
+    }
     return _profileThreadName;
 }
 
@@ -150,14 +205,15 @@ inline google::javaprofiler::Tags& ManagedThreadInfo::GetTags() {
     return _tags;
 }
 
-inline void ManagedThreadInfo::BuildProfileThreadId()
+inline std::string ManagedThreadInfo::BuildProfileThreadId()
 {
     std::stringstream builder;
     builder << "<" << std::dec << _profilerThreadInfoId << "> [#" << _osThreadId << "]";
-    _profileThreadId = std::move(builder.str());
+
+    return builder.str();
 }
 
-inline void ManagedThreadInfo::BuildProfileThreadName()
+inline std::string ManagedThreadInfo::BuildProfileThreadName()
 {
     std::stringstream nameBuilder;
     if (GetThreadName().empty())
@@ -170,7 +226,7 @@ inline void ManagedThreadInfo::BuildProfileThreadName()
     }
     nameBuilder << " [#" << _osThreadId << "]";
 
-    _profileThreadName = nameBuilder.str();
+    return nameBuilder.str();
 }
 
 std::uint32_t ManagedThreadInfo::GetProfilerThreadInfoId() const
@@ -196,9 +252,14 @@ inline HANDLE ManagedThreadInfo::GetOsThreadHandle() const
 inline void ManagedThreadInfo::SetOsInfo(DWORD osThreadId, HANDLE osThreadHandle)
 {
     _osThreadId = osThreadId;
-    _osThreadHandle = osThreadHandle;
+    _osThreadHandle = ScopedHandle(osThreadHandle);
 
-    BuildProfileThreadId();
+    auto id = BuildProfileThreadId();
+    std::unique_lock l(_threadIdMutex);
+    if (_profileThreadId.empty())
+    {
+        _profileThreadId = std::move(id);
+    }
 }
 
 inline const shared::WSTRING& ManagedThreadInfo::GetThreadName() const
@@ -209,7 +270,13 @@ inline const shared::WSTRING& ManagedThreadInfo::GetThreadName() const
 inline void ManagedThreadInfo::SetThreadName(shared::WSTRING pThreadName)
 {
     _pThreadName = std::move(pThreadName);
-    BuildProfileThreadName();
+
+    auto s = BuildProfileThreadName();
+    std::unique_lock l(_threadNameMutex);
+    if (_profileThreadName.empty())
+    {
+        _profileThreadName = std::move(s);
+    }
 }
 
 inline std::uint64_t ManagedThreadInfo::GetLastSampleHighPrecisionTimestampNanoseconds() const
@@ -350,6 +417,13 @@ inline void ManagedThreadInfo::SetThreadDestroyed()
     _isThreadDestroyed = true;
 }
 
+inline std::pair<uint64_t, shared::WSTRING> ManagedThreadInfo::SetBlockingThread(uint64_t osThreadId, shared::WSTRING name)
+{
+    auto oldId = std::exchange(_blockingThreadId, osThreadId);
+    auto oldName = std::exchange(_blockingThreadName, std::move(name));
+    return {oldId, oldName};
+}
+
 inline TraceContextTrackingInfo* ManagedThreadInfo::GetTraceContextPointer()
 {
     return &_traceContextTrackingInfo;
@@ -387,4 +461,61 @@ inline bool ManagedThreadInfo::HasTraceContext() const
         return localRootSpanId != 0 && spanId != 0;
     }
     return false;
+}
+
+inline bool ManagedThreadInfo::CanBeInterrupted() const
+{
+    return _sharedMemoryArea == nullptr;
+}
+
+#ifdef LINUX
+// This method is called by the signal handler, when the thread has already been interrupted.
+// There is no race and it's safe to call it there.
+inline void ManagedThreadInfo::MarkAsInterrupted()
+{
+    if (_sharedMemoryArea != nullptr)
+    {
+        *_sharedMemoryArea = 1;
+    }
+}
+
+inline void ManagedThreadInfo::SetSharedMemory(volatile int* memoryArea)
+{
+    _sharedMemoryArea = memoryArea;
+}
+
+inline std::int32_t ManagedThreadInfo::SetTimerId(std::int32_t timerId)
+{
+    return std::exchange(_timerId, timerId);
+}
+
+inline std::int32_t ManagedThreadInfo::GetTimerId() const
+{
+    return _timerId;
+}
+#endif
+
+inline AppDomainID ManagedThreadInfo::GetAppDomainId()
+{
+    // This function will be called in the signal handler.
+    // As far as I saw, this function is safe'ish to be called from a signal handler.
+    // If at some point, it's not safe anymore, we will have to rethink how we get
+    // the AppDomainID from a signal handler.
+    AppDomainID appDomainId{0};
+    HRESULT hr = _info->GetThreadAppDomain(_clrThreadId, &appDomainId);
+    return appDomainId;
+}
+
+inline std::pair<std::uint64_t, std::uint64_t> ManagedThreadInfo::GetTracingContext() const
+{
+    std::uint64_t localRootSpanId = 0;
+    std::uint64_t spanId = 0;
+
+    if (CanReadTraceContext())
+    {
+        localRootSpanId = GetLocalRootSpanId();
+        spanId = GetSpanId();
+    }
+
+    return {localRootSpanId, spanId};
 }

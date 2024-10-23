@@ -3,10 +3,18 @@
 
 #pragma once
 #include <memory>
+#include <string>
+#include <chrono>
+
+#include "ApplicationInfo.h"
 
 // forward declarations
 class IProfile;
+class IUpscaleProvider;
+class ISamplesProvider;
 class Sample;
+
+
 typedef std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds> ProfileTime;
 
 class IExporter
@@ -15,5 +23,8 @@ public:
     virtual ~IExporter() = default;
     virtual void Add(std::shared_ptr<Sample> const& sample) = 0;
     virtual void SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint) = 0;
-    virtual bool Export(ProfileTime& startTime, ProfileTime& endTime) = 0;
+    virtual bool Export(ProfileTime& startTime, ProfileTime& endTime, bool lastCall = false) = 0;
+    virtual void RegisterUpscaleProvider(IUpscaleProvider* provider) = 0;
+    virtual void RegisterProcessSamplesProvider(ISamplesProvider* provider) = 0;
+    virtual void RegisterApplication(std::string_view runtimeId) = 0;
 };

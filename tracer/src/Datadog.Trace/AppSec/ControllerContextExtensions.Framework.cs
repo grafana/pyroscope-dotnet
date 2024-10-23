@@ -3,68 +3,115 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
+#nullable enable
+
 #if NETFRAMEWORK
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
 using Datadog.Trace.AspNet;
 using Datadog.Trace.ClrProfiler.AutoInstrumentation.AspNet;
-using Datadog.Trace.DuckTyping;
 using Datadog.Trace.Iast;
+using Datadog.Trace.Util;
 
 namespace Datadog.Trace.AppSec
 {
     internal static class ControllerContextExtensions
     {
-        internal static void MonitorBodyAndPathParams(this IControllerContext controllerContext, IDictionary<string, object> parameters, string peekScopeKey)
+        internal static void MonitorBodyAndPathParams(this IControllerContext controllerContext, IDictionary<string, object>? parameters, string peekScopeKey)
         {
-            if (parameters == null || parameters.Count == 0)
+            if (parameters is null or { Count: 0 })
+            {
+                return;
+            }
+
+            var context = HttpContext.Current;
+            if (context is null)
+            {
+                return;
+            }
+
+            var scope = SharedItems.TryPeekScope(context, peekScopeKey);
+            if (scope == null)
             {
                 return;
             }
 
             var security = Security.Instance;
-            var context = HttpContext.Current;
-            var iastEnabled = Iast.Iast.Instance.Settings.Enabled;
-            Scope scope = null;
-
-            if ((context != null && security.Settings.Enabled) || iastEnabled)
+            var runIast = Iast.Iast.Instance.Settings.Enabled;
+            IastRequestContext? iastRequestContext = null;
+            if (runIast)
             {
-                scope = SharedItems.TryPeekScope(context, peekScopeKey);
+                iastRequestContext = scope.Span?.Context?.TraceContext?.IastRequestContext;
+                runIast = iastRequestContext is not null;
             }
 
-            if (context != null && security.Settings.Enabled)
+            // if neither iast or security is enabled leave
+            if (!security.Enabled && !runIast)
             {
-                var bodyDic = new Dictionary<string, object>(parameters.Count);
-                var pathParamsDic = new Dictionary<string, object>(parameters.Count);
-                foreach (var item in parameters)
+                return;
+            }
+
+            var bodyDic = new Dictionary<string, object>();
+            var pathParamsDic = new Dictionary<string, object>();
+            foreach (var item in parameters)
+            {
+                if (controllerContext.RouteData?.Values?.ContainsKey(item.Key) ?? false)
                 {
-                    if (controllerContext.RouteData.Values.ContainsKey(item.Key))
-                    {
-                        pathParamsDic[item.Key] = item.Value;
-                    }
-                    else
+                    pathParamsDic[item.Key] = item.Value;
+                }
+                else
+                {
+                    // We exclude the query string params
+                    if (!RequestDataHelper.GetQueryString(context.Request)?.AllKeys.Contains(item.Key) ?? false)
                     {
                         bodyDic[item.Key] = item.Value;
                     }
                 }
+            }
 
-                var securityTransport = new Coordinator.SecurityCoordinator(security, context, scope.Span);
+            object? requestBody = null;
+            if (bodyDic.Count > 0)
+            {
+                requestBody = ObjectExtractor.Extract(bodyDic);
+            }
+
+            if (security.Enabled)
+            {
+                var securityTransport = new Coordinator.SecurityCoordinator(security, scope.Span!);
                 if (!securityTransport.IsBlocked)
                 {
-                    var inputData = new Dictionary<string, object>
+                    var inputData = new Dictionary<string, object>();
+                    if (requestBody is not null)
                     {
-                        { AddressesConstants.RequestBody, ObjectExtractor.Extract(bodyDic) },
-                        { AddressesConstants.RequestPathParams, ObjectExtractor.Extract(pathParamsDic) }
-                    };
-                    securityTransport.CheckAndBlock(inputData);
+                        inputData.Add(AddressesConstants.RequestBody, requestBody);
+                    }
+
+                    if (pathParamsDic.Count > 0)
+                    {
+                        var pathParams = ObjectExtractor.Extract(pathParamsDic);
+
+                        if (pathParams is not null)
+                        {
+                            inputData.Add(AddressesConstants.RequestPathParams, pathParams);
+                        }
+                    }
+
+                    securityTransport.BlockAndReport(inputData);
                 }
             }
 
-            if (iastEnabled)
+            if (runIast)
             {
-                scope?.Span?.Context?.TraceContext?.IastRequestContext?.AddRequestData(context.Request, controllerContext.RouteData.Values);
+                if (controllerContext.RouteData?.Values?.Count > 0)
+                {
+                    iastRequestContext!.AddRequestData(context.Request, controllerContext.RouteData.Values);
+                }
+
+                if (requestBody is not null)
+                {
+                    iastRequestContext!.AddRequestBody(null, requestBody);
+                }
             }
         }
     }

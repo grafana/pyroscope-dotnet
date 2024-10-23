@@ -2,7 +2,7 @@
 # Project definition
 # ******************************************************
 
-project("Datadog.Profiler.Native.Linux" VERSION 2.27.0)
+project("Datadog.Profiler.Native.Linux" VERSION 3.3.1)
 
 option(RUN_ASAN "Build with Clang Undefined-Behavior Sanitizer" OFF)
 option(RUN_UBSAN "Build with Clang Undefined-Behavior Sanitizer" OFF)
@@ -15,7 +15,7 @@ message(STATUS "Run Clang Undefined-Behavior Sanitizer: " ${RUN_UBSAN})
 # ******************************************************
 
 # Sets compiler options
-add_compile_options(-std=c++17 -fPIC -fms-extensions)
+add_compile_options(-std=c++20 -fPIC -fms-extensions -g)
 add_compile_options(-DPAL_STDCPP_COMPAT -DPLATFORM_UNIX -DUNICODE)
 add_compile_options(-Wno-invalid-noreturn -Wno-macro-redefined)
 
@@ -89,8 +89,9 @@ set_target_properties(${PROFILER_STATIC_LIB_NAME} PROPERTIES PREFIX "")
 
 # Define directories includes
 target_include_directories(${PROFILER_STATIC_LIB_NAME}
-        PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../Datadog.Profiler.Native
-        PUBLIC ${DOTNET_TRACER_REPO_ROOT_PATH}
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../Datadog.Profiler.Native.Linux
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../Datadog.Profiler.Native
+    PUBLIC ${DOTNET_TRACER_REPO_ROOT_PATH}
 )
 
 # Define linker libraries
@@ -110,7 +111,6 @@ endif()
 target_compile_definitions(${PROFILER_STATIC_LIB_NAME} PUBLIC "-D_GLIBCXX_USE_CXX11_ABI=0")
 
 target_link_libraries(${PROFILER_STATIC_LIB_NAME}
-    fmt-lib
     libunwind-lib
     libdatadog-lib
     coreclr
@@ -126,17 +126,22 @@ target_link_libraries(${PROFILER_STATIC_LIB_NAME}
     -lstdc++fs
     -pthread
     -ldl
+    -Wl,--build-id
 )
+
+add_dependencies(${PROFILER_STATIC_LIB_NAME} libdatadog-lib libunwind-lib coreclr spdlog-headers PPDB)
+
+
 
 target_include_directories(${PROFILER_STATIC_LIB_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/../../../../profiler/third_party/cpp-httplib)
 target_compile_options(${PROFILER_STATIC_LIB_NAME} PUBLIC -isystem${PROJECT_SOURCE_DIR}/../../../../profiler/third_party/boringssl/include)
 target_compile_definitions(${PROFILER_STATIC_LIB_NAME} PUBLIC -DCPPHTTPLIB_OPENSSL_SUPPORT -DCPPHTTPLIB_USE_POLL)
 
-add_dependencies(${PROFILER_STATIC_LIB_NAME} fmt-lib libdatadog-lib libunwind-lib coreclr spdlog-headers PPDB)
 
 # ******************************************************
 # Define shared target
 # ******************************************************
+set(dd_profiling_linker_script "${CMAKE_CURRENT_SOURCE_DIR}/datadog_profiling.version")
 
 add_library(${PROFILER_SHARED_LIB_NAME} SHARED
     ../Datadog.Profiler.Native/DllMain.cpp
@@ -144,6 +149,9 @@ add_library(${PROFILER_SHARED_LIB_NAME} SHARED
 target_include_directories(${PROFILER_SHARED_LIB_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/../../../../profiler/third_party/cpp-httplib)
 
 set_target_properties(${PROFILER_SHARED_LIB_NAME} PROPERTIES PREFIX "")
+set_target_properties(${PROFILER_SHARED_LIB_NAME} PROPERTIES LINK_DEPENDS "${dd_profiling_linker_script}")
+target_link_options(${PROFILER_SHARED_LIB_NAME} PRIVATE
+                    "LINKER:--version-script=${dd_profiling_linker_script}")
 
 # Define linker libraries
 target_link_libraries(${PROFILER_SHARED_LIB_NAME}

@@ -6,6 +6,9 @@
 
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Datadog.Trace.Ci.Telemetry;
+using Datadog.Trace.Telemetry;
+using Datadog.Trace.Telemetry.Metrics;
 
 namespace Datadog.Trace.Ci.Coverage;
 
@@ -19,7 +22,7 @@ internal abstract class CoverageEventHandler
 
     protected CoverageEventHandler()
     {
-        _asyncContext = new(obj => CoverageReporter.FireContextContainerChangeAction(obj.CurrentValue));
+        _asyncContext = new();
         _globalContainer = new CoverageContextContainer();
     }
 
@@ -37,9 +40,11 @@ internal abstract class CoverageEventHandler
     /// Start session
     /// </summary>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void StartSession()
+    public void StartSession(string? testingFramework = null)
     {
-        var context = new CoverageContextContainer();
+        var telemetryTestingFramework = TelemetryHelper.GetTelemetryTestingFrameworkEnum(testingFramework);
+        TelemetryFactory.Metrics.RecordCountCIVisibilityCodeCoverageStarted(telemetryTestingFramework, MetricTags.CIVisibilityCoverageLibrary.Custom);
+        var context = new CoverageContextContainer(telemetryTestingFramework);
         OnSessionStart(context);
         _asyncContext.Value = context;
     }
@@ -54,7 +59,14 @@ internal abstract class CoverageEventHandler
         if (_asyncContext.Value is { } context)
         {
             _asyncContext.Value = null;
-            return OnSessionFinished(context);
+            var sessionEndData = OnSessionFinished(context);
+            if (context.State is MetricTags.CIVisibilityTestFramework { } telemetryTestingFramework)
+            {
+                TelemetryFactory.Metrics.RecordCountCIVisibilityCodeCoverageFinished(telemetryTestingFramework, MetricTags.CIVisibilityCoverageLibrary.Custom);
+            }
+
+            OnClearContext(context);
+            return sessionEndData;
         }
 
         return null;
@@ -72,4 +84,10 @@ internal abstract class CoverageEventHandler
     /// <param name="context">Coverage context container</param>
     /// <returns>Instance of the final coverage report</returns>
     protected abstract object? OnSessionFinished(CoverageContextContainer context);
+
+    /// <summary>
+    /// Method called when the context is cleared
+    /// </summary>
+    /// <param name="context">Context to be cleared</param>
+    protected abstract void OnClearContext(CoverageContextContainer context);
 }

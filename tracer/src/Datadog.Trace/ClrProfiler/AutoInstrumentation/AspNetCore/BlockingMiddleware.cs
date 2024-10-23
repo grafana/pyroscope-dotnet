@@ -6,11 +6,9 @@
 #nullable enable
 #if !NETFRAMEWORK
 using System;
-using System.Net;
 using System.Threading.Tasks;
 using Datadog.Trace.AppSec;
 using Datadog.Trace.AppSec.Coordinator;
-using Datadog.Trace.AspNet;
 using Datadog.Trace.Logging;
 using Microsoft.AspNetCore.Http;
 
@@ -20,10 +18,9 @@ internal class BlockingMiddleware
 {
     private static readonly IDatadogLogger Log = DatadogLogging.GetLoggerFor<BlockingMiddleware>();
 
-    private readonly bool _endPipeline;
-
     // if we add support for ASP.NET Core on .NET Framework, we can't directly reference RequestDelegate, so this would need to be written
     private readonly RequestDelegate? _next;
+    private readonly bool _endPipeline;
 
     internal BlockingMiddleware(RequestDelegate? next = null, bool endPipeline = false)
     {
@@ -79,33 +76,34 @@ internal class BlockingMiddleware
         var security = Security.Instance;
         var endedResponse = false;
 
-        if (security.Settings.Enabled)
+        if (security.Enabled)
         {
             if (Tracer.Instance?.ActiveScope?.Span is Span span)
             {
-                var securityCoordinator = new SecurityCoordinator(security, context, span);
+                var securityCoordinator = new SecurityCoordinator(security, span, new SecurityCoordinator.HttpTransport(context));
                 if (_endPipeline && !context.Response.HasStarted)
                 {
                     context.Response.StatusCode = 404;
                 }
 
-                var result = securityCoordinator.Scan();
-                if (result?.ShouldBeReported is true)
+                // _endPipeline: true won't happen unless the EndpointMiddleware couldn't find an endpoint to serve. Most of the time this middleware will be called just at the beginning of the pipeline. We still want it in the end to run discovery scans checks.
+                var result = securityCoordinator.Scan(_endPipeline);
+                if (result is not null)
                 {
                     if (result.ShouldBlock)
                     {
-                        var action = security.GetBlockingAction(result.Actions[0], context.Request.Headers.GetCommaSeparatedValues("Accept"));
+                        var action = security.GetBlockingAction(context.Request.Headers.GetCommaSeparatedValues("Accept"), result.BlockInfo, result.RedirectInfo);
                         await WriteResponse(action, context, out endedResponse).ConfigureAwait(false);
                         securityCoordinator.MarkBlocked();
                     }
 
-                    securityCoordinator.Report(result.Data, result.AggregatedTotalRuntime, result.AggregatedTotalRuntimeWithBindings, endedResponse);
+                    securityCoordinator.TryReport(result, endedResponse);
                     // security will be disposed in endrequest of diagnostic observer in any case
                 }
             }
             else
             {
-                Log.Error("No span available, can't check the request");
+                Log.Debug("No span available, can't check the request");
             }
         }
 
@@ -116,29 +114,45 @@ internal class BlockingMiddleware
             {
                 await _next(context).ConfigureAwait(false);
             }
-            catch (BlockException e)
+            catch (Exception e) when (GetBlockException(e) is { } blockException)
             {
-                var action = security.GetBlockingAction(e.Result.Actions[0], context.Request.Headers.GetCommaSeparatedValues("Accept"));
+                // Use blockinfo here
+                var action = security.GetBlockingAction(context.Request.Headers.GetCommaSeparatedValues("Accept"), blockException.BlockInfo, null);
                 await WriteResponse(action, context, out endedResponse).ConfigureAwait(false);
-                if (security.Settings.Enabled)
+                if (security.Enabled)
                 {
                     if (Tracer.Instance?.ActiveScope?.Span is Span span)
                     {
-                        var securityCoordinator = new SecurityCoordinator(security, context, span);
-                        if (!e.Reported)
+                        var securityCoordinator = new SecurityCoordinator(security, span, new SecurityCoordinator.HttpTransport(context));
+                        if (!blockException.Reported)
                         {
-                            securityCoordinator.Report(e.Result.Data, e.Result.AggregatedTotalRuntime, e.Result.AggregatedTotalRuntimeWithBindings, endedResponse);
+                            securityCoordinator.TryReport(blockException.Result, endedResponse);
                         }
 
                         securityCoordinator.AddResponseHeadersToSpanAndCleanup();
                     }
                     else
                     {
-                        Log.Error("No span available, can't report the request");
+                        Log.Debug("No span available, can't report the request");
                     }
                 }
             }
         }
+    }
+
+    private static BlockException? GetBlockException(Exception? exception)
+    {
+        while (exception is not null)
+        {
+            if (exception is BlockException b)
+            {
+                return b;
+            }
+
+            exception = exception.InnerException;
+        }
+
+        return null;
     }
 }
 #endif

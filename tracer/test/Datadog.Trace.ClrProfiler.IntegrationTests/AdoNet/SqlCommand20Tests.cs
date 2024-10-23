@@ -5,6 +5,7 @@
 
 #if NETFRAMEWORK
 using System.Linq;
+using System.Threading.Tasks;
 using Datadog.Trace.Configuration;
 using Datadog.Trace.TestHelpers;
 using Xunit;
@@ -15,51 +16,62 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.AdoNet
     public class SqlCommand20Tests : TracingIntegrationTest
     {
         public SqlCommand20Tests(ITestOutputHelper output)
+
         : base("SqlServer.NetFramework20", output)
         {
             SetServiceVersion("1.0.0");
         }
 
-        public override Result ValidateIntegrationSpan(MockSpan span) => span.IsSqlClient();
+        public override Result ValidateIntegrationSpan(MockSpan span, string metadataSchemaVersion) => span.IsSqlClient(metadataSchemaVersion);
 
         [SkippableFact]
         [Trait("Category", "EndToEnd")]
         [Trait("RunOnWindows", "True")]
-        public void SubmitsTraces()
-        {
-            const int expectedSpanCount = 28; // 7 queries * 3 groups + CallTarget support instrumenting a constrained generic caller.
-            const string dbType = "sql-server";
-            const string expectedOperationName = dbType + ".query";
-            const string expectedServiceName = "Samples.SqlServer.NetFramework20-" + dbType;
-
-            using var telemetry = this.ConfigureTelemetry();
-            using var agent = EnvironmentHelper.GetMockAgent();
-            using var process = RunSampleAndWaitForExit(agent);
-            var spans = agent.WaitForSpans(expectedSpanCount, operationName: expectedOperationName);
-
-            Assert.Equal(expectedSpanCount, spans.Count);
-            ValidateIntegrationSpans(spans, expectedServiceName: expectedServiceName);
-            telemetry.AssertIntegrationEnabled(IntegrationId.SqlClient);
-        }
+        public Task SubmitsTracesV0() => RunTest("v0");
 
         [SkippableFact]
         [Trait("Category", "EndToEnd")]
         [Trait("RunOnWindows", "True")]
-        public void IntegrationDisabled()
+        public Task SubmitsTracesV1() => RunTest("v1");
+
+        [SkippableFact]
+        [Trait("Category", "EndToEnd")]
+        [Trait("RunOnWindows", "True")]
+        public async Task IntegrationDisabled()
         {
-            const int totalSpanCount = 21;
+            const int totalSpanCount = 9;
             const string expectedOperationName = "sql-server.query";
 
             SetEnvironmentVariable($"DD_TRACE_{nameof(IntegrationId.SqlClient)}_ENABLED", "false");
 
             using var telemetry = this.ConfigureTelemetry();
             using var agent = EnvironmentHelper.GetMockAgent();
-            using var process = RunSampleAndWaitForExit(agent);
+            using var process = await RunSampleAndWaitForExit(agent);
             var spans = agent.WaitForSpans(totalSpanCount, returnAllOperations: true);
 
             Assert.NotEmpty(spans);
             Assert.Empty(spans.Where(s => s.Name.Equals(expectedOperationName)));
             telemetry.AssertIntegrationDisabled(IntegrationId.SqlClient);
+        }
+
+        private async Task RunTest(string metadataSchemaVersion)
+        {
+            const int expectedSpanCount = 28; // 7 queries * 3 groups + CallTarget support instrumenting a constrained generic caller.
+            const string dbType = "sql-server";
+            const string expectedOperationName = dbType + ".query";
+
+            SetEnvironmentVariable("DD_TRACE_SPAN_ATTRIBUTE_SCHEMA", metadataSchemaVersion);
+            var isExternalSpan = metadataSchemaVersion == "v0";
+            var clientSpanServiceName = isExternalSpan ? $"{EnvironmentHelper.FullSampleName}-{dbType}" : EnvironmentHelper.FullSampleName;
+
+            using var telemetry = this.ConfigureTelemetry();
+            using var agent = EnvironmentHelper.GetMockAgent();
+            using var process = await RunSampleAndWaitForExit(agent);
+            var spans = agent.WaitForSpans(expectedSpanCount, operationName: expectedOperationName);
+
+            Assert.Equal(expectedSpanCount, spans.Count);
+            ValidateIntegrationSpans(spans, metadataSchemaVersion, expectedServiceName: clientSpanServiceName, isExternalSpan);
+            telemetry.AssertIntegrationEnabled(IntegrationId.SqlClient);
         }
     }
 }

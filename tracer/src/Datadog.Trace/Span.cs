@@ -4,12 +4,16 @@
 // </copyright>
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
-using System.Security.Cryptography;
+using System.Runtime.CompilerServices;
+using System.Threading;
+using Datadog.Trace.Debugger.ExceptionAutoInstrumentation;
 using Datadog.Trace.ExtensionMethods;
 using Datadog.Trace.Logging;
 using Datadog.Trace.Sampling;
 using Datadog.Trace.Tagging;
+using Datadog.Trace.Telemetry;
 using Datadog.Trace.Util;
 using Datadog.Trace.Vendors.Serilog.Events;
 
@@ -26,7 +30,8 @@ namespace Datadog.Trace
         private static readonly IDatadogLogger Log = DatadogLogging.GetLoggerFor<Span>();
         private static readonly bool IsLogLevelDebugEnabled = Log.IsEnabled(LogEventLevel.Debug);
 
-        private readonly object _lock = new object();
+        private int _isFinished;
+        private bool _baseServiceTagSet;
 
         internal Span(SpanContext context, DateTimeOffset? start)
             : this(context, start, null)
@@ -37,15 +42,11 @@ namespace Datadog.Trace
         {
             Tags = tags ?? new CommonTags();
             Context = context;
-            StartTime = start ?? Context.TraceContext.UtcNow;
+            StartTime = start ?? Context.TraceContext.Clock.UtcNow;
 
             if (IsLogLevelDebugEnabled)
             {
-                var tagsType = Tags.GetType();
-
-                Log.Debug(
-                    "Span started: [s_id: {SpanId}, p_id: {ParentId}, t_id: {TraceId}] with Tags: [{Tags}], Tags Type: [{TagsType}])",
-                    new object[] { SpanId, Context.ParentId, TraceId, Tags, tagsType });
+                WriteCtorDebugMessage();
             }
         }
 
@@ -76,17 +77,32 @@ namespace Datadog.Trace
         /// </summary>
         internal string ServiceName
         {
-            get => Context.ServiceName;
-            set => Context.ServiceName = value;
+            get => Context.ServiceNameInternal;
+            set
+            {
+                // Ignore case because service name and _dd.base_service are normalized in the agent and backend
+                if (!_baseServiceTagSet && !string.Equals(value, Context.ServiceNameInternal, StringComparison.OrdinalIgnoreCase))
+                {
+                    Tags.SetTag(Trace.Tags.BaseService, Context.ServiceNameInternal);
+                    _baseServiceTagSet = true;
+                }
+
+                Context.ServiceNameInternal = value;
+            }
         }
 
         /// <summary>
-        /// Gets the trace's unique identifier.
+        /// Gets the trace's unique 128-bit identifier.
         /// </summary>
-        internal ulong TraceId => Context.TraceId;
+        internal TraceId TraceId128 => Context.TraceId128;
 
         /// <summary>
-        /// Gets the span's unique identifier.
+        /// Gets the 64-bit trace id, or the lower 64 bits of a 128-bit trace id.
+        /// </summary>
+        internal ulong TraceId => Context.TraceId128.Lower;
+
+        /// <summary>
+        /// Gets the span's unique 64-bit identifier.
         /// </summary>
         internal ulong SpanId => Context.SpanId;
 
@@ -105,15 +121,27 @@ namespace Datadog.Trace
 
         internal SpanContext Context { get; }
 
+        internal List<SpanLink> SpanLinks { get; private set; }
+
         internal DateTimeOffset StartTime { get; private set; }
 
         internal TimeSpan Duration { get; private set; }
 
-        internal bool IsFinished { get; private set; }
+        internal bool IsFinished
+        {
+            get => _isFinished == 1;
+            private set => _isFinished = value ? 1 : 0;
+        }
 
         internal bool IsRootSpan => Context.TraceContext?.RootSpan == this;
 
-        internal bool IsTopLevel => Context.Parent == null || Context.Parent.SpanId == 0 || Context.Parent.ServiceName != ServiceName;
+        internal bool IsTopLevel => Context.ParentInternal == null
+                                 || Context.ParentInternal.SpanId == 0
+                                 || Context.ParentInternal switch
+                                 {
+                                     SpanContext s => s.ServiceNameInternal != ServiceName,
+                                     { } s => s.ServiceName != ServiceName,
+                                 };
 
         /// <summary>
         /// Record the end time of the span and flushes it to the backend.
@@ -133,17 +161,25 @@ namespace Datadog.Trace
         public override string ToString()
         {
             var sb = StringBuilderCache.Acquire(StringBuilderCache.MaxBuilderSize);
-            sb.AppendLine($"TraceId: {Context.TraceId}");
-            sb.AppendLine($"ParentId: {Context.ParentId}");
+            sb.AppendLine($"TraceId64: {Context.TraceId128.Lower}");
+            sb.AppendLine($"TraceId128: {Context.TraceId128}");
+            sb.AppendLine($"RawTraceId: {Context.RawTraceId}");
+            sb.AppendLine($"ParentId: {Context.ParentIdInternal}");
             sb.AppendLine($"SpanId: {Context.SpanId}");
+            sb.AppendLine($"RawSpanId: {Context.RawSpanId}");
             sb.AppendLine($"Origin: {Context.Origin}");
             sb.AppendLine($"ServiceName: {ServiceName}");
             sb.AppendLine($"OperationName: {OperationName}");
             sb.AppendLine($"Resource: {ResourceName}");
             sb.AppendLine($"Type: {Type}");
-            sb.AppendLine($"Start: {StartTime}");
+            sb.AppendLine($"Start: {StartTime:O}");
             sb.AppendLine($"Duration: {Duration}");
+            sb.AppendLine($"End: {StartTime.Add(Duration):O}");
             sb.AppendLine($"Error: {Error}");
+
+            var samplingPriority = Context.TraceContext?.SamplingPriority;
+            sb.AppendLine($"TraceSamplingPriority: {SamplingPriorityValues.ToString(samplingPriority) ?? "not set"}");
+
             sb.AppendLine($"Meta: {Tags}");
 
             return StringBuilderCache.GetStringAndRelease(sb);
@@ -325,6 +361,10 @@ namespace Datadog.Trace
                     }
 
                     break;
+                case Trace.Tags.PeerService:
+                    Tags.SetTag(key, value);
+                    Context.TraceContext.CurrentTraceSettings.Schema.RemapPeerService(Tags);
+                    break;
                 default:
                     Tags.SetTag(key, value);
                     break;
@@ -339,7 +379,7 @@ namespace Datadog.Trace
         /// </summary>
         internal void Finish()
         {
-            Finish(Context.TraceContext.ElapsedSince(StartTime));
+            Finish(Context.TraceContext.Clock.ElapsedSince(StartTime));
         }
 
         /// <summary>
@@ -358,21 +398,44 @@ namespace Datadog.Trace
         /// <param name="exception">The exception.</param>
         internal void SetException(Exception exception)
         {
-            Error = true;
-
-            if (exception != null)
+            // We do not log BlockExceptions as errors
+            if (exception is not AppSec.BlockException)
             {
-                // for AggregateException, use the first inner exception until we can support multiple errors.
-                // there will be only one error in most cases, and even if there are more and we lose
-                // the other ones, it's still better than the generic "one or more errors occurred" message.
-                if (exception is AggregateException aggregateException && aggregateException.InnerExceptions.Count > 0)
-                {
-                    exception = aggregateException.InnerExceptions[0];
-                }
+                Error = true;
+                SetExceptionTags(exception);
+            }
+        }
 
-                SetTag(Trace.Tags.ErrorMsg, exception.Message);
-                SetTag(Trace.Tags.ErrorStack, exception.ToString());
-                SetTag(Trace.Tags.ErrorType, exception.GetType().ToString());
+        /// <summary>
+        /// Add the StackTrace and other exception metadata to the span,
+        /// but does not mark the span as an error.
+        /// </summary>
+        /// <param name="exception">The exception.</param>
+        internal void SetExceptionTags(Exception exception)
+        {
+            if (exception != null && exception is not AppSec.BlockException)
+            {
+                try
+                {
+                    // for AggregateException, use the first inner exception until we can support multiple errors.
+                    // there will be only one error in most cases, and even if there are more and we lose
+                    // the other ones, it's still better than the generic "one or more errors occurred" message.
+                    if (exception is AggregateException { InnerExceptions.Count: > 0 } aggregateException)
+                    {
+                        exception = aggregateException.InnerExceptions[0];
+                    }
+
+                    SetTag(Trace.Tags.ErrorMsg, exception.Message);
+                    SetTag(Trace.Tags.ErrorType, exception.GetType().ToString());
+                    SetTag(Trace.Tags.ErrorStack, exception.ToString());
+
+                    ExceptionDebugging.Report(this, exception);
+                }
+                catch (Exception ex)
+                {
+                    // We have found rare cases where exception.ToString() throws an exception, such as in a FileNotFoundException
+                    Log.Warning(ex, "Error setting exception tags on span {SpanId} in trace {TraceId128}", SpanId, TraceId128);
+                }
             }
         }
 
@@ -385,51 +448,41 @@ namespace Datadog.Trace
         {
             // since we don't expose a public API for getting trace-level attributes yet,
             // allow retrieval through any span in the trace
-            switch (key)
+            return key switch
             {
-                case Trace.Tags.SamplingPriority:
-                    return Context.TraceContext?.SamplingPriority?.ToString();
-                case Trace.Tags.Env:
-                    return Context.TraceContext?.Environment;
-                case Trace.Tags.Version:
-                    return Context.TraceContext?.ServiceVersion;
-                case Trace.Tags.Origin:
-                    return Context.TraceContext?.Origin;
-                default:
-                    return Tags.GetTag(key);
-            }
+                Trace.Tags.SamplingPriority => SamplingPriorityValues.ToString(Context.TraceContext?.SamplingPriority),
+                Trace.Tags.Env => Context.TraceContext?.Environment,
+                Trace.Tags.Version => Context.TraceContext?.ServiceVersion,
+                Trace.Tags.Origin => Context.TraceContext?.Origin,
+                Trace.Tags.TraceId => Context.RawTraceId,
+                _ => Tags.GetTag(key)
+            };
         }
 
         internal void Finish(TimeSpan duration)
         {
-            var shouldCloseSpan = false;
-            lock (_lock)
+            ResourceName ??= OperationName;
+            if (Interlocked.CompareExchange(ref _isFinished, 1, 0) == 0)
             {
-                ResourceName ??= OperationName;
-
-                if (!IsFinished)
+                if (IsRootSpan)
                 {
-                    Duration = duration;
-                    if (Duration < TimeSpan.Zero)
-                    {
-                        Duration = TimeSpan.Zero;
-                    }
-
-                    IsFinished = true;
-                    shouldCloseSpan = true;
+                    ExceptionDebugging.EndRequest();
                 }
-            }
 
-            if (shouldCloseSpan)
-            {
+                Duration = duration;
+                if (Duration < TimeSpan.Zero)
+                {
+                    Duration = TimeSpan.Zero;
+                }
+
                 Context.TraceContext.CloseSpan(this);
 
                 if (IsLogLevelDebugEnabled)
                 {
-                    Log.Debug(
-                        "Span closed: [s_id: {SpanId}, p_id: {ParentId}, t_id: {TraceId}] for (Service: {ServiceName}, Resource: {ResourceName}, Operation: {OperationName}, Tags: [{Tags}])",
-                        new object[] { SpanId, Context.ParentId, TraceId, ServiceName, ResourceName, OperationName, Tags });
+                    WriteCloseDebugMessage();
                 }
+
+                TelemetryFactory.Metrics.RecordCountSpanFinished();
             }
         }
 
@@ -445,9 +498,16 @@ namespace Datadog.Trace
             return this;
         }
 
+        internal Span SetMetaStruct(string key, byte[] value)
+        {
+            Tags.SetMetaStruct(key, value);
+
+            return this;
+        }
+
         internal void ResetStartTime()
         {
-            StartTime = Context.TraceContext.UtcNow;
+            StartTime = Context.TraceContext.Clock.UtcNow;
         }
 
         internal void SetStartTime(DateTimeOffset startTime)
@@ -458,6 +518,49 @@ namespace Datadog.Trace
         internal void SetDuration(TimeSpan duration)
         {
             Duration = duration;
+        }
+
+        internal void MarkSpanForExceptionDebugging()
+        {
+            ExceptionDebugging.BeginRequest();
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void WriteCtorDebugMessage()
+        {
+            var tagsType = Tags.GetType();
+
+            Log.Debug(
+                "Span started: [s_id: {SpanId}, p_id: {ParentId}, t_id: {TraceId}] with Tags: [{Tags}], Tags Type: [{TagsType}])",
+                new object[] { Context.RawSpanId, Context.ParentIdInternal, Context.RawTraceId, Tags, tagsType });
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private void WriteCloseDebugMessage()
+        {
+            Log.Debug(
+                "Span closed: [s_id: {SpanId}, p_id: {ParentId}, t_id: {TraceId}] for (Service: {ServiceName}, Resource: {ResourceName}, Operation: {OperationName}, Tags: [{Tags}])\nDetails:{ToString}",
+                new object[] { Context.RawSpanId, Context.ParentIdInternal, Context.RawTraceId, ServiceName, ResourceName, OperationName, Tags, ToString() });
+        }
+
+        /// <summary>
+        /// Adds a SpanLink to the current Span if the Span is active.
+        /// </summary>
+        /// <param name="spanLinkToAdd">The Span to add as a SpanLink</param>
+        /// <param name="attributes">List of KeyValue pairings of attributes to add to the SpanLink. Defaults to null</param>
+        /// <returns>returns the SpanLink on success or null on failure (span is closed already)</returns>
+        internal SpanLink AddSpanLink(Span spanLinkToAdd, List<KeyValuePair<string, string>> attributes = null)
+        {
+            if (IsFinished)
+            {
+                Log.Warning("AddSpanLink should not be called after the span was closed");
+                return null;
+            }
+
+            SpanLinks ??= new List<SpanLink>();
+            var spanLink = new SpanLink(spanLinkToAdd, this, attributes);
+            SpanLinks.Add(spanLink);
+            return spanLink;
         }
     }
 }

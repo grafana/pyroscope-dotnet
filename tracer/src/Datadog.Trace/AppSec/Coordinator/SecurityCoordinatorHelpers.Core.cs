@@ -7,6 +7,7 @@
 #if !NETFRAMEWORK
 using System;
 using System.Collections.Generic;
+using Datadog.Trace.Logging;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Abstractions;
 using Microsoft.AspNetCore.Routing;
@@ -15,86 +16,134 @@ namespace Datadog.Trace.AppSec.Coordinator;
 
 internal static class SecurityCoordinatorHelpers
 {
+    private static readonly IDatadogLogger Log = DatadogLogging.GetLoggerFor(typeof(SecurityCoordinatorHelpers));
+
     internal static void CheckAndBlock(this Security security, HttpContext context, Span span)
     {
-        if (security.Settings.Enabled)
+        if (security.Enabled)
         {
             var transport = new SecurityCoordinator.HttpTransport(context);
             if (!transport.IsBlocked)
             {
-                var securityCoordinator = new SecurityCoordinator(security, context, span, transport);
+                var securityCoordinator = new SecurityCoordinator(security, span, transport);
                 var result = securityCoordinator.Scan();
-                securityCoordinator.CheckAndBlock(result);
+                securityCoordinator.BlockAndReport(result);
             }
+        }
+    }
+
+    internal static void CheckReturnedHeaders(this Security security, Span span, IHeaderDictionary headers)
+    {
+        try
+        {
+            if (security.Enabled && CoreHttpContextStore.Instance.Get() is { } httpContext)
+            {
+                var transport = new SecurityCoordinator.HttpTransport(httpContext);
+                if (!transport.IsBlocked)
+                {
+                    var securityCoordinator = new SecurityCoordinator(security, span, transport);
+                    var args = new Dictionary<string, object>
+                    {
+                        {
+                            AddressesConstants.ResponseHeaderNoCookies,
+                            SecurityCoordinator.ExtractHeadersFromRequest(headers)
+                        },
+                        { AddressesConstants.ResponseStatus, httpContext.Response.StatusCode.ToString() },
+                    };
+
+                    var result = securityCoordinator.RunWaf(args, true);
+                    securityCoordinator.BlockAndReport(result);
+                }
+            }
+        }
+        catch (BlockException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error extracting HTTP headers to create header tags.");
         }
     }
 
     internal static void CheckPathParams(this Security security, HttpContext context, Span span, IDictionary<string, object> pathParams)
     {
-        if (security.Settings.Enabled)
+        if (security.Enabled)
         {
             var transport = new SecurityCoordinator.HttpTransport(context);
             if (!transport.IsBlocked)
             {
-                var securityCoordinator = new SecurityCoordinator(security, context, span, transport);
+                var securityCoordinator = new SecurityCoordinator(security, span, transport);
                 var args = new Dictionary<string, object> { { AddressesConstants.RequestPathParams, pathParams } };
                 var result = securityCoordinator.RunWaf(args);
-                securityCoordinator.CheckAndBlock(result);
+                securityCoordinator.BlockAndReport(result);
             }
         }
     }
 
     internal static void CheckUser(this Security security, HttpContext context, Span span, string userId)
     {
-        if (security.Settings.Enabled)
+        if (security.Enabled)
         {
             var transport = new SecurityCoordinator.HttpTransport(context);
             if (!transport.IsBlocked)
             {
-                var securityCoordinator = new SecurityCoordinator(security, context, span, transport);
+                var securityCoordinator = new SecurityCoordinator(security, span, transport);
                 var args = new Dictionary<string, object> { { AddressesConstants.UserId, userId } };
                 var result = securityCoordinator.RunWaf(args);
-                securityCoordinator.CheckAndBlock(result);
+                securityCoordinator.BlockAndReport(result);
             }
         }
     }
 
     internal static void CheckPathParamsFromAction(this Security security, HttpContext context, Span span, IList<ParameterDescriptor>? actionPathParams, RouteValueDictionary routeValues)
     {
-        if (security.Settings.Enabled && actionPathParams != null)
+        if (security.Enabled && actionPathParams != null)
         {
             var transport = new SecurityCoordinator.HttpTransport(context);
             if (!transport.IsBlocked)
             {
-                var securityCoordinator = new SecurityCoordinator(security, context, span, transport);
+                var securityCoordinator = new SecurityCoordinator(security, span, transport);
                 var pathParams = new Dictionary<string, object>(actionPathParams.Count);
                 for (var i = 0; i < actionPathParams.Count; i++)
                 {
                     var p = actionPathParams[i];
-                    if (routeValues.ContainsKey(p.Name))
+                    if (routeValues.TryGetValue(p.Name, out var value))
                     {
-                        pathParams.Add(p.Name, routeValues[p.Name]);
+                        pathParams.Add(p.Name, value);
                     }
-
-                    var args = new Dictionary<string, object> { { AddressesConstants.RequestPathParams, pathParams } };
-                    var result = securityCoordinator.RunWaf(args);
-                    securityCoordinator.CheckAndBlock(result);
                 }
+
+                if (pathParams.Count == 0)
+                {
+                    return;
+                }
+
+                var args = new Dictionary<string, object> { { AddressesConstants.RequestPathParams, pathParams } };
+                var result = securityCoordinator.RunWaf(args);
+                securityCoordinator.BlockAndReport(result);
             }
         }
     }
 
-    internal static void CheckBody(this Security security, HttpContext context, Span span, object body)
+    internal static object? CheckBody(this Security security, HttpContext context, Span span, object body, bool response)
     {
         var transport = new SecurityCoordinator.HttpTransport(context);
         if (!transport.IsBlocked)
         {
-            var securityCoordinator = new SecurityCoordinator(security, context, span, transport);
+            var securityCoordinator = new SecurityCoordinator(security, span, transport);
             var keysAndValues = ObjectExtractor.Extract(body);
-            var args = new Dictionary<string, object> { { AddressesConstants.RequestBody, keysAndValues } };
-            var result = securityCoordinator.RunWaf(args);
-            securityCoordinator.CheckAndBlock(result);
+
+            if (keysAndValues is not null)
+            {
+                var args = new Dictionary<string, object> { { response ? AddressesConstants.ResponseBody : AddressesConstants.RequestBody, keysAndValues } };
+                var result = securityCoordinator.RunWaf(args);
+                securityCoordinator.BlockAndReport(result);
+                return keysAndValues;
+            }
         }
+
+        return null;
     }
 }
 #endif

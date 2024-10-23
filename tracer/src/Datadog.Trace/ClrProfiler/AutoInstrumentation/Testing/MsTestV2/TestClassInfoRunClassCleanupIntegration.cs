@@ -18,7 +18,7 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Testing.MsTestV2;
     TypeName = "Microsoft.VisualStudio.TestPlatform.MSTest.TestAdapter.Execution.TestClassInfo",
     MethodName = "RunClassCleanup",
     ReturnTypeName = ClrNames.String,
-    ParameterTypeNames = new[] { "_" },
+    ParameterTypeNames = new[] { ClrNames.Ignore },
     MinimumVersion = "14.0.0",
     MaximumVersion = "14.*.*",
     IntegrationName = MsTestIntegration.IntegrationName)]
@@ -35,8 +35,9 @@ public static class TestClassInfoRunClassCleanupIntegration
     /// <param name="arg">Instance of the argument</param>
     /// <returns>Calltarget state value</returns>
     internal static CallTargetState OnMethodBegin<TTarget, TArg>(TTarget instance, TArg arg)
+        where TTarget : ITestClassInfo
     {
-        if (MsTestIntegration.IsEnabled && TestClassInfoRunClassInitializeIntegration.TestClassInfos.TryGetValue(instance, out var suiteObject) && suiteObject is TestSuite suite)
+        if (MsTestIntegration.IsEnabled && MsTestIntegration.GetOrCreateTestSuiteFromTestClassInfo(instance) is { } suite)
         {
             return new CallTargetState(null, suite);
         }

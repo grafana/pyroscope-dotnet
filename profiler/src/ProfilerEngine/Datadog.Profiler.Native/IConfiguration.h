@@ -6,8 +6,12 @@
 #include <string>
 #include <tuple>
 #include <vector>
+#include <cstdint>
 
+#include "DeploymentMode.h"
+#include "EnablementStatus.h"
 #include "TagsHelper.h"
+#include "CpuProfilerType.h"
 
 #include "shared/src/native-src/dd_filesystem.hpp"
 // namespace fs is an alias defined in "dd_filesystem.hpp"
@@ -55,6 +59,25 @@ public:
     virtual bool UseBacktrace2() const = 0;
     virtual bool IsAllocationRecorderEnabled() const = 0;
     virtual bool IsDebugInfoEnabled() const = 0;
+    virtual bool IsGcThreadsCpuTimeEnabled() const = 0;
+    virtual bool IsThreadLifetimeEnabled() const = 0;
+    virtual std::string const& GetGitRepositoryUrl() const = 0;
+    virtual std::string const& GetGitCommitSha() const = 0;
+    virtual bool IsInternalMetricsEnabled() const = 0;
+    virtual bool IsSystemCallsShieldEnabled() const = 0;
+    virtual bool IsCIVisibilityEnabled() const = 0;
+    virtual std::uint64_t GetCIVisibilitySpanId() const = 0;
+    virtual bool IsEtwEnabled() const = 0;
+    virtual bool IsEtwLoggingEnabled() const = 0;
+    virtual EnablementStatus GetEnablementStatus() const = 0;
+    virtual DeploymentMode GetDeploymentMode() const = 0;
+    virtual CpuProfilerType GetCpuProfilerType() const = 0;
+    virtual std::chrono::milliseconds GetCpuProfilingInterval() const = 0;
+    virtual std::chrono::milliseconds GetSsiLongLivedThreshold() const = 0;
+    virtual bool IsTelemetryToDiskEnabled() const = 0;
+    virtual bool IsSsiTelemetryEnabled() const = 0;
+
+
     virtual std::string PyroscopeServerAddress() const = 0;
     virtual std::string PyroscopeApplicationName() const = 0;
     virtual std::string PyroscopeAuthToken() const = 0;

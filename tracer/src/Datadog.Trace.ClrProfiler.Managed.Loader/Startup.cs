@@ -7,6 +7,7 @@
 using System;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 
 namespace Datadog.Trace.ClrProfiler.Managed.Loader
 {
@@ -15,12 +16,10 @@ namespace Datadog.Trace.ClrProfiler.Managed.Loader
     /// </summary>
     public partial class Startup
     {
-        private const string AssemblyName = "Datadog.Trace, Version=2.27.0.0, Culture=neutral, PublicKeyToken=def86d061d0d2eeb";
+        private const string AssemblyName = "Datadog.Trace, Version=3.3.1.0, Culture=neutral, PublicKeyToken=def86d061d0d2eeb";
         private const string AzureAppServicesKey = "DD_AZURE_APP_SERVICES";
-        private const string AasCustomTracingKey = "DD_AAS_ENABLE_CUSTOM_TRACING";
-        private const string AasCustomMetricsKey = "DD_AAS_ENABLE_CUSTOM_METRICS";
-        private const string TraceEnabledKey = "DD_TRACE_ENABLED";
-        private const string ProfilingEnabledKey = "DD_PROFILING_ENABLED";
+
+        private static int _startupCtorInitialized;
 
         /// <summary>
         /// Initializes static members of the <see cref="Startup"/> class.
@@ -28,51 +27,75 @@ namespace Datadog.Trace.ClrProfiler.Managed.Loader
         /// </summary>
         static Startup()
         {
-            ManagedProfilerDirectory = ResolveManagedProfilerDirectory();
-            StartupLogger.Debug("Resolving managed profiler directory to: {0}", ManagedProfilerDirectory);
-
-            try
+            if (Interlocked.Exchange(ref _startupCtorInitialized, 1) != 0)
             {
-                AppDomain.CurrentDomain.AssemblyResolve += AssemblyResolve_ManagedProfilerDependencies;
-            }
-            catch (Exception ex)
-            {
-                StartupLogger.Log(ex, "Unable to register a callback to the CurrentDomain.AssemblyResolve event.");
-            }
-
-            var runInAas = ReadBooleanEnvironmentVariable(AzureAppServicesKey, false);
-            if (!runInAas)
-            {
-                TryInvokeManagedMethod("Datadog.Trace.ClrProfiler.Instrumentation", "Initialize", "Datadog.Trace.ClrProfiler.InstrumentationLoader");
+                // Startup() was already called before in the same AppDomain, this can happen because the profiler rewrites
+                // methods before the jitting to inject the loader. This is done until the profiler detects that the loader
+                // has been initialized.
+                // The piece of code injected already includes an Interlocked condition but, because the static variable is emitted
+                // in a custom type inside the running assembly, others assemblies will also have a different type with a different static
+                // variable, so, we still can hit an scenario where multiple loaders initialize.
+                // With this we prevent this scenario.
                 return;
             }
 
-            // In AAS, the loader can be used to load the tracer, the traceagent only (if only custom tracing is enabled),
-            // dogstatsd or all of them.
-            var customTracingEnabled = ReadBooleanEnvironmentVariable(AasCustomTracingKey, false);
-            var needsDogStatsD = ReadBooleanEnvironmentVariable(AasCustomMetricsKey, false);
-            var automaticTraceEnabled = ReadBooleanEnvironmentVariable(TraceEnabledKey, true);
-            var automaticProfilingEnabled = ReadBooleanEnvironmentVariable(ProfilingEnabledKey, false);
-
-            if (automaticTraceEnabled || customTracingEnabled || needsDogStatsD || automaticProfilingEnabled)
+            try
             {
-                StartupLogger.Log("Invoking managed method to start external processes.");
-                TryInvokeManagedMethod("Datadog.Trace.AgentProcessManager", "Initialize", "Datadog.Trace.AgentProcessManagerLoader");
-            }
+                ManagedProfilerDirectory = ResolveManagedProfilerDirectory();
+                if (ManagedProfilerDirectory is null)
+                {
+                    StartupLogger.Log("Managed profiler directory doesn't exist. Automatic instrumentation will be disabled");
+                    return;
+                }
 
-            if (automaticTraceEnabled)
-            {
+                StartupLogger.Debug("Resolving managed profiler directory to: {0}", ManagedProfilerDirectory);
+
+                try
+                {
+                    AppDomain.CurrentDomain.AssemblyResolve += AssemblyResolve_ManagedProfilerDependencies;
+                }
+                catch (Exception ex)
+                {
+                    StartupLogger.Log(ex, "Unable to register a callback to the CurrentDomain.AssemblyResolve event.");
+                }
+
+                var runInAas = ReadBooleanEnvironmentVariable(AzureAppServicesKey, false);
+                if (runInAas)
+                {
+                    // With V3, pretty much all scenarios require the trace-agent and dogstatsd, so we enable them by default
+                    StartupLogger.Log("Invoking managed method to start external processes.");
+                    TryInvokeManagedMethod("Datadog.Trace.AgentProcessManager", "Initialize", "Datadog.Trace.AgentProcessManagerLoader");
+                }
+
+                // We need to invoke the managed tracer regardless of whether tracing is enabled
+                // because other products rely on it
                 StartupLogger.Log("Invoking managed tracer.");
                 TryInvokeManagedMethod("Datadog.Trace.ClrProfiler.Instrumentation", "Initialize", "Datadog.Trace.ClrProfiler.InstrumentationLoader");
             }
+            catch (Exception ex)
+            {
+                try
+                {
+                    StartupLogger.Log(ex, "Error in Datadog.Trace.ClrProfiler.Managed.Loader.Startup.Startup(). Functionality may be impacted.");
+                    return;
+                }
+                catch
+                {
+                    // Nothing to do here.
+                }
+
+                // If the logger fails, throw the original exception. The profiler emits code to log it.
+                throw;
+            }
         }
 
-        internal static string ManagedProfilerDirectory { get; }
+        internal static string? ManagedProfilerDirectory { get; }
 
         private static void TryInvokeManagedMethod(string typeName, string methodName, string? loaderHelperTypeName = null)
         {
             try
             {
+                StartupLogger.Debug("Invoking: '{0}.{1}', {2}", typeName, methodName, loaderHelperTypeName);
                 var assembly = LoadAssembly(AssemblyName);
                 if (assembly == null)
                 {
@@ -86,6 +109,7 @@ namespace Datadog.Trace.ClrProfiler.Managed.Loader
                     // this way we avoid the reflection invoke call.
                     if (assembly.GetType(loaderHelperTypeName, throwOnError: false) is { } loaderHelperType)
                     {
+                        StartupLogger.Debug("Creating '{0}' instance.", loaderHelperTypeName);
                         Activator.CreateInstance(loaderHelperType);
                         return;
                     }
@@ -95,6 +119,7 @@ namespace Datadog.Trace.ClrProfiler.Managed.Loader
 
                 var type = assembly.GetType(typeName, throwOnError: false);
                 var method = type?.GetRuntimeMethod(methodName, parameters: Type.EmptyTypes);
+                StartupLogger.Debug("Calling method '{0}.{1}'.", typeName, methodName);
                 method?.Invoke(obj: null, parameters: null);
             }
             catch (Exception ex)
@@ -118,7 +143,7 @@ namespace Datadog.Trace.ClrProfiler.Managed.Loader
                 var assembly = ResolveAssembly(assemblyString);
                 if (assembly is not null)
                 {
-                    StartupLogger.Log("Assembly resolved manually.");
+                    StartupLogger.Log("Assembly '{0}' was resolved manually.", assemblyString);
                 }
 
                 return assembly;
@@ -142,6 +167,7 @@ namespace Datadog.Trace.ClrProfiler.Managed.Loader
         private static bool ReadBooleanEnvironmentVariable(string key, bool defaultValue)
         {
             var value = ReadEnvironmentVariable(key);
+
             return value switch
             {
                 "1" or "true" or "True" or "TRUE" or "t" or "T" => true,

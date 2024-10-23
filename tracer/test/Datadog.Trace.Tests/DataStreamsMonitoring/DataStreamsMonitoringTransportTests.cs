@@ -1,4 +1,4 @@
-﻿// <copyright file="DataStreamsMonitoringTransportTests.cs" company="Datadog">
+// <copyright file="DataStreamsMonitoringTransportTests.cs" company="Datadog">
 // Unless explicitly stated otherwise all files in this repository are licensed under the Apache 2 License.
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
@@ -39,6 +39,8 @@ public class DataStreamsMonitoringTransportTests
 #if !NETCOREAPP3_1_OR_GREATER
             .Where(x => x != TracesTransportType.UnixDomainSocket)
 #endif
+             // Run named pipes tests only on Windows
+            .Where(x => EnvironmentTools.IsWindows() || x != TracesTransportType.WindowsNamedPipe)
             .Select(x => new object[] { x });
 
     [SkippableTheory]
@@ -47,35 +49,11 @@ public class DataStreamsMonitoringTransportTests
     [Trait("RunOnWindows", "True")]
     public async Task TransportsWorkCorrectly(Enum transport)
     {
-        var transportType = (TracesTransportType)transport;
-        if (transportType != TracesTransportType.WindowsNamedPipe)
-        {
-            await RunTest(transportType);
-            return;
-        }
+        using var agent = Create((TracesTransportType)transport);
 
-        // The server implementation of named pipes is flaky so have 3 attempts
-        var attemptsRemaining = 3;
-        while (true)
-        {
-            try
-            {
-                attemptsRemaining--;
-                await RunTest(transportType);
-                return;
-            }
-            catch (Exception ex) when (attemptsRemaining > 0 && ex is not SkipException)
-            {
-                _output.WriteLine($"Error executing test. {attemptsRemaining} attempts remaining. {ex}");
-            }
-        }
-    }
-
-    private async Task RunTest(TracesTransportType tracesTransportType)
-    {
-        using var agent = Create(tracesTransportType);
-
-        var bucketDurationMs = 100; // 100 ms
+        // We don't want to trigger a flush based on the timer, only based on the disposal of the writer
+        // That ensures we only get a single payload
+        var bucketDurationMs = (int)TimeSpan.FromMinutes(60).TotalMilliseconds;
         var tracerSettings = new TracerSettings { Exporter = GetExporterSettings(agent) };
         var api = new DataStreamsApi(
             DataStreamsTransportStrategy.GetAgentIntakeFactory(tracerSettings.Build().Exporter));
@@ -91,27 +69,45 @@ public class DataStreamsMonitoringTransportTests
 
         discovery.TriggerChange();
 
-        writer.Add(CreateStatsPoint());
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeNanoseconds();
+        writer.Add(CreateStatsPoint(timestamp));
+        writer.AddBacklog(CreateBacklogPoint(timestamp));
 
         await writer.DisposeAsync();
 
-        var payload = agent.DataStreams.Should().ContainSingle().Subject;
-        payload.Env.Should().Be("env");
-        payload.Service.Should().Be("service");
-        var headers = agent.DataStreamsRequestHeaders.Should().ContainSingle().Subject;
-        headers.AllKeys.ToDictionary(x => x, x => headers[x])
-               .Should()
-               .ContainKey("Content-Encoding", "gzip");
+        var result = agent.WaitForDataStreams(1);
+
+        // we can't guarantee only having a single payload due to race conditions in the flushing code
+        result.Should().OnlyContain(payload => payload.Env == "env");
+        result.Should().OnlyContain(payload => payload.Service == "service");
+        agent.DataStreamsRequestHeaders
+             .Should()
+             .OnlyContain(
+                  headers => headers.AllKeys.Contains("Content-Encoding")
+                          && headers["Content-Encoding"] == "gzip");
+
+        // should only have a single backlog across all payloads, but we don't know which payload it will be in
+        result
+           .SelectMany(x => x.Stats)
+           .Where(x => x.Backlogs is not null)
+           .Should()
+           .ContainSingle()
+           .Which.Backlogs.Should()
+           .ContainSingle();
     }
 
-    private StatsPoint CreateStatsPoint()
+    private StatsPoint CreateStatsPoint(long timestamp = 0)
         => new StatsPoint(
             edgeTags: new[] { "direction:out", "type:kafka" },
             hash: new PathwayHash((ulong)Math.Abs(ThreadSafeRandom.Shared.Next(int.MaxValue))),
             parentHash: new PathwayHash((ulong)Math.Abs(ThreadSafeRandom.Shared.Next(int.MaxValue))),
-            timestampNs: DateTimeOffset.UtcNow.ToUnixTimeNanoseconds(),
+            timestampNs: timestamp != 0 ? timestamp : DateTimeOffset.UtcNow.ToUnixTimeNanoseconds(),
             pathwayLatencyNs: 5_000_000_000,
-            edgeLatencyNs: 2_000_000_000);
+            edgeLatencyNs: 2_000_000_000,
+            payloadSizeBytes: 1024);
+
+    private BacklogPoint CreateBacklogPoint(long timestamp = 0)
+        => new BacklogPoint("type:produce", 100, timestamp != 0 ? timestamp : DateTimeOffset.UtcNow.ToUnixTimeNanoseconds());
 
     private MockTracerAgent Create(TracesTransportType transportType)
         => transportType switch
@@ -132,9 +128,9 @@ public class DataStreamsMonitoringTransportTests
         => agent switch
         {
             MockTracerAgent.TcpUdpAgent x => new ExporterSettings { AgentUri = new Uri($"http://localhost:{x.Port}") },
-            MockTracerAgent.NamedPipeAgent x => new ExporterSettings { TracesPipeName = x.TracesWindowsPipeName, TracesTransport = TracesTransportType.WindowsNamedPipe },
+            MockTracerAgent.NamedPipeAgent x => new ExporterSettings(new NameValueConfigurationSource(new() { { ConfigurationKeys.TracesPipeName, x.TracesWindowsPipeName } })),
 #if NETCOREAPP3_1_OR_GREATER
-            MockTracerAgent.UdsAgent x =>  new ExporterSettings { TracesTransport = TracesTransportType.UnixDomainSocket, TracesUnixDomainSocketPath = x.TracesUdsPath },
+            MockTracerAgent.UdsAgent x =>  new ExporterSettings { AgentUri = new Uri(ExporterSettings.UnixDomainSocketPrefix + x.TracesUdsPath) },
 #endif
             _ => throw new InvalidOperationException("Unknown agent type " + agent.GetType()),
         };

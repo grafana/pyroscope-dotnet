@@ -10,6 +10,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using Datadog.Trace.AppSec.Waf.NativeBindings;
 using Datadog.Trace.AppSec.Waf.ReturnTypes.Managed;
+using Datadog.Trace.AppSec.WafEncoding;
 using Datadog.Trace.Configuration;
 using Datadog.Trace.Logging;
 using Datadog.Trace.Util;
@@ -41,8 +42,12 @@ namespace Datadog.Trace.AppSec.Waf.Initialization
                         var emptyJValue = JValue.CreateString(string.Empty);
                         var idProp = ev.Value<JValue>("id") ?? emptyJValue;
                         var nameProp = ev.Value<JValue>("name") ?? emptyJValue;
-                        var addresses = ev.Value<JArray>("conditions")?.SelectMany(x => x.Value<JObject>("parameters")?.Value<JArray>("inputs")!);
-                        Log.Debug("DDAS-0007-00: Loaded rule: {Id} - {Name} on addresses: {Addresses}", idProp.Value, nameProp.Value, string.Join(", ", addresses ?? Enumerable.Empty<JToken>()));
+                        var conditionsArray = ev.Value<JArray>("conditions");
+                        var addresses = conditionsArray?
+                            .SelectMany(x => x.Value<JObject>("parameters")?.Value<JArray>("inputs") ?? [])
+                            .ToList() ?? [];
+
+                        Log.Debug("DDAS-0007-00: Loaded rule: {Id} - {Name} on addresses: {Addresses}", idProp.Value, nameProp.Value, string.Join(", ", addresses));
                     }
                 }
                 catch (Exception ex)
@@ -57,7 +62,13 @@ namespace Datadog.Trace.AppSec.Waf.Initialization
         private static Stream? GetRulesManifestStream()
         {
             var assembly = typeof(Waf).Assembly;
-            return assembly.GetManifestResourceStream("Datadog.Trace.AppSec.Waf.rule-set.json");
+            return assembly.GetManifestResourceStream("Datadog.Trace.AppSec.Waf.ConfigFiles.rule-set.json");
+        }
+
+        private static Stream? GetSchemaExtractionConfigStream()
+        {
+            var assembly = typeof(Waf).Assembly;
+            return assembly.GetManifestResourceStream("Datadog.Trace.AppSec.Waf.ConfigFiles.apisecurity-config.json");
         }
 
         private static Stream? GetRulesFileStream(string rulesFile)
@@ -71,98 +82,12 @@ namespace Datadog.Trace.AppSec.Waf.Initialization
             return File.OpenRead(rulesFile);
         }
 
-        internal InitResult Configure(string? rulesFile, string obfuscationParameterKeyRegex, string obfuscationParameterValueRegex)
+        internal static JToken? DeserializeEmbeddedOrStaticRules(string? rulesFilePath)
         {
-            var argsToDispose = new List<Obj>();
-            var rulesObj = GetConfigObj(rulesFile, argsToDispose);
-            return ConfigureAndDispose(rulesObj, rulesFile, argsToDispose, obfuscationParameterKeyRegex, obfuscationParameterValueRegex);
-        }
-
-        internal InitResult ConfigureFromRemoteConfig(string rulesJson, string obfuscationParameterKeyRegex, string obfuscationParameterValueRegex)
-        {
-            var argCache = new List<Obj>();
-            return ConfigureAndDispose(GetConfigObjFromRemoteJson(rulesJson, argCache), "RemoteConfig", argCache, obfuscationParameterKeyRegex, obfuscationParameterValueRegex);
-        }
-
-        private InitResult ConfigureAndDispose(Obj? rulesObj, string? rulesFile, List<Obj> argsToDispose, string obfuscationParameterKeyRegex, string obfuscationParameterValueRegex)
-        {
-            if (rulesObj == null)
-            {
-                Log.Error("Waf couldn't initialize properly because of an unusable rule file. If you set the environment variable {AppsecruleEnv}, check the path and content of the file are correct.", ConfigurationKeys.AppSec.Rules);
-                return InitResult.FromUnusableRuleFile();
-            }
-
-            var ruleSetInfo = new DdwafRuleSetInfo();
-            var keyRegex = IntPtr.Zero;
-            var valueRegex = IntPtr.Zero;
-
+            JToken root;
             try
             {
-                DdwafConfigStruct args = default;
-                keyRegex = Marshal.StringToHGlobalAnsi(obfuscationParameterKeyRegex);
-                valueRegex = Marshal.StringToHGlobalAnsi(obfuscationParameterValueRegex);
-                args.KeyRegex = keyRegex;
-                args.ValueRegex = valueRegex;
-                args.FreeWafFunction = _wafLibraryInvoker.ObjectFreeFuncPtr;
-
-                var wafHandle = _wafLibraryInvoker.Init(rulesObj.RawPtr, ref args, ruleSetInfo);
-                if (wafHandle == IntPtr.Zero)
-                {
-                    Log.Warning("DDAS-0005-00: WAF initialization failed.");
-                }
-
-                var initResult = InitResult.From(ruleSetInfo, wafHandle, _wafLibraryInvoker);
-                if (initResult.LoadedRules == 0)
-                {
-                    Log.Error("DDAS-0003-03: AppSec could not read the rule file {RulesFile}. Reason: All rules are invalid. AppSec will not run any protections in this application.", rulesFile);
-                }
-                else
-                {
-                    Log.Information("DDAS-0015-00: AppSec loaded {LoadedRules} rules from file {RulesFile}.", initResult.LoadedRules, rulesFile);
-                }
-
-                if (initResult.HasErrors)
-                {
-                    var sb = StringBuilderCache.Acquire(StringBuilderCache.MaxBuilderSize);
-                    foreach (var item in initResult.Errors)
-                    {
-                        sb.Append($"{item.Key}: [{string.Join(", ", item.Value)}] ");
-                    }
-
-                    var errorMess = StringBuilderCache.GetStringAndRelease(sb);
-                    Log.Warning("WAF initialization failed. Some rules are invalid in rule file {RulesFile}: {ErroringRules}", rulesFile, errorMess);
-                }
-
-                return initResult;
-            }
-            finally
-            {
-                if (keyRegex != IntPtr.Zero)
-                {
-                    Marshal.FreeHGlobal(keyRegex);
-                }
-
-                if (valueRegex != IntPtr.Zero)
-                {
-                    Marshal.FreeHGlobal(valueRegex);
-                }
-
-                _wafLibraryInvoker.RuleSetInfoFree(ruleSetInfo);
-                _wafLibraryInvoker.ObjectFreePtr(rulesObj.RawPtr);
-                rulesObj.Dispose();
-                foreach (var arg in argsToDispose)
-                {
-                    arg.Dispose();
-                }
-            }
-        }
-
-        private Obj? GetConfigObj(string? rulesFile, List<Obj> argCache)
-        {
-            Obj configObj;
-            try
-            {
-                using var stream = GetRulesStream(rulesFile);
+                using var stream = GetRulesStream(rulesFilePath);
 
                 if (stream == null)
                 {
@@ -170,13 +95,15 @@ namespace Datadog.Trace.AppSec.Waf.Initialization
                 }
 
                 using var reader = new StreamReader(stream);
-                configObj = GetConfigObj(reader, argCache);
+                using var jsonReader = new JsonTextReader(reader);
+                root = JToken.ReadFrom(jsonReader);
+                LogRuleDetailsIfDebugEnabled(root);
             }
             catch (Exception ex)
             {
-                if (rulesFile != null)
+                if (rulesFilePath != null)
                 {
-                    Log.Error(ex, "DDAS-0003-02: AppSec could not read the rule file \"{RulesFile}\". Reason: Invalid file format. AppSec will not run any protections in this application.", rulesFile);
+                    Log.Error(ex, "DDAS-0003-02: AppSec could not read the rule file \"{RulesFile}\". Reason: Invalid file format. AppSec will not run any protections in this application.", rulesFilePath);
                 }
                 else
                 {
@@ -186,35 +113,41 @@ namespace Datadog.Trace.AppSec.Waf.Initialization
                 return null;
             }
 
-            return configObj;
+            return root;
         }
 
-        internal Obj? GetConfigObjFromRemoteJson(string rulesJson, List<Obj>? argCache)
+        internal InitResult Configure(ref DdwafObjectStruct rulesObj, IEncoder encoder, DdwafConfigStruct configStruct, ref DdwafObjectStruct diagnostics, string? rulesFile)
         {
-            Obj configObj;
-            try
+            var wafHandle = _wafLibraryInvoker.Init(ref rulesObj, ref configStruct, ref diagnostics);
+            if (wafHandle == IntPtr.Zero)
             {
-                using var reader = new StringReader(rulesJson);
-                configObj = GetConfigObj(reader, argCache);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "DDAS-0003-02: AppSec could not read the rule file sent by remote config. Reason: Invalid file format. AppSec will not run any protections in this application.");
-                return null;
+                Log.Warning("DDAS-0005-00: WAF initialization failed.");
             }
 
-            return configObj;
-        }
+            var initResult = InitResult.From(diagnostics, wafHandle, _wafLibraryInvoker, encoder);
+            if (initResult.HasErrors)
+            {
+                var sb = StringBuilderCache.Acquire(StringBuilderCache.MaxBuilderSize);
+                foreach (var item in initResult.Errors)
+                {
+                    sb.Append($"{item.Key}: [{string.Join(", ", item.Value)}] ");
+                }
 
-        private Obj GetConfigObj(TextReader reader, List<Obj>? argCache)
-        {
-            using var jsonReader = new JsonTextReader(reader);
-            var root = JToken.ReadFrom(jsonReader);
+                var errorMess = StringBuilderCache.GetStringAndRelease(sb);
+                Log.Warning("Some rules are invalid in rule file {RulesFile}: {ErroringRules}", rulesFile, errorMess);
+            }
 
-            LogRuleDetailsIfDebugEnabled(root);
-            // applying safety limits during rule parsing could result in truncated rules
-            var configObj = Encoder.Encode(root, _wafLibraryInvoker, argCache, applySafetyLimits: false);
-            return configObj;
+            // sometimes loaded rules will be 0 if other errors happen above, that's why it should be the fallback log
+            if (initResult.LoadedRules == 0)
+            {
+                Log.Error("DDAS-0003-03: AppSec could not read the rule file {RulesFile}. Reason: All rules are invalid. AppSec will not run any protections in this application.", rulesFile);
+            }
+            else
+            {
+                Log.Information("DDAS-0015-00: AppSec loaded {LoadedRules} rules from file {RulesFile}.", initResult.LoadedRules, rulesFile);
+            }
+
+            return initResult;
         }
     }
 }

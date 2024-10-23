@@ -21,14 +21,14 @@ if not exist c:\mnt\ goto nomntdir
 @echo PARAMS %*
 
 call "%VSTUDIO_ROOT%\vc\auxiliary\build\vcvars64.bat"
-SET VSToolsPath=%VSTUDIO_ROOT%\MSBuild\Microsoft\Visual Studio\v16.0
+SET VSToolsPath=%VSTUDIO_ROOT%\MSBuild\Microsoft\VisualStudio\v17.0
 
 cd c:\mnt\
 
 mklink /d dd-trace-dotnet C:\mnt
 mklink /d _build C:\_build
 
-dotnet run --project tracer/build/_build/_build.csproj -- Info Clean BuildTracerHome BuildProfilerHome BuildNativeLoader PackageTracerHome ZipSymbols SignDlls SignMsiAndNupkg --Artifacts "build-out\%CI_JOB_ID%"
+dotnet run --project tracer/build/_build/_build.csproj -- Info Clean BuildTracerHome BuildProfilerHome BuildNativeLoader BuildDdDotnet PackageTracerHome ZipSymbols SignDlls SignMsi --Artifacts "build-out\%CI_JOB_ID%"
 
 IF %ERRORLEVEL% NEQ 0 EXIT /B %ERRORLEVEL%
 

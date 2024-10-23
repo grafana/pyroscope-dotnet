@@ -9,7 +9,6 @@ using System.Linq;
 using System.Net;
 using System.Text.RegularExpressions;
 using Datadog.Profiler.IntegrationTests.Helpers;
-using Datadog.Profiler.SmokeTests;
 using Datadog.Trace;
 using Datadog.Trace.TestHelpers;
 using FluentAssertions;
@@ -22,8 +21,7 @@ namespace Datadog.Profiler.IntegrationTests.CodeHotspot
 {
     public class CodeHotspotTest
     {
-        private const string ScenarioCodeHotspot = "--scenario 2";
-        private const string ScenarioExceptions = "--scenario 16";
+        private const string ScenarioCodeHotspot = "--scenario 256";
         private static readonly Regex RuntimeIdPattern = new("runtime-id:(?<runtimeId>[A-Z0-9-]+)", RegexOptions.Compiled | RegexOptions.Multiline | RegexOptions.IgnoreCase);
         private readonly ITestOutputHelper _output;
 
@@ -131,9 +129,8 @@ namespace Datadog.Profiler.IntegrationTests.CodeHotspot
         [TestAppFact("Samples.BuggyBits")]
         public void CheckSpanContextAreAttachedForCpuProfiler(string appName, string framework, string appAssembly)
         {
-            var runner = new TestApplicationRunner(appName, framework, appAssembly, _output, enableTracer: true, commandLine: ScenarioExceptions);
+            var runner = new TestApplicationRunner(appName, framework, appAssembly, _output, enableTracer: true, commandLine: ScenarioCodeHotspot);
             // By default, the codehotspot feature is activated
-
             runner.Environment.SetVariable(EnvironmentVariables.WallTimeProfilerEnabled, "0");
             runner.Environment.SetVariable(EnvironmentVariables.CpuProfilerEnabled, "1");
 
@@ -207,7 +204,7 @@ namespace Datadog.Profiler.IntegrationTests.CodeHotspot
 
             var endpoints = GetEndpointsFromPprofFiles(runner.Environment.PprofDir);
 
-            endpoints.Distinct().Should().BeEquivalentTo("GET /products/builder");
+            endpoints.Distinct().Should().BeEquivalentTo("GET /products/indexslow");
         }
 
         [TestAppFact("Samples.BuggyBits")]
@@ -262,11 +259,8 @@ namespace Datadog.Profiler.IntegrationTests.CodeHotspot
 
         private static IEnumerable<string> GetEndpointsFromPprofFiles(string pprofDir)
         {
-            foreach (var file in Directory.EnumerateFiles(pprofDir, "*.pprof", SearchOption.AllDirectories))
+            foreach (var profile in SamplesHelper.GetProfiles(pprofDir))
             {
-                using var s = File.OpenRead(file);
-                var profile = Profile.Parser.ParseFrom(s);
-
                 foreach (var label in profile.Labels().SelectMany(_ => _))
                 {
                     if (label.Name == "trace endpoint")
@@ -280,19 +274,16 @@ namespace Datadog.Profiler.IntegrationTests.CodeHotspot
         private static List<(ulong LocalRootSpanId, ulong SpanId)> GetTracingContextsFromPprofFiles(string pprofDir)
         {
             var tracingContext = new List<(ulong LocalRootSpanId, ulong SpanId)>();
-            foreach (var file in Directory.EnumerateFiles(pprofDir, "*.pprof", SearchOption.AllDirectories))
+            foreach (var profile in SamplesHelper.GetProfiles(pprofDir))
             {
-                tracingContext.AddRange(ExtractTracingContext(file));
+                tracingContext.AddRange(ExtractTracingContext(profile));
             }
 
             return tracingContext;
         }
 
-        private static IEnumerable<(ulong LocalRootSpanId, ulong SpanId)> ExtractTracingContext(string file)
+        private static IEnumerable<(ulong LocalRootSpanId, ulong SpanId)> ExtractTracingContext(Profile profile)
         {
-            using var s = File.OpenRead(file);
-            var profile = Profile.Parser.ParseFrom(s);
-
             foreach (var labelsPerSample in profile.Labels())
             {
                 ulong localRootSpanId = 0;
@@ -302,12 +293,12 @@ namespace Datadog.Profiler.IntegrationTests.CodeHotspot
                 {
                     if (label.Name == "local root span id")
                     {
-                        localRootSpanId = ulong.Parse(label.Value);
+                        localRootSpanId = (ulong)long.Parse(label.Value);
                     }
 
                     if (label.Name == "span id")
                     {
-                        spanId = ulong.Parse(label.Value);
+                        spanId = (ulong)long.Parse(label.Value);
                     }
                 }
 

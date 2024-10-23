@@ -8,7 +8,8 @@
 class EnvironmentVariables final
 {
 public:
-    inline static const shared::WSTRING ProfilingEnabled            = WStr("DD_PROFILING_ENABLED");
+    inline static const shared::WSTRING ProfilerEnabled             = WStr("DD_PROFILING_ENABLED");
+    inline static const shared::WSTRING PyroscopeProfilerEnabled    = WStr("PYROSCOPE_PROFILING_ENABLED");
     inline static const shared::WSTRING DebugLogEnabled             = WStr("DD_TRACE_DEBUG");
     inline static const shared::WSTRING LogPath                     = WStr("DD_PROFILING_LOG_PATH");
     inline static const shared::WSTRING LogDirectory                = WStr("DD_TRACE_LOG_DIRECTORY");
@@ -26,18 +27,12 @@ public:
     inline static const shared::WSTRING ApiKey                      = WStr("DD_API_KEY");
     inline static const shared::WSTRING Hostname                    = WStr("DD_HOSTNAME");
     inline static const shared::WSTRING Tags                        = WStr("PYROSCOPE_LABELS");
+    inline static const shared::WSTRING GitRepositoryUrl            = WStr("DD_GIT_REPOSITORY_URL");
+    inline static const shared::WSTRING GitCommitSha                = WStr("DD_GIT_COMMIT_SHA");
     inline static const shared::WSTRING NativeFramesEnabled         = WStr("DD_PROFILING_FRAMES_NATIVE_ENABLED");
     inline static const shared::WSTRING CpuProfilingEnabled         = WStr("DD_PROFILING_CPU_ENABLED");
     inline static const shared::WSTRING WallTimeProfilingEnabled    = WStr("DD_PROFILING_WALLTIME_ENABLED");
     inline static const shared::WSTRING ExceptionProfilingEnabled   = WStr("DD_PROFILING_EXCEPTION_ENABLED");
-
-    inline static const shared::WSTRING PyroscopeServerAddress         = WStr("PYROSCOPE_SERVER_ADDRESS");
-    inline static const shared::WSTRING PyroscopeAuthToken             = WStr("PYROSCOPE_AUTH_TOKEN");
-    inline static const shared::WSTRING PyroscopeApplicationName       = WStr("PYROSCOPE_APPLICATION_NAME");
-    inline static const shared::WSTRING PyroscopeHTTPHeaders           = WStr("PYROSCOPE_HTTP_HEADERS");
-    inline static const shared::WSTRING PyroscopeTenantID              = WStr("PYROSCOPE_TENANT_ID");
-    inline static const shared::WSTRING PyroscopeBasicAuthUser         = WStr("PYROSCOPE_BASIC_AUTH_USER");
-    inline static const shared::WSTRING PyroscopeBasicAuthPassword     = WStr("PYROSCOPE_BASIC_AUTH_PASSWORD");
 
     // only available on .NET 5+
     inline static const shared::WSTRING AllocationProfilingEnabled = WStr("DD_PROFILING_ALLOCATION_ENABLED");
@@ -62,4 +57,29 @@ public:
     inline static const shared::WSTRING UseBacktrace2               = WStr("DD_INTERNAL_USE_BACKTRACE2");
     inline static const shared::WSTRING AllocationRecorderEnabled   = WStr("DD_INTERNAL_PROFILING_ALLOCATION_RECORDER_ENABLED");
     inline static const shared::WSTRING DebugInfoEnabled            = WStr("DD_INTERNAL_PROFILING_DEBUG_INFO_ENABLED");
+    inline static const shared::WSTRING GcThreadsCpuTimeEnabled     = WStr("DD_INTERNAL_GC_THREADS_CPUTIME_ENABLED");
+    inline static const shared::WSTRING InternalMetricsEnabled      = WStr("DD_INTERNAL_METRICS_ENABLED");
+    inline static const shared::WSTRING ThreadLifetimeEnabled       = WStr("DD_INTERNAL_THREAD_LIFETIME_ENABLED");
+    inline static const shared::WSTRING SystemCallsShieldEnabled    = WStr("DD_INTERNAL_SYSTEM_CALLS_SHIELD_ENABLED");
+    inline static const shared::WSTRING EtwEnabled                  = WStr("DD_INTERNAL_PROFILING_ETW_ENABLED");
+    inline static const shared::WSTRING SsiDeployed                 = WStr("DD_INJECTION_ENABLED");
+    inline static const shared::WSTRING EtwLoggingEnabled           = WStr("DD_INTERNAL_ETW_LOGGING_ENABLED");
+    inline static const shared::WSTRING CpuProfilerType             = WStr("DD_INTERNAL_CPU_PROFILER_TYPE");
+    inline static const shared::WSTRING CpuProfilingInterval        = WStr("DD_INTERNAL_CPU_PROFILING_INTERVAL");
+    inline static const shared::WSTRING SsiLongLivedThreshold       = WStr("DD_INTERNAL_PROFILING_LONG_LIVED_THRESHOLD");
+    inline static const shared::WSTRING TelemetryToDiskEnabled      = WStr("DD_INTERNAL_PROFILING_TELEMETRY_TO_DISK_ENABLED");
+    inline static const shared::WSTRING SsiTelemetryEnabled         = WStr("DD_INTERNAL_PROFILING_SSI_TELEMETRY_ENABLED");
+
+    inline static const shared::WSTRING CIVisibilityEnabled         = WStr("DD_CIVISIBILITY_ENABLED");
+    inline static const shared::WSTRING InternalCIVisibilitySpanId  = WStr("DD_INTERNAL_CIVISIBILITY_SPANID");
+
+
+
+    inline static const shared::WSTRING PyroscopeServerAddress         = WStr("PYROSCOPE_SERVER_ADDRESS");
+    inline static const shared::WSTRING PyroscopeAuthToken             = WStr("PYROSCOPE_AUTH_TOKEN");
+    inline static const shared::WSTRING PyroscopeApplicationName       = WStr("PYROSCOPE_APPLICATION_NAME");
+    inline static const shared::WSTRING PyroscopeHTTPHeaders           = WStr("PYROSCOPE_HTTP_HEADERS");
+    inline static const shared::WSTRING PyroscopeTenantID              = WStr("PYROSCOPE_TENANT_ID");
+    inline static const shared::WSTRING PyroscopeBasicAuthUser         = WStr("PYROSCOPE_BASIC_AUTH_USER");
+    inline static const shared::WSTRING PyroscopeBasicAuthPassword     = WStr("PYROSCOPE_BASIC_AUTH_PASSWORD");
 };

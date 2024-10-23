@@ -1,17 +1,15 @@
-﻿// <copyright file="SourceLinkInformationExtractor.cs" company="Datadog">
+// <copyright file="SourceLinkInformationExtractor.cs" company="Datadog">
 // Unless explicitly stated otherwise all files in this repository are licensed under the Apache 2 License.
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
 using System;
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using Datadog.Trace.Logging;
 using Datadog.Trace.Pdb.SourceLink;
 using Datadog.Trace.Vendors.Newtonsoft.Json.Linq;
-using Datadog.Trace.Vendors.Serilog;
 
 #nullable enable
 
@@ -28,35 +26,44 @@ internal static class SourceLinkInformationExtractor
         // 2. The assembly was built using an SDK-Style project file (i.e. <Project Sdk="Microsoft.NET.Sdk">).
         // If these conditions weren't met, the attributes won't be there, so we'll need to extract the information from the PDB file.
 
-        return ExtractFromAssemblyAttributes(assembly, out commitSha, out repositoryUrl) ||
-               ExtractFromPdb(assembly, out commitSha, out repositoryUrl);
+        return TryExtractFromAssemblyAttributes(assembly, out commitSha, out repositoryUrl) ||
+               TryExtractFromPdb(assembly, out commitSha, out repositoryUrl);
     }
 
-    private static bool ExtractFromPdb(Assembly assembly, [NotNullWhen(true)] out string? commitSha, [NotNullWhen(true)] out string? repositoryUrl)
+    private static bool TryExtractFromPdb(Assembly assembly, [NotNullWhen(true)] out string? commitSha, [NotNullWhen(true)] out string? repositoryUrl)
     {
         commitSha = null;
         repositoryUrl = null;
 
-        var pdbReader = DatadogPdbReader.CreatePdbReader(assembly);
-        if (pdbReader == null)
+        try
         {
-            Log.Information("PDB file for assembly {AssemblyFullPath} could not be found", assembly.Location);
-            return false;
+            var pdbReader = DatadogMetadataReader.CreatePdbReader(assembly);
+            if (pdbReader is not { IsPdbExist: true })
+            {
+                Log.Information("PDB file for assembly {AssemblyFullPath} could not be found", assembly.Location);
+                return false;
+            }
+
+            var sourceLinkJsonDocument = pdbReader.GetSourceLinkJsonDocument();
+            if (sourceLinkJsonDocument == null)
+            {
+                Log.Information("PDB file {PdbFullPath} does not contain SourceLink information", pdbReader.PdbFullPath);
+                return false;
+            }
+
+            if (!TryExtractSourceLinkMappingUrl(sourceLinkJsonDocument, pdbReader?.PdbFullPath, out var sourceLinkMappedUri))
+            {
+                return false;
+            }
+
+            return CompositeSourceLinkUrlParser.Instance.TryParseSourceLinkUrl(sourceLinkMappedUri, out commitSha, out repositoryUrl);
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error while trying to extract SourceLink information from PDB file for assembly {AssemblyFullName}", assembly.FullName);
         }
 
-        var sourceLinkJsonDocument = pdbReader.GetSourceLinkJsonDocument();
-        if (sourceLinkJsonDocument == null)
-        {
-            Log.Information("PDB file {PdbFullPath} does not contain SourceLink information", pdbReader.PdbFullPath);
-            return false;
-        }
-
-        if (!ExtractSourceLinkMappingUrl(sourceLinkJsonDocument, pdbReader.PdbFullPath, out var sourceLinkMappedUri))
-        {
-            return false;
-        }
-
-        return CompositeSourceLinkUrlParser.Instance.TryParseSourceLinkUrl(sourceLinkMappedUri, out commitSha, out repositoryUrl);
+        return false;
     }
 
     // Grab the SourceLink mapping URL. For example,
@@ -64,12 +71,14 @@ internal static class SourceLinkInformationExtractor
     //       {"documents":{"C:\\dev\\dd-trace-dotnet\\*":"https://raw.githubusercontent.com/DataDog/dd-trace-dotnet/dd35903c688a74b62d1c6a9e4f41371c65704db8/*"}}
     // Extract:
     //       https://raw.githubusercontent.com/DataDog/dd-trace-dotnet/dd35903c688a74b62d1c6a9e4f41371c65704db8/*
-    private static bool ExtractSourceLinkMappingUrl(string sourceLinkJsonDocument, string pdbFullPath, [NotNullWhen(true)] out Uri? sourceLinkMappedUri)
+    private static bool TryExtractSourceLinkMappingUrl(string sourceLinkJsonDocument, string? pdbFullPath, [NotNullWhen(true)] out Uri? sourceLinkMappedUri)
     {
         sourceLinkMappedUri = null;
+        pdbFullPath ??= "Unknown";
+
         try
         {
-            string? sourceLinkMappedUrl = JObject.Parse(sourceLinkJsonDocument).SelectTokens("$.documents.*").FirstOrDefault()?.ToString();
+            var sourceLinkMappedUrl = JObject.Parse(sourceLinkJsonDocument).SelectTokens("$.documents.*").FirstOrDefault()?.ToString();
             if (string.IsNullOrWhiteSpace(sourceLinkMappedUrl) || !Uri.TryCreate(sourceLinkMappedUrl, UriKind.Absolute, out sourceLinkMappedUri))
             {
                 Log.Information("PDB file {PdbFullPath} contained SourceLink information, but we failed to parse it.", pdbFullPath);
@@ -82,41 +91,49 @@ internal static class SourceLinkInformationExtractor
         catch (Exception e)
         {
             Log.Warning(e, "PDB file {PdbFullPath} contained SourceLink document {Document}, but we failed to parse it.", pdbFullPath, sourceLinkJsonDocument);
-            return false;
         }
+
+        return false;
     }
 
     /// <summary>
     /// Extract the SourceLink information from the assembly attributes "AssemblyMetadataAttribute" and "AssemblyInformationalVersionAttribute".
     /// </summary>
-    private static bool ExtractFromAssemblyAttributes(Assembly assembly, [NotNullWhen(true)] out string? commitSha, [NotNullWhen(true)] out string? repositoryUrl)
+    private static bool TryExtractFromAssemblyAttributes(Assembly assembly, [NotNullWhen(true)] out string? commitSha, [NotNullWhen(true)] out string? repositoryUrl)
     {
         commitSha = null;
         repositoryUrl = null;
 
-        foreach (var attribute in assembly.GetCustomAttributes())
+        try
         {
-            switch (attribute)
+            foreach (var attribute in assembly.GetCustomAttributes())
             {
-                case AssemblyMetadataAttribute { Key: "RepositoryUrl" } amAttr:
-                    repositoryUrl = amAttr.Value;
-                    break;
-                case AssemblyInformationalVersionAttribute { InformationalVersion: { } informationalVersion }:
+                switch (attribute)
                 {
-                    var parts = informationalVersion.Split('+');
-                    if (parts.Length == 2)
+                    case AssemblyMetadataAttribute { Key: "RepositoryUrl" } amAttr:
+                        repositoryUrl = amAttr.Value;
+                        break;
+                    case AssemblyInformationalVersionAttribute { InformationalVersion: { } informationalVersion }:
                     {
-                        commitSha = parts[1];
-                    }
+                        var parts = informationalVersion.Split('+');
+                        if (parts.Length == 2)
+                        {
+                            commitSha = parts[1];
+                        }
 
-                    break;
+                        break;
+                    }
+                }
+
+                if (repositoryUrl != null && commitSha != null)
+                {
+                    return true;
                 }
             }
-
-            if (repositoryUrl != null && commitSha != null)
-            {
-                return true;
-            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error(ex, "Error trying to extract SourceLink information from assembly attributes");
         }
 
         return false;

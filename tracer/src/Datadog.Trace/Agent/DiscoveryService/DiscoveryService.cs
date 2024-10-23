@@ -20,10 +20,15 @@ namespace Datadog.Trace.Agent.DiscoveryService
     internal class DiscoveryService : IDiscoveryService
     {
         private const string SupportedDebuggerEndpoint = "debugger/v1/input";
+        private const string SupportedDiagnosticsEndpoint = "debugger/v1/diagnostics";
+        private const string SupportedSymbolDbEndpoint = "symdb/v1/input";
         private const string SupportedConfigurationEndpoint = "v0.7/config";
         private const string SupportedStatsEndpoint = "v0.6/stats";
         private const string SupportedDataStreamsEndpoint = "v0.1/pipeline_stats";
-        private const string SupportedEventPlatformProxyEndpoint = "evp_proxy/v2";
+        private const string SupportedEventPlatformProxyEndpointV2 = "evp_proxy/v2";
+        private const string SupportedEventPlatformProxyEndpointV4 = "evp_proxy/v4";
+        private const string SupportedTelemetryProxyEndpoint = "telemetry/proxy";
+        private const string SupportedTracerFlareEndpoint = "tracer_flare/v1";
 
         private static readonly IDatadogLogger Log = DatadogLogging.GetLoggerFor<DiscoveryService>();
         private readonly IApiRequestFactory _apiRequestFactory;
@@ -61,24 +66,24 @@ namespace Datadog.Trace.Agent.DiscoveryService
             new[]
             {
                 SupportedDebuggerEndpoint,
+                SupportedDiagnosticsEndpoint,
+                SupportedSymbolDbEndpoint,
                 SupportedConfigurationEndpoint,
                 SupportedStatsEndpoint,
                 SupportedDataStreamsEndpoint,
-                SupportedEventPlatformProxyEndpoint,
+                SupportedEventPlatformProxyEndpointV2,
+                SupportedEventPlatformProxyEndpointV4,
+                SupportedTelemetryProxyEndpoint,
+                SupportedTracerFlareEndpoint,
             };
 
         public static DiscoveryService Create(ImmutableExporterSettings exporterSettings)
-            => new(
-                AgentTransportStrategy.Get(
-                    exporterSettings,
-                    productName: "discovery",
-                    tcpTimeout: TimeSpan.FromSeconds(15),
-                    AgentHttpHeaderNames.MinimalHeaders,
-                    () => new MinimalAgentHeaderHelper(),
-                    uri => uri),
+            => Create(
+                exporterSettings,
+                tcpTimeout: TimeSpan.FromSeconds(15),
                 initialRetryDelayMs: 500,
                 maxRetryDelayMs: 5_000,
-                recheckIntervalMs: 30_00);
+                recheckIntervalMs: 30_000);
 
         public static DiscoveryService Create(
             ImmutableExporterSettings exporterSettings,
@@ -212,13 +217,18 @@ namespace Datadog.Trace.Agent.DiscoveryService
 
             var agentVersion = jObject["version"]?.Value<string>();
             var clientDropP0 = jObject["client_drop_p0s"]?.Value<bool>() ?? false;
+            var spanMetaStructs = jObject["span_meta_structs"]?.Value<bool>() ?? false;
 
             var discoveredEndpoints = (jObject["endpoints"] as JArray)?.Values<string>().ToArray();
             string? configurationEndpoint = null;
             string? debuggerEndpoint = null;
+            string? diagnosticsEndpoint = null;
+            string? symbolDbEndpoint = null;
             string? statsEndpoint = null;
             string? dataStreamsMonitoringEndpoint = null;
             string? eventPlatformProxyEndpoint = null;
+            string? telemetryProxyEndpoint = null;
+            string? tracerFlareEndpoint = null;
 
             if (discoveredEndpoints is { Length: > 0 })
             {
@@ -235,6 +245,14 @@ namespace Datadog.Trace.Agent.DiscoveryService
                     {
                         debuggerEndpoint = endpoint;
                     }
+                    else if (endpoint.Equals(SupportedDiagnosticsEndpoint, StringComparison.OrdinalIgnoreCase))
+                    {
+                        diagnosticsEndpoint = endpoint;
+                    }
+                    else if (endpoint.Equals(SupportedSymbolDbEndpoint, StringComparison.OrdinalIgnoreCase))
+                    {
+                        symbolDbEndpoint = endpoint;
+                    }
                     else if (endpoint.Equals(SupportedConfigurationEndpoint, StringComparison.OrdinalIgnoreCase))
                     {
                         configurationEndpoint = endpoint;
@@ -247,9 +265,21 @@ namespace Datadog.Trace.Agent.DiscoveryService
                     {
                         dataStreamsMonitoringEndpoint = endpoint;
                     }
-                    else if (endpoint.Equals(SupportedEventPlatformProxyEndpoint, StringComparison.OrdinalIgnoreCase))
+                    else if (eventPlatformProxyEndpoint is null && endpoint.Equals(SupportedEventPlatformProxyEndpointV2, StringComparison.OrdinalIgnoreCase))
                     {
                         eventPlatformProxyEndpoint = endpoint;
+                    }
+                    else if (endpoint.Equals(SupportedEventPlatformProxyEndpointV4, StringComparison.OrdinalIgnoreCase))
+                    {
+                        eventPlatformProxyEndpoint = endpoint;
+                    }
+                    else if (endpoint.Equals(SupportedTelemetryProxyEndpoint, StringComparison.OrdinalIgnoreCase))
+                    {
+                        telemetryProxyEndpoint = endpoint;
+                    }
+                    else if (endpoint.Equals(SupportedTracerFlareEndpoint, StringComparison.OrdinalIgnoreCase))
+                    {
+                        tracerFlareEndpoint = endpoint;
                     }
                 }
             }
@@ -259,11 +289,16 @@ namespace Datadog.Trace.Agent.DiscoveryService
             var newConfig = new AgentConfiguration(
                 configurationEndpoint: configurationEndpoint,
                 debuggerEndpoint: debuggerEndpoint,
+                diagnosticsEndpoint: diagnosticsEndpoint ?? debuggerEndpoint,
+                symbolDbEndpoint: symbolDbEndpoint,
                 agentVersion: agentVersion,
                 statsEndpoint: statsEndpoint,
                 dataStreamsMonitoringEndpoint: dataStreamsMonitoringEndpoint,
                 eventPlatformProxyEndpoint: eventPlatformProxyEndpoint,
-                clientDropP0: clientDropP0);
+                telemetryProxyEndpoint: telemetryProxyEndpoint,
+                tracerFlareEndpoint: tracerFlareEndpoint,
+                clientDropP0: clientDropP0,
+                spanMetaStructs: spanMetaStructs);
 
             // AgentConfiguration is a record, so this compares by value
             if (existingConfiguration is null || !newConfig.Equals(existingConfiguration))

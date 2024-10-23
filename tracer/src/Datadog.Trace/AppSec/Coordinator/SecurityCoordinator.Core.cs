@@ -6,59 +6,44 @@
 #nullable enable
 #pragma warning disable CS0282
 #if !NETFRAMEWORK
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using Datadog.Trace.AppSec.Waf;
 using Datadog.Trace.Headers;
 using Datadog.Trace.Util.Http;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Routing;
 
 namespace Datadog.Trace.AppSec.Coordinator;
 
 internal readonly partial struct SecurityCoordinator
 {
-    private readonly HttpContext _context;
-
-    internal SecurityCoordinator(Security security, HttpContext context, Span span, HttpTransport? transport = null)
+    internal SecurityCoordinator(Security security, Span span, HttpTransport? transport = null)
     {
-        _context = context;
         _security = security;
         _localRootSpan = TryGetRoot(span);
-        _httpTransport = transport ?? new HttpTransport(context);
+        _httpTransport = transport ?? new HttpTransport(CoreHttpContextStore.Instance.Get());
     }
 
     private static bool CanAccessHeaders => true;
 
-    internal void CheckAndBlock(IResult? result)
+    public static Dictionary<string, string[]> ExtractHeadersFromRequest(IHeaderDictionary headers)
     {
-        if (result?.ShouldBeReported is true)
-        {
-            if (result.ShouldBlock)
-            {
-                throw new BlockException(result);
-            }
-
-            Report(result.Data, result.AggregatedTotalRuntime, result.AggregatedTotalRuntimeWithBindings, result.ShouldBlock);
-        }
-    }
-
-    private Dictionary<string, object> GetBasicRequestArgsForWaf()
-    {
-        var request = _context.Request;
-        var headersDic = new Dictionary<string, string[]>(request.Headers.Keys.Count);
-        foreach (var k in request.Headers.Keys)
+        var headersDic = new Dictionary<string, string[]>(headers.Keys.Count);
+        foreach (var k in headers.Keys)
         {
             var currentKey = k ?? string.Empty;
             if (!currentKey.Equals("cookie", System.StringComparison.OrdinalIgnoreCase))
             {
                 currentKey = currentKey.ToLowerInvariant();
 #if NETCOREAPP
-                if (!headersDic.TryAdd(currentKey, request.Headers[currentKey]))
+                if (!headersDic.TryAdd(currentKey, headers[currentKey]))
                 {
 #else
                 if (!headersDic.ContainsKey(currentKey))
                 {
-                    headersDic.Add(currentKey, request.Headers[currentKey]);
+                    headersDic.Add(currentKey, headers[currentKey]);
                 }
                 else
                 {
@@ -68,6 +53,40 @@ internal readonly partial struct SecurityCoordinator
             }
         }
 
+        return headersDic;
+    }
+
+    internal void BlockAndReport(IResult? result)
+    {
+        if (result is not null)
+        {
+            if (result.ShouldBlock)
+            {
+                throw new BlockException(result, result.RedirectInfo ?? result.BlockInfo!);
+            }
+
+            TryReport(result, result.ShouldBlock);
+        }
+    }
+
+    internal void ReportAndBlock(IResult? result)
+    {
+        if (result is not null)
+        {
+            TryReport(result, result.ShouldBlock);
+
+            if (result.ShouldBlock)
+            {
+                throw new BlockException(result, result.RedirectInfo ?? result.BlockInfo!, true);
+            }
+        }
+    }
+
+    private Dictionary<string, object> GetBasicRequestArgsForWaf()
+    {
+        var request = _httpTransport.Context.Request;
+        var headersDic = ExtractHeadersFromRequest(request.Headers);
+
         var cookiesDic = new Dictionary<string, List<string>>(request.Cookies.Keys.Count);
         for (var i = 0; i < request.Cookies.Count; i++)
         {
@@ -76,7 +95,7 @@ internal readonly partial struct SecurityCoordinator
             var keyExists = cookiesDic.TryGetValue(currentKey, out var value);
             if (!keyExists)
             {
-                cookiesDic.Add(currentKey, new List<string> { cookie.Value ?? string.Empty });
+                cookiesDic.Add(currentKey, [cookie.Value ?? string.Empty]);
             }
             else
             {
@@ -101,38 +120,67 @@ internal readonly partial struct SecurityCoordinator
             }
         }
 
-        var dict = new Dictionary<string, object>
-        {
-            { AddressesConstants.RequestMethod, request.Method },
-            { AddressesConstants.ResponseStatus, request.HttpContext.Response.StatusCode.ToString() },
-            { AddressesConstants.RequestUriRaw, request.GetUrl() },
-            { AddressesConstants.RequestQuery, queryStringDic },
-            { AddressesConstants.RequestHeaderNoCookies, headersDic },
-            { AddressesConstants.RequestCookies, cookiesDic },
-            { AddressesConstants.RequestClientIp, _localRootSpan.GetTag(Tags.HttpClientIp) },
-            { AddressesConstants.UserId, _localRootSpan.Context?.TraceContext?.Tags?.GetTag(Tags.User.Id) ?? string.Empty },
-        };
+        var addressesDictionary = new Dictionary<string, object> { { AddressesConstants.RequestMethod, request.Method }, { AddressesConstants.ResponseStatus, request.HttpContext.Response.StatusCode.ToString() }, { AddressesConstants.RequestUriRaw, request.GetUrlForWaf() }, { AddressesConstants.RequestClientIp, _localRootSpan.GetTag(Tags.HttpClientIp) } };
 
-        return dict;
+        var userId = _localRootSpan.Context?.TraceContext?.Tags.GetTag(Tags.User.Id);
+        if (!string.IsNullOrEmpty(userId))
+        {
+            addressesDictionary.Add(AddressesConstants.UserId, userId!);
+        }
+
+        AddAddressIfDictionaryHasElements(AddressesConstants.RequestQuery, queryStringDic);
+        AddAddressIfDictionaryHasElements(AddressesConstants.RequestHeaderNoCookies, headersDic);
+        AddAddressIfDictionaryHasElements(AddressesConstants.RequestCookies, cookiesDic);
+
+        return addressesDictionary;
+
+        void AddAddressIfDictionaryHasElements(string address, IDictionary dic)
+        {
+            if (dic.Count > 0)
+            {
+                addressesDictionary.Add(address, dic);
+            }
+        }
     }
 
     internal class HttpTransport : HttpTransportBase
     {
-        private readonly HttpContext _context;
+        public HttpTransport(HttpContext context) => Context = context;
 
-        public HttpTransport(HttpContext context) => _context = context;
+        public override HttpContext Context { get; }
 
-        internal override bool IsBlocked => _context.Items["block"] is true;
+        internal override bool IsBlocked
+        {
+            get
+            {
+                if (Context.Items.TryGetValue(BlockingAction.BlockDefaultActionName, out var value))
+                {
+                    return value is bool boolValue && boolValue;
+                }
 
-        internal override void MarkBlocked() => _context.Items["block"] = true;
+                return false;
+            }
+        }
 
-        internal override IContext GetAdditiveContext() => _context.Features.Get<IContext>();
+        internal override int StatusCode => Context.Response.StatusCode;
 
-        internal override void SetAdditiveContext(IContext additiveContext) => _context.Features.Set(additiveContext);
+        internal override IDictionary<string, object>? RouteData => Context.GetRouteData()?.Values;
 
-        internal override IHeadersCollection GetRequestHeaders() => new HeadersCollectionAdapter(_context.Request.Headers);
+        internal override bool ReportedExternalWafsRequestHeaders
+        {
+            get => Context.Items["ReportedExternalWafsRequestHeaders"] is true;
+            set => Context.Items["ReportedExternalWafsRequestHeaders"] = value;
+        }
 
-        internal override IHeadersCollection GetResponseHeaders() => new HeadersCollectionAdapter(_context.Response.Headers);
+        internal override void MarkBlocked() => Context.Items[BlockingAction.BlockDefaultActionName] = true;
+
+        internal override IContext GetAdditiveContext() => Context.Features.Get<IContext>();
+
+        internal override void SetAdditiveContext(IContext additiveContext) => Context.Features.Set(additiveContext);
+
+        internal override IHeadersCollection GetRequestHeaders() => new HeadersCollectionAdapter(Context.Request.Headers);
+
+        internal override IHeadersCollection GetResponseHeaders() => new HeadersCollectionAdapter(Context.Response.Headers);
     }
 }
 #endif

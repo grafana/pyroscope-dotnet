@@ -12,7 +12,10 @@
 #include <string_view>
 #include <tuple>
 #include <vector>
+
+
 #include "async_ref_counted_string.h"
+
 
 struct SampleValueType
 {
@@ -23,10 +26,10 @@ struct SampleValueType
 
 typedef std::vector<int64_t> Values;
 typedef std::pair<std::string_view, google::javaprofiler::AsyncRefCountedString> Label;
-typedef std::list<Label> Labels;
+typedef std::vector<Label> Labels;
 typedef std::pair<std::string_view, int64_t> NumericLabel;
-typedef std::list<NumericLabel> NumericLabels;
-typedef std::vector<FrameInfoView> CallStack;
+typedef std::pair<std::string_view, uint64_t> SpanLabel;
+typedef std::vector<NumericLabel> NumericLabels;
 
 class Sample
 {
@@ -34,18 +37,22 @@ public:
     static size_t ValuesCount;
 
 public:
-    Sample(std::string_view runtimeId); // only for tests
     Sample(uint64_t timestamp, std::string_view runtimeId, size_t framesCount);
+    Sample(std::string_view runtimeId); // only for tests
 
-    Sample(const Sample&) = delete;
-    Sample& operator=(const Sample& sample) = delete;
-    Sample(Sample&& sample) noexcept = delete;
-    Sample& operator=(Sample&& other) noexcept = delete;
+#ifndef DD_TEST
+private:
+#endif
+    // let compiler generating the move and copy ctors/assignment operators
+    Sample(const Sample&) = default;
+    Sample& operator=(const Sample& sample) = default;
+    Sample(Sample&& sample) noexcept = default;
+    Sample& operator=(Sample&& other) noexcept = default;
 
 public:
     uint64_t GetTimeStamp() const;
     const Values& GetValues() const;
-    const CallStack& GetCallstack() const;
+    const std::vector<FrameInfoView>& GetCallstack() const;
     const Labels& GetLabels() const;
     const NumericLabels& GetNumericLabels() const;
     std::string_view GetRuntimeId() const;
@@ -124,6 +131,25 @@ public:
         AddLabel(Label{ThreadNameLabel, std::forward<T>(name)});
     }
 
+    void SetTimestamp(std::uint64_t timestamp)
+    {
+        _timestamp = timestamp;
+    }
+
+    void SetRuntimeId(std::string_view runtimeId)
+    {
+        _runtimeId = runtimeId;
+    }
+
+    void Reset()
+    {
+        _timestamp = 0;
+        _callstack.clear();
+        _runtimeId = {};
+        _numericLabels.clear();
+        _labels.clear();
+        std::fill(_values.begin(), _values.end(), 0);
+    }
     // well known labels
 public:
     static const std::string ThreadIdLabel;
@@ -131,17 +157,17 @@ public:
     static const std::string ProcessIdLabel;
     static const std::string AppDomainNameLabel;
     static const std::string LocalRootSpanIdLabel;
-    static const std::string ProfileIdLabel;
     static const std::string SpanIdLabel;
     static const std::string ExceptionTypeLabel;
     static const std::string ExceptionMessageLabel;
     static const std::string AllocationClassLabel;
-    static const std::string EndTimestampLabel;
     static const std::string GarbageCollectionGenerationLabel;
     static const std::string GarbageCollectionNumberLabel;
     static const std::string TimelineEventTypeLabel;
     static const std::string TimelineEventTypeStopTheWorld;
     static const std::string TimelineEventTypeGarbageCollection;
+    static const std::string TimelineEventTypeThreadStart;
+    static const std::string TimelineEventTypeThreadStop;
     static const std::string GarbageCollectionReasonLabel;
     static const std::string GarbageCollectionTypeLabel;
     static const std::string GarbageCollectionCompactingLabel;
@@ -149,9 +175,13 @@ public:
     static const std::string ObjectIdLabel;
     static const std::string ObjectGenerationLabel;
 
+
+    static const std::string ProfileIdLabel;
+
+
 private:
     uint64_t _timestamp;
-    CallStack _callstack;
+    std::vector<FrameInfoView> _callstack;
     Values _values;
     Labels _labels;
     NumericLabels _numericLabels;

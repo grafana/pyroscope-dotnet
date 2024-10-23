@@ -12,7 +12,7 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Testing.MsTestV2;
 /// <summary>
 /// TestMethod ducktype interface
 /// </summary>
-internal interface ITestMethod
+internal interface ITestMethod : IDuckType
 {
     /// <summary>
     /// Gets the test method name
@@ -40,4 +40,18 @@ internal interface ITestMethod
     /// <param name="inherit">Injerits all the attributes from base classes</param>
     /// <returns>Attribute array</returns>
     Attribute[] GetAllAttributes(bool inherit);
+
+    /// <summary>
+    /// Invokes the test method.
+    /// </summary>
+    /// <param name="arguments">
+    /// Arguments to pass to test method. (E.g. For data driven).
+    /// </param>
+    /// <returns>
+    /// Result of test method invocation.
+    /// </returns>
+    /// <remarks>
+    /// This call handles asynchronous test methods as well.
+    /// </remarks>
+    object Invoke(object[] arguments);
 }

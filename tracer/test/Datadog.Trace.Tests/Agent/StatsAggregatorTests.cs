@@ -416,11 +416,9 @@ namespace Datadog.Trace.Tests.Agent
 
         private static ImmutableTracerSettings GetSettings(int? statsComputationIntervalSeconds = null)
         {
-            var settings = new TracerSettings();
-            if (statsComputationIntervalSeconds.HasValue)
-            {
-                settings.StatsComputationInterval = statsComputationIntervalSeconds.Value;
-            }
+            var settings = statsComputationIntervalSeconds.HasValue
+                               ? TracerSettings.Create(new() { { ConfigurationKeys.StatsComputationInterval, statsComputationIntervalSeconds.Value } })
+                               : new TracerSettings();
 
             return settings.Build();
         }
@@ -449,11 +447,16 @@ namespace Datadog.Trace.Tests.Agent
                 callback(new AgentConfiguration(
                              configurationEndpoint: "configurationEndpoint",
                              debuggerEndpoint: "debuggerEndpoint",
+                             diagnosticsEndpoint: "diagnosticsEndpoint",
+                             symbolDbEndpoint: "symbolDbEndpoint",
                              agentVersion: "agentVersion",
                              statsEndpoint: "traceStatsEndpoint",
                              dataStreamsMonitoringEndpoint: "dataStreamsMonitoringEndpoint",
                              eventPlatformProxyEndpoint: "eventPlatformProxyEndpoint",
-                             clientDropP0: true));
+                             telemetryProxyEndpoint: "telemetryProxyEndpoint",
+                             tracerFlareEndpoint: "tracerFlareEndpoint",
+                             clientDropP0: true,
+                             spanMetaStructs: true));
             }
 
             public void RemoveSubscription(Action<AgentConfiguration> callback)

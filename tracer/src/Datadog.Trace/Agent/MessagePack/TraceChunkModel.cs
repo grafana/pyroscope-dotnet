@@ -10,7 +10,6 @@ using System.Collections.Generic;
 using System.Threading;
 using Datadog.Trace.Configuration;
 using Datadog.Trace.Tagging;
-using Datadog.Trace.Util;
 
 namespace Datadog.Trace.Agent.MessagePack;
 
@@ -37,6 +36,7 @@ internal readonly struct TraceChunkModel
     public readonly string? Environment = null;
 
     public readonly string? ServiceVersion = null;
+
     public readonly string? GitRepositoryUrl = null;
 
     public readonly string? GitCommitSha = null;
@@ -55,13 +55,15 @@ internal readonly struct TraceChunkModel
 
     public readonly ImmutableAzureAppServiceSettings? AzureAppServiceSettings = null;
 
+    public readonly bool IsApmEnabled = true;
+
     /// <summary>
     ///     Initializes a new instance of the <see cref="TraceChunkModel"/> struct.
     /// </summary>
     /// <param name="spans">The spans that will be within this <see cref="TraceChunkModel"/>.</param>
     /// <param name="samplingPriority">Optional sampling priority to override the <see cref="TraceContext"/> sampling priority.</param>
     public TraceChunkModel(in ArraySegment<Span> spans, int? samplingPriority = null)
-        : this(spans, GetTraceContext(spans), samplingPriority)
+        : this(spans, TraceContext.GetTraceContext(spans), samplingPriority)
     {
         // since all we have is an array of spans, use the trace context from the first span
         // to get the other values we need (sampling priority, origin, trace tags, etc) for now.
@@ -73,23 +75,36 @@ internal readonly struct TraceChunkModel
     private TraceChunkModel(in ArraySegment<Span> spans, TraceContext? traceContext, int? samplingPriority)
         : this(spans, traceContext?.RootSpan)
     {
+        // sampling decision override takes precedence over TraceContext.SamplingPriority
         SamplingPriority = samplingPriority;
 
         if (traceContext is not null)
         {
-            DefaultServiceName = traceContext.Tracer?.DefaultServiceName;
+            // only use TraceContext.SamplingPriority if there was  no override value
             SamplingPriority ??= traceContext.SamplingPriority;
+
             Environment = traceContext.Environment;
             ServiceVersion = traceContext.ServiceVersion;
             Origin = traceContext.Origin;
             Tags = traceContext.Tags;
-            IsRunningInAzureAppService = traceContext.Tracer?.Settings?.IsRunningInAzureAppService ?? false;
-            AzureAppServiceSettings = traceContext.Tracer?.Settings?.AzureAppServiceMetadata ?? null;
-            if (traceContext.Tracer?.GitMetadataTagsProvider?.TryExtractGitMetadata(out var gitMetadata) == true &&
-                gitMetadata != GitMetadata.Empty)
+
+            if (traceContext.Tracer is { } tracer)
             {
-                GitRepositoryUrl = gitMetadata.RepositoryUrl;
-                GitCommitSha = gitMetadata.CommitSha;
+                DefaultServiceName = tracer.DefaultServiceName;
+
+                if (tracer.Settings is { } settings)
+                {
+                    IsRunningInAzureAppService = settings.IsRunningInAzureAppService;
+                    AzureAppServiceSettings = settings.AzureAppServiceMetadata ?? null;
+                    IsApmEnabled = !settings.AppsecStandaloneEnabledInternal;
+                }
+
+                if (tracer.GitMetadataTagsProvider?.TryExtractGitMetadata(out var gitMetadata) == true &&
+                    gitMetadata != GitMetadata.Empty)
+                {
+                    GitRepositoryUrl = gitMetadata.RepositoryUrl;
+                    GitCommitSha = gitMetadata.CommitSha;
+                }
             }
         }
     }
@@ -111,7 +126,7 @@ internal readonly struct TraceChunkModel
             // skip the HashSet to avoid initializing it yet, always iterate the array of spans.
             ContainsLocalRootSpan = IndexOf(localRootSpanId, spans.Count - 1) >= 0;
 
-            HasUpstreamService = localRootSpan.Context.ParentId is not (null or 0);
+            HasUpstreamService = localRootSpan.Context.ParentIdInternal is not (null or 0);
         }
     }
 
@@ -119,16 +134,6 @@ internal readonly struct TraceChunkModel
 
     // used in tests
     internal bool HashSetInitialized => _hashSet?.IsValueCreated == true && _hashSet.Value.Count > 0;
-
-    private static TraceContext? GetTraceContext(in ArraySegment<Span> spans)
-    {
-        if (spans.Count > 0)
-        {
-            return spans.Array![spans.Offset].Context.TraceContext;
-        }
-
-        return null;
-    }
 
     public SpanModel GetSpanModel(int spanIndex)
     {
@@ -138,7 +143,7 @@ internal readonly struct TraceChunkModel
         }
 
         var span = _spans.Array![_spans.Offset + spanIndex];
-        var parentId = span.Context.ParentId ?? 0;
+        var parentId = span.Context.ParentIdInternal ?? 0;
         bool isLocalRoot = parentId is 0 || span.SpanId == LocalRootSpanId;
         bool isFirstSpan = spanIndex == 0;
 

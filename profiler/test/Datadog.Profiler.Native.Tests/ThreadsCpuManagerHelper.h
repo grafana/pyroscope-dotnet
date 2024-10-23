@@ -7,9 +7,6 @@
 class ThreadsCpuManagerHelper : public IThreadsCpuManager
 {
     // Inherited via IThreadsCpuManager
-    const char* GetName() override;
-    bool Start() override;
-    bool Stop() override;
     void Map(DWORD threadOSId, const WCHAR* name) override;
     void LogCpuTimes() override;
 };

@@ -31,6 +31,12 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
         private readonly byte[] _durationBytes = StringEncoding.UTF8.GetBytes("duration");
         private readonly byte[] _parentIdBytes = StringEncoding.UTF8.GetBytes("parent_id");
         private readonly byte[] _errorBytes = StringEncoding.UTF8.GetBytes("error");
+        private readonly byte[] _itrCorrelationId = StringEncoding.UTF8.GetBytes("itr_correlation_id");
+
+        // SuiteId, ModuleId, SessionId tags
+        private readonly byte[] _testSuiteIdBytes = StringEncoding.UTF8.GetBytes(TestSuiteVisibilityTags.TestSuiteId);
+        private readonly byte[] _testModuleIdBytes = StringEncoding.UTF8.GetBytes(TestSuiteVisibilityTags.TestModuleId);
+        private readonly byte[] _testSessionIdBytes = StringEncoding.UTF8.GetBytes(TestSuiteVisibilityTags.TestSessionId);
 
         // string tags
         private readonly byte[] _metaBytes = StringEncoding.UTF8.GetBytes("meta");
@@ -61,13 +67,13 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
 
             // values begin at -1, so they are shifted by 1 from their array index: [-1, 0, 1, 2]
             // these must serialized as msgpack float64 (Double in .NET).
-            _samplingPriorityValueBytes = new[]
-                                          {
-                                              MessagePackSerializer.Serialize((double)SamplingPriorityValues.UserReject),
-                                              MessagePackSerializer.Serialize((double)SamplingPriorityValues.AutoReject),
-                                              MessagePackSerializer.Serialize((double)SamplingPriorityValues.AutoKeep),
-                                              MessagePackSerializer.Serialize((double)SamplingPriorityValues.UserKeep),
-                                          };
+            _samplingPriorityValueBytes =
+            [
+                MessagePackSerializer.Serialize((double)SamplingPriorityValues.UserReject),
+                MessagePackSerializer.Serialize((double)SamplingPriorityValues.AutoReject),
+                MessagePackSerializer.Serialize((double)SamplingPriorityValues.AutoKeep),
+                MessagePackSerializer.Serialize((double)SamplingPriorityValues.UserKeep)
+            ];
         }
 
         public int Serialize(ref byte[] bytes, int offset, Span value, IFormatterResolver formatterResolver)
@@ -81,7 +87,7 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
             // It should be the number of members of the object to be serialized.
             var len = 9;
 
-            if (context.ParentId is not null)
+            if (context.ParentIdInternal is not null)
             {
                 len++;
             }
@@ -113,14 +119,21 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
                 isSpan = true;
             }
 
+            var correlationId = value.Type is SpanTypes.Test or SpanTypes.Browser ? CIVisibility.GetSkippableTestsCorrelationId() : null;
+            if (correlationId is not null)
+            {
+                len++;
+            }
+
             var originalOffset = offset;
 
             offset += MessagePackBinary.WriteMapHeader(ref bytes, offset, len);
 
             if (isSpan)
             {
+                // trace_id field is 64-bits, truncate by using TraceId128.Lower
                 offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _traceIdBytes);
-                offset += MessagePackBinary.WriteUInt64(ref bytes, offset, context.TraceId);
+                offset += MessagePackBinary.WriteUInt64(ref bytes, offset, context.TraceId128.Lower);
 
                 offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _spanIdBytes);
                 offset += MessagePackBinary.WriteUInt64(ref bytes, offset, context.SpanId);
@@ -144,28 +157,34 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
             offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _durationBytes);
             offset += MessagePackBinary.WriteInt64(ref bytes, offset, value.Duration.ToNanoseconds());
 
-            if (context.ParentId is not null)
+            if (context.ParentIdInternal is not null)
             {
                 offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _parentIdBytes);
-                offset += MessagePackBinary.WriteUInt64(ref bytes, offset, context.ParentId.Value);
+                offset += MessagePackBinary.WriteUInt64(ref bytes, offset, context.ParentIdInternal.Value);
             }
 
             if (testSuiteTags is not null)
             {
-                offset += MessagePackBinary.WriteString(ref bytes, offset, TestSuiteVisibilityTags.TestSuiteId);
+                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _testSuiteIdBytes);
                 offset += MessagePackBinary.WriteUInt64(ref bytes, offset, testSuiteTags.SuiteId);
             }
 
             if (testModuleTags is not null)
             {
-                offset += MessagePackBinary.WriteString(ref bytes, offset, TestSuiteVisibilityTags.TestModuleId);
+                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _testModuleIdBytes);
                 offset += MessagePackBinary.WriteUInt64(ref bytes, offset, testModuleTags.ModuleId);
             }
 
             if (testSessionTags is not null && testSessionTags.SessionId != 0)
             {
-                offset += MessagePackBinary.WriteString(ref bytes, offset, TestSuiteVisibilityTags.TestSessionId);
+                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _testSessionIdBytes);
                 offset += MessagePackBinary.WriteUInt64(ref bytes, offset, testSessionTags.SessionId);
+            }
+
+            if (correlationId is not null)
+            {
+                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _itrCorrelationId);
+                offset += MessagePackBinary.WriteString(ref bytes, offset, correlationId);
             }
 
             offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _errorBytes);
@@ -215,9 +234,9 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
             offset = tagWriter.Offset;
             count += tagWriter.Count;
 
-            // TODO: for each trace tag, determine if it should be added to the local root,
-            // to the first span in the chunk, or to all orphan spans.
-            // For now, we add them to the local root which is correct in most cases.
+            // Write trace tags
+            // NOTE: this formatter for CI Visibility doesn't know if the span is "first in chunk" or "chunk orphan",
+            // so we add the trace tags to the local root span only.
             if (span.IsRootSpan && traceContext?.Tags is { Count: > 0 } traceTags)
             {
                 var traceTagWriter = new TraceTagWriter(this, tagProcessors, bytes, offset);
@@ -252,7 +271,7 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
             }
 
             // add "version" tags to all spans whose service name is the default service name
-            if (string.Equals(span.Context.ServiceName, traceContext?.Tracer.DefaultServiceName, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(span.Context.ServiceNameInternal, traceContext?.Tracer.DefaultServiceName, StringComparison.OrdinalIgnoreCase))
             {
                 var version = traceContext?.ServiceVersion;
 
@@ -289,7 +308,7 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void WriteTag(ref byte[] bytes, ref int offset, byte[] keyBytes, string value, ITagProcessor[] tagProcessors)
+        private void WriteTag(ref byte[] bytes, ref int offset, ReadOnlySpan<byte> keyBytes, string value, ITagProcessor[] tagProcessors)
         {
             if (tagProcessors is not null)
             {
@@ -300,7 +319,8 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
                 }
             }
 
-            offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, keyBytes);
+            MessagePackBinary.EnsureCapacity(ref bytes, offset, keyBytes.Length + StringEncoding.UTF8.GetMaxByteCount(value.Length) + 5);
+            offset += MessagePackBinary.WriteRaw(ref bytes, offset, keyBytes);
             offset += MessagePackBinary.WriteString(ref bytes, offset, value);
         }
 
@@ -380,7 +400,7 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void WriteMetric(ref byte[] bytes, ref int offset, byte[] keyBytes, double value, ITagProcessor[] tagProcessors)
+        private void WriteMetric(ref byte[] bytes, ref int offset, ReadOnlySpan<byte> keyBytes, double value, ITagProcessor[] tagProcessors)
         {
             if (tagProcessors is not null)
             {
@@ -391,7 +411,8 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
                 }
             }
 
-            offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, keyBytes);
+            MessagePackBinary.EnsureCapacity(ref bytes, offset, keyBytes.Length + 9);
+            offset += MessagePackBinary.WriteRaw(ref bytes, offset, keyBytes);
             offset += MessagePackBinary.WriteDouble(ref bytes, offset, value);
         }
 
@@ -422,13 +443,13 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Process(TagItem<string> item)
             {
-                if (item.KeyUtf8 is null)
+                if (item.SerializedKey.IsEmpty)
                 {
                     _formatter.WriteTag(ref Bytes, ref Offset, item.Key, item.Value, _tagProcessors);
                 }
                 else
                 {
-                    _formatter.WriteTag(ref Bytes, ref Offset, item.KeyUtf8, item.Value, _tagProcessors);
+                    _formatter.WriteTag(ref Bytes, ref Offset, item.SerializedKey, item.Value, _tagProcessors);
                 }
 
                 Count++;
@@ -437,13 +458,13 @@ namespace Datadog.Trace.Ci.Agent.MessagePack
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Process(TagItem<double> item)
             {
-                if (item.KeyUtf8 is null)
+                if (item.SerializedKey.IsEmpty)
                 {
                     _formatter.WriteMetric(ref Bytes, ref Offset, item.Key, item.Value, _tagProcessors);
                 }
                 else
                 {
-                    _formatter.WriteMetric(ref Bytes, ref Offset, item.KeyUtf8, item.Value, _tagProcessors);
+                    _formatter.WriteMetric(ref Bytes, ref Offset, item.SerializedKey, item.Value, _tagProcessors);
                 }
 
                 Count++;

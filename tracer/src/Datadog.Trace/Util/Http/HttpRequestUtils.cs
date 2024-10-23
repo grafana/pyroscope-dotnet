@@ -27,12 +27,13 @@ namespace Datadog.Trace.Util.Http
         {
             if (queryStringManager != null)
             {
-                queryString = queryString.Substring(0, Math.Min(queryString.Length, 200));
-                queryString = queryStringManager.Obfuscate(queryString);
-                return $"{scheme}://{(string.IsNullOrEmpty(host) ? NoHostSpecified : host)}{(port.HasValue ? $":{port}" : string.Empty)}{pathBase}{path}{queryString}";
+                queryString = queryStringManager.TruncateAndObfuscate(queryString);
+                return $"{scheme}://{GetNormalizedHost(host)}{(port.HasValue ? $":{port}" : string.Empty)}{pathBase}{path}{queryString}";
             }
 
-            return $"{scheme}://{(string.IsNullOrEmpty(host) ? NoHostSpecified : host)}{(port.HasValue ? $":{port}" : string.Empty)}{pathBase}{path}";
+            return $"{scheme}://{GetNormalizedHost(host)}{(port.HasValue ? $":{port}" : string.Empty)}{pathBase}{path}";
         }
+
+        internal static string GetNormalizedHost(string host) => string.IsNullOrEmpty(host) ? NoHostSpecified : host;
     }
 }

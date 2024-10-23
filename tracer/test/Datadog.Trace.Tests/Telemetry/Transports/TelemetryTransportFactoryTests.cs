@@ -4,6 +4,8 @@
 // </copyright>
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Datadog.Trace.Configuration;
 using Datadog.Trace.Telemetry;
 using Datadog.Trace.Telemetry.Transports;
@@ -16,18 +18,18 @@ namespace Datadog.Trace.Tests.Telemetry.Transports;
 public class TelemetryTransportFactoryTests
 {
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(false, true)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
+    [MemberData(nameof(Data.Transports), MemberType = typeof(Data))]
     public void UsesCorrectTransports(bool agentProxyEnabled, bool agentlessEnabled)
     {
         var telemetrySettings = new TelemetrySettings(
             telemetryEnabled: true,
             configurationError: null,
-            agentlessSettings: agentlessEnabled ? new TelemetrySettings.AgentlessSettings(new Uri("http://localhost"), "SOME_API_KEY") : null,
+            agentlessSettings: agentlessEnabled ? new TelemetrySettings.AgentlessSettings(new Uri("http://localhost"), "SOME_API_KEY", null) : null,
             agentProxyEnabled: agentProxyEnabled,
-            heartbeatInterval: TimeSpan.FromSeconds(1));
+            heartbeatInterval: TimeSpan.FromSeconds(1),
+            dependencyCollectionEnabled: true,
+            metricsEnabled: true,
+            debugEnabled: false);
 
         var exporterSettings = new ImmutableExporterSettings(new ExporterSettings());
 
@@ -36,13 +38,22 @@ public class TelemetryTransportFactoryTests
         using var s = new AssertionScope();
         if (agentProxyEnabled)
         {
-            transports.Should().ContainSingle(x => x is AgentTelemetryTransport);
-            transports[0]?.Should().BeOfType<AgentTelemetryTransport>();
+            transports.AgentTransport.Should().NotBeNull().And.BeOfType<AgentTelemetryTransport>();
         }
 
         if (agentlessEnabled)
         {
-            transports.Should().ContainSingle(x => x is AgentlessTelemetryTransport);
+            transports.AgentlessTransport.Should().NotBeNull().And.BeOfType<AgentlessTelemetryTransport>();
         }
+    }
+
+    public static class Data
+    {
+        private static readonly bool[] TrueFalse = { true, false };
+
+        public static IEnumerable<object[]> Transports
+            => from agentProxyEnabled in TrueFalse
+               from agentlessEnabled in TrueFalse
+               select new object[] { agentProxyEnabled, agentlessEnabled };
     }
 }

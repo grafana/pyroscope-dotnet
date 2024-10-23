@@ -12,14 +12,21 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Datadog.Trace.Ci.CiEnvironment;
 using Datadog.Trace.Ci.Coverage;
+using Datadog.Trace.Ci.Ipc;
+using Datadog.Trace.Ci.Ipc.Messages;
 using Datadog.Trace.Ci.Tagging;
 using Datadog.Trace.Ci.Tags;
+using Datadog.Trace.Ci.Telemetry;
 using Datadog.Trace.ExtensionMethods;
+using Datadog.Trace.Logging;
 using Datadog.Trace.Propagators;
+using Datadog.Trace.SourceGenerators;
+using Datadog.Trace.Telemetry;
+using Datadog.Trace.Telemetry.Metrics;
 using Datadog.Trace.Util;
 using Datadog.Trace.Vendors.Newtonsoft.Json;
-using Datadog.Trace.Vendors.Serilog;
 
 namespace Datadog.Trace.Ci;
 
@@ -29,9 +36,12 @@ namespace Datadog.Trace.Ci;
 public sealed class TestModule
 {
     private static readonly AsyncLocal<TestModule?> CurrentModule = new();
+    private static readonly HashSet<TestModule> OpenedTestModules = new();
+
     private readonly Span _span;
     private readonly Dictionary<string, TestSuite> _suites;
     private readonly TestSession? _fakeSession;
+    private IpcClient? _ipcClient = null;
     private int _finished;
 
     private TestModule(string name, string? framework, string? frameworkVersion, DateTimeOffset? startDate)
@@ -95,6 +105,7 @@ public sealed class TestModule
                 SessionId = sessionSpanTags.SessionId,
                 Command = sessionSpanTags.Command,
                 WorkingDirectory = sessionSpanTags.WorkingDirectory,
+                IntelligentTestRunnerSkippingType = IntelligentTestRunnerTags.SkippingTypeTest,
             };
         }
         else
@@ -112,6 +123,7 @@ public sealed class TestModule
                 OSArchitecture = frameworkDescription.OSArchitecture,
                 OSPlatform = frameworkDescription.OSPlatform,
                 OSVersion = CIVisibility.GetOperatingSystemVersion(),
+                IntelligentTestRunnerSkippingType = IntelligentTestRunnerTags.SkippingTypeTest,
             };
 
             tags.SetCIEnvironmentValues(environment);
@@ -136,13 +148,18 @@ public sealed class TestModule
             }
             else
             {
-                Log.Information("A session cannot be found, creating a fake session as a parent of the module.");
-                _fakeSession = TestSession.GetOrCreate(Environment.CommandLine, Environment.CurrentDirectory, null, startDate, false);
+                CIVisibility.Log.Information("A session cannot be found, creating a fake session as a parent of the module.");
+                _fakeSession = TestSession.InternalGetOrCreate(System.Environment.CommandLine, System.Environment.CurrentDirectory, null, startDate, false);
                 if (_fakeSession.Tags is { } fakeSessionTags)
                 {
                     tags.SessionId = fakeSessionTags.SessionId;
                     tags.Command = fakeSessionTags.Command;
                     tags.WorkingDirectory = fakeSessionTags.WorkingDirectory;
+
+                    if (CIVisibility.Settings.EarlyFlakeDetectionEnabled == true)
+                    {
+                        fakeSessionTags.EarlyFlakeDetectionTestEnabled = "true";
+                    }
                 }
             }
         }
@@ -154,16 +171,22 @@ public sealed class TestModule
             string.IsNullOrEmpty(framework) ? "test_module" : $"{framework!.ToLowerInvariant()}.test_module",
             tags: tags,
             startTime: startDate);
+        TelemetryFactory.Metrics.RecordCountSpanCreated(MetricTags.IntegrationName.CiAppManual);
 
         span.Type = SpanTypes.TestModule;
         span.ResourceName = name;
-        span.Context.TraceContext.SetSamplingPriority((int)SamplingPriority.AutoKeep);
+        span.Context.TraceContext.SetSamplingPriority(SamplingPriorityValues.AutoKeep);
         span.Context.TraceContext.Origin = TestTags.CIAppTestOriginName;
 
         tags.ModuleId = span.SpanId;
 
         _span = span;
         Current = this;
+        lock (OpenedTestModules)
+        {
+            OpenedTestModules.Add(this);
+        }
+
         CIVisibility.Log.Debug("### Test Module Created: {Name}", name);
 
         if (startDate is null)
@@ -171,6 +194,9 @@ public sealed class TestModule
             // If a module doesn't have a fixed start time we reset it before running code
             span.ResetStartTime();
         }
+
+        // Record EventCreate telemetry metric
+        TelemetryFactory.Metrics.RecordCountCIVisibilityEventCreated(TelemetryHelper.GetTelemetryTestingFrameworkEnum(framework), MetricTags.CIVisibilityTestingEventTypeWithCodeOwnerAndSupportedCiAndBenchmark.Module);
     }
 
     /// <summary>
@@ -197,6 +223,20 @@ public sealed class TestModule
         set => CurrentModule.Value = value;
     }
 
+    /// <summary>
+    /// Gets the active test modules
+    /// </summary>
+    internal static IReadOnlyCollection<TestModule> ActiveTestModules
+    {
+        get
+        {
+            lock (OpenedTestModules)
+            {
+                return OpenedTestModules.Count == 0 ? [] : OpenedTestModules.ToArray();
+            }
+        }
+    }
+
     internal TestModuleSpanTags Tags => (TestModuleSpanTags)_span.Tags;
 
     /// <summary>
@@ -204,9 +244,11 @@ public sealed class TestModule
     /// </summary>
     /// <param name="name">Test module name</param>
     /// <returns>New test module instance</returns>
+    [PublicApi]
     public static TestModule Create(string name)
     {
-        return new TestModule(name, null, null, null);
+        TelemetryFactory.Metrics.RecordCountCIVisibilityManualApiEvent(MetricTags.CIVisibilityTestingEventType.Module);
+        return InternalCreate(name, framework: null, frameworkVersion: null, startDate: null);
     }
 
     /// <summary>
@@ -216,9 +258,11 @@ public sealed class TestModule
     /// <param name="framework">Testing framework name</param>
     /// <param name="frameworkVersion">Testing framework version</param>
     /// <returns>New test module instance</returns>
+    [PublicApi]
     public static TestModule Create(string name, string framework, string frameworkVersion)
     {
-        return new TestModule(name, framework, frameworkVersion, null);
+        TelemetryFactory.Metrics.RecordCountCIVisibilityManualApiEvent(MetricTags.CIVisibilityTestingEventType.Module);
+        return InternalCreate(name, framework, frameworkVersion, startDate: null);
     }
 
     /// <summary>
@@ -229,7 +273,32 @@ public sealed class TestModule
     /// <param name="frameworkVersion">Testing framework version</param>
     /// <param name="startDate">Test session start date</param>
     /// <returns>New test module instance</returns>
+    [PublicApi]
     public static TestModule Create(string name, string framework, string frameworkVersion, DateTimeOffset startDate)
+    {
+        TelemetryFactory.Metrics.RecordCountCIVisibilityManualApiEvent(MetricTags.CIVisibilityTestingEventType.Module);
+        return InternalCreate(name, framework, frameworkVersion, startDate);
+    }
+
+    /// <summary>
+    /// Create a new Test Module
+    /// </summary>
+    /// <param name="name">Test module name</param>
+    /// <param name="framework">Testing framework name</param>
+    /// <param name="frameworkVersion">Testing framework version</param>
+    /// <returns>New test module instance</returns>
+    internal static TestModule InternalCreate(string name, string? framework, string? frameworkVersion)
+        => InternalCreate(name, framework, frameworkVersion, null);
+
+    /// <summary>
+    /// Create a new Test Module
+    /// </summary>
+    /// <param name="name">Test module name</param>
+    /// <param name="framework">Testing framework name</param>
+    /// <param name="frameworkVersion">Testing framework version</param>
+    /// <param name="startDate">Test session start date</param>
+    /// <returns>New test module instance</returns>
+    internal static TestModule InternalCreate(string name, string? framework, string? frameworkVersion, DateTimeOffset? startDate)
     {
         return new TestModule(name, framework, frameworkVersion, startDate);
     }
@@ -343,7 +412,7 @@ public sealed class TestModule
         var span = _span;
 
         // Calculate duration beforehand
-        duration ??= span.Context.TraceContext.ElapsedSince(span.StartTime);
+        duration ??= span.Context.TraceContext.Clock.ElapsedSince(span.StartTime);
 
         var remainingSuites = Array.Empty<TestSuite>();
         lock (_suites)
@@ -366,11 +435,14 @@ public sealed class TestModule
             CoverageReporter.Handler is DefaultWithGlobalCoverageEventHandler coverageHandler &&
             coverageHandler.GetCodeCoveragePercentage() is { } globalCoverage)
         {
-            // We only report global code coverage if we don't skip any test
-            if (!CIVisibility.HasSkippableTests())
+            // We only report global code coverage if ITR is disabled and we are in a fake session (like the internal testlogger scenario)
+            // For a normal customer session we never report the percentage of total lines on modules
+            if (!CIVisibility.Settings.IntelligentTestRunnerEnabled && _fakeSession is not null)
             {
                 // Adds the global code coverage percentage to the module
-                span.SetTag(CommonTags.CodeCoverageTotalLines, globalCoverage.Data[0].ToString(CultureInfo.InvariantCulture));
+                var codeCoveragePercentage = globalCoverage.GetTotalPercentage();
+                SetTag(CodeCoverageTags.PercentageOfTotalLines, codeCoveragePercentage);
+                _fakeSession.SetTag(CodeCoverageTags.PercentageOfTotalLines, codeCoveragePercentage);
             }
 
             // If the code coverage path environment variable is set, we store the json file
@@ -392,18 +464,65 @@ public sealed class TestModule
 
         if (CIVisibility.Settings.TestsSkippingEnabled.HasValue)
         {
-            span.SetTag(CommonTags.TestModuleTestsSkippingEnabled, CIVisibility.Settings.TestsSkippingEnabled.Value ? "true" : "false");
-            span.SetTag(CommonTags.TestsSkipped, CIVisibility.HasSkippableTests() ? "true" : "false");
+            span.SetTag(IntelligentTestRunnerTags.TestTestsSkippingEnabled, CIVisibility.Settings.TestsSkippingEnabled.Value ? "true" : "false");
+            if (CIVisibility.Settings.TestsSkippingEnabled.Value)
+            {
+                // If we detect a module with tests skipping enabled, we ensure we also have the session tag set
+                TrySetSessionTag(IntelligentTestRunnerTags.TestTestsSkippingEnabled, "true");
+            }
+        }
+
+        if (Tags.IntelligentTestRunnerSkippingCount.HasValue)
+        {
+            span.SetTag(IntelligentTestRunnerTags.TestsSkipped, "true");
+            // If we detect a module with tests being skipped, we ensure we also have the session tag set
+            // if not we don't affect the session tag (other modules could have skipped tests)
+            TrySetSessionTag(IntelligentTestRunnerTags.TestsSkipped, "true");
+        }
+        else
+        {
+            span.SetTag(IntelligentTestRunnerTags.TestsSkipped, CIVisibility.HasSkippableTests() ? "true" : "false");
+            if (CIVisibility.HasSkippableTests())
+            {
+                // If we detect a module with tests being skipped, we ensure we also have the session tag set
+                // if not we don't affect the session tag (other modules could have skipped tests)
+                TrySetSessionTag(IntelligentTestRunnerTags.TestsSkipped, "true");
+            }
         }
 
         if (CIVisibility.Settings.CodeCoverageEnabled.HasValue)
         {
-            span.SetTag(CommonTags.TestModuleCodeCoverageEnabled, CIVisibility.Settings.CodeCoverageEnabled.Value ? "true" : "false");
+            var value = CIVisibility.Settings.CodeCoverageEnabled.Value ? "true" : "false";
+            span.SetTag(CodeCoverageTags.Enabled, value);
+            if (CIVisibility.Settings.CodeCoverageEnabled.Value)
+            {
+                // If we confirm that a module has code coverage enabled, we ensure we also have the session tag set
+                // if not we leave the tag as is (other modules could have code coverage enabled)
+                TrySetSessionTag(CodeCoverageTags.Enabled, "true");
+            }
+            else
+            {
+                _fakeSession?.SetTag(CodeCoverageTags.Enabled, value);
+            }
+        }
+
+        if (_ipcClient is not null)
+        {
+            _ipcClient.Dispose();
+            _ipcClient = null;
         }
 
         span.Finish(duration.Value);
 
+        // Record EventFinished telemetry metric
+        TelemetryFactory.Metrics.RecordCountCIVisibilityEventFinished(TelemetryHelper.GetTelemetryTestingFrameworkEnum(Framework), MetricTags.CIVisibilityTestingEventTypeWithCodeOwnerAndSupportedCiAndBenchmarkAndEarlyFlakeDetectionAndRum.Module);
+
         Current = null;
+        lock (OpenedTestModules)
+        {
+            OpenedTestModules.Remove(this);
+        }
+
         CIVisibility.Log.Debug("### Test Module Closed: {Name} | {Status}", Name, Tags.Status);
 
         if (_fakeSession is { } fakeSession)
@@ -433,9 +552,21 @@ public sealed class TestModule
     /// </summary>
     /// <param name="name">Name of the test suite</param>
     /// <returns>Test suite instance</returns>
+    [PublicApi]
     public TestSuite GetOrCreateSuite(string name)
     {
-        return GetOrCreateSuite(name, null);
+        TelemetryFactory.Metrics.RecordCountCIVisibilityManualApiEvent(MetricTags.CIVisibilityTestingEventType.Suite);
+        return InternalGetOrCreateSuite(name, null);
+    }
+
+    /// <summary>
+    /// Create a new test suite for this session
+    /// </summary>
+    /// <param name="name">Name of the test suite</param>
+    /// <returns>Test suite instance</returns>
+    internal TestSuite InternalGetOrCreateSuite(string name)
+    {
+        return InternalGetOrCreateSuite(name, null);
     }
 
     /// <summary>
@@ -444,7 +575,20 @@ public sealed class TestModule
     /// <param name="name">Name of the test suite</param>
     /// <param name="startDate">Test suite start date</param>
     /// <returns>Test suite instance</returns>
+    [PublicApi]
     public TestSuite GetOrCreateSuite(string name, DateTimeOffset? startDate)
+    {
+        TelemetryFactory.Metrics.RecordCountCIVisibilityManualApiEvent(MetricTags.CIVisibilityTestingEventType.Suite);
+        return InternalGetOrCreateSuite(name, startDate);
+    }
+
+    /// <summary>
+    /// Create a new test suite for this session
+    /// </summary>
+    /// <param name="name">Name of the test suite</param>
+    /// <param name="startDate">Test suite start date</param>
+    /// <returns>Test suite instance</returns>
+    internal TestSuite InternalGetOrCreateSuite(string name, DateTimeOffset? startDate)
     {
         lock (_suites)
         {
@@ -478,5 +622,83 @@ public sealed class TestModule
         {
             _suites.Remove(name);
         }
+    }
+
+    internal bool EnableIpcClient()
+    {
+        if (_fakeSession != null || Tags.SessionId == 0)
+        {
+            return false;
+        }
+
+        // Span is created in the .ctor so we can use it here for synchronization
+        lock (_span)
+        {
+            if (_ipcClient is not null)
+            {
+                return true;
+            }
+
+            try
+            {
+                var name = $"session_{Tags.SessionId}";
+                CIVisibility.Log.Debug("TestModule.Enabling IPC client: {Name}", name);
+                _ipcClient = new IpcClient(name);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                CIVisibility.Log.Error(ex, "Error enabling IPC client");
+                return false;
+            }
+        }
+    }
+
+    internal bool TrySetSessionTag(string name, string value)
+    {
+        if (_fakeSession is { } fakeSession)
+        {
+            fakeSession.SetTag(name, value);
+            return true;
+        }
+
+        if (_ipcClient is { } ipcClient)
+        {
+            try
+            {
+                CIVisibility.Log.Debug("TestModule.Sending SetSessionTagMessage: {Name}={Value}", name, value);
+                return ipcClient.TrySendMessage(new SetSessionTagMessage(name, value));
+            }
+            catch (Exception ex)
+            {
+                CIVisibility.Log.Error(ex, "Error sending SetSessionTagMessage");
+            }
+        }
+
+        return false;
+    }
+
+    internal bool TrySetSessionTag(string name, double value)
+    {
+        if (_fakeSession is { } fakeSession)
+        {
+            fakeSession.SetTag(name, value);
+            return true;
+        }
+
+        if (_ipcClient is { } ipcClient)
+        {
+            try
+            {
+                CIVisibility.Log.Debug("TestModule.Sending SetSessionTagMessage: {Name}={Value}", name, value);
+                return ipcClient.TrySendMessage(new SetSessionTagMessage(name, value));
+            }
+            catch (Exception ex)
+            {
+                CIVisibility.Log.Error(ex, "Error sending SetSessionTagMessage");
+            }
+        }
+
+        return false;
     }
 }

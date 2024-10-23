@@ -3,7 +3,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -16,7 +15,7 @@
                 }
               },
               "locals": {
-                "address": {
+                "adr": {
                   "fields": {
                     "City": {
                       "fields": {
@@ -82,9 +81,10 @@
           "location": {
             "file": "GenericByRefLikeTest.cs",
             "lines": [
-              23
+              "23"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -104,7 +104,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -117,7 +116,7 @@
                 }
               },
               "locals": {
-                "address": {
+                "adr": {
                   "fields": {
                     "City": {
                       "fields": {
@@ -183,9 +182,10 @@
           "location": {
             "file": "GenericByRefLikeTest.cs",
             "lines": [
-              24
+              "24"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -205,7 +205,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -218,7 +217,7 @@
                 }
               },
               "locals": {
-                "address": {
+                "adr": {
                   "fields": {
                     "City": {
                       "fields": {
@@ -284,9 +283,10 @@
           "location": {
             "file": "GenericByRefLikeTest.cs",
             "lines": [
-              25
+              "25"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -306,7 +306,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -319,7 +318,7 @@
                 }
               },
               "locals": {
-                "address": {
+                "adr": {
                   "fields": {
                     "City": {
                       "fields": {
@@ -353,8 +352,8 @@
                 },
                 "children": {
                   "elements": [],
-                  "type": "List`1",
-                  "value": "count: 0"
+                  "size": 0,
+                  "type": "List`1"
                 },
                 "person": {
                   "isNull": "true",
@@ -386,9 +385,10 @@
           "location": {
             "file": "GenericByRefLikeTest.cs",
             "lines": [
-              26
+              "26"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -408,7 +408,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -421,7 +420,7 @@
                 }
               },
               "locals": {
-                "address": {
+                "adr": {
                   "fields": {
                     "City": {
                       "fields": {
@@ -461,7 +460,7 @@
                           "type": "Int32",
                           "value": "31"
                         },
-                        "Address": {
+                        "Adrs": {
                           "fields": {
                             "City": {
                               "fields": {
@@ -514,8 +513,8 @@
                       "value": "Person"
                     }
                   ],
-                  "type": "List`1",
-                  "value": "count: 1"
+                  "size": 1,
+                  "type": "List`1"
                 },
                 "person": {
                   "isNull": "true",
@@ -547,9 +546,10 @@
           "location": {
             "file": "GenericByRefLikeTest.cs",
             "lines": [
-              27
+              "27"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -569,7 +569,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -582,7 +581,7 @@
                 }
               },
               "locals": {
-                "address": {
+                "adr": {
                   "fields": {
                     "City": {
                       "fields": {
@@ -622,7 +621,7 @@
                           "type": "Int32",
                           "value": "31"
                         },
-                        "Address": {
+                        "Adrs": {
                           "fields": {
                             "City": {
                               "fields": {
@@ -675,8 +674,8 @@
                       "value": "Person"
                     }
                   ],
-                  "type": "List`1",
-                  "value": "count: 1"
+                  "size": 1,
+                  "type": "List`1"
                 },
                 "person": {
                   "fields": {
@@ -684,7 +683,7 @@
                       "type": "Int32",
                       "value": "99"
                     },
-                    "Address": {
+                    "Adrs": {
                       "fields": {
                         "City": {
                           "fields": {
@@ -728,7 +727,7 @@
                               "type": "Int32",
                               "value": "31"
                             },
-                            "Address": {
+                            "Adrs": {
                               "fields": {
                                 "City": {
                                   "notCapturedReason": "depth",
@@ -772,8 +771,8 @@
                           "value": "Person"
                         }
                       ],
-                      "type": "List`1",
-                      "value": "count: 1"
+                      "size": 1,
+                      "type": "List`1"
                     },
                     "Id": {
                       "type": "Guid",
@@ -813,9 +812,10 @@
           "location": {
             "file": "GenericByRefLikeTest.cs",
             "lines": [
-              29
+              "29"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -835,7 +835,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -848,7 +847,7 @@
                 }
               },
               "locals": {
-                "address": {
+                "adr": {
                   "fields": {
                     "City": {
                       "fields": {
@@ -888,7 +887,7 @@
                           "type": "Int32",
                           "value": "31"
                         },
-                        "Address": {
+                        "Adrs": {
                           "fields": {
                             "City": {
                               "fields": {
@@ -941,8 +940,8 @@
                       "value": "Person"
                     }
                   ],
-                  "type": "List`1",
-                  "value": "count: 1"
+                  "size": 1,
+                  "type": "List`1"
                 },
                 "person": {
                   "fields": {
@@ -950,7 +949,7 @@
                       "type": "Int32",
                       "value": "99"
                     },
-                    "Address": {
+                    "Adrs": {
                       "fields": {
                         "City": {
                           "fields": {
@@ -994,7 +993,7 @@
                               "type": "Int32",
                               "value": "31"
                             },
-                            "Address": {
+                            "Adrs": {
                               "fields": {
                                 "City": {
                                   "notCapturedReason": "depth",
@@ -1038,8 +1037,8 @@
                           "value": "Person"
                         }
                       ],
-                      "type": "List`1",
-                      "value": "count: 1"
+                      "size": 1,
+                      "type": "List`1"
                     },
                     "Id": {
                       "type": "Guid",
@@ -1079,9 +1078,10 @@
           "location": {
             "file": "GenericByRefLikeTest.cs",
             "lines": [
-              30
+              "30"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -1101,7 +1101,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -1114,7 +1113,7 @@
                 }
               },
               "locals": {
-                "address": {
+                "adr": {
                   "fields": {
                     "City": {
                       "fields": {
@@ -1154,7 +1153,7 @@
                           "type": "Int32",
                           "value": "31"
                         },
-                        "Address": {
+                        "Adrs": {
                           "fields": {
                             "City": {
                               "fields": {
@@ -1207,8 +1206,8 @@
                       "value": "Person"
                     }
                   ],
-                  "type": "List`1",
-                  "value": "count: 1"
+                  "size": 1,
+                  "type": "List`1"
                 },
                 "person": {
                   "fields": {
@@ -1216,7 +1215,7 @@
                       "type": "Int32",
                       "value": "99"
                     },
-                    "Address": {
+                    "Adrs": {
                       "fields": {
                         "City": {
                           "fields": {
@@ -1260,7 +1259,7 @@
                               "type": "Int32",
                               "value": "31"
                             },
-                            "Address": {
+                            "Adrs": {
                               "fields": {
                                 "City": {
                                   "notCapturedReason": "depth",
@@ -1304,8 +1303,8 @@
                           "value": "Person"
                         }
                       ],
-                      "type": "List`1",
-                      "value": "count: 1"
+                      "size": 1,
+                      "type": "List`1"
                     },
                     "Id": {
                       "type": "Guid",
@@ -1345,9 +1344,10 @@
           "location": {
             "file": "GenericByRefLikeTest.cs",
             "lines": [
-              31
+              "31"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -1367,7 +1367,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -1380,7 +1379,7 @@
                 }
               },
               "locals": {
-                "address": {
+                "adr": {
                   "fields": {
                     "City": {
                       "fields": {
@@ -1420,7 +1419,7 @@
                           "type": "Int32",
                           "value": "31"
                         },
-                        "Address": {
+                        "Adrs": {
                           "fields": {
                             "City": {
                               "fields": {
@@ -1473,8 +1472,8 @@
                       "value": "Person"
                     }
                   ],
-                  "type": "List`1",
-                  "value": "count: 1"
+                  "size": 1,
+                  "type": "List`1"
                 },
                 "person": {
                   "fields": {
@@ -1482,7 +1481,7 @@
                       "type": "Int32",
                       "value": "99"
                     },
-                    "Address": {
+                    "Adrs": {
                       "fields": {
                         "City": {
                           "fields": {
@@ -1526,7 +1525,7 @@
                               "type": "Int32",
                               "value": "31"
                             },
-                            "Address": {
+                            "Adrs": {
                               "fields": {
                                 "City": {
                                   "notCapturedReason": "depth",
@@ -1570,8 +1569,8 @@
                           "value": "Person"
                         }
                       ],
-                      "type": "List`1",
-                      "value": "count: 1"
+                      "size": 1,
+                      "type": "List`1"
                     },
                     "Id": {
                       "type": "Guid",
@@ -1611,9 +1610,10 @@
           "location": {
             "file": "GenericByRefLikeTest.cs",
             "lines": [
-              32
+              "32"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -1633,7 +1633,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -1646,7 +1645,7 @@
                 }
               },
               "locals": {
-                "address": {
+                "adr": {
                   "fields": {
                     "City": {
                       "fields": {
@@ -1686,7 +1685,7 @@
                           "type": "Int32",
                           "value": "31"
                         },
-                        "Address": {
+                        "Adrs": {
                           "fields": {
                             "City": {
                               "fields": {
@@ -1739,8 +1738,8 @@
                       "value": "Person"
                     }
                   ],
-                  "type": "List`1",
-                  "value": "count: 1"
+                  "size": 1,
+                  "type": "List`1"
                 },
                 "person": {
                   "fields": {
@@ -1748,7 +1747,7 @@
                       "type": "Int32",
                       "value": "99"
                     },
-                    "Address": {
+                    "Adrs": {
                       "fields": {
                         "City": {
                           "fields": {
@@ -1792,7 +1791,7 @@
                               "type": "Int32",
                               "value": "31"
                             },
-                            "Address": {
+                            "Adrs": {
                               "fields": {
                                 "City": {
                                   "notCapturedReason": "depth",
@@ -1836,8 +1835,8 @@
                           "value": "Person"
                         }
                       ],
-                      "type": "List`1",
-                      "value": "count: 1"
+                      "size": 1,
+                      "type": "List`1"
                     },
                     "Id": {
                       "type": "Guid",
@@ -1877,9 +1876,10 @@
           "location": {
             "file": "GenericByRefLikeTest.cs",
             "lines": [
-              34
+              "34"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -1899,7 +1899,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -1912,7 +1911,7 @@
                 }
               },
               "locals": {
-                "address": {
+                "adr": {
                   "fields": {
                     "City": {
                       "fields": {
@@ -1952,7 +1951,7 @@
                           "type": "Int32",
                           "value": "31"
                         },
-                        "Address": {
+                        "Adrs": {
                           "fields": {
                             "City": {
                               "fields": {
@@ -2005,8 +2004,8 @@
                       "value": "Person"
                     }
                   ],
-                  "type": "List`1",
-                  "value": "count: 1"
+                  "size": 1,
+                  "type": "List`1"
                 },
                 "person": {
                   "fields": {
@@ -2014,7 +2013,7 @@
                       "type": "Int32",
                       "value": "99"
                     },
-                    "Address": {
+                    "Adrs": {
                       "fields": {
                         "City": {
                           "fields": {
@@ -2058,7 +2057,7 @@
                               "type": "Int32",
                               "value": "31"
                             },
-                            "Address": {
+                            "Adrs": {
                               "fields": {
                                 "City": {
                                   "notCapturedReason": "depth",
@@ -2102,8 +2101,8 @@
                           "value": "Person"
                         }
                       ],
-                      "type": "List`1",
-                      "value": "count: 1"
+                      "size": 1,
+                      "type": "List`1"
                     },
                     "Id": {
                       "type": "Guid",
@@ -2143,9 +2142,10 @@
           "location": {
             "file": "GenericByRefLikeTest.cs",
             "lines": [
-              35
+              "35"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"

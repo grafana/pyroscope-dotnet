@@ -10,6 +10,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Datadog.Trace.Configuration;
+using Datadog.Trace.Configuration.Telemetry;
 using Datadog.Trace.Logging;
 using Xunit.Abstractions;
 
@@ -43,7 +44,7 @@ namespace Datadog.Trace.TestHelpers
             _targetFramework = Assembly.GetAssembly(anchorType).GetCustomAttribute<TargetFrameworkAttribute>();
             _output = output;
             MonitoringHome = GetMonitoringHomePath();
-            LogDirectory = DatadogLoggingFactory.GetLogDirectory();
+            LogDirectory = DatadogLoggingFactory.GetLogDirectory(NullConfigurationTelemetry.Instance);
 
             var parts = _targetFramework.FrameworkName.Split(',');
             _runtime = parts[0];
@@ -127,11 +128,12 @@ namespace Datadog.Trace.TestHelpers
             {
                 ("win", _, "X64", _) => ("dll", "win-x64"),
                 ("win", _, "X86", _) => ("dll", "win-x86"),
-                ("linux", "Arm64", _, _) => ("so", "linux-arm64"),
+                ("linux", "Arm64", _, false) => ("so", "linux-arm64"),
+                ("linux", "Arm64", _, true) => ("so", "linux-musl-arm64"),
                 ("linux", "X64", _, false) => ("so", "linux-x64"),
                 ("linux", "X64", _, true) => ("so", "linux-musl-x64"),
                 ("osx", _, _, _) => ("dylib", "osx"),
-                _ => throw new PlatformNotSupportedException()
+                var unsupportedTarget => throw new PlatformNotSupportedException(unsupportedTarget.ToString())
             };
 
             var fileName = $"Datadog.Trace.ClrProfiler.Native.{extension}";
@@ -184,7 +186,8 @@ namespace Datadog.Trace.TestHelpers
             IDictionary<string, string> environmentVariables,
             string processToProfile = null,
             bool? enableSecurity = null,
-            string externalRulesFile = null)
+            string externalRulesFile = null,
+            bool ignoreProfilerProcessesVar = false)
         {
             string profilerEnabled = AutomaticInstrumentationEnabled ? "1" : "0";
             environmentVariables["DD_DOTNET_TRACER_HOME"] = MonitoringHome;
@@ -204,6 +207,21 @@ namespace Datadog.Trace.TestHelpers
                 environmentVariables["CORECLR_ENABLE_PROFILING"] = profilerEnabled;
                 environmentVariables["CORECLR_PROFILER"] = EnvironmentTools.ProfilerClsId;
                 environmentVariables["CORECLR_PROFILER_PATH"] = nativeLoaderPath;
+
+                var apiWrapperPath = GetApiWrapperPath();
+
+                if (!string.IsNullOrEmpty(apiWrapperPath) && !environmentVariables.ContainsKey("LD_PRELOAD"))
+                {
+                    if (File.Exists(apiWrapperPath))
+                    {
+                        environmentVariables["LD_PRELOAD"] = apiWrapperPath;
+                    }
+                    else if (IsRunningInAzureDevOps())
+                    {
+                        // For convenience, allow tests to run without LD_PRELOAD outside of CI
+                        throw new Exception($"Unable to find API Wrapper at {apiWrapperPath}");
+                    }
+                }
             }
             else
             {
@@ -217,7 +235,7 @@ namespace Datadog.Trace.TestHelpers
                 environmentVariables["DD_TRACE_DEBUG"] = "1";
             }
 
-            if (!string.IsNullOrEmpty(processToProfile))
+            if (!string.IsNullOrEmpty(processToProfile) && !ignoreProfilerProcessesVar)
             {
                 environmentVariables["DD_PROFILER_PROCESSES"] = Path.GetFileName(processToProfile);
             }
@@ -233,6 +251,22 @@ namespace Datadog.Trace.TestHelpers
             if (!string.IsNullOrEmpty(externalRulesFile))
             {
                 environmentVariables[ConfigurationKeys.AppSec.Rules] = externalRulesFile;
+            }
+
+            // set the querystring regex to something stupidly large, as it can introduce random flake into snapshots
+            if (!environmentVariables.ContainsKey("DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP_TIMEOUT"))
+            {
+                environmentVariables["DD_TRACE_OBFUSCATION_QUERY_STRING_REGEXP_TIMEOUT"] = 10_000_000.ToString();
+            }
+
+            if (!environmentVariables.ContainsKey("DD_IAST_REGEXP_TIMEOUT"))
+            {
+                environmentVariables["DD_IAST_REGEXP_TIMEOUT"] = 10_000_000.ToString();
+            }
+
+            if (!environmentVariables.ContainsKey("DD_APPSEC_WAF_TIMEOUT"))
+            {
+                environmentVariables["DD_APPSEC_WAF_TIMEOUT"] = 10_000_000.ToString();
             }
 
             foreach (var name in new[] { "SERVICESTACK_REDIS_HOST", "STACKEXCHANGE_REDIS_HOST" })
@@ -303,23 +337,21 @@ namespace Datadog.Trace.TestHelpers
             }
         }
 
-        public string GetSampleApplicationPath(string packageVersion = "", string framework = "")
+        public string GetSampleApplicationPath(string packageVersion = "", string framework = "", bool usePublishWithRID = false)
         {
-            var appFileName = GetSampleApplicationFileName();
-            var sampleAppPath = Path.Combine(GetSampleApplicationOutputDirectory(packageVersion: packageVersion, framework: framework), appFileName);
+            var appFileName = GetSampleApplicationFileName(usePublishWithRID);
+            var sampleAppPath = Path.Combine(GetSampleApplicationOutputDirectory(packageVersion: packageVersion, framework: framework, usePublishWithRID: usePublishWithRID), appFileName);
             return sampleAppPath;
         }
 
-        public string GetSampleApplicationFileName()
+        public string GetSampleApplicationFileName(bool usePublishWithRID = false)
         {
-            string extension = "exe";
-
-            if (IsCoreClr() || _samplesDirectory.Contains("aspnet"))
+            if (usePublishWithRID)
             {
-                extension = "dll";
+                return EnvironmentTools.IsWindows() ? $"{FullSampleName}.exe" : FullSampleName;
             }
 
-            return $"{FullSampleName}.{extension}";
+            return IsCoreClr() || _samplesDirectory.Contains("aspnet") ? $"{FullSampleName}.dll" : $"{FullSampleName}.exe";
         }
 
         public string GetTestCommandForSampleApplicationPath(string packageVersion = "", string framework = "")
@@ -362,7 +394,8 @@ namespace Datadog.Trace.TestHelpers
         {
             if (EnvironmentTools.IsWindows() && !IsCoreClr())
             {
-                string filePattern = @"C:\Program Files (x86)\Microsoft Visual Studio\{0}\{1}\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe";
+                string filePattern32 = @"C:\Program Files (x86)\Microsoft Visual Studio\{0}\{1}\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe";
+                string filePattern64 = @"C:\Program Files\Microsoft Visual Studio\{0}\{1}\Common7\IDE\CommonExtensions\Microsoft\TestWindow\vstest.console.exe";
                 List<Tuple<string, string>> lstTuple = new List<Tuple<string, string>>
                 {
                     Tuple.Create("2022", "Enterprise"),
@@ -378,7 +411,13 @@ namespace Datadog.Trace.TestHelpers
 
                 foreach (Tuple<string, string> tuple in lstTuple)
                 {
-                    var tryPath = string.Format(filePattern, tuple.Item1, tuple.Item2);
+                    var tryPath = string.Format(filePattern32, tuple.Item1, tuple.Item2);
+                    if (File.Exists(tryPath))
+                    {
+                        return tryPath;
+                    }
+
+                    tryPath = string.Format(filePattern64, tuple.Item1, tuple.Item2);
                     if (File.Exists(tryPath))
                     {
                         return tryPath;
@@ -412,49 +451,49 @@ namespace Datadog.Trace.TestHelpers
             return projectDir;
         }
 
-        public string GetSampleApplicationOutputDirectory(string packageVersion = "", string framework = "", bool usePublishFolder = true)
+        public string GetSampleApplicationOutputDirectory(string packageVersion = "", string framework = "", bool usePublishFolder = true, bool usePublishWithRID = false)
         {
             var targetFramework = string.IsNullOrEmpty(framework) ? GetTargetFramework() : framework;
-            var binDir = Path.Combine(
-                GetSampleProjectDirectory(),
-                "bin");
-
-            string outputDir;
+            var binDir = Path.Combine(GetSampleProjectDirectory(), "bin");
+            var artifactsBinDir = Path.Combine(EnvironmentTools.GetSolutionDirectory(), "artifacts", "bin");
+            var artifactsPublishDir = Path.Combine(EnvironmentTools.GetSolutionDirectory(), "artifacts", "publish");
 
             if (_samplesDirectory.Contains("aspnet"))
             {
-                outputDir = Path.Combine(
+                return Path.Combine(
                     binDir,
                     EnvironmentTools.GetBuildConfiguration(),
                     "publish");
             }
-            else if (EnvironmentTools.GetOS() == "win")
+            else if (EnvironmentTools.GetOS() == "win" && !usePublishWithRID)
             {
-                outputDir = Path.Combine(
-                    binDir,
-                    packageVersion,
-                    EnvironmentTools.GetBuildConfiguration(),
-                    targetFramework);
+                return Path.Combine(artifactsBinDir, FullSampleName, GetPivot());
+            }
+            else if (usePublishWithRID)
+            {
+                return Path.Combine(artifactsPublishDir, FullSampleName, GetPivot());
             }
             else if (usePublishFolder)
             {
-                outputDir = Path.Combine(
-                    binDir,
-                    packageVersion,
-                    EnvironmentTools.GetBuildConfiguration(),
-                    targetFramework,
-                    "publish");
+                return Path.Combine(artifactsPublishDir, FullSampleName, GetPivot());
             }
             else
             {
-                outputDir = Path.Combine(
-                    binDir,
-                    packageVersion,
-                    EnvironmentTools.GetBuildConfiguration(),
-                    targetFramework);
+                return Path.Combine(artifactsBinDir, FullSampleName, GetPivot());
             }
 
-            return outputDir;
+            string GetPivot()
+            {
+                var rid = (usePublishWithRID, IsAlpine()) switch
+                {
+                    (false, _) => string.Empty,
+                    (true, false) => $"_{EnvironmentTools.GetOS()}-{(EnvironmentTools.GetPlatform() == "Arm64" ? "arm64" : "x64")}",
+                    (true, true) => $"_{EnvironmentTools.GetOS()}-musl-{(EnvironmentTools.GetPlatform() == "Arm64" ? "arm64" : "x64")}",
+                };
+                var config = EnvironmentTools.GetBuildConfiguration().ToLowerInvariant();
+                var packageVersionPivot = string.IsNullOrEmpty(packageVersion) ? string.Empty : $"_{packageVersion}";
+                return $"{config}_{targetFramework}{packageVersionPivot}{rid}";
+            }
         }
 
         public string GetTargetFramework()
@@ -532,7 +571,7 @@ namespace Datadog.Trace.TestHelpers
                 var metricsUdsPath = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
                 agent = MockTracerAgent.Create(_output, new UnixDomainSocketConfig(tracesUdsPath, metricsUdsPath) { UseDogstatsD = useStatsD, UseTelemetry = useTelemetry });
 #else
-            throw new NotSupportedException("UDS is not supported in non-netcore applications or < .NET Core 3.1 ");
+                throw new NotSupportedException("UDS is not supported in non-netcore applications or < .NET Core 3.1 ");
 #endif
             }
             else if (_transportType == TestTransports.WindowsNamedPipe)
@@ -559,6 +598,25 @@ namespace Datadog.Trace.TestHelpers
         public bool IsScheduledBuild()
         {
             return IsEnvironmentVariableSet("isScheduledBuild");
+        }
+
+        public string GetApiWrapperPath()
+        {
+            var archFolder = (EnvironmentTools.GetOS(), EnvironmentTools.GetPlatform(), IsAlpine()) switch
+            {
+                ("linux", "Arm64", true) => "linux-musl-arm64",
+                ("linux", "Arm64", false) => "linux-arm64",
+                ("linux", "X64", true) => "linux-musl-x64",
+                ("linux", "X64", false) => "linux-x64",
+                _ => string.Empty,
+            };
+
+            if (string.IsNullOrEmpty(archFolder))
+            {
+                return string.Empty;
+            }
+
+            return Path.Combine(GetMonitoringHomePath(), archFolder, "Datadog.Linux.ApiWrapper.x64.so");
         }
 
         private bool IsEnvironmentVariableSet(string ev)

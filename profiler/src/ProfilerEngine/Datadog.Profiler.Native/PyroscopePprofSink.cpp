@@ -32,7 +32,6 @@ PyroscopePprofSink::PyroscopePprofSink(
     _client.set_read_timeout(10);
 
     _workerThread = std::thread(&PyroscopePprofSink::work, this);
-    OpSysTools::SetNativeThreadName(&_workerThread, WStr("Pyroscope.Pprof.Uploader"));
 }
 
 PyroscopePprofSink::~PyroscopePprofSink()
@@ -50,7 +49,7 @@ void PyroscopePprofSink::Export(Pprof pprof, ProfileTime& startTime, ProfileTime
 {
     if (_queue.size() >= 3)
     {
-        Log::Info("PyroscopePprofSink queue is too big. Dropping pprof data.");
+        Log::Warn("PyroscopePprofSink queue is too big. Dropping pprof data.");
         return;
     }
     PyroscopeRequest req{
@@ -79,6 +78,7 @@ void PyroscopePprofSink::SetBasicAuth(std::string user, std::string password)
 
 void PyroscopePprofSink::work()
 {
+    OpSysTools::SetNativeThreadName(WStr("Pyroscope.Pprof.Uploader"));
     while (_running.load())
     {
         PyroscopeRequest req = {};
@@ -157,12 +157,12 @@ void PyroscopePprofSink::upload(Pprof pprof, ProfileTime& startTime, ProfileTime
     auto res = _client.Post(path, headers, data);
     if (res)
     {
-        Log::Info("PyroscopePprofSink ", res->status);
+        Log::Debug("PyroscopePprofSink ", res->status);
     }
     else
     {
         auto err = res.error();
-        Log::Info("PyroscopePprofSink err ", to_string(err), " ", _url);
+        Log::Error("PyroscopePprofSink err ", to_string(err), " ", _url);
     }
 }
 

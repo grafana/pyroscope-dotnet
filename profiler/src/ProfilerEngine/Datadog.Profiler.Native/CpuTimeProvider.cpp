@@ -8,6 +8,7 @@
 #include "IRuntimeIdStore.h"
 #include "RawCpuSample.h"
 
+#include "shared/src/native-src/dd_memory_resource.hpp"
 
 std::vector<SampleValueType> CpuTimeProvider::SampleTypeDefinitions(
     {
@@ -17,14 +18,15 @@ std::vector<SampleValueType> CpuTimeProvider::SampleTypeDefinitions(
 
 
 CpuTimeProvider::CpuTimeProvider(
-    uint32_t valueOffset,
+    SampleValueTypeProvider& valueTypeProvider,
     IThreadsCpuManager* pThreadsCpuManager,
     IFrameStore* pFrameStore,
     IAppDomainStore* pAppDomainStore,
     IRuntimeIdStore* pRuntimeIdStore,
-    IConfiguration* pConfiguration
+    IConfiguration* pConfiguration,
+    shared::pmr::memory_resource* memoryResource
     )
     :
-    CollectorBase<RawCpuSample>("CpuTimeProvider", valueOffset, pThreadsCpuManager, pFrameStore, pAppDomainStore, pRuntimeIdStore, pConfiguration)
+    CollectorBase<RawCpuSample>("CpuTimeProvider", valueTypeProvider.GetOrRegister(SampleTypeDefinitions), pThreadsCpuManager, pFrameStore, pAppDomainStore, pRuntimeIdStore, memoryResource)
 {
 }

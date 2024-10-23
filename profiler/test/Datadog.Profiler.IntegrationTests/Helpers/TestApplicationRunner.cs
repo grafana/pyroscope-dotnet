@@ -35,11 +35,12 @@ namespace Datadog.Profiler.IntegrationTests.Helpers
             string appAssembly,
             ITestOutputHelper output,
             string commandLine = null,
-            bool enableTracer = false)
+            bool enableTracer = false,
+            bool enableProfiler = true)
         {
             _appName = appName;
             _framework = framework;
-            Environment = new EnvironmentHelper(appName, framework, enableTracer);
+            Environment = new EnvironmentHelper(framework, enableTracer, enableProfiler);
             _testBaseOutputDir = Environment.GetTestOutputPath();
             _appAssembly = appAssembly;
             _output = output;
@@ -70,6 +71,39 @@ namespace Datadog.Profiler.IntegrationTests.Helpers
             PrintTestInfo();
         }
 
+        public bool WaitForExitOrCaptureDump(Process process, int milliseconds)
+        {
+            var success = process.WaitForExit(milliseconds);
+
+            if (!success)
+            {
+                process.GetAllThreadsStack(_testBaseOutputDir, _output);
+                process.TakeMemoryDump(_testBaseOutputDir, _output);
+            }
+
+            return success;
+        }
+
+        public ProcessHelper LaunchProcess(MockDatadogAgent agent = null)
+        {
+            var (executor, arguments) = BuildTestCommandLine();
+
+            var process = new Process();
+
+            SetEnvironmentVariables(process.StartInfo.EnvironmentVariables, agent);
+
+            process.StartInfo.FileName = executor;
+            process.StartInfo.Arguments = arguments;
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.CreateNoWindow = true;
+            process.StartInfo.RedirectStandardOutput = true;
+            process.StartInfo.RedirectStandardError = true;
+            process.StartInfo.RedirectStandardInput = false;
+            process.Start();
+
+            return new ProcessHelper(process);
+        }
+
         private void PrintTestInfo()
         {
             _output.WriteLine("Test information:");
@@ -84,13 +118,13 @@ namespace Datadog.Profiler.IntegrationTests.Helpers
 
         private string GetApplicationAssemblyFileName()
         {
-            var extension = "exe";
-            if (!EnvironmentHelper.IsRunningOnWindows())
+            var extension = string.Empty;
+            if (EnvironmentHelper.IsRunningOnWindows())
             {
-                extension = "dll";
+                extension = ".exe";
             }
 
-            return $"{_appAssembly}.{extension}";
+            return $"{_appAssembly}{extension}";
         }
 
         private string GetApplicationPath()
@@ -114,17 +148,6 @@ namespace Datadog.Profiler.IntegrationTests.Helpers
             if (!string.IsNullOrEmpty(_commandLine))
             {
                 arguments += $" {_commandLine}";
-            }
-
-            if (!EnvironmentHelper.IsRunningOnWindows())
-            {
-                if (EnvironmentHelper.IsAlpine)
-                {
-                    return ("dotnet", $"{applicationPath} {arguments}");
-                }
-
-                // catchsegv is a tool that catches the segmentation fault and displays useful information: callstack, registers...
-                return ("catchsegv", $"dotnet {applicationPath} {arguments}");
             }
 
             return (applicationPath, arguments);
@@ -157,8 +180,6 @@ namespace Datadog.Profiler.IntegrationTests.Helpers
 
             var ranToCompletion = process.WaitForExit((int)_maxTestRunDuration.TotalMilliseconds) && processHelper.Drain((int)_maxTestRunDuration.TotalMilliseconds / 2);
 
-            var endTime = process.ExitTime;
-            TotalTestDurationInMilliseconds = (endTime - startTime).TotalMilliseconds;
             var standardOutput = processHelper.StandardOutput;
             var errorOutput = processHelper.ErrorOutput;
             ProcessOutput = standardOutput;
@@ -186,6 +207,9 @@ namespace Datadog.Profiler.IntegrationTests.Helpers
                     throw new TimeoutException($"The test {_appName} is running for too long or was lost");
                 }
             }
+
+            var endTime = process.ExitTime;
+            TotalTestDurationInMilliseconds = (endTime - startTime).TotalMilliseconds;
 
             if (standardOutput.Contains("[Error]"))
             {

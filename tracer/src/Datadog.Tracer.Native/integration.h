@@ -315,45 +315,6 @@ struct MethodReference
     }
 };
 
-struct IntegrationDefinition
-{
-    const MethodReference target_method;
-    const TypeReference integration_type;
-    const bool is_derived = false;
-    const bool is_interface = false;
-    const bool is_exact_signature_match = true;
-
-    IntegrationDefinition()
-    {
-    }
-
-    IntegrationDefinition(const IntegrationDefinition& other) :
-        target_method(other.target_method),
-        integration_type(other.integration_type),
-        is_derived(other.is_derived),
-        is_interface(other.is_interface),
-        is_exact_signature_match(other.is_exact_signature_match)
-    {
-    }
-
-    IntegrationDefinition(const MethodReference& target_method, const TypeReference& integration_type, bool isDerived,
-                          bool is_interface, bool is_exact_signature_match) :
-        target_method(target_method),
-        integration_type(integration_type),
-        is_derived(isDerived),
-        is_interface(is_interface),
-        is_exact_signature_match(is_exact_signature_match)
-    {
-    }
-
-    inline bool operator==(const IntegrationDefinition& other) const
-    {
-        return target_method == other.target_method && integration_type == other.integration_type &&
-               is_derived == other.is_derived && is_interface == other.is_interface &&
-               is_exact_signature_match == other.is_exact_signature_match;
-    }
-};
-
 typedef struct _CallTargetDefinition
 {
     WCHAR* targetAssembly;
@@ -370,6 +331,65 @@ typedef struct _CallTargetDefinition
     WCHAR* integrationAssembly;
     WCHAR* integrationType;
 } CallTargetDefinition;
+
+enum class CallTargetKind : UINT8
+{
+    Default = 0,
+    Derived = 1,
+    Interface = 2
+};
+
+typedef struct _CallTargetDefinition2
+{
+    WCHAR* targetAssembly;
+    WCHAR* targetType;
+    WCHAR* targetMethod;
+    WCHAR** signatureTypes;
+    USHORT signatureTypesLength;
+    USHORT targetMinimumMajor;
+    USHORT targetMinimumMinor;
+    USHORT targetMinimumPatch;
+    USHORT targetMaximumMajor;
+    USHORT targetMaximumMinor;
+    USHORT targetMaximumPatch;
+    WCHAR* integrationAssembly;
+    WCHAR* integrationType;
+
+    CallTargetKind kind;
+    UINT32 categories;
+
+    inline CallTargetDefinition ToCallTargetDefinition() const
+    {
+        CallTargetDefinition res;
+        res.targetAssembly = targetAssembly;
+        res.targetType = targetType;
+        res.targetMethod = targetMethod;
+        res.signatureTypes = signatureTypes;
+        res.signatureTypesLength = signatureTypesLength;
+        res.targetMinimumMajor = targetMinimumMajor;
+        res.targetMinimumMinor = targetMinimumMinor;
+        res.targetMinimumPatch = targetMinimumPatch;
+        res.targetMaximumMajor = targetMaximumMajor;
+        res.targetMaximumMinor = targetMaximumMinor;
+        res.targetMaximumPatch = targetMaximumPatch;
+        res.integrationAssembly = integrationAssembly;
+        res.integrationType = integrationType;
+        return res;
+    }
+
+    inline bool GetIsDefault() const
+    {
+        return kind == CallTargetKind::Default;
+    }
+    inline bool GetIsDerived() const
+    {
+        return kind == CallTargetKind::Derived;
+    }
+    inline bool GetIsInterface() const
+    {
+        return kind == CallTargetKind::Interface;
+    }
+} CallTargetDefinition2;
 
 struct MethodIdentifier
 {
@@ -409,9 +429,6 @@ namespace
     PublicKey GetPublicKeyFromAssemblyReferenceString(const shared::WSTRING& wstr);
 
 } // namespace
-
-    std::vector<IntegrationDefinition> GetIntegrationsFromTraceMethodsConfiguration(const TypeReference& integration_type,
-                                                                                    const shared::WSTRING& configuration_string);
 
 } // namespace trace
 

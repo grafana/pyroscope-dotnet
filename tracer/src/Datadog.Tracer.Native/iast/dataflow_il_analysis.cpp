@@ -17,6 +17,7 @@ namespace iast
 #define OPCODEFLAGS_Method          0x0040
 #define OPCODEFLAGS_Field           0x0080
 #define OPCODEFLAGS_String          0x0100
+#define OPCODEFLAGS_Type            0x0200
 
     static const UINT16 _instructionFlags[] = {
     #define InlineNone           0
@@ -31,7 +32,7 @@ namespace iast
     #define InlineBrTarget       4 | OPCODEFLAGS_BranchTarget
     #define InlineMethod         4 | OPCODEFLAGS_Method
     #define InlineField          4 | OPCODEFLAGS_Field
-    #define InlineType           4
+    #define InlineType           4 | OPCODEFLAGS_Type
     #define InlineString         4 | OPCODEFLAGS_String
     #define InlineSig            4
     #define InlineRVA            4
@@ -169,6 +170,31 @@ namespace iast
     bool InstructionInfo::IsSwitch() { return _instruction->m_opcode == CEE_SWITCH; }
     bool InstructionInfo::IsRet() { return _instruction->m_opcode == CEE_RET; }
     bool InstructionInfo::IsDup() { return _instruction->m_opcode == CEE_DUP; }
+    bool InstructionInfo::IsAddressLoad()
+    {
+        return _instruction->m_opcode == CEE_LDARGA || _instruction->m_opcode == CEE_LDARGA_S ||
+               _instruction->m_opcode == CEE_LDLOCA || _instruction->m_opcode == CEE_LDLOCA_S;
+    }
+
+    void InstructionInfo::ConvertToNonAddressLoad()
+    {
+        if (_instruction->m_opcode == CEE_LDARGA_S)
+        {
+            _instruction->m_opcode = CEE_LDARG_S;
+        }
+        else if (_instruction->m_opcode == CEE_LDLOCA_S)
+        {
+            _instruction->m_opcode = CEE_LDLOC_S;
+        }
+        else if (_instruction->m_opcode == CEE_LDARGA)
+        {
+            _instruction->m_opcode = CEE_LDARG;
+        }
+        else if (_instruction->m_opcode == CEE_LDLOCA)
+        {
+            _instruction->m_opcode = CEE_LDLOC;
+        }
+    }
 
     bool InstructionInfo::IsField() { return (_instructionFlags[_instruction->m_opcode] & OPCODEFLAGS_Field) == OPCODEFLAGS_Field; }
     bool InstructionInfo::IsLocal()
@@ -631,10 +657,16 @@ namespace iast
     {
         return (h->m_Flags | COR_ILEXCEPTION_CLAUSE_FINALLY) == COR_ILEXCEPTION_CLAUSE_FINALLY;
     }
+    WSTRING GetTypeName(ILRewriter* body, mdToken token)
+    {
+        auto typeRef = body->GetMethodInfo()->GetModuleInfo()->GetTypeInfo(token);
+        WSTRING typeName = typeRef != nullptr ? typeRef->GetName() : WStr("Unknown");
+        return typeName;
+    }
     WSTRING GetMemberName(ILRewriter* body, mdToken token)
     {
         auto memberRef = body->GetMethodInfo()->GetModuleInfo()->GetMemberRefInfo(token);
-        WSTRING memberName = memberRef != nullptr ? memberRef->GetFullName(true) : WStr("Unknown");
+        WSTRING memberName = memberRef != nullptr ? memberRef->GetFullNameWithReturnType() : WStr("Unknown");
         return memberName;
     }
     std::string GetString(ILRewriter* body, mdString token)
@@ -670,6 +702,15 @@ namespace iast
         case 4 | OPCODEFLAGS_String:
             argument = "[" + Hex(instruction->m_Arg32) + "] \"" + GetString(body, instruction->m_Arg32) + "\"";
             break;
+        case 4 | OPCODEFLAGS_Type:
+            memberName = shared::ToString(GetTypeName(body, instruction->m_Arg32));
+            argument = "[" + Hex(instruction->m_Arg32) + "] " + memberName;
+            if (instruction->IsDirty())
+            {
+                memberName = shared::ToString(GetTypeName(body, instruction->m_originalArg32));
+                argument = argument + " Original: [" + Hex(instruction->m_originalArg32) + "] " + memberName;
+            }
+            break;
         case 4 | OPCODEFLAGS_Method:
         case 4 | OPCODEFLAGS_Field:
             memberName = shared::ToString(GetMemberName(body, instruction->m_Arg32));
@@ -695,7 +736,8 @@ namespace iast
         default:
             break;
         }
-        auto res = "IL" + Hex(instruction->m_offset) + " : " + _instructionNames[instruction->m_opcode] + " " + argument;
+        auto sep = instruction->IsDirty() ? "*: " : " : ";
+        auto res = "IL" + Hex(instruction->m_offset) + sep + _instructionNames[instruction->m_opcode] + " " + argument;
         return res;
     }
 
@@ -746,7 +788,6 @@ namespace iast
             for (ILInstr* instruction = _body->GetILList()->m_pNext; instruction != _body->GetILList(); instruction = instruction->m_pNext)
             {
                 if (instruction->m_opcode == CEE_SWITCH_ARG) { continue; }
-                bool written = false;
                 EHClause* exitBlock = nullptr;
                 auto hs = Get<ILInstr*, std::vector<EHClause*>>(handlers, instruction);
                 if (hs != nullptr)
@@ -785,7 +826,7 @@ namespace iast
                         }
                     }
                 }
-                if (!written) { trace::Logger::Info(indent, ToString(_body, instruction)); }
+                trace::Logger::Info(indent, ToString(_body, instruction)); // Write current instruction
                 if (instruction->m_opcode == CEE_ENDFILTER || instruction->m_opcode == CEE_ENDFINALLY || instruction->m_opcode == CEE_LEAVE || instruction->m_opcode == CEE_LEAVE_S)
                 {
                     if (nesting.size() > 0)

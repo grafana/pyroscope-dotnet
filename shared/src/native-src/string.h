@@ -47,6 +47,7 @@ std::string ToString(const std::string& str);
 std::string ToString(const char* str);
 std::string ToString(uint64_t i);
 std::string ToString(const WSTRING& wstr);
+std::string ToString(const WCHAR* wstr);
 std::string ToString(const WCHAR* wstr, std::size_t nbChars);
 std::string ToString(const GUID& uid);
 
@@ -56,8 +57,10 @@ WSTRING ToWSTRING(uint64_t i);
 bool TryParse(WSTRING const& s, int& result);
 
 bool EndsWith(const std::string& str, const std::string& suffix);
-
 bool StartsWith(const std::string& str, const std::string& prefix);
+
+bool EndsWith(const WSTRING& str, const WSTRING& suffix);
+bool StartsWith(const WSTRING& str, const WSTRING& prefix);
 
 template <typename TChar>
 std::basic_string<TChar> ReplaceString(std::basic_string<TChar> subject, const std::basic_string<TChar>& search,
@@ -71,5 +74,7 @@ std::basic_string<TChar> ReplaceString(std::basic_string<TChar> subject, const s
     }
     return subject;
 }
+
+bool string_iequal(WSTRING const& s1, WSTRING const& s2);
 
 } // namespace shared

@@ -3,7 +3,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -50,8 +49,8 @@
                     "value": "Test`1"
                   }
                 ],
-                "type": "List`1",
-                "value": "count: 1"
+                "size": 1,
+                "type": "List`1"
               },
               "kk": {
                 "elements": [
@@ -60,8 +59,8 @@
                     "value": "Test`1"
                   }
                 ],
-                "type": "List`1",
-                "value": "count: 1"
+                "size": 1,
+                "type": "List`1"
               },
               "string": {
                 "type": "String",
@@ -74,8 +73,8 @@
                     "value": "Test`1"
                   }
                 ],
-                "type": "List`1",
-                "value": "count: 1"
+                "size": 1,
+                "type": "List`1"
               }
             }
           }
@@ -88,7 +87,8 @@
           "location": {
             "method": "Method",
             "type": "Samples.Probes.TestRuns.SmokeTests.HasVarAndMvar+Test`1"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"

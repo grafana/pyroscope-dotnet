@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using Datadog.Trace.Ci.Tags;
 using Datadog.Trace.ClrProfiler.AutoInstrumentation.Logging.Log4Net.DirectSubmission;
 using Datadog.Trace.Configuration;
@@ -69,7 +70,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
         [Trait("Category", "EndToEnd")]
         [Trait("RunOnWindows", "True")]
         [Trait("SupportsInstrumentationVerification", "True")]
-        public void InjectsLogsWhenEnabled(string packageVersion, bool enableLogShipping)
+        public async Task InjectsLogsWhenEnabled(string packageVersion, bool enableLogShipping)
         {
             SetInstrumentationVerification();
             SetEnvironmentVariable("DD_LOGS_INJECTION", "true");
@@ -83,7 +84,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
             var expectedCorrelatedSpanCount = 1;
 
             using (var agent = EnvironmentHelper.GetMockAgent())
-            using (var processResult = RunSampleAndWaitForExit(agent, packageVersion: packageVersion))
+            using (var processResult = await RunSampleAndWaitForExit(agent, packageVersion: packageVersion))
             {
                 var spans = agent.WaitForSpans(1, 2500);
                 Assert.True(spans.Count >= 1, $"Expecting at least 1 span, only received {spans.Count}");
@@ -110,7 +111,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
         [Trait("Category", "EndToEnd")]
         [Trait("RunOnWindows", "True")]
         [Trait("SupportsInstrumentationVerification", "True")]
-        public void DoesNotInjectLogsWhenDisabled(string packageVersion, bool enableLogShipping)
+        public async Task DoesNotInjectLogsWhenDisabled(string packageVersion, bool enableLogShipping)
         {
             SetEnvironmentVariable("DD_LOGS_INJECTION", "false");
             SetInstrumentationVerification();
@@ -124,7 +125,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
             var expectedCorrelatedSpanCount = 0;
 
             using (var agent = EnvironmentHelper.GetMockAgent())
-            using (var processResult = RunSampleAndWaitForExit(agent, packageVersion: packageVersion))
+            using (var processResult = await RunSampleAndWaitForExit(agent, packageVersion: packageVersion))
             {
                 var spans = agent.WaitForSpans(1, 2500);
                 Assert.True(spans.Count >= 1, $"Expecting at least 1 span, only received {spans.Count}");
@@ -151,18 +152,19 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
         [Trait("Category", "EndToEnd")]
         [Trait("RunOnWindows", "True")]
         [Trait("SupportsInstrumentationVerification", "True")]
-        public void DirectlyShipsLogs(string packageVersion)
+        public async Task DirectlyShipsLogs(string packageVersion)
         {
             var hostName = "integration_log4net_tests";
             using var logsIntake = new MockLogsIntake();
 
             SetInstrumentationVerification();
             SetEnvironmentVariable("DD_LOGS_INJECTION", "true");
+            SetEnvironmentVariable("INCLUDE_CROSS_DOMAIN_CALL", "false");
             EnableDirectLogSubmission(logsIntake.Port, nameof(IntegrationId.Log4Net), hostName);
 
-            var agentPort = TcpPortProvider.GetOpenPort();
-            using var agent = MockTracerAgent.Create(Output, agentPort);
-            using var processResult = RunSampleAndWaitForExit(agent, packageVersion: packageVersion);
+            using var telemetry = this.ConfigureTelemetry();
+            using var agent = EnvironmentHelper.GetMockAgent();
+            using var processResult = await RunSampleAndWaitForExit(agent, packageVersion: packageVersion);
 
             ExitCodeException.ThrowIfNonZero(processResult.ExitCode, processResult.StandardError);
 
@@ -195,6 +197,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
             }
 
             VerifyInstrumentation(processResult.Process);
+            telemetry.AssertIntegrationEnabled(IntegrationId.Log4Net);
         }
 
         private static bool PackageSupportsLogsInjection(string packageVersion)

@@ -15,24 +15,22 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Testing.XUnit;
 /// Xunit.Sdk.TestAssemblyRunner`1.BeforeTestAssemblyFinishedAsync calltarget instrumentation
 /// </summary>
 [InstrumentMethod(
-    AssemblyNames = new[] { "xunit.execution.dotnet", "xunit.execution.desktop" },
+    AssemblyNames = ["xunit.execution.dotnet", "xunit.execution.desktop"],
     TypeName = "Xunit.Sdk.TestAssemblyRunner`1",
     MethodName = "BeforeTestAssemblyFinishedAsync",
     ReturnTypeName = ClrNames.Task,
-    ParameterTypeNames = new string[0],
     MinimumVersion = "2.2.0",
     MaximumVersion = "2.*.*",
     IntegrationName = XUnitIntegration.IntegrationName)]
 [InstrumentMethod(
-    AssemblyNames = new[] { "xunit.execution.dotnet", "xunit.execution.desktop" },
+    AssemblyNames = ["xunit.execution.dotnet", "xunit.execution.desktop"],
     TypeName = "Xunit.Sdk.TestAssemblyRunner`1",
     MethodName = "BeforeTestAssemblyFinishedAsync",
     ReturnTypeName = ClrNames.Task,
-    ParameterTypeNames = new string[0],
     MinimumVersion = "2.2.0",
     MaximumVersion = "2.*.*",
     IntegrationName = XUnitIntegration.IntegrationName,
-    CallTargetIntegrationType = IntegrationType.Derived)]
+    CallTargetIntegrationKind = CallTargetKind.Derived)]
 [Browsable(false)]
 [EditorBrowsable(EditorBrowsableState.Never)]
 public static class XUnitTestAssemblyRunnerBeforeTestAssemblyFinishedAsyncIntegration
@@ -52,6 +50,9 @@ public static class XUnitTestAssemblyRunnerBeforeTestAssemblyFinishedAsyncIntegr
         if (TestModule.Current is { } testModule)
         {
             await testModule.CloseAsync().ConfigureAwait(false);
+
+            // Because we are auto-instrumenting a VSTest testhost process we need to manually call the shutdown process
+            CIVisibility.Close();
         }
 
         return returnValue;

@@ -5,10 +5,12 @@
       "diagnostics": {
         "exception": null,
         "probeId": "8286d046-9740-a3e4-95cf-ff46699c73c4",
-        "status": "INSTALLED"
+        "probeVersion": 0,
+        "runtimeId": "scrubbed",
+        "status": "EMITTING"
       }
     },
-    "message": "Installed probe 8286d046-9740-a3e4-95cf-ff46699c73c4.",
+    "message": "Emitted probe 8286d046-9740-a3e4-95cf-ff46699c73c4.",
     "service": "probes"
   }
 ]

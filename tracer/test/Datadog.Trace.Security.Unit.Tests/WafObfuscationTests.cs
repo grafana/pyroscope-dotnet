@@ -17,11 +17,6 @@ namespace Datadog.Trace.Security.Unit.Tests
 {
     public class WafObfuscationTests : WafLibraryRequiredTest
     {
-        public WafObfuscationTests(WafLibraryInvokerFixture wafLibraryInvokerFixture)
-            : base(wafLibraryInvokerFixture)
-        {
-        }
-
         [Theory]
         [InlineData(false, "bearer", "this is a very secret value having the select pg_sleep attack", "select pg_sleep")]
         [InlineData(false, "password", "select pg_sleep", "select pg_sleep")]
@@ -44,8 +39,8 @@ namespace Datadog.Trace.Security.Unit.Tests
             }
 
             var initResult = obfuscate
-                                 ? Waf.Create(WafLibraryInvoker, SecurityConstants.ObfuscationParameterKeyRegexDefault, SecurityConstants.ObfuscationParameterValueRegexDefault)
-                                 : Waf.Create(WafLibraryInvoker, string.Empty, string.Empty);
+                                 ? Waf.Create(WafLibraryInvoker!, SecurityConstants.ObfuscationParameterKeyRegexDefault, SecurityConstants.ObfuscationParameterValueRegexDefault)
+                                 : Waf.Create(WafLibraryInvoker!, string.Empty, string.Empty);
             initResult.Success.Should().BeTrue();
             using (var waf = initResult.Waf)
             {
@@ -54,10 +49,12 @@ namespace Datadog.Trace.Security.Unit.Tests
 
                 waf.Should().NotBeNull();
                 using var context = waf.CreateContext();
-                var result = context.Run(args, 1_000_000);
-                result.ReturnCode.Should().Be(ReturnCode.Match);
-
-                var resultData = JsonConvert.DeserializeObject<WafMatch[]>(result.Data).FirstOrDefault();
+                var result = context.Run(args, TimeoutMicroSeconds);
+                result.Timeout.Should().BeFalse("Timeout should be false");
+                result.ReturnCode.Should().Be(WafReturnCode.Match);
+                result.Data.Should().NotBeNull();
+                var jsonString = JsonConvert.SerializeObject(result.Data);
+                var resultData = JsonConvert.DeserializeObject<WafMatch[]>(jsonString).FirstOrDefault();
                 resultData.RuleMatches[0].Parameters[0].Address.Should().Be(AddressesConstants.RequestQuery);
                 resultData.RuleMatches[0].Parameters[0].Highlight[0].Should().Be(expectedHighlight);
                 resultData.RuleMatches[0].Parameters[0].Value.Should().Be(expectedValue);

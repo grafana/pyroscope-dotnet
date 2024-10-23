@@ -31,6 +31,13 @@ std::tuple<std::unique_ptr<ISamplesCollector>, MockSamplesCollector&> CreateSamp
     return {std::move(collector), *collectorPtr};
 }
 
+std::tuple<std::unique_ptr<ISsiManager>, MockSsiManager&> CreateSsiManager()
+{
+    std::unique_ptr<ISsiManager> manager = std::make_unique<MockSsiManager>();
+    auto managerPtr = static_cast<MockSsiManager*>(manager.get());
+    return {std::move(manager), *managerPtr};
+}
+
 std::vector<std::pair<std::string, std::string>> CreateCallstack(int depth)
 {
     std::vector<std::pair<std::string, std::string>> result;
@@ -47,6 +54,9 @@ std::vector<std::pair<std::string, std::string>> CreateCallstack(int depth)
 
 std::shared_ptr<Sample> CreateSample(std::string_view runtimeId, const std::vector<std::pair<std::string, std::string>>& callstack, const std::vector<std::pair<std::string, std::string>>& labels, std::int64_t value)
 {
+    // For now sample contains only one value `value`.
+    // If we change the number of values, do not forget to change this.
+    Sample::ValuesCount = 1;
     auto sample = std::make_shared<Sample>(runtimeId);
 
     for (auto& [module, frame] : callstack)

@@ -4,12 +4,16 @@ include(GoogleTest)
 # ******************************************************
 # Compiler options
 # ******************************************************
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 
 # Sets compiler options
 add_compile_options(-fPIC -fms-extensions)
 add_compile_options(-DPAL_STDCPP_COMPAT -DPLATFORM_UNIX -DUNICODE)
-add_compile_options(-Wno-invalid-noreturn -Wno-macro-redefined -Wc++17-extensions -DDD_TEST)
+add_compile_options(-Wno-invalid-noreturn -Wno-macro-redefined -Wc++20-extensions -DDD_TEST)
+
+if (IS_ALPINE)
+    add_compile_options(-DDD_ALPINE)
+endif()
 
 if (RUN_ASAN)
     add_compile_options(-g -fsanitize=address -fno-omit-frame-pointer)
@@ -50,6 +54,7 @@ FILE(GLOB PROFILER_NATIVE_TEST_SRC CONFIGURE_DEPENDS "*.cpp")
 
 add_executable(${TEST_EXECUTABLE_NAME}
     ${PROFILER_NATIVE_TEST_SRC}
+    ../../src/ProfilerEngine/Datadog.Profiler.Native.Linux/OsSpecificApi.cpp
 )
 
 # Define directories includes
@@ -58,7 +63,7 @@ target_include_directories(${TEST_EXECUTABLE_NAME}
     PUBLIC ${googletest_SOURCE_DIR}/googlemock/include
 )
 
-add_dependencies(${TEST_EXECUTABLE_NAME} fmt gmock gtest Datadog.Profiler.Native.static libunwind)
+add_dependencies(${TEST_EXECUTABLE_NAME} gmock gtest Datadog.Profiler.Native.static libunwind)
 
 if (RUN_ASAN)
     target_link_libraries(${TEST_EXECUTABLE_NAME} -fsanitize=address)
@@ -70,13 +75,12 @@ endif()
 
 target_link_libraries(${TEST_EXECUTABLE_NAME}
   Datadog.Profiler.Native.static
-  fmt-lib
   gtest_main
   gmock_main
   -static-libgcc
   -static-libstdc++
   -lstdc++fs
-  -Wc++17-extensions
+  -Wc++20-extensions
 )
 
 gtest_discover_tests(${TEST_EXECUTABLE_NAME})

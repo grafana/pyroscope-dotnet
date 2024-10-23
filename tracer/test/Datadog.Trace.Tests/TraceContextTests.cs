@@ -4,10 +4,6 @@
 // </copyright>
 
 using System;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using Datadog.Trace.Configuration;
-using Datadog.Trace.PlatformHelpers;
 using Datadog.Trace.TestHelpers;
 using Datadog.Trace.Util;
 using FluentAssertions;
@@ -18,17 +14,21 @@ namespace Datadog.Trace.Tests
 {
     public class TraceContextTests
     {
-        private readonly Mock<IDatadogTracer> _tracerMock = new Mock<IDatadogTracer>();
+        private readonly Mock<IDatadogTracer> _tracerMock = new();
 
         [Fact]
         public void UtcNow_GivesLegitTime()
         {
             var traceContext = new TraceContext(_tracerMock.Object);
 
-            var now = traceContext.UtcNow;
+            var now = traceContext.Clock.UtcNow;
             var expectedNow = DateTimeOffset.UtcNow;
 
-            Assert.True(expectedNow.Subtract(now) < TimeSpan.FromMilliseconds(30));
+            // We cannot assume that expectedNow > now due to the difference of accuracy of QPC and UtcNow.
+            var allowedVariance = EnvironmentTools.IsOsx()
+                                        ? TimeSpan.FromMilliseconds(200) // The clock in virtualized osx is terrible
+                                        : TimeSpan.FromMilliseconds(30);
+            now.Should().BeCloseTo(expectedNow, allowedVariance);
         }
 
         [Fact]
@@ -36,8 +36,8 @@ namespace Datadog.Trace.Tests
         {
             var traceContext = new TraceContext(_tracerMock.Object);
 
-            var t1 = traceContext.UtcNow;
-            var t2 = traceContext.UtcNow;
+            var t1 = traceContext.Clock.UtcNow;
+            var t2 = traceContext.Clock.UtcNow;
 
             Assert.True(t2.Subtract(t1) > TimeSpan.Zero);
         }
@@ -164,11 +164,12 @@ namespace Datadog.Trace.Tests
             // but a full flush should be triggered rather than a partial, because every span in the trace has been closed
             traceContext.CloseSpan(rootSpan);
 
-            spans.Value.Should().NotBeNullOrEmpty("a full flush should have been triggered");
+            spans.Should().NotBeNull("a full flush should have been triggered");
+            spans!.Value.Should().NotBeNullOrEmpty("a full flush should have been triggered");
 
             rootSpan.GetMetric(Metrics.SamplingPriority).Should().BeNull("because sampling priority is not added until serialization");
 
-            spans.Value.Should().OnlyContain(s => s.GetMetric(Metrics.SamplingPriority) == null, "because sampling priority is not added until serialization");
+            spans!.Value.Should().OnlyContain(s => s.GetMetric(Metrics.SamplingPriority) == null, "because sampling priority is not added until serialization");
         }
 
         [Fact]
@@ -210,8 +211,9 @@ namespace Datadog.Trace.Tests
                 traceContext.CloseSpan(span);
             }
 
-            spans.Value.Should().NotBeNullOrEmpty("partial flush should have been triggered");
-            spans.Value.Should().OnlyContain(s => s.GetMetric(Metrics.SamplingPriority) == null, "because sampling priority is not added until serialization");
+            spans.Should().NotBeNull("partial flush should have been triggered");
+            spans!.Value.Should().NotBeNullOrEmpty("partial flush should have been triggered");
+            spans!.Value.Should().OnlyContain(s => s.GetMetric(Metrics.SamplingPriority) == null, "because sampling priority is not added until serialization");
         }
     }
 }

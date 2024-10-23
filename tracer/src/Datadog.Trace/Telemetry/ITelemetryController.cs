@@ -9,7 +9,6 @@ using Datadog.Trace.AppSec;
 using Datadog.Trace.Configuration;
 using Datadog.Trace.ContinuousProfiler;
 using Datadog.Trace.Iast.Settings;
-using Datadog.Trace.PlatformHelpers;
 
 namespace Datadog.Trace.Telemetry
 {
@@ -37,16 +36,6 @@ namespace Datadog.Trace.Telemetry
         void RecordTracerSettings(ImmutableTracerSettings settings, string defaultServiceName);
 
         /// <summary>
-        /// Called when app sec security is enabled to record the security settings
-        /// </summary>
-        public void RecordSecuritySettings(SecuritySettings settings);
-
-        /// <summary>
-        /// Called when IAST security is enabled to record the IAST settings
-        /// </summary>
-        public void RecordIastSettings(IastSettings settings);
-
-        /// <summary>
         /// Called to record profiler-related telemetry
         /// </summary>
         public void RecordProfilerSettings(Profiler profiler);
@@ -54,17 +43,26 @@ namespace Datadog.Trace.Telemetry
         /// <summary>
         /// Dispose resources for sending telemetry
         /// </summary>
-        /// <param name="sendAppClosingTelemetry">True if the controller should send "app closing" telemetry before disposing</param>
-        public Task DisposeAsync(bool sendAppClosingTelemetry);
-
-        /// <summary>
-        /// Dispose resources for sending telemetry
-        /// </summary>
         public Task DisposeAsync();
 
         /// <summary>
-        /// Indicates the
+        /// Indicates the controller can start sending telemetry
         /// </summary>
         void Start();
+
+        /// <summary>
+        /// Should be called when the status (enabled/disabled) of a product (ASM/Profiler) changed.
+        /// </summary>
+        void ProductChanged(TelemetryProductType product, bool enabled, ErrorData? error);
+
+        /// <summary>
+        /// Dumps the current telemetry state to the provided filename.
+        /// </summary>
+        Task DumpTelemetry(string filePath);
+
+        /// <summary>
+        /// Updates Git metadata for telemetry
+        /// </summary>
+        void RecordGitMetadata(GitMetadata gitMetadata);
     }
 }

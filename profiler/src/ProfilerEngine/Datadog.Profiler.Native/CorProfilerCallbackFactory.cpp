@@ -6,6 +6,17 @@
 #include "CorProfilerCallbackFactory.h"
 #include "CorProfilerCallback.h"
 
+#include "IConfiguration.h"
+
+std::mutex CorProfilerCallbackFactory::_lock;
+
+
+CorProfilerCallbackFactory::CorProfilerCallbackFactory(std::shared_ptr<IConfiguration> configuration) :
+    _configuration{std::move(configuration)}
+{
+
+}
+
 CorProfilerCallbackFactory::~CorProfilerCallbackFactory()
 {
 }
@@ -70,7 +81,20 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallbackFactory::CreateInstance(IUnknown* p
         return CLASS_E_NOAGGREGATION;
     }
 
-    CorProfilerCallback* profiler = new (std::nothrow) CorProfilerCallback();
+    // the scenario where different CLRs are loaded in the same process is not supported
+    std::lock_guard<std::mutex> lock(CorProfilerCallbackFactory::_lock);
+
+    auto currentProfiler = CorProfilerCallback::GetInstance();
+    if (currentProfiler != nullptr)
+    {
+        Log::Error(
+            "Impossible to initialize the Profiler a second time. The following runtime is already loaded: ",
+            currentProfiler->GetRuntimeDescription());
+
+        return E_INVALIDARG;
+    }
+
+    CorProfilerCallback* profiler = new (std::nothrow) CorProfilerCallback(_configuration);
     if (profiler == nullptr)
     {
         return E_OUTOFMEMORY;

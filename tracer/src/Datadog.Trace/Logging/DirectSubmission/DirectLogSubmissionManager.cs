@@ -16,7 +16,7 @@ namespace Datadog.Trace.Logging.DirectSubmission
     {
         private static readonly IDatadogLogger Logger = DatadogLogging.GetLoggerFor<DirectLogSubmissionManager>();
 
-        private DirectLogSubmissionManager(ImmutableDirectLogSubmissionSettings settings, IDatadogSink sink, LogFormatter formatter)
+        private DirectLogSubmissionManager(ImmutableDirectLogSubmissionSettings settings, IDirectSubmissionLogSink sink, LogFormatter formatter)
         {
             Settings = settings;
             Sink = sink;
@@ -25,19 +25,21 @@ namespace Datadog.Trace.Logging.DirectSubmission
 
         public ImmutableDirectLogSubmissionSettings Settings { get; }
 
-        public IDatadogSink Sink { get; }
+        public IDirectSubmissionLogSink Sink { get; }
 
         public LogFormatter Formatter { get; }
 
         public static DirectLogSubmissionManager Create(
             DirectLogSubmissionManager? previous,
-            ImmutableDirectLogSubmissionSettings settings,
+            ImmutableTracerSettings settings,
+            ImmutableDirectLogSubmissionSettings directLogSettings,
+            ImmutableAzureAppServiceSettings? azureAppServiceSettings,
             string serviceName,
             string env,
             string serviceVersion,
             IGitMetadataTagsProvider gitMetadataTagsProvider)
         {
-            var formatter = new LogFormatter(settings, serviceName, env, serviceVersion, gitMetadataTagsProvider);
+            var formatter = new LogFormatter(settings, directLogSettings, azureAppServiceSettings, serviceName, env, serviceVersion, gitMetadataTagsProvider);
             if (previous is not null)
             {
                 // Only the formatter uses settings that are configurable in code.
@@ -46,15 +48,15 @@ namespace Datadog.Trace.Logging.DirectSubmission
                 return new DirectLogSubmissionManager(previous.Settings, previous.Sink, formatter);
             }
 
-            if (!settings.IsEnabled)
+            if (!directLogSettings.IsEnabled)
             {
-                return new DirectLogSubmissionManager(settings, new NullDatadogSink(), formatter);
+                return new DirectLogSubmissionManager(directLogSettings, new NullDirectSubmissionLogSink(), formatter);
             }
 
-            var apiFactory = LogsTransportStrategy.Get(settings);
-            var logsApi = new LogsApi(settings.ApiKey, apiFactory);
+            var apiFactory = LogsTransportStrategy.Get(directLogSettings);
+            var logsApi = new LogsApi(directLogSettings.ApiKey, apiFactory);
 
-            return new DirectLogSubmissionManager(settings, new DatadogSink(logsApi, formatter, settings.BatchingOptions), formatter);
+            return new DirectLogSubmissionManager(directLogSettings, new DirectSubmissionLogSink(logsApi, formatter, directLogSettings.BatchingOptions), formatter);
         }
 
         public async Task DisposeAsync()

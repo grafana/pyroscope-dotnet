@@ -67,10 +67,11 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
     }
 
     [UsesVerify]
-    public abstract class AspNetMvc4Tests : TracingIntegrationTest, IClassFixture<IisFixture>
+    public abstract class AspNetMvc4Tests : TracingIntegrationTest, IClassFixture<IisFixture>, IAsyncLifetime
     {
         private readonly IisFixture _iisFixture;
         private readonly string _testName;
+        private readonly bool _classicMode;
 
         public AspNetMvc4Tests(IisFixture iisFixture, ITestOutputHelper output, bool classicMode, bool enableRouteTemplateResourceNames, bool enableRouteTemplateExpansion = false)
             : base("AspNetMvc4", @"test\test-applications\aspnet", output)
@@ -79,9 +80,9 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
             SetEnvironmentVariable(ConfigurationKeys.FeatureFlags.RouteTemplateResourceNamesEnabled, enableRouteTemplateResourceNames.ToString());
             SetEnvironmentVariable(ConfigurationKeys.ExpandRouteTemplatesEnabled, enableRouteTemplateExpansion.ToString());
 
+            _classicMode = classicMode;
             _iisFixture = iisFixture;
             _iisFixture.ShutdownPath = "/home/shutdown";
-            _iisFixture.TryStartIis(this, classicMode ? IisAppType.AspNetClassic : IisAppType.AspNetIntegrated);
             _testName = nameof(AspNetMvc4Tests)
                       + (classicMode ? ".Classic" : ".Integrated")
                       + (enableRouteTemplateExpansion ? ".WithExpansion" :
@@ -111,11 +112,11 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
               { "/graphql/GetAllFoo", 200 }, // Slug in route template
         };
 
-        public override Result ValidateIntegrationSpan(MockSpan span) =>
+        public override Result ValidateIntegrationSpan(MockSpan span, string metadataSchemaVersion) =>
             span.Name switch
             {
-                "aspnet.request" => span.IsAspNet(),
-                "aspnet-mvc.request" => span.IsAspNetMvc(),
+                "aspnet.request" => span.IsAspNet(metadataSchemaVersion),
+                "aspnet-mvc.request" => span.IsAspNetMvc(metadataSchemaVersion),
                 _ => Result.DefaultSuccess,
             };
 
@@ -134,7 +135,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
             }
 
             var spans = await GetWebServerSpans(path, _iisFixture.Agent, _iisFixture.HttpPort, statusCode);
-            ValidateIntegrationSpans(spans, expectedServiceName: "sample", isExternalSpan: false);
+            ValidateIntegrationSpans(spans, metadataSchemaVersion: "v0", expectedServiceName: "sample", isExternalSpan: false);
 
             var sanitisedPath = VerifyHelper.SanitisePathsForVerify(path);
             var settings = VerifyHelper.GetSpanVerifierSettings(sanitisedPath, (int)statusCode);
@@ -181,7 +182,7 @@ Expect: 100-continue
                 minDateTime: testStart,
                 returnAllOperations: true);
 
-            ValidateIntegrationSpans(spans, expectedServiceName: "sample", isExternalSpan: false);
+            ValidateIntegrationSpans(spans, metadataSchemaVersion: "v0", expectedServiceName: "sample", isExternalSpan: false);
 
             var settings = VerifyHelper.GetSpanVerifierSettings();
 
@@ -189,6 +190,10 @@ Expect: 100-continue
                               .UseMethodName("ClientDisconnect")
                               .UseTypeName(_testName);
         }
+
+        public Task InitializeAsync() => _iisFixture.TryStartIis(this, _classicMode ? IisAppType.AspNetClassic : IisAppType.AspNetIntegrated);
+
+        public Task DisposeAsync() => Task.CompletedTask;
     }
 }
 #endif

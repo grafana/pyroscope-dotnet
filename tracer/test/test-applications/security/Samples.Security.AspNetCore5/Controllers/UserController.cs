@@ -4,7 +4,6 @@ using Samples.Security.AspNetCore5.Models;
 using System;
 using System.Diagnostics;
 using System.Linq;
-using Datadog.Trace;
 
 namespace Samples.Security.AspNetCore5.Controllers
 {
@@ -17,13 +16,9 @@ namespace Samples.Security.AspNetCore5.Controllers
             _logger = logger;
         }
 
-        public IActionResult Index()
+        public IActionResult Index(string userId = null)
         {
-            var userDetails = new UserDetails()
-            {
-                Id = "user3",
-            };
-            Tracer.Instance.ActiveScope?.Span.SetUser(userDetails);
+            Samples.SampleHelpers.SetUser(userId ?? "user3");
 
             return View();
         }

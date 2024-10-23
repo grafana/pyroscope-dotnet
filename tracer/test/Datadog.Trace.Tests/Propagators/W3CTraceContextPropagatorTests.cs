@@ -17,8 +17,9 @@ namespace Datadog.Trace.Tests.Propagators
 {
     public class W3CTraceContextPropagatorTests
     {
+        private const string ZeroLastParentId = "0000000000000000";
+
         private static readonly TraceTagCollection PropagatedTagsCollection = new(
-            TagPropagation.OutgoingTagPropagationHeaderMaxLength,
             new List<KeyValuePair<string, string>>
             {
                 new("_dd.p.dm", "-4"),
@@ -26,7 +27,7 @@ namespace Datadog.Trace.Tests.Propagators
             },
             cachedPropagationHeader: null);
 
-        private static readonly TraceTagCollection EmptyPropagatedTags = new(TagPropagation.OutgoingTagPropagationHeaderMaxLength);
+        private static readonly TraceTagCollection EmptyPropagatedTags = new();
 
         private static readonly SpanContextPropagator W3CPropagator;
 
@@ -34,17 +35,20 @@ namespace Datadog.Trace.Tests.Propagators
         {
             W3CPropagator = SpanContextPropagatorFactory.GetSpanContextPropagator(
                 new[] { ContextPropagationHeaderStyle.W3CTraceContext },
-                new[] { ContextPropagationHeaderStyle.W3CTraceContext });
+                new[] { ContextPropagationHeaderStyle.W3CTraceContext },
+                false);
         }
 
         [Theory]
-        [InlineData(123456789, 987654321, null, "00-000000000000000000000000075bcd15-000000003ade68b1-01")]
-        [InlineData(123456789, 987654321, SamplingPriorityValues.UserReject, "00-000000000000000000000000075bcd15-000000003ade68b1-00")]
-        [InlineData(123456789, 987654321, SamplingPriorityValues.AutoReject, "00-000000000000000000000000075bcd15-000000003ade68b1-00")]
-        [InlineData(123456789, 987654321, SamplingPriorityValues.AutoKeep, "00-000000000000000000000000075bcd15-000000003ade68b1-01")]
-        [InlineData(123456789, 987654321, SamplingPriorityValues.UserKeep, "00-000000000000000000000000075bcd15-000000003ade68b1-01")]
-        public void CreateTraceParentHeader(ulong traceId, ulong spanId, int? samplingPriority, string expected)
+        [InlineData(0, 123456789, 987654321, null, "00-000000000000000000000000075bcd15-000000003ade68b1-01")]
+        [InlineData(0, 123456789, 987654321, SamplingPriorityValues.UserReject, "00-000000000000000000000000075bcd15-000000003ade68b1-00")]
+        [InlineData(0, 123456789, 987654321, SamplingPriorityValues.AutoReject, "00-000000000000000000000000075bcd15-000000003ade68b1-00")]
+        [InlineData(0, 123456789, 987654321, SamplingPriorityValues.AutoKeep, "00-000000000000000000000000075bcd15-000000003ade68b1-01")]
+        [InlineData(0, 123456789, 987654321, SamplingPriorityValues.UserKeep, "00-000000000000000000000000075bcd15-000000003ade68b1-01")]
+        [InlineData(0x0123456789ABCDEF, 0x1122334455667788, 0x000000003ade68b1, null, @"00-0123456789abcdef1122334455667788-000000003ade68b1-01")]
+        public void CreateTraceParentHeader(ulong traceIdUpper, ulong traceIdLower, ulong spanId, int? samplingPriority, string expected)
         {
+            var traceId = new TraceId(traceIdUpper, traceIdLower);
             var context = new SpanContext(traceId, spanId, samplingPriority, serviceName: null, "origin");
             var traceparent = W3CTraceContextPropagator.CreateTraceParentHeader(context);
 
@@ -52,44 +56,44 @@ namespace Datadog.Trace.Tests.Propagators
         }
 
         [Theory]
-        // null/empty/whitespace
-        [InlineData(null, null, null, null, "")]
-        [InlineData(null, "", "", "", "")]
-        [InlineData(null, " ", " ", " ", "")]
+        // null/empty/whitespace (sampling priority default is 1)
+        [InlineData(null, null, null, null, "dd=s:1;p:0000000000000002")]
+        [InlineData(null, "", "", "", "dd=s:1;p:0000000000000002")]
+        [InlineData(null, " ", " ", " ", "dd=s:1;p:0000000000000002")]
         // sampling priority only
-        [InlineData(SamplingPriorityValues.UserReject, null, null, null, "dd=s:-1")]
-        [InlineData(SamplingPriorityValues.AutoReject, null, null, null, "dd=s:0")]
-        [InlineData(SamplingPriorityValues.AutoKeep, null, null, null, "dd=s:1")]
-        [InlineData(SamplingPriorityValues.UserKeep, null, null, null, "dd=s:2")]
-        [InlineData(3, null, null, null, "dd=s:3")]
-        [InlineData(-5, null, null, null, "dd=s:-5")]
+        [InlineData(SamplingPriorityValues.UserReject, null, null, null, "dd=s:-1;p:0000000000000002")]
+        [InlineData(SamplingPriorityValues.AutoReject, null, null, null, "dd=s:0;p:0000000000000002")]
+        [InlineData(SamplingPriorityValues.AutoKeep, null, null, null, "dd=s:1;p:0000000000000002")]
+        [InlineData(SamplingPriorityValues.UserKeep, null, null, null, "dd=s:2;p:0000000000000002")]
+        [InlineData(3, null, null, null, "dd=s:3;p:0000000000000002")]
+        [InlineData(-5, null, null, null, "dd=s:-5;p:0000000000000002")]
         // origin only
-        [InlineData(null, "abc", null, null, "dd=o:abc")]
-        [InlineData(null, "synthetics~;,=web", null, null, "dd=o:synthetics___~web")]
+        [InlineData(null, "abc", null, null, "dd=s:1;o:abc;p:0000000000000002")]
+        [InlineData(null, "synthetics~;,=web", null, null, "dd=s:1;o:synthetics___~web;p:0000000000000002")]
         // propagated tags only
-        [InlineData(null, null, "_dd.p.a=1", null, "dd=t.a:1")]
-        [InlineData(null, null, "_dd.p.a=1,_dd.p.b=2", null, "dd=t.a:1;t.b:2")]
-        [InlineData(null, null, "_dd.p.a=1,b=2", null, "dd=t.a:1")]
-        [InlineData(null, null, "_dd.p.usr.id=MTIzNDU=", null, "dd=t.usr.id:MTIzNDU~")] // convert '=' to '~'
+        [InlineData(null, null, "_dd.p.a=1", null, "dd=s:1;p:0000000000000002;t.a:1")]
+        [InlineData(null, null, "_dd.p.a=1,_dd.p.b=2", null, "dd=s:1;p:0000000000000002;t.a:1;t.b:2")]
+        [InlineData(null, null, "_dd.p.a=1,b=2", null, "dd=s:1;p:0000000000000002;t.a:1")]
+        [InlineData(null, null, "_dd.p.usr.id=MTIzNDU=", null, "dd=s:1;p:0000000000000002;t.usr.id:MTIzNDU~")] // convert '=' to '~'
         // additional state only
-        [InlineData(null, null, null, "key1=value1,key2=value2", "key1=value1,key2=value2")]
+        [InlineData(null, null, null, "key1=value1,key2=value2", "dd=s:1;p:0000000000000002,key1=value1,key2=value2")]
         // combined
-        [InlineData(SamplingPriorityValues.UserKeep, "rum", null, "key1=value1", "dd=s:2;o:rum,key1=value1")]
-        [InlineData(SamplingPriorityValues.AutoReject, null, "_dd.p.a=b", "key1=value1", "dd=s:0;t.a:b,key1=value1")]
-        [InlineData(null, "rum", "_dd.p.a=b", "key1=value1", "dd=o:rum;t.a:b,key1=value1")]
-        [InlineData(SamplingPriorityValues.AutoKeep, "rum", "_dd.p.dm=-4,_dd.p.usr.id=12345", "key1=value1", "dd=s:1;o:rum;t.dm:-4;t.usr.id:12345,key1=value1")]
+        [InlineData(SamplingPriorityValues.UserKeep, "rum", null, "key1=value1", "dd=s:2;o:rum;p:0000000000000002,key1=value1")]
+        [InlineData(SamplingPriorityValues.AutoReject, null, "_dd.p.a=b", "key1=value1", "dd=s:0;p:0000000000000002;t.a:b,key1=value1")]
+        [InlineData(null, "rum", "_dd.p.a=b", "key1=value1", "dd=s:1;o:rum;p:0000000000000002;t.a:b,key1=value1")]
+        [InlineData(SamplingPriorityValues.AutoKeep, "rum", "_dd.p.dm=-4,_dd.p.usr.id=12345", "key1=value1", "dd=s:1;o:rum;p:0000000000000002;t.dm:-4;t.usr.id:12345,key1=value1")]
         public void CreateTraceStateHeader(int? samplingPriority, string origin, string tags, string additionalState, string expected)
         {
-            var propagatedTags = TagPropagation.ParseHeader(tags, 100);
+            var propagatedTags = TagPropagation.ParseHeader(tags);
 
-            var traceContext = new TraceContext(tracer: null, propagatedTags)
+            var traceContext = new TraceContext(Mock.Of<IDatadogTracer>(), propagatedTags)
             {
                 Origin = origin,
                 AdditionalW3CTraceState = additionalState
             };
 
             traceContext.SetSamplingPriority(samplingPriority, mechanism: null, notifyDistributedTracer: false);
-            var spanContext = new SpanContext(parent: SpanContext.None, traceContext, serviceName: null, traceId: 1, spanId: 2);
+            var spanContext = new SpanContext(parent: SpanContext.None, traceContext, serviceName: null, traceId: (TraceId)1, spanId: 2);
 
             var tracestate = W3CTraceContextPropagator.CreateTraceStateHeader(spanContext);
 
@@ -99,8 +103,8 @@ namespace Datadog.Trace.Tests.Propagators
         [Fact]
         public void CreateTraceStateHeader_WithPublicPropagatedTags()
         {
-            var traceContext = new TraceContext(tracer: null);
-            var spanContext = new SpanContext(parent: SpanContext.None, traceContext, serviceName: null, traceId: 1, spanId: 2);
+            var traceContext = new TraceContext(Mock.Of<IDatadogTracer>());
+            var spanContext = new SpanContext(parent: SpanContext.None, traceContext, serviceName: null, traceId: (TraceId)1, spanId: 2);
             var span = new Span(spanContext, DateTimeOffset.Now);
 
             var user = new UserDetails("12345")
@@ -110,70 +114,117 @@ namespace Datadog.Trace.Tests.Propagators
             };
 
             // use public APIs to add propagated tags
-            span.SetTraceSamplingPriority(SamplingPriority.UserKeep); // adds "_dd.p.dm"
+            span.SetTraceSamplingPriority(SamplingPriority.UserKeep); // adds "_dd.p.dm" and sampling priority
             span.SetUser(user);                                       // adds "_dd.p.usr.id"
 
             var tracestate = W3CTraceContextPropagator.CreateTraceStateHeader(spanContext);
 
             // note that "t.usr.id:MTIzNDU=" is encoded as "t.usr.id:MTIzNDU~"
-            tracestate.Should().Be("dd=s:2;t.dm:-4;t.usr.id:MTIzNDU~");
+            tracestate.Should().Be("dd=s:2;p:0000000000000002;t.dm:-4;t.usr.id:MTIzNDU~");
+        }
+
+        [Fact]
+        public void CreateTraceStateHeader_With128Bit_TraceId()
+        {
+            var traceContext = new TraceContext(Mock.Of<IDatadogTracer>());
+            traceContext.SetSamplingPriority(SamplingPriorityValues.UserKeep);
+
+            var traceId = new TraceId(0x1234567890abcdef, 0x1122334455667788);
+            var spanContext = new SpanContext(parent: SpanContext.None, traceContext, serviceName: null, traceId: traceId, spanId: 2);
+
+            var tracestate = W3CTraceContextPropagator.CreateTraceStateHeader(spanContext);
+
+            // note that there is no "t.tid" propagated tag when using W3C headers
+            // because the full 128-bit trace id fits in the "traceparent" header
+            tracestate.Should().Be("dd=s:2;p:0000000000000002");
         }
 
         [Fact]
         public void Inject_IHeadersCollection()
         {
-            var traceContext = new TraceContext(tracer: null, tags: null)
+            var traceContext = new TraceContext(Mock.Of<IDatadogTracer>(), tags: null)
             {
                 Origin = "origin",
                 AdditionalW3CTraceState = "key1=value1"
             };
 
             traceContext.SetSamplingPriority(SamplingPriorityValues.UserKeep, mechanism: null, notifyDistributedTracer: false);
-            var spanContext = new SpanContext(parent: SpanContext.None, traceContext, serviceName: null, traceId: 123456789, spanId: 987654321, rawTraceId: null, rawSpanId: null);
+            var spanContext = new SpanContext(parent: SpanContext.None, traceContext, serviceName: null, traceId: (TraceId)123456789, spanId: 987654321, rawTraceId: null, rawSpanId: null);
             var headers = new Mock<IHeadersCollection>();
 
             W3CPropagator.Inject(spanContext, headers.Object);
 
             headers.Verify(h => h.Set("traceparent", "00-000000000000000000000000075bcd15-000000003ade68b1-01"), Times.Once());
-            headers.Verify(h => h.Set("tracestate", "dd=s:2;o:origin,key1=value1"), Times.Once());
+            headers.Verify(h => h.Set("tracestate", "dd=s:2;o:origin;p:000000003ade68b1,key1=value1"), Times.Once());
+            headers.VerifyNoOtherCalls();
+        }
+
+        [Fact]
+        public void Inject_IHeadersCollection_128Bit_TraceId()
+        {
+            var traceId = new TraceId(0x1234567890abcdef, 0x1122334455667788);
+            var spanId = 1UL;
+
+            var traceContext = new TraceContext(Mock.Of<IDatadogTracer>(), tags: null)
+            {
+                Origin = "origin",
+                AdditionalW3CTraceState = "key1=value1"
+            };
+
+            traceContext.SetSamplingPriority(SamplingPriorityValues.UserKeep, mechanism: null, notifyDistributedTracer: false);
+            var spanContext = new SpanContext(parent: SpanContext.None, traceContext, serviceName: null, traceId, spanId, rawTraceId: traceId.ToString(), rawSpanId: spanId.ToString("x16"));
+            var headers = new Mock<IHeadersCollection>();
+
+            W3CPropagator.Inject(spanContext, headers.Object);
+
+            headers.Verify(h => h.Set("traceparent", "00-1234567890abcdef1122334455667788-0000000000000001-01"), Times.Once());
+            headers.Verify(h => h.Set("tracestate", "dd=s:2;o:origin;p:0000000000000001,key1=value1"), Times.Once());
             headers.VerifyNoOtherCalls();
         }
 
         [Fact]
         public void Inject_CarrierAndDelegate()
         {
-            var traceContext = new TraceContext(tracer: null, tags: null)
+            var traceContext = new TraceContext(Mock.Of<IDatadogTracer>(), tags: null)
             {
                 Origin = "origin",
                 AdditionalW3CTraceState = "key1=value1"
             };
 
             traceContext.SetSamplingPriority(SamplingPriorityValues.UserKeep, mechanism: null, notifyDistributedTracer: false);
-            var spanContext = new SpanContext(parent: SpanContext.None, traceContext, serviceName: null, traceId: 123456789, spanId: 987654321, rawTraceId: null, rawSpanId: null);
+            var spanContext = new SpanContext(parent: SpanContext.None, traceContext, serviceName: null, traceId: (TraceId)123456789, spanId: 987654321, rawTraceId: null, rawSpanId: null);
             var headers = new Mock<IHeadersCollection>();
 
             W3CPropagator.Inject(spanContext, headers.Object, (carrier, name, value) => carrier.Set(name, value));
 
             headers.Verify(h => h.Set("traceparent", "00-000000000000000000000000075bcd15-000000003ade68b1-01"), Times.Once());
-            headers.Verify(h => h.Set("tracestate", "dd=s:2;o:origin,key1=value1"), Times.Once());
+            headers.Verify(h => h.Set("tracestate", "dd=s:2;o:origin;p:000000003ade68b1,key1=value1"), Times.Once());
             headers.VerifyNoOtherCalls();
         }
 
         [Theory]
-        [InlineData("00-000000000000000000000000075bcd15-000000003ade68b1-00", 123456789, 987654321, false, "000000000000000000000000075bcd15", "000000003ade68b1")]
-        [InlineData("00-0000000000000000000000003ade68b1-00000000075bcd15-01", 987654321, 123456789, true, "0000000000000000000000003ade68b1", "00000000075bcd15")]
-        [InlineData("01-0000000000000000000000003ade68b1-00000000075bcd15-01", 987654321, 123456789, true, "0000000000000000000000003ade68b1", "00000000075bcd15")]       // allow other versions, version=01
-        [InlineData("02-000000000000000000000000075bcd15-000000003ade68b1-00-1234", 123456789, 987654321, false, "000000000000000000000000075bcd15", "000000003ade68b1")] // allow more data after trace-flags if the version is not 00
-        [InlineData("00-0000000000000000000000003ade68b1-00000000075bcd15-02", 987654321, 123456789, false, "0000000000000000000000003ade68b1", "00000000075bcd15")]      // allow unknown flags, trace-flags=02, sampled=false
-        [InlineData("00-0000000000000000000000003ade68b1-00000000075bcd15-03", 987654321, 123456789, true, "0000000000000000000000003ade68b1", "00000000075bcd15")]       // allow unknown flags, trace-flags=03, sampled=true
-        public void TryParseTraceParent(string header, ulong traceId, ulong spanId, bool sampled, string rawTraceId, string rawParentId)
+        [InlineData("00-000000000000000000000000075bcd15-000000003ade68b1-00", 0, 123456789, 987654321, false, "000000000000000000000000075bcd15", "000000003ade68b1")]
+        [InlineData("00-0000000000000000000000003ade68b1-00000000075bcd15-01", 0, 987654321, 123456789, true, "0000000000000000000000003ade68b1", "00000000075bcd15")]
+        [InlineData("00-1234567890abcdef1122334455667788-00000000075bcd15-01", 0x1234567890abcdef, 0x1122334455667788, 123456789, true, "1234567890abcdef1122334455667788", "00000000075bcd15")] // 128-bit trace id
+        [InlineData("01-0000000000000000000000003ade68b1-00000000075bcd15-01", 0, 987654321, 123456789, true, "0000000000000000000000003ade68b1", "00000000075bcd15")]                           // allow other versions, version=01
+        [InlineData("02-000000000000000000000000075bcd15-000000003ade68b1-00-1234", 0, 123456789, 987654321, false, "000000000000000000000000075bcd15", "000000003ade68b1")]                     // allow more data after trace-flags if the version is not 00
+        [InlineData("00-0000000000000000000000003ade68b1-00000000075bcd15-02", 0, 987654321, 123456789, false, "0000000000000000000000003ade68b1", "00000000075bcd15")]                          // allow unknown flags, trace-flags=02, sampled=false
+        [InlineData("00-0000000000000000000000003ade68b1-00000000075bcd15-03", 0, 987654321, 123456789, true, "0000000000000000000000003ade68b1", "00000000075bcd15")]                           // allow unknown flags, trace-flags=03, sampled=true
+        public void TryParseTraceParent(
+            string header,
+            ulong traceIdUpper,
+            ulong traceIdLower,
+            ulong spanId,
+            bool sampled,
+            string rawTraceId,
+            string rawParentId)
         {
             var expected = new W3CTraceParent(
-                traceId,
-                spanId,
-                sampled,
-                rawTraceId,
-                rawParentId);
+                traceId: new TraceId(traceIdUpper, traceIdLower),
+                parentId: spanId,
+                sampled: sampled,
+                rawTraceId: rawTraceId,
+                rawParentId: rawParentId);
 
             W3CTraceContextPropagator.TryParseTraceParent(header, out var traceParent).Should().BeTrue();
 
@@ -203,40 +254,72 @@ namespace Datadog.Trace.Tests.Propagators
 
         [Theory]
         // valid
-        [InlineData("dd=s:2", 2, null, null, null)]                                                                                  // sampling priority
-        [InlineData("dd=s:-1", -1, null, null, null)]                                                                                // sampling priority
-        [InlineData("dd=o:rum", null, "rum", null, null)]                                                                            // origin
-        [InlineData("dd=t.dm:-4;t.usr.id:12345", null, null, "_dd.p.dm=-4,_dd.p.usr.id=12345", null)]                                // propagated tags
-        [InlineData("key1=value1,key2=value2", null, null, null, "key1=value1,key2=value2")]                                         // additional values
-        [InlineData("key1=value1dd=,key2=value2", null, null, null, "key1=value1dd=,key2=value2")]                                   // additional values, ignore embedded "dd="
-        [InlineData("dd=s:2;o:rum;t.dm:-4;t.usr.id:12345~,key1=value1", 2, "rum", "_dd.p.dm=-4,_dd.p.usr.id=12345=", "key1=value1")] // all, and '~' is converted to '='
+        [InlineData("dd=s:2", 2, null, null, null, ZeroLastParentId)]                                                                                                       // sampling priority
+        [InlineData("dd=s:-1", -1, null, null, null, ZeroLastParentId)]                                                                                                     // sampling priority
+        [InlineData("dd=o:rum", null, "rum", null, null, ZeroLastParentId)]                                                                                                 // origin
+        [InlineData("dd=t.dm:-4;t.usr.id:12345", null, null, "_dd.p.dm=-4,_dd.p.usr.id=12345", null, ZeroLastParentId)]                                                     // propagated tags
+        [InlineData("key1=value1,key2=value2", null, null, null, "key1=value1,key2=value2", ZeroLastParentId)]                                                                          // additional values
+        [InlineData("key1=value1dd=,key2=value2", null, null, null, "key1=value1dd=,key2=value2", ZeroLastParentId)]                                                                    // additional values, ignore embedded "dd="
+        [InlineData("dd=s:2;o:rum;t.dm:-4;t.usr.id:12345~,key1=value1", 2, "rum", "_dd.p.dm=-4,_dd.p.usr.id=12345=", "key1=value1", ZeroLastParentId)]                      // all, but p, and '~' is converted to '='
+        [InlineData("dd=s:2;o:rum;p:0123456789abcdef;t.dm:-4;t.usr.id:12345~,key1=value1", 2, "rum", "_dd.p.dm=-4,_dd.p.usr.id=12345=", "key1=value1", "0123456789abcdef")] // all, and '~' is converted to '='
         // invalid "dd" value
-        [InlineData(null, null, null, null, null)]         // null
-        [InlineData("", null, null, null, null)]           // empty
-        [InlineData(" ", null, null, null, null)]          // whitespace
-        [InlineData("dd=", null, null, null, null)]        // "dd=" prefix only
-        [InlineData("dd=:2", null, null, null, null)]      // no key
-        [InlineData("dd=s:", null, null, null, null)]      // no value
-        [InlineData("dd=s", null, null, null, null)]       // no colon
-        [InlineData("dd=xyz:123", null, null, null, null)] // unknown key
+        [InlineData(null, null, null, null, null, ZeroLastParentId)]         // null
+        [InlineData("", null, null, null, null, ZeroLastParentId)]           // empty
+        [InlineData(" ", null, null, null, null, ZeroLastParentId)]          // whitespace
+        [InlineData("dd=", null, null, null, null, ZeroLastParentId)]        // "dd=" prefix only
+        [InlineData("dd=:2", null, null, null, null, ZeroLastParentId)]      // no key
+        [InlineData("dd=s:", null, null, null, null, ZeroLastParentId)]      // no value
+        [InlineData("dd=s", null, null, null, null, ZeroLastParentId)]       // no colon
+        [InlineData("dd=xyz:123", null, null, null, null, ZeroLastParentId)] // unknown key
         // invalid propagated tag (first)
-        [InlineData("dd=s:2;o:rum;:12345;t.dm:-4", 2, "rum", "_dd.p.dm=-4", null)]    // no key
-        [InlineData("dd=s:2;o:rum;t.usr.id:;t.dm:-4", 2, "rum", "_dd.p.dm=-4", null)] // no value
-        [InlineData("dd=s:2;o:rum;:;t.dm:-4", 2, "rum", "_dd.p.dm=-4", null)]         // no key or value
-        [InlineData("dd=s:2;o:rum;t.abc;t.dm:-4", 2, "rum", "_dd.p.dm=-4", null)]     // no colon
+        [InlineData("dd=s:2;o:rum;:12345;t.dm:-4", 2, "rum", "_dd.p.dm=-4", null, ZeroLastParentId)]    // no key
+        [InlineData("dd=s:2;o:rum;t.usr.id:;t.dm:-4", 2, "rum", "_dd.p.dm=-4", null, ZeroLastParentId)] // no value
+        [InlineData("dd=s:2;o:rum;:;t.dm:-4", 2, "rum", "_dd.p.dm=-4", null, ZeroLastParentId)]         // no key or value
+        [InlineData("dd=s:2;o:rum;t.abc;t.dm:-4", 2, "rum", "_dd.p.dm=-4", null, ZeroLastParentId)]     // no colon
         // invalid propagated tag (last)
-        [InlineData("dd=s:2;o:rum;t.dm:-4;:12345", 2, "rum", "_dd.p.dm=-4", null)]    // no key
-        [InlineData("dd=s:2;o:rum;t.dm:-4;t.usr.id:", 2, "rum", "_dd.p.dm=-4", null)] // no value
-        [InlineData("dd=s:2;o:rum;t.dm:-4;:", 2, "rum", "_dd.p.dm=-4", null)]         // no key or value
-        [InlineData("dd=s:2;o:rum;t.dm:-4;t.abc", 2, "rum", "_dd.p.dm=-4", null)]     // no colon
+        [InlineData("dd=s:2;o:rum;t.dm:-4;:12345", 2, "rum", "_dd.p.dm=-4", null, ZeroLastParentId)]    // no key
+        [InlineData("dd=s:2;o:rum;t.dm:-4;t.usr.id:", 2, "rum", "_dd.p.dm=-4", null, ZeroLastParentId)] // no value
+        [InlineData("dd=s:2;o:rum;t.dm:-4;:", 2, "rum", "_dd.p.dm=-4", null, ZeroLastParentId)]         // no key or value
+        [InlineData("dd=s:2;o:rum;t.dm:-4;t.abc", 2, "rum", "_dd.p.dm=-4", null, ZeroLastParentId)]     // no colon
         // multiple top-level key/value pairs
-        [InlineData("key1=value1,key2=value2,dd=s:2;o:rum;t.dm:-4;t.usr.id:12345", 2, "rum", "_dd.p.dm=-4,_dd.p.usr.id=12345", "key1=value1,key2=value2")]                                                 // before "dd"
-        [InlineData("dd=s:2;o:rum;t.dm:-4;t.usr.id:12345,key3=value3,key4=value4", 2, "rum", "_dd.p.dm=-4,_dd.p.usr.id=12345", "key3=value3,key4=value4")]                                                 // after "dd"
-        [InlineData("key1=value1,key2=value2,dd=s:2;o:rum;t.dm:-4;t.usr.id:12345,key3=value3,key4=value4", 2, "rum", "_dd.p.dm=-4,_dd.p.usr.id=12345", "key1=value1,key2=value2,key3=value3,key4=value4")] // both sides
-        public void ParseTraceState(string header, int? samplingPriority, string origin, string propagatedTags, string additionalValues)
+        // before "dd"
+        [InlineData("key1=value1,key2=value2,dd=s:2;o:rum;p:0123456789abcdef;t.dm:-4;t.usr.id:12345", 2, "rum", "_dd.p.dm=-4,_dd.p.usr.id=12345", "key1=value1,key2=value2", "0123456789abcdef")]
+        // after "dd"
+        [InlineData("dd=s:2;o:rum;p:0123456789abcdef;t.dm:-4;t.usr.id:12345,key3=value3,key4=value4", 2, "rum", "_dd.p.dm=-4,_dd.p.usr.id=12345", "key3=value3,key4=value4", "0123456789abcdef")]
+        // both sides
+        [InlineData("key1=value1,key2=value2,dd=s:2;o:rum;p:0123456789abcdef;t.dm:-4;t.usr.id:12345,key3=value3,key4=value4", 2, "rum", "_dd.p.dm=-4,_dd.p.usr.id=12345", "key1=value1,key2=value2,key3=value3,key4=value4", "0123456789abcdef")]
+        public void ParseTraceState(string header, int? samplingPriority, string origin, string propagatedTags, string additionalValues, string lastParent)
         {
             var traceState = W3CTraceContextPropagator.ParseTraceState(header);
-            var expected = new W3CTraceState(samplingPriority, origin, propagatedTags, additionalValues);
+            var expected = new W3CTraceState(samplingPriority, origin, lastParent, propagatedTags, additionalValues);
+            traceState.Should().BeEquivalentTo(expected);
+        }
+
+        [Fact]
+        public void ParseTraceStateWithLastParent()
+        {
+            var header = "dd=s:2;o:rum;p:0123456789abcdef;t.dm:-4;t.usr.id:12345~,key1=value1";
+            var traceState = W3CTraceContextPropagator.ParseTraceState(header);
+            var samplingPriority = 2;
+            var origin = "rum";
+            var lastParent = "0123456789abcdef";
+            var propagatedTags = "_dd.p.dm=-4,_dd.p.usr.id=12345=";
+            var additionalValues = "key1=value1";
+            var expected = new W3CTraceState(samplingPriority, origin, lastParent, propagatedTags, additionalValues);
+            traceState.Should().BeEquivalentTo(expected);
+        }
+
+        [Fact]
+        public void MissingLastParentId_ShouldBe_Zeroes()
+        {
+            var header = "dd=s:2;o:rum;t.dm:-4;t.usr.id:12345~,key1=value1";
+            var traceState = W3CTraceContextPropagator.ParseTraceState(header);
+            var samplingPriority = 2;
+            var origin = "rum";
+            var lastParent = ZeroLastParentId;
+            var propagatedTags = "_dd.p.dm=-4,_dd.p.usr.id=12345=";
+            var additionalValues = "key1=value1";
+            var expected = new W3CTraceState(samplingPriority, origin, lastParent, propagatedTags, additionalValues);
             traceState.Should().BeEquivalentTo(expected);
         }
 
@@ -263,6 +346,7 @@ namespace Datadog.Trace.Tests.Propagators
                   .BeEquivalentTo(
                        new SpanContextMock
                        {
+                           TraceId128 = (TraceId)123456789,
                            TraceId = 123456789,
                            SpanId = 987654321,
                            RawTraceId = "000000000000000000000000075bcd15",
@@ -270,8 +354,10 @@ namespace Datadog.Trace.Tests.Propagators
                            SamplingPriority = SamplingPriorityValues.UserKeep,
                            Origin = "rum",
                            PropagatedTags = PropagatedTagsCollection,
+                           IsRemote = true,
                            Parent = null,
                            ParentId = null,
+                           LastParentId = ZeroLastParentId,
                        });
         }
 
@@ -306,6 +392,7 @@ namespace Datadog.Trace.Tests.Propagators
                   .BeEquivalentTo(
                        new SpanContextMock
                        {
+                           TraceId128 = (TraceId)123456789,
                            TraceId = 123456789,
                            SpanId = 987654321,
                            RawTraceId = "000000000000000000000000075bcd15",
@@ -313,8 +400,10 @@ namespace Datadog.Trace.Tests.Propagators
                            SamplingPriority = 1,
                            Origin = null,
                            PropagatedTags = EmptyPropagatedTags,
+                           IsRemote = true,
                            Parent = null,
                            ParentId = null,
+                           LastParentId = ZeroLastParentId,
                        });
         }
 
@@ -341,6 +430,7 @@ namespace Datadog.Trace.Tests.Propagators
                   .BeEquivalentTo(
                        new SpanContextMock
                        {
+                           TraceId128 = (TraceId)123456789,
                            TraceId = 123456789,
                            SpanId = 987654321,
                            RawTraceId = "000000000000000000000000075bcd15",
@@ -348,8 +438,10 @@ namespace Datadog.Trace.Tests.Propagators
                            SamplingPriority = SamplingPriorityValues.UserKeep,
                            Origin = "rum",
                            PropagatedTags = PropagatedTagsCollection,
+                           IsRemote = true,
                            Parent = null,
                            ParentId = null,
+                           LastParentId = ZeroLastParentId
                        });
         }
 
@@ -393,7 +485,7 @@ namespace Datadog.Trace.Tests.Propagators
                         {
                             // multiple "tracestate" headers should be joined
                             "abc=123",
-                            "dd=s:2;o:rum;t.dm:-4;t.usr.id:12345",
+                            "dd=s:2;o:rum;p:0123456789abcdef;t.dm:-4;t.usr.id:12345",
                             "foo=bar"
                         });
 
@@ -409,6 +501,7 @@ namespace Datadog.Trace.Tests.Propagators
                   .BeEquivalentTo(
                        new SpanContextMock
                        {
+                           TraceId128 = (TraceId)123456789,
                            TraceId = 123456789,
                            SpanId = 987654321,
                            RawTraceId = "000000000000000000000000075bcd15",
@@ -417,8 +510,10 @@ namespace Datadog.Trace.Tests.Propagators
                            Origin = "rum",
                            PropagatedTags = PropagatedTagsCollection,
                            AdditionalW3CTraceState = "abc=123,foo=bar",
+                           IsRemote = true,
                            Parent = null,
                            ParentId = null,
+                           LastParentId = "0123456789abcdef",
                        });
         }
 
@@ -445,6 +540,7 @@ namespace Datadog.Trace.Tests.Propagators
                   .BeEquivalentTo(
                        new SpanContextMock
                        {
+                           TraceId128 = (TraceId)123456789,
                            TraceId = 123456789,
                            SpanId = 987654321,
                            RawTraceId = "000000000000000000000000075bcd15",
@@ -452,8 +548,10 @@ namespace Datadog.Trace.Tests.Propagators
                            SamplingPriority = SamplingPriorityValues.AutoKeep,
                            Origin = null,
                            PropagatedTags = EmptyPropagatedTags,
+                           IsRemote = true,
                            Parent = null,
                            ParentId = null,
+                           LastParentId = ZeroLastParentId,
                        });
         }
 
@@ -464,15 +562,13 @@ namespace Datadog.Trace.Tests.Propagators
             const string parentId = "00f067aa0ba902b7";
             const string traceParentHeader = $"00-{traceId}-{parentId}-01";
 
-            W3CTraceContextPropagator.TryParseTraceParent(traceParentHeader, out var traceParent).Should().BeTrue();
+            W3CTraceContextPropagator.TryParseTraceParent(traceParentHeader, out var traceParent)
+                                     .Should().BeTrue();
 
-            // 64 bits verify
-            const ulong expectedTraceId = 9532127138774266268UL;
-            const ulong expectedParentId = 67667974448284343UL;
+            var expectedTraceId = new TraceId(0x0af7651916cd43dd, 0x8448eb211c80319c);
+            const ulong expectedParentId = 0x00f067aa0ba902b7;
 
             traceParent.Should()
-                       .NotBeNull()
-                       .And
                        .BeEquivalentTo(
                             new W3CTraceParent(
                                 expectedTraceId,
@@ -490,7 +586,8 @@ namespace Datadog.Trace.Tests.Propagators
                 traceParent.RawTraceId,
                 traceParent.RawParentId);
 
-            W3CTraceContextPropagator.CreateTraceParentHeader(spanContext).Should().Be(traceParentHeader);
+            W3CTraceContextPropagator.CreateTraceParentHeader(spanContext)
+                                     .Should().Be(traceParentHeader);
         }
 
         [Theory]
@@ -579,6 +676,7 @@ namespace Datadog.Trace.Tests.Propagators
                   .BeEquivalentTo(
                        new SpanContextMock
                        {
+                           TraceId128 = (TraceId)123456789,
                            TraceId = 123456789,
                            SpanId = 987654321,
                            RawTraceId = "000000000000000000000000075bcd15",
@@ -586,8 +684,10 @@ namespace Datadog.Trace.Tests.Propagators
                            SamplingPriority = samplingPriority,
                            Origin = null,
                            PropagatedTags = EmptyPropagatedTags,
+                           IsRemote = true,
                            Parent = null,
                            ParentId = null,
+                           LastParentId = ZeroLastParentId,
                        });
         }
 
@@ -617,6 +717,7 @@ namespace Datadog.Trace.Tests.Propagators
                   .BeEquivalentTo(
                        new SpanContextMock
                        {
+                           TraceId128 = (TraceId)123456789,
                            TraceId = 123456789,
                            SpanId = 987654321,
                            RawTraceId = "000000000000000000000000075bcd15",
@@ -624,8 +725,10 @@ namespace Datadog.Trace.Tests.Propagators
                            SamplingPriority = samplingPriority,
                            Origin = null,
                            PropagatedTags = EmptyPropagatedTags,
+                           IsRemote = true,
                            Parent = null,
                            ParentId = null,
+                           LastParentId = ZeroLastParentId,
                        });
         }
 
@@ -652,15 +755,66 @@ namespace Datadog.Trace.Tests.Propagators
                   .BeEquivalentTo(
                        new SpanContextMock
                        {
+                           TraceId128 = (TraceId)123456789,
                            TraceId = 123456789,
                            SpanId = 987654321,
                            RawTraceId = "000000000000000000000000075bcd15",
                            RawSpanId = "000000003ade68b1",
                            SamplingPriority = 1,
                            Origin = null,
-                           PropagatedTags = EmptyPropagatedTags,
+                           PropagatedTags = new(
+                               new List<KeyValuePair<string, string>>
+                               {
+                                   new("_dd.p.dm", "-0"),
+                               },
+                               cachedPropagationHeader: null),
+                           IsRemote = true,
                            Parent = null,
                            ParentId = null,
+                           LastParentId = ZeroLastParentId,
+                       });
+        }
+
+        [Fact]
+        public void Extract_MismatchingSampled1_Resets_DecisionMaker()
+        {
+            var headers = new Mock<IHeadersCollection>(MockBehavior.Strict);
+
+            headers.Setup(h => h.GetValues("traceparent"))
+                   .Returns(new[] { "00-000000000000000000000000075bcd15-000000003ade68b1-01" });
+
+            headers.Setup(h => h.GetValues("tracestate"))
+                   .Returns(new[] { "dd=s:-1;t.dm:-4" });
+
+            var result = W3CPropagator.Extract(headers.Object);
+
+            headers.Verify(h => h.GetValues("traceparent"), Times.Once());
+            headers.Verify(h => h.GetValues("tracestate"), Times.Once());
+            headers.VerifyNoOtherCalls();
+
+            result.Should()
+                  .NotBeNull()
+                  .And
+                  .BeEquivalentTo(
+                       new SpanContextMock
+                       {
+                           TraceId128 = new TraceId(0x0000000000000000, 0x00000000075bcd15),
+                           TraceId = 0x00000000075bcd15,
+                           SpanId = 987654321,
+                           RawTraceId = "000000000000000000000000075bcd15",
+                           RawSpanId = "000000003ade68b1",
+                           SamplingPriority = 1,
+                           Origin = null,
+                           PropagatedTags = new(
+                               new List<KeyValuePair<string, string>>
+                               {
+                                   new("_dd.p.dm", "-0"),
+                               },
+                               cachedPropagationHeader: null),
+                           IsRemote = true,
+                           Parent = null,
+                           ParentId = null,
+                           LastParentId = ZeroLastParentId,
                        });
         }
 
@@ -687,6 +841,7 @@ namespace Datadog.Trace.Tests.Propagators
                   .BeEquivalentTo(
                        new SpanContextMock
                        {
+                           TraceId128 = (TraceId)123456789,
                            TraceId = 123456789,
                            SpanId = 987654321,
                            RawTraceId = "000000000000000000000000075bcd15",
@@ -694,8 +849,48 @@ namespace Datadog.Trace.Tests.Propagators
                            SamplingPriority = 0,
                            Origin = null,
                            PropagatedTags = EmptyPropagatedTags,
+                           IsRemote = true,
                            Parent = null,
                            ParentId = null,
+                           LastParentId = ZeroLastParentId,
+                       });
+        }
+
+        [Fact]
+        public void Extract_MismatchingSampled0_Resets_DecisionMaker()
+        {
+            var headers = new Mock<IHeadersCollection>(MockBehavior.Strict);
+
+            headers.Setup(h => h.GetValues("traceparent"))
+                   .Returns(new[] { "00-000000000000000000000000075bcd15-000000003ade68b1-00" });
+
+            headers.Setup(h => h.GetValues("tracestate"))
+                   .Returns(new[] { "dd=s:2;t.dm:-4" });
+
+            var result = W3CPropagator.Extract(headers.Object);
+
+            headers.Verify(h => h.GetValues("traceparent"), Times.Once());
+            headers.Verify(h => h.GetValues("tracestate"), Times.Once());
+            headers.VerifyNoOtherCalls();
+
+            result.Should()
+                  .NotBeNull()
+                  .And
+                  .BeEquivalentTo(
+                       new SpanContextMock
+                       {
+                           TraceId128 = new TraceId(0x0000000000000000, 0x00000000075bcd15),
+                           TraceId = 0x00000000075bcd15,
+                           SpanId = 987654321,
+                           RawTraceId = "000000000000000000000000075bcd15",
+                           RawSpanId = "000000003ade68b1",
+                           SamplingPriority = 0,
+                           Origin = null,
+                           PropagatedTags = EmptyPropagatedTags,
+                           IsRemote = true,
+                           Parent = null,
+                           ParentId = null,
+                           LastParentId = ZeroLastParentId,
                        });
         }
 
@@ -722,6 +917,7 @@ namespace Datadog.Trace.Tests.Propagators
                   .BeEquivalentTo(
                        new SpanContextMock
                        {
+                           TraceId128 = (TraceId)123456789,
                            TraceId = 123456789,
                            SpanId = 987654321,
                            RawTraceId = "000000000000000000000000075bcd15",
@@ -729,8 +925,10 @@ namespace Datadog.Trace.Tests.Propagators
                            SamplingPriority = 1,
                            Origin = null,
                            PropagatedTags = EmptyPropagatedTags,
+                           IsRemote = true,
                            Parent = null,
                            ParentId = null,
+                           LastParentId = ZeroLastParentId,
                        });
         }
 
@@ -757,6 +955,7 @@ namespace Datadog.Trace.Tests.Propagators
                   .BeEquivalentTo(
                        new SpanContextMock
                        {
+                           TraceId128 = (TraceId)123456789,
                            TraceId = 123456789,
                            SpanId = 987654321,
                            RawTraceId = "000000000000000000000000075bcd15",
@@ -764,8 +963,10 @@ namespace Datadog.Trace.Tests.Propagators
                            SamplingPriority = 0,
                            Origin = null,
                            PropagatedTags = EmptyPropagatedTags,
+                           IsRemote = true,
                            Parent = null,
                            ParentId = null,
+                           LastParentId = ZeroLastParentId,
                        });
         }
     }

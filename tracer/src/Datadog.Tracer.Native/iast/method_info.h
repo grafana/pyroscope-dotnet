@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include "../../../../shared/src/native-src/pal.h"
 #include <map>
 #include <set>
@@ -24,7 +25,7 @@ namespace iast
         mdTypeDef _id = 0;
     public:
         mdTypeDef GetTypeDef();
-        WSTRING GetName();
+        WSTRING& GetName();
     };
 
     class MemberRefInfo
@@ -38,8 +39,6 @@ namespace iast
         ModuleInfo* _module = nullptr;
         WSTRING _name = EmptyWStr;
         WSTRING _fullName = EmptyWStr;
-        WSTRING _fullNameWithReturnType = EmptyWStr;
-        WSTRING _memberName = EmptyWStr;
 
         mdTypeDef _typeDef = 0;
         TypeInfo* _typeInfo = nullptr;
@@ -56,13 +55,14 @@ namespace iast
         mdTypeDef GetTypeDef();
 
         ModuleInfo* GetModuleInfo();
-        WSTRING GetName();
-        WSTRING GetMemberName();
-        WSTRING GetFullName(bool includeReturnType = false);
-        WSTRING GetTypeName();
+        WSTRING& GetName();
+        WSTRING& GetFullName();
+        WSTRING GetFullNameWithReturnType();
+        WSTRING& GetTypeName();
         virtual SignatureInfo* GetSignature();
         ULONG GetParameterCount();
         CorElementType GetReturnCorType();
+        virtual std::vector<WSTRING> GetCustomAttributes();
     };
 
     class MethodSpec : public MemberRefInfo
@@ -74,9 +74,11 @@ namespace iast
     public:
         MethodSpec(ModuleInfo* pModuleInfo, mdMethodSpec methodSpec);
 
-        mdMethodSpec GetMethodSpecId();
         SignatureInfo* GetSignature() override;
         MemberRefInfo* GetGenericMethod();
+
+        mdMethodSpec GetMethodSpecId();
+        SignatureInfo* GetMethodSpecSignature();
     };
 
     class FieldInfo : public MemberRefInfo
@@ -91,6 +93,21 @@ namespace iast
         mdFieldDef GetFieldDef();
     };
 
+    class PropertyInfo : public MemberRefInfo
+    {
+        friend class ILRewriter;
+        friend class ModuleInfo;
+    protected:
+        mdMethodDef _getter;
+        mdMethodDef _setter;
+    public:
+        PropertyInfo(ModuleInfo* pModuleInfo, mdProperty mdProperty);
+
+        inline mdProperty GetPropertyId() { return _id; }
+        inline mdMethodDef GetGetterId() { return _getter; }
+        inline mdMethodDef GetSetterId() { return _setter; }
+    };
+
     class MethodInfo : public MemberRefInfo
     {
         friend class ILRewriter;
@@ -98,42 +115,42 @@ namespace iast
     private:
         DWORD _methodAttributes;
 
-        int _isExcluded = -1;
+        bool _isExcluded = false;
         bool _isProcessed = false;
         bool _allowRestoreOnSecondJit = false;
         bool _disableInlining = false;
         bool _isWritten = false;
+        bool _isInstrumented = false;
 
         LPCBYTE _pOriginalMehodIL = nullptr;
-        DWORD _nOriginalMehodIL = 0;
+        ULONG _nOriginalMehodIL = 0;
         LPBYTE _pMethodIL = nullptr;
-        DWORD _nMethodIL = 0;
+        ULONG _nMethodIL = 0;
 
     protected:
         ILRewriter* _rewriter = nullptr;
-        std::string _applyMessage = "";
     private:
-        // LPBYTE AllocBuffer(DWORD size);
         void FreeBuffer();
     public:
         MethodInfo(ModuleInfo* pModuleInfo, mdMethodDef methodDef);
         ~MethodInfo() override;
 
-        WSTRING GetMethodName();
         WSTRING GetKey(FunctionID functionID = 0);
         mdMethodDef GetMethodDef();
 
         bool IsExcluded();
         bool IsProcessed();
         void SetProcessed();
-        bool HasChanged();
+        bool IsInstrumented();
+        void SetInstrumented(bool instrumented);
+        bool HasChanges();
         bool IsWritten();
         void DisableRestoreOnSecondJit();
         bool IsInlineEnabled();
         void DisableInlining();
 
-        HRESULT GetILRewriter(ILRewriter** rewriter);
-        HRESULT CommitILRewriter(const std::string& applyMessage = "");
+        HRESULT GetILRewriter(ILRewriter** rewriter, ICorProfilerInfo* pCorProfilerInfo = nullptr);
+        HRESULT CommitILRewriter(bool abort = false);
         HRESULT GetMethodIL(LPCBYTE* ppMehodIL, ULONG* pnSize, bool original = false);
         
         HRESULT SetMethodIL(ULONG nSize, LPCBYTE pMehodIL, ICorProfilerFunctionControl* pFunctionControl = nullptr);
@@ -142,6 +159,7 @@ namespace iast
         void ReJITCompilationStarted();
         void ReJITCompilationFinished();
 
-        void DumpIL(std::string message = "", ULONG pnMethodIL = 0, LPCBYTE pMethodIL = nullptr);
+        bool IsPropertyAccessor();
+        std::vector<WSTRING> GetCustomAttributes() override;
     };
 }

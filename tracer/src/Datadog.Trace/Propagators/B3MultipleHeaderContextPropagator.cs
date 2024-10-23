@@ -6,7 +6,8 @@
 #nullable enable
 
 using System;
-using System.Diagnostics.CodeAnalysis;
+using Datadog.Trace.Telemetry;
+using Datadog.Trace.Telemetry.Metrics;
 using Datadog.Trace.Util;
 
 namespace Datadog.Trace.Propagators
@@ -37,10 +38,8 @@ namespace Datadog.Trace.Propagators
         public void Inject<TCarrier, TCarrierSetter>(SpanContext context, TCarrier carrier, TCarrierSetter carrierSetter)
             where TCarrierSetter : struct, ICarrierSetter<TCarrier>
         {
-            var traceId = IsValidTraceId(context.RawTraceId) ? context.RawTraceId : context.TraceId.ToString("x16");
-            var spanId = IsValidSpanId(context.RawSpanId) ? context.RawSpanId : context.SpanId.ToString("x16");
-            var samplingPriority = context.TraceContext?.SamplingPriority ?? context.SamplingPriority;
-            var sampled = samplingPriority > 0 ? "1" : "0";
+            TelemetryFactory.Metrics.RecordCountContextHeaderStyleInjected(MetricTags.ContextHeaderStyle.B3Multi);
+            CreateHeaders(context, out var traceId, out var spanId, out var sampled);
 
             carrierSetter.Set(carrier, TraceId, traceId);
             carrierSetter.Set(carrier, SpanId, spanId);
@@ -53,67 +52,32 @@ namespace Datadog.Trace.Propagators
             spanContext = null;
 
             var rawTraceId = ParseUtility.ParseString(carrier, carrierGetter, TraceId)?.Trim();
+
+            if (rawTraceId == null || !HexString.TryParseTraceId(rawTraceId, out var traceId) || traceId == Trace.TraceId.Zero)
+            {
+                return false;
+            }
+
             var rawSpanId = ParseUtility.ParseString(carrier, carrierGetter, SpanId)?.Trim();
+
+            if (rawSpanId == null || !HexString.TryParseUInt64(rawSpanId, out var parentId))
+            {
+                return false;
+            }
+
+            TelemetryFactory.Metrics.RecordCountContextHeaderStyleExtracted(MetricTags.ContextHeaderStyle.B3Multi);
             var samplingPriority = ParseUtility.ParseInt32(carrier, carrierGetter, Sampled);
-
-            if (IsValidTraceId(rawTraceId) && IsValidSpanId(rawSpanId))
-            {
-                ulong traceId;
-#if NETCOREAPP
-                var success = rawTraceId.Length == 32 ?
-                                  HexString.TryParseUInt64(rawTraceId.AsSpan(16), out traceId) :
-                                  HexString.TryParseUInt64(rawTraceId, out traceId);
-#else
-                var success = rawTraceId.Length == 32 ?
-                                  HexString.TryParseUInt64(rawTraceId.Substring(16), out traceId) :
-                                  HexString.TryParseUInt64(rawTraceId, out traceId);
-#endif
-
-                if (!success || traceId == 0)
-                {
-                    return false;
-                }
-
-                if (!HexString.TryParseUInt64(rawSpanId, out var parentId))
-                {
-                    parentId = 0;
-                }
-
-                spanContext = new SpanContext(traceId, parentId, samplingPriority, serviceName: null, null, rawTraceId, rawSpanId);
-                return true;
-            }
-
-            return false;
-        }
-
-        private static bool IsValidTraceId([NotNullWhen(true)] string? traceId)
-        {
-            if (string.IsNullOrEmpty(traceId))
-            {
-                return false;
-            }
-
-            if (traceId!.Length != 16 && traceId.Length != 32)
-            {
-                return false;
-            }
-
+            spanContext = new SpanContext(traceId, parentId, samplingPriority, serviceName: null, null, rawTraceId, rawSpanId, isRemote: true);
             return true;
         }
 
-        private static bool IsValidSpanId([NotNullWhen(true)] string? spanId)
+        internal static void CreateHeaders(SpanContext context, out string traceId, out string spanId, out string sampled)
         {
-            if (string.IsNullOrEmpty(spanId))
-            {
-                return false;
-            }
+            traceId = context.RawTraceId;
+            spanId = context.RawSpanId;
 
-            if (spanId!.Length != 16)
-            {
-                return false;
-            }
-
-            return true;
+            var samplingPriority = context.GetOrMakeSamplingDecision() ?? SamplingPriorityValues.Default;
+            sampled = SamplingPriorityValues.IsKeep(samplingPriority) ? "1" : "0";
         }
     }
 }

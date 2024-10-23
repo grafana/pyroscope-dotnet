@@ -8,6 +8,7 @@ using System.ComponentModel;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using Datadog.Trace.Ci;
+using Datadog.Trace.Ci.Tags;
 using Datadog.Trace.ClrProfiler.CallTarget;
 using Datadog.Trace.DuckTyping;
 
@@ -21,7 +22,7 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Testing.MsTestV2;
     TypeName = "Microsoft.VisualStudio.TestPlatform.MSTest.TestAdapter.Execution.TestAssemblyInfo",
     MethodName = "RunAssemblyInitialize",
     ReturnTypeName = ClrNames.Void,
-    ParameterTypeNames = new[] { "_" },
+    ParameterTypeNames = ["Microsoft.VisualStudio.TestTools.UnitTesting.TestContext"],
     MinimumVersion = "14.0.0",
     MaximumVersion = "14.*.*",
     IntegrationName = MsTestIntegration.IntegrationName)]
@@ -30,7 +31,6 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Testing.MsTestV2;
 public static class TestAssemblyInfoRunAssemblyInitializeIntegration
 {
     private static readonly MethodInfo EmptyCleanUpMethodInfo = typeof(TestAssemblyInfoRunAssemblyInitializeIntegration).GetMethod("EmptyCleanUpMethod", BindingFlags.NonPublic | BindingFlags.Static);
-    internal static readonly ConditionalWeakTable<object, object> TestAssemblyInfos = new();
 
     /// <summary>
     /// OnMethodBegin callback
@@ -43,24 +43,22 @@ public static class TestAssemblyInfoRunAssemblyInitializeIntegration
     internal static CallTargetState OnMethodBegin<TTarget, TContext>(TTarget instance, TContext testContext)
         where TTarget : ITestAssemblyInfo
     {
-        if (!MsTestIntegration.IsEnabled || !testContext.TryDuckCast<TestContextStruct>(out var context))
+        if (!MsTestIntegration.IsEnabled)
         {
             return CallTargetState.GetDefault();
         }
 
-        if (!TestAssemblyInfos.TryGetValue(instance.Instance, out var moduleObject))
+        if (!testContext.TryDuckCast<TestContextStruct>(out var context))
         {
-            var assemblyName = AssemblyName.GetAssemblyName(context.TestMethod.AssemblyName).Name ?? string.Empty;
-            var frameworkVersion = instance.Type.Assembly.GetName().Version?.ToString() ?? string.Empty;
-            instance.AssemblyCleanupMethod ??= EmptyCleanUpMethodInfo;
-
-            CIVisibility.WaitForSkippableTaskToFinish();
-            var module = TestModule.Create(assemblyName, "MSTestV2", frameworkVersion);
-            TestAssemblyInfos.Add(instance.Instance, module);
-            return new CallTargetState(null, module);
+            return CallTargetState.GetDefault();
         }
 
-        return new CallTargetState(null, moduleObject);
+        lock (instance.Instance!)
+        {
+            instance.AssemblyCleanupMethod ??= EmptyCleanUpMethodInfo;
+        }
+
+        return new CallTargetState(null, MsTestIntegration.GetOrCreateTestModuleFromTestAssemblyInfo(instance, context.TestMethod.AssemblyName));
     }
 
     /// <summary>

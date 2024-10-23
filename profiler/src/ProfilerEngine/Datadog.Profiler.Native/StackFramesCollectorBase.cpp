@@ -3,8 +3,13 @@
 
 #include "StackFramesCollectorBase.h"
 
+#include "CallstackProvider.h"
+#include "Configuration.h"
+#include "EnvironmentVariables.h"
 #include "ManagedThreadList.h"
 #include "OpSysTools.h"
+
+#include "shared/src/native-src/dd_span.hpp"
 
 #include <assert.h>
 #include <chrono>
@@ -12,12 +17,15 @@
 #include <iostream>
 #include <mutex>
 
-StackFramesCollectorBase::StackFramesCollectorBase()
+StackFramesCollectorBase::StackFramesCollectorBase(IConfiguration const* _configuration, CallstackProvider* callstackProvider)
 {
     _isRequestedCollectionAbortSuccessful = false;
     _pStackSnapshotResult = std::make_unique<StackSnapshotResultBuffer>();
     _pCurrentCollectionThreadInfo = nullptr;
     _isCurrentCollectionAbortRequested.store(false);
+    _isCIVisibilityEnabled = _configuration->IsCIVisibilityEnabled();
+    _ciVisibilitySpanId = _configuration->GetCIVisibilitySpanId();
+    _callstackProvider = callstackProvider;
 }
 
 bool StackFramesCollectorBase::AddFrame(std::uintptr_t ip)
@@ -35,9 +43,9 @@ void StackFramesCollectorBase::SetFrameCount(std::uint16_t count)
     _pStackSnapshotResult->SetFramesCount(count);
 }
 
-std::pair<uintptr_t*, std::uint16_t> StackFramesCollectorBase::Data()
+shared::span<uintptr_t> StackFramesCollectorBase::Data()
 {
-    return {_pStackSnapshotResult->Data(), StackSnapshotResultBuffer::MaxSnapshotStackDepth_Limit};
+    return _pStackSnapshotResult->Data();
 }
 
 void StackFramesCollectorBase::RequestAbortCurrentCollection()
@@ -107,20 +115,27 @@ bool StackFramesCollectorBase::IsCurrentCollectionAbortRequested()
 
 bool StackFramesCollectorBase::TryApplyTraceContextDataFromCurrentCollectionThreadToSnapshot()
 {
+    if (_isCIVisibilityEnabled && _ciVisibilitySpanId > 0)
+    {
+        _pStackSnapshotResult->SetLocalRootSpanId(_ciVisibilitySpanId);
+        _pStackSnapshotResult->SetSpanId(_ciVisibilitySpanId);
+        return true;
+    }
+
     // If TraceContext Tracking is not enabled, then we will simply get zero IDs.
     ManagedThreadInfo* pCurrentCollectionThreadInfo = _pCurrentCollectionThreadInfo;
     if (pCurrentCollectionThreadInfo == nullptr)
     {
         return false;
     }
+
     _pStackSnapshotResult->GetTags().AsyncSafeCopy(pCurrentCollectionThreadInfo->GetTags());
-    if (pCurrentCollectionThreadInfo->CanReadTraceContext())
-    {
-        std::uint64_t localRootSpanId = pCurrentCollectionThreadInfo->GetLocalRootSpanId();
-        _pStackSnapshotResult->SetLocalRootSpanId(localRootSpanId);
-        return true;
-    }
-    return false;
+
+    auto [localRootSpanId, spanId] = pCurrentCollectionThreadInfo->GetTracingContext();
+    _pStackSnapshotResult->SetLocalRootSpanId(localRootSpanId);
+    _pStackSnapshotResult->SetSpanId(spanId);
+
+    return true;
 }
 
 StackSnapshotResultBuffer* StackFramesCollectorBase::GetStackSnapshotResult()
@@ -138,6 +153,8 @@ void StackFramesCollectorBase::PrepareForNextCollection()
     // This is because malloc() uses a lock and so if we suspend a thread that was allocating, we will deadlock.
     // So we pre-allocate the memory buffer and reset it before suspending the target thread.
     _pStackSnapshotResult->Reset();
+    _pStackSnapshotResult->SetCallstack(_callstackProvider->Get());
+
 
     // Clear the current collection thread pointer:
     _pCurrentCollectionThreadInfo = nullptr;

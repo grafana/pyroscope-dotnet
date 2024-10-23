@@ -1,0 +1,86 @@
+﻿Template:
+Segments: 
+
+{
+    "ref": "Collection"
+}
+Expressions: 
+(
+    scopeMember,
+    scopeMember,
+    scopeMember,
+    exception,
+    scopeMemberArray) =>
+{
+    string loopItem;
+    IEnumerator<string> enumerator;
+    int index;
+    StringBuilder itemValues;
+    var this = (DebuggerExpressionLanguageTests.TestStruct)scopeMember.Value;
+    var @return = (string)scopeMember.Value;
+    var @duration = (TimeSpan)scopeMember.Value;
+    var @exception = exception;
+    var IntLocal = (int)scopeMemberArray[0].Value;
+    var DoubleLocal = (double)scopeMemberArray[1].Value;
+    var StringLocal = (string)scopeMemberArray[2].Value;
+    var CollectionLocal = (List<string>)scopeMemberArray[3].Value;
+    var DictionaryLocal = (Dictionary<string, string>)scopeMemberArray[4].Value;
+    var NestedObjectLocal = (DebuggerExpressionLanguageTests.TestStruct.NestedObject)scopeMemberArray[5].Value;
+    var NullLocal = (DebuggerExpressionLanguageTests.TestStruct.NestedObject)scopeMemberArray[6].Value;
+    var BooleanValue = (bool)scopeMemberArray[7].Value;
+    var Char = (char)scopeMemberArray[8].Value;
+    var AnotherChar = (char)scopeMemberArray[9].Value;
+    var NullableNotNullValueLocal = (Guid?)scopeMemberArray[10].Value;
+    var NullableNullValueLocal = (Guid?)scopeMemberArray[11].Value;
+    var IntArg = (int)scopeMemberArray[12].Value;
+    var DoubleArg = (double)scopeMemberArray[13].Value;
+    var StringArg = (string)scopeMemberArray[14].Value;
+    var CollectionArg = (List<string>)scopeMemberArray[15].Value;
+    var NestedObjectArg = (DebuggerExpressionLanguageTests.TestStruct.NestedObject)scopeMemberArray[16].Value;
+    var $dd_el_result = (this.Collection == null)
+        ? "null"
+        : {
+            enumerator = this.Collection.GetEnumerator();
+            index = 0;
+            itemValues = new StringBuilder();
+            itemValues.Append("[");
+            while (true)
+            {
+                if (enumerator.MoveNext())
+                {
+                    string loopItem;
+
+                    if (index < 3)
+                    {
+                        if (index > 0)
+                        {
+                            return itemValues.Append(", ");
+                        }
+
+                        loopItem = enumerator.Current;
+                        itemValues.Append(ProbeExpressionParser<string>.DumpObject(
+                            loopItem,
+                            typeof(string),
+                            "",
+                            1));
+                        index++;
+                    }
+                    else
+                    {
+                        itemValues.Append(", ...");
+                        break;
+                    }
+                }
+                else
+                {
+                    break;
+                }
+            }
+            itemValues.Append("]");
+
+            return itemValues.ToString();
+        };
+
+    return $dd_el_result;
+}
+Result: The result of the expression is: [hello, 1st Item, 2nd item, ...]

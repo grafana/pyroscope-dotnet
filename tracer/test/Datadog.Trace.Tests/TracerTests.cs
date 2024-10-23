@@ -226,17 +226,17 @@ namespace Datadog.Trace.Tests
         [Fact]
         public void StartActive_SetParentManuallyFromExternalContext_ParentIsSet()
         {
-            const ulong traceId = 11;
+            var traceId = (TraceId)11;
             const ulong parentId = 7;
             const int samplingPriority = SamplingPriorityValues.UserKeep;
 
-            var parent = new SpanContext(traceId, parentId, (SamplingPriority)samplingPriority);
+            var parent = new SpanContext(traceId, parentId, samplingPriority, serviceName: null, origin: null);
             var spanCreationSettings = new SpanCreationSettings() { Parent = parent };
             var child = (Scope)_tracer.StartActive("Child", spanCreationSettings);
             var childSpan = child.Span;
 
             Assert.True(childSpan.IsRootSpan);
-            Assert.Equal(traceId, parent.TraceId);
+            Assert.Equal(traceId, parent.TraceId128);
             Assert.Equal(parentId, parent.SpanId);
             Assert.Null(parent.TraceContext);
             Assert.Equal(parent, childSpan.Context.Parent);
@@ -399,10 +399,10 @@ namespace Datadog.Trace.Tests
         [Theory]
         [InlineData(null)]
         [InlineData("test")]
-        public void SetEnv(string env)
+        public async Task SetEnv(string env)
         {
             var settings = new TracerSettings { Environment = env };
-            var tracer = TracerHelper.Create(settings);
+            await using var tracer = TracerHelper.CreateWithFakeAgent(settings);
             var scope = (Scope)tracer.StartActive("operation");
 
             scope.Span.GetTag(Tags.Env).Should().Be(env);
@@ -412,10 +412,10 @@ namespace Datadog.Trace.Tests
         [Theory]
         [InlineData(null)]
         [InlineData("1.2.3")]
-        public void SetVersion(string version)
+        public async Task SetVersion(string version)
         {
             var settings = new TracerSettings { ServiceVersion = version };
-            var tracer = TracerHelper.Create(settings);
+            await using var tracer = TracerHelper.CreateWithFakeAgent(settings);
             var scope = (Scope)tracer.StartActive("operation");
 
             scope.Span.GetTag(Tags.Version).Should().Be(version);
@@ -430,14 +430,14 @@ namespace Datadog.Trace.Tests
         [InlineData(null, "spanService", "spanService")]
         // if more than one is set, follow precedence: span > tracer  > default
         [InlineData("tracerService", "spanService", "spanService")]
-        public void SetServiceName(string tracerServiceName, string spanServiceName, string expectedServiceName)
+        public async Task SetServiceName(string tracerServiceName, string spanServiceName, string expectedServiceName)
         {
             var settings = new TracerSettings()
             {
                 ServiceName = tracerServiceName,
             };
 
-            var tracer = TracerHelper.Create(settings);
+            await using var tracer = TracerHelper.CreateWithFakeAgent(settings);
             ISpan span = tracer.StartSpan("operationName", serviceName: spanServiceName);
 
             if (expectedServiceName == null)
@@ -456,7 +456,7 @@ namespace Datadog.Trace.Tests
         [Fact]
         public void OriginHeader_RootSpanTag()
         {
-            const ulong traceId = 9;
+            var traceId = (TraceId)9;
             const ulong spanId = 7;
             const int samplingPriority = SamplingPriorityValues.UserKeep;
             const string origin = "synthetics";
@@ -484,7 +484,7 @@ namespace Datadog.Trace.Tests
         [Fact]
         public void OriginHeader_InjectFromChildSpan()
         {
-            const ulong traceId = 9;
+            var traceId = (TraceId)9;
             const ulong spanId = 7;
             const int samplingPriority = SamplingPriorityValues.UserKeep;
             const string origin = "synthetics";

@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Datadog.Trace.Tagging;
 using FluentAssertions;
+using Moq;
 using Xunit;
 
 namespace Datadog.Trace.Tests
@@ -16,30 +17,32 @@ namespace Datadog.Trace.Tests
         [Fact]
         public void OverrideTraceIdWithoutParent()
         {
-            const ulong expectedTraceId = 41;
+            var expectedTraceId = (TraceId)41;
             const ulong expectedSpanId = 42;
 
             var spanContext = new SpanContext(parent: null, traceContext: null, serviceName: "service", traceId: expectedTraceId, spanId: expectedSpanId);
 
             spanContext.SpanId.Should().Be(expectedSpanId);
-            spanContext.TraceId.Should().Be(expectedTraceId);
+            spanContext.TraceId128.Should().Be(expectedTraceId);
+            spanContext.TraceId.Should().Be(expectedTraceId.Lower);
         }
 
         [Fact]
         public void OverrideTraceIdWithParent()
         {
-            const ulong parentTraceId = 41;
+            var parentTraceId = (TraceId)41;
             const ulong parentSpanId = 42;
 
-            const ulong childTraceId = 43;
+            var childTraceId = (TraceId)43;
             const ulong childSpanId = 44;
 
-            var parent = new SpanContext(parentTraceId, parentSpanId);
+            var parent = new SpanContext(parentTraceId, parentSpanId, samplingPriority: null, serviceName: null, origin: null);
 
             var spanContext = new SpanContext(parent: parent, traceContext: null, serviceName: "service", traceId: childTraceId, spanId: childSpanId);
 
             spanContext.SpanId.Should().Be(childSpanId);
-            spanContext.TraceId.Should().Be(parentTraceId, "trace id shouldn't be overriden if a parent trace exists. Doing so would break the HttpWebRequest.GetRequestStream/GetResponse integration.");
+            spanContext.TraceId128.Should().Be(parentTraceId, "trace id shouldn't be overriden if a parent trace exists. Doing so would break the HttpWebRequest.GetRequestStream/GetResponse integration.");
+            spanContext.TraceId.Should().Be(parentTraceId.Lower);
         }
 
         [Fact]
@@ -55,6 +58,7 @@ namespace Datadog.Trace.Tests
                                    "__DistributedKey-RawSpanId",
                                    "__DistributedKey-PropagatedTags",
                                    "__DistributedKey-AdditionalW3CTraceState",
+                                   "__DistributedKey-LastParentId",
                                    "x-datadog-trace-id",
                                    "x-datadog-parent-id",
                                    "x-datadog-sampling-priority",
@@ -85,6 +89,7 @@ namespace Datadog.Trace.Tests
                                      "2b",
                                      "_dd.p.key1=value1,_dd.p.key2=value2",
                                      "key3=value3,key4=value4",
+                                     "0123456789abcdef",
                                  };
 
             var context = CreateSpanContext();
@@ -108,6 +113,8 @@ namespace Datadog.Trace.Tests
                                     new("__DistributedKey-RawSpanId", "2b"),
                                     new("__DistributedKey-PropagatedTags", "_dd.p.key1=value1,_dd.p.key2=value2"),
                                     new("__DistributedKey-AdditionalW3CTraceState", "key3=value3,key4=value4"),
+                                    new("__DistributedKey-LastParentId", "0123456789abcdef"),
+
                                     new("x-datadog-trace-id", "1"),
                                     new("x-datadog-parent-id", "2"),
                                     new("x-datadog-sampling-priority", "-1"),
@@ -127,19 +134,20 @@ namespace Datadog.Trace.Tests
 
         private static IReadOnlyDictionary<string, string> CreateSpanContext()
         {
-            const ulong traceId = 1;
+            var traceId = (TraceId)1;
             const ulong spanId = 2;
             const string rawTraceId = "1a";
             const string rawSpanId = "2b";
             const int samplingPriority = SamplingPriorityValues.UserReject;
             const string origin = "origin";
             const string additionalW3CTraceState = "key3=value3,key4=value4";
+            const string lastParentId = "0123456789abcdef";
 
-            var propagatedTags = new TraceTagCollection(100);
+            var propagatedTags = new TraceTagCollection();
             propagatedTags.SetTag("_dd.p.key1", "value1");
             propagatedTags.SetTag("_dd.p.key2", "value2");
 
-            var traceContext = new TraceContext(tracer: null, propagatedTags);
+            var traceContext = new TraceContext(Mock.Of<IDatadogTracer>(), propagatedTags);
             traceContext.SetSamplingPriority(samplingPriority);
             traceContext.Origin = origin;
             traceContext.AdditionalW3CTraceState = additionalW3CTraceState;
@@ -151,7 +159,10 @@ namespace Datadog.Trace.Tests
                 traceId,
                 spanId,
                 rawTraceId,
-                rawSpanId);
+                rawSpanId)
+            {
+                LastParentId = lastParentId
+            };
         }
     }
 }

@@ -8,6 +8,7 @@
 #include "corprof.h"
 // end
 
+#include "LibrariesInfoCache.h"
 #include "StackFramesCollectorBase.h"
 
 #include <atomic>
@@ -21,11 +22,13 @@ class IManagedThreadList;
 class ProfilerSignalManager;
 class ProfilerSignalManager;
 class IConfiguration;
+class CallstackProvider;
+class LibrariesInfoCache;
 
 class LinuxStackFramesCollector : public StackFramesCollectorBase
 {
 public:
-    explicit LinuxStackFramesCollector(ProfilerSignalManager* signalManager, IConfiguration const* configuration);
+    explicit LinuxStackFramesCollector(ProfilerSignalManager* signalManager, IConfiguration const* configuration, CallstackProvider* callstackProvider, LibrariesInfoCache* librariesCacheInfo);
     ~LinuxStackFramesCollector() override;
     LinuxStackFramesCollector(LinuxStackFramesCollector const&) = delete;
     LinuxStackFramesCollector& operator=(LinuxStackFramesCollector const&) = delete;
@@ -60,6 +63,7 @@ private:
     bool CanCollect(int32_t threadId, pid_t processId) const;
     std::int32_t CollectStackManually(void* ctx);
     std::int32_t CollectStackWithBacktrace2(void* ctx);
+    void MarkAsInterrupted();
 
     std::int32_t _lastStackWalkErrorCode;
     std::condition_variable _stackWalkInProgressWaiter;
@@ -84,4 +88,5 @@ private:
 
     ErrorStatistics _errorStatistics;
     bool _useBacktrace2;
+    LibrariesInfoCache* _plibrariesInfo;
 };

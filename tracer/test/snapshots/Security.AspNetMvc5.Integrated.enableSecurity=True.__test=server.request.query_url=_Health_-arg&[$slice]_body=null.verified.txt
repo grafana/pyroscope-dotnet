@@ -12,12 +12,14 @@
       aspnet.controller: health,
       aspnet.route: {controller}/{action}/{id},
       env: integration_tests,
+      http.client_ip: 127.0.0.1,
       http.method: GET,
       http.request.headers.host: localhost:00000,
       http.status_code: 200,
       http.url: http://localhost:00000/Health/?arg&[$slice],
       http.useragent: Mistake Not...,
       language: dotnet,
+      network.client.ip: ::1,
       span.kind: server
     }
   },
@@ -41,12 +43,10 @@
       network.client.ip: ::1,
       runtime-id: Guid_1,
       span.kind: server,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
@@ -66,12 +66,14 @@
       aspnet.controller: health,
       aspnet.route: {controller}/{action}/{id},
       env: integration_tests,
+      http.client_ip: 127.0.0.1,
       http.method: GET,
       http.request.headers.host: localhost:00000,
       http.status_code: 200,
       http.url: http://localhost:00000/Health/?arg&[$slice],
       http.useragent: Mistake Not...,
       language: dotnet,
+      network.client.ip: ::1,
       span.kind: server
     }
   },
@@ -95,12 +97,10 @@
       network.client.ip: ::1,
       runtime-id: Guid_1,
       span.kind: server,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
@@ -120,12 +120,14 @@
       aspnet.controller: health,
       aspnet.route: {controller}/{action}/{id},
       env: integration_tests,
+      http.client_ip: 127.0.0.1,
       http.method: GET,
       http.request.headers.host: localhost:00000,
       http.status_code: 200,
       http.url: http://localhost:00000/Health/?arg&[$slice],
       http.useragent: Mistake Not...,
       language: dotnet,
+      network.client.ip: ::1,
       span.kind: server
     }
   },
@@ -149,12 +151,10 @@
       network.client.ip: ::1,
       runtime-id: Guid_1,
       span.kind: server,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
@@ -174,12 +174,14 @@
       aspnet.controller: health,
       aspnet.route: {controller}/{action}/{id},
       env: integration_tests,
+      http.client_ip: 127.0.0.1,
       http.method: GET,
       http.request.headers.host: localhost:00000,
       http.status_code: 200,
       http.url: http://localhost:00000/Health/?arg&[$slice],
       http.useragent: Mistake Not...,
       language: dotnet,
+      network.client.ip: ::1,
       span.kind: server
     }
   },
@@ -203,12 +205,10 @@
       network.client.ip: ::1,
       runtime-id: Guid_1,
       span.kind: server,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
@@ -228,12 +228,14 @@
       aspnet.controller: health,
       aspnet.route: {controller}/{action}/{id},
       env: integration_tests,
+      http.client_ip: 127.0.0.1,
       http.method: GET,
       http.request.headers.host: localhost:00000,
       http.status_code: 200,
       http.url: http://localhost:00000/Health/?arg&[$slice],
       http.useragent: Mistake Not...,
       language: dotnet,
+      network.client.ip: ::1,
       span.kind: server
     }
   },
@@ -257,12 +259,10 @@
       network.client.ip: ::1,
       runtime-id: Guid_1,
       span.kind: server,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,

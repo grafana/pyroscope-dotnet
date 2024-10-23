@@ -5,11 +5,15 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Datadog.Trace.Agent.DiscoveryService;
 using Datadog.Trace.Ci;
 using Datadog.Trace.Configuration;
+using Datadog.Trace.Logging.TracerFlare;
+using Datadog.Trace.RemoteConfigurationManagement;
 using Datadog.Trace.TestHelpers;
 using FluentAssertions;
+using Moq;
 using Xunit;
 
 namespace Datadog.Trace.Tests
@@ -19,10 +23,10 @@ namespace Datadog.Trace.Tests
     public class TracerInstanceTest
     {
         [Fact]
-        public void NormalTracerInstanceSwap()
+        public async Task NormalTracerInstanceSwap()
         {
-            var tracerOne = TracerHelper.Create();
-            var tracerTwo = TracerHelper.Create();
+            await using var tracerOne = TracerHelper.CreateWithFakeAgent();
+            await using var tracerTwo = TracerHelper.CreateWithFakeAgent();
 
             TracerRestorerAttribute.SetTracer(tracerOne);
             Tracer.Instance.Should().Be(tracerOne);
@@ -37,9 +41,9 @@ namespace Datadog.Trace.Tests
         }
 
         [Fact]
-        public void LockedTracerInstanceSwap()
+        public async Task LockedTracerInstanceSwap()
         {
-            var tracerOne = TracerHelper.Create();
+            await using var tracerOne = TracerHelper.CreateWithFakeAgent();
             var tracerTwo = new LockedTracer();
 
             TracerRestorerAttribute.SetTracer(tracerOne);
@@ -83,7 +87,8 @@ namespace Datadog.Trace.Tests
                 };
                 Tracer.Configure(oldSettings);
 
-                var span = Tracer.Instance.StartActive("Test span");
+                var scope = Tracer.Instance.StartActive("Test span");
+                (scope.Span as Span).IsRootSpan.Should().BeTrue();
 
                 var newSettings = new TracerSettings
                 {
@@ -98,7 +103,7 @@ namespace Datadog.Trace.Tests
 
                 Tracer.Configure(newSettings);
 
-                span.Dispose();
+                scope.Dispose();
 
                 var spans = agent.WaitForSpans(count: 1);
                 var received = spans.Should().ContainSingle().Subject;
@@ -118,7 +123,7 @@ namespace Datadog.Trace.Tests
         private class LockedTracerManager : TracerManager, ILockedTracer
         {
             public LockedTracerManager()
-                : base(null, null, null, null, null, null, null, null, null, null, null, null)
+                : base(new ImmutableTracerSettings(new TracerSettings()), null, null, null, null, null, null, null, null, null, null, null, null, Mock.Of<IRemoteConfigurationManager>(), Mock.Of<IDynamicConfigurationManager>(), Mock.Of<ITracerFlareManager>())
             {
             }
         }

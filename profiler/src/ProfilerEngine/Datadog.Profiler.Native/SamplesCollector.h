@@ -8,52 +8,50 @@
 #include "IExporter.h"
 #include "IMetricsSender.h"
 #include "ISamplesCollector.h"
-#include "IService.h"
 #include "IThreadsCpuManager.h"
+#include "ServiceBase.h"
 
 #include <forward_list>
 #include <mutex>
 #include <thread>
 #include <future>
 
-
 using namespace std::chrono_literals;
 
 class SamplesCollector
-    : public ISamplesCollector, public IService
+    :
+    public ISamplesCollector,
+    public ServiceBase
 {
-
 public:
-
-
     SamplesCollector(IConfiguration* configuration, IThreadsCpuManager* pThreadsCpuManager, IExporter* exporter, IMetricsSender* metricsSender);
 
     // Inherited via IService
     const char* GetName() override;
-    bool Start() override;
-    bool Stop() override;
 
     void Register(ISamplesProvider* samplesProvider) override;
     void RegisterBatchedProvider(IBatchedSamplesProvider* batchedSamplesProvider) override;
 
     // Public but should only be called privately or from tests
-    void Export(ProfileTime &startTime, ProfileTime&endTime);
+    void Export(ProfileTime &startTime, ProfileTime&endTime, bool lastCall = false);
 
 private:
+    bool StartImpl() override;
+    bool StopImpl() override;
+
     void SamplesWork();
     void ExportWork();
     void CollectSamples(std::forward_list<std::pair<ISamplesProvider*, uint64_t>>& samplesProviders);
     void SendHeartBeatMetric(bool success);
 
     const char* _serviceName = "SamplesCollector";
-    const WCHAR* WorkerThreadName = WStr("DD.Profiler.SamplesCollector.WorkerThread");
-    const WCHAR* ExporterThreadName = WStr("DD.Profiler.SamplesCollector.ExporterThread");
+    const WCHAR* WorkerThreadName = WStr("DD_worker");
+    const WCHAR* ExporterThreadName = WStr("DD_exporter");
 
     inline static constexpr std::chrono::nanoseconds CollectingPeriod = 60ms;
     inline static std::string const SuccessfulExportsMetricName = "datadog.profiling.dotnet.operational.exports";
 
     std::chrono::seconds _uploadInterval;
-    bool _mustStop;
     IThreadsCpuManager* _pThreadsCpuManager;
     std::forward_list<std::pair<ISamplesProvider*, uint64_t>> _samplesProviders;
     std::forward_list<std::pair<ISamplesProvider*, uint64_t>> _batchedSamplesProviders;
@@ -64,4 +62,12 @@ private:
     std::promise<void> _workerThreadPromise;
     IMetricsSender* _metricsSender;
     IExporter* _exporter;
+
+    // OPTIM
+    // It safe to have only one cached sample with no synchronization
+    // This field is only used by one thread at a time:
+    // - worker thread responsible to collect and push samples in the profile
+    // - thread executing the Stop: at that time, the worker thread has stopped
+    //   and the thread will be the only one using this field to collect the last samples
+    std::shared_ptr<Sample> _cachedSample;
 };

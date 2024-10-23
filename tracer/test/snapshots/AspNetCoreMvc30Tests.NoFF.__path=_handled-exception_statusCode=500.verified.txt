@@ -27,12 +27,10 @@ System.Exception: Exception of type 'System.Exception' was thrown.
       language: dotnet,
       runtime-id: Guid_1,
       span.kind: server,
-      version: 1.0.0,
-      _dd.p.dm: -0
+      version: 1.0.0
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
       _sampling_priority_v1: 1.0

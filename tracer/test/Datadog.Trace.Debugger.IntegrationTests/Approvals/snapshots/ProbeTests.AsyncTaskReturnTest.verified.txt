@@ -3,7 +3,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -46,8 +45,8 @@
                     "value": "Room"
                   }
                 ],
-                "type": "List`1",
-                "value": "count: 2"
+                "size": 2,
+                "type": "List`1"
               }
             }
           },
@@ -64,8 +63,18 @@
                 "value": "Maintenance"
               },
               "room": {
-                "isNull": "true",
-                "type": "Room"
+                "fields": {
+                  "Id": {
+                    "type": "String",
+                    "value": "Foo"
+                  },
+                  "Status": {
+                    "type": "RoomStatus",
+                    "value": "Maintenance"
+                  }
+                },
+                "type": "Room",
+                "value": "Room"
               }
             },
             "staticFields": {
@@ -100,8 +109,8 @@
                     "value": "Room"
                   }
                 ],
-                "type": "List`1",
-                "value": "count: 2"
+                "size": 2,
+                "type": "List`1"
               }
             }
           }
@@ -114,7 +123,8 @@
           "location": {
             "method": "Method",
             "type": "Samples.Probes.TestRuns.SmokeTests.AsyncTaskReturnTest"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"

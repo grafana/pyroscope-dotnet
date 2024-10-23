@@ -5,15 +5,17 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text.RegularExpressions;
 using Datadog.Trace.TestHelpers;
 using FluentAssertions;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Datadog.Trace.Tools.Runner.IntegrationTests
 {
     [Collection(nameof(ConsoleTestsCollection))]
-    public class LegacyCommandLineArgumentsTests
+    public class LegacyCommandLineArgumentsTests(ITestOutputHelper output)
     {
         [SkippableFact]
         [Trait("RunOnWindows", "True")]
@@ -49,7 +51,7 @@ namespace Datadog.Trace.Tools.Runner.IntegrationTests
             };
 
             // CI visibility mode checks if there's a running agent
-            using var agent = MockTracerAgent.Create(null, TcpPortProvider.GetOpenPort());
+            using var agent = MockTracerAgent.Create(output, TcpPortProvider.GetOpenPort());
 
             var agentUrl = $"http://localhost:{agent.Port}";
 
@@ -88,7 +90,7 @@ namespace Datadog.Trace.Tools.Runner.IntegrationTests
             environmentVariables.Should().Contain("DD_ENV", "TestEnv");
             environmentVariables.Should().Contain("DD_SERVICE", "TestService");
             environmentVariables.Should().Contain("DD_VERSION", "TestVersion");
-            environmentVariables.Should().Contain("DD_DOTNET_TRACER_HOME", "TestTracerHome");
+            environmentVariables.Should().Contain("DD_DOTNET_TRACER_HOME", Path.GetFullPath("TestTracerHome"));
             environmentVariables.Should().Contain("DD_TRACE_AGENT_URL", agentUrl);
             environmentVariables.Should().Contain("DD_CIVISIBILITY_ENABLED", "1");
             environmentVariables.Should().Contain("VAR1", "A");
@@ -120,7 +122,7 @@ namespace Datadog.Trace.Tools.Runner.IntegrationTests
                 foreach (var line in console.ReadLines())
                 {
                     // ##vso[task.setvariable variable=DD_DOTNET_TRACER_HOME]TestTracerHome
-                    var match = Regex.Match(line, @"##vso\[task.setvariable variable=(?<name>[A-Z1-9_]+)\](?<value>.*)");
+                    var match = Regex.Match(line, @"##vso\[task.setvariable variable=(?<name>[A-Z1-9_]+);\](?<value>.*)");
 
                     if (match.Success)
                     {
@@ -131,7 +133,7 @@ namespace Datadog.Trace.Tools.Runner.IntegrationTests
                 environmentVariables.Should().Contain("DD_ENV", "TestEnv");
                 environmentVariables.Should().Contain("DD_SERVICE", "TestService");
                 environmentVariables.Should().Contain("DD_VERSION", "TestVersion");
-                environmentVariables.Should().Contain("DD_DOTNET_TRACER_HOME", "TestTracerHome");
+                environmentVariables.Should().Contain("DD_DOTNET_TRACER_HOME", Path.GetFullPath("TestTracerHome"));
                 environmentVariables.Should().Contain("DD_TRACE_AGENT_URL", "TestAgentUrl");
                 environmentVariables.Should().Contain("VAR1", "A");
                 environmentVariables.Should().Contain("VAR2", "B");

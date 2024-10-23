@@ -12,7 +12,11 @@
 #include "IRuntimeIdStore.h"
 #include "ISamplesCollector.h"
 #include "ISamplesProvider.h"
+#include "CpuProfilerType.h"
+#include "ISsiLifetime.h"
+#include "ISsiManager.h"
 #include "Sample.h"
+#include "SamplesEnumerator.h"
 #include "TagsHelper.h"
 
 #include <memory>
@@ -60,14 +64,34 @@ public:
     MOCK_METHOD(bool, UseBacktrace2, (), (const override));
     MOCK_METHOD(bool, IsAllocationRecorderEnabled, (), (const override));
     MOCK_METHOD(bool, IsDebugInfoEnabled, (), (const override));
+    MOCK_METHOD(bool, IsGcThreadsCpuTimeEnabled, (), (const override));
+    MOCK_METHOD(bool, IsThreadLifetimeEnabled, (), (const override));
+    MOCK_METHOD(std::string const&, GetGitRepositoryUrl, (), (const override));
+    MOCK_METHOD(std::string const&, GetGitCommitSha, (), (const override));
+    MOCK_METHOD(bool, IsInternalMetricsEnabled, (), (const override));
+    MOCK_METHOD(bool, IsSystemCallsShieldEnabled, (), (const override));
+    MOCK_METHOD(bool, IsCIVisibilityEnabled, (), (const override));
+    MOCK_METHOD(std::uint64_t, GetCIVisibilitySpanId, (), (const override));
+    MOCK_METHOD(bool, IsEtwEnabled, (), (const override));
+    MOCK_METHOD(EnablementStatus, GetEnablementStatus, (), (const override));
+    MOCK_METHOD(DeploymentMode, GetDeploymentMode, (), (const override));
+    MOCK_METHOD(bool, IsEtwLoggingEnabled, (), (const override));
+    MOCK_METHOD(CpuProfilerType, GetCpuProfilerType, (), (const override));
+    MOCK_METHOD(std::chrono::milliseconds, GetCpuProfilingInterval, (), (const override));
+    MOCK_METHOD(std::chrono::milliseconds, GetSsiLongLivedThreshold, (), (const override));
+    MOCK_METHOD(bool, IsTelemetryToDiskEnabled, (), (const override));
+    MOCK_METHOD(bool, IsSsiTelemetryEnabled, (), (const override));
 };
 
 class MockExporter : public IExporter
 {
 public:
     MOCK_METHOD(void, Add, (std::shared_ptr<Sample> const& sample), (override));
-    MOCK_METHOD(bool, Export, (), (override));
+    MOCK_METHOD(bool, Export, (bool lastCall), (override));
     MOCK_METHOD(void, SetEndpoint, (const std::string& runtimeId, uint64_t traceId, const std::string& endpoint), (override));
+    MOCK_METHOD(void, RegisterUpscaleProvider, (IUpscaleProvider * provider), (override));
+    MOCK_METHOD(void, RegisterProcessSamplesProvider, (ISamplesProvider * provider), (override));
+    MOCK_METHOD(void, RegisterApplication, (std::string_view runtimeId), (override));
 };
 
 class MockSamplesCollector : public ISamplesCollector
@@ -80,8 +104,23 @@ public:
 class MockSampleProvider : public ISamplesProvider
 {
 public:
-    MOCK_METHOD(std::list<std::shared_ptr<Sample>>, GetSamples, (), (override));
+    MOCK_METHOD(std::unique_ptr<SamplesEnumerator>, GetSamples, (), (override));
     MOCK_METHOD(const char*, GetName, (), (override));
+};
+
+class MockSsiManager : public ISsiManager
+{
+public:
+    // Inherited via ISsiManager
+    MOCK_METHOD(void, OnSpanCreated, (), (override));
+    MOCK_METHOD(bool, IsSpanCreated, (),  (const override));
+    MOCK_METHOD(bool, IsLongLived, (), (const override));
+    MOCK_METHOD(bool, IsProfilerEnabled, (), (override));
+    MOCK_METHOD(bool, IsProfilerStarted, (), (override));
+    MOCK_METHOD(void, ProcessStart, (), (override));
+    MOCK_METHOD(void, ProcessEnd, (), (override));
+    MOCK_METHOD(SkipProfileHeuristicType, GetSkipProfileHeuristic, (), (const override));
+    MOCK_METHOD(DeploymentMode, GetDeploymentMode, (), (const override));
 };
 
 class MockMetricsSender : public IMetricsSender
@@ -120,15 +159,37 @@ class MockApplicationStore : public IApplicationStore
 public:
     MOCK_METHOD(ApplicationInfo, GetApplicationInfo, (const std::string& runtimeId), (override));
     MOCK_METHOD(void, SetApplicationInfo, (const std::string&, const std::string&, const std::string&, const std::string&), (override));
-    MOCK_METHOD(const char*, GetName, (), (override));
-    MOCK_METHOD(bool, Start, (), (override));
-    MOCK_METHOD(bool, Stop, (), (override));
+    MOCK_METHOD(void, SetGitMetadata, (std::string, std::string, std::string), (override));
 };
 
 class MockRuntimeIdStore : public IRuntimeIdStore
 {
 public:
     MOCK_METHOD(const char*, GetId, (AppDomainID appDomainId), (override));
+};
+
+class MockProcessSamplesProvider : public ISamplesProvider
+{
+public:
+    MOCK_METHOD(std::unique_ptr<SamplesEnumerator>, GetSamples, (), (override));
+    MOCK_METHOD(const char*, GetName, (), (override));
+};
+
+class SsiLifetimeForTest : public ISsiLifetime
+{
+public:
+    void OnStartDelayedProfiling() override
+    {
+        _hasBeenStarted = true;
+    }
+
+    bool IsProfilingEnabled() const
+    {
+        return _hasBeenStarted;
+    }
+
+private:
+    bool _hasBeenStarted = false;
 };
 
 template <typename T, typename U, typename... Args>
@@ -145,6 +206,7 @@ std::tuple<std::shared_ptr<ISamplesProvider>, MockSampleProvider&> CreateSamples
 
 std::tuple<std::unique_ptr<IExporter>, MockExporter&> CreateExporter();
 std::tuple<std::unique_ptr<ISamplesCollector>, MockSamplesCollector&> CreateSamplesCollector();
+std::tuple<std::unique_ptr<ISsiManager>, MockSsiManager&> CreateSsiManager();
 
 std::shared_ptr<Sample> CreateSample(std::string_view runtimeId, const std::vector<std::pair<std::string, std::string>>& callstack, const std::vector<std::pair<std::string, std::string>>& labels, std::int64_t value);
 

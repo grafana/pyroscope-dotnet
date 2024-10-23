@@ -124,17 +124,8 @@ namespace Datadog.Trace.Tests.Telemetry
             {
             }
 
-            public void RecordSecuritySettings(SecuritySettings settings)
-            {
-            }
-
             public void RecordProfilerSettings(Profiler profiler)
             {
-            }
-
-            public Task DisposeAsync(bool sendAppClosingTelemetry)
-            {
-                return Task.CompletedTask;
             }
 
             public Task DisposeAsync()
@@ -146,7 +137,13 @@ namespace Datadog.Trace.Tests.Telemetry
             {
             }
 
-            public void RecordIastSettings(IastSettings settings)
+            public void ProductChanged(TelemetryProductType product, bool enabled, ErrorData? error)
+            {
+            }
+
+            public Task DumpTelemetry(string filePath) => Task.CompletedTask;
+
+            public void RecordGitMetadata(GitMetadata gitMetadata)
             {
             }
         }
