@@ -3,11 +3,9 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
-using System;
 using System.IO;
-using System.Linq;
-using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Datadog.Trace.HttpOverStreams;
 using Datadog.Trace.HttpOverStreams.HttpContent;
@@ -21,39 +19,110 @@ namespace Datadog.Trace.TestHelpers
 
         public static async Task<MockHttpRequest> ReadRequest(Stream stream)
         {
-            var headers = new HttpHeaders();
-            char currentChar = char.MinValue;
-            int streamPosition = 0;
-
-            // https://tools.ietf.org/html/rfc2616#section-4.2
-            const int bufferSize = 10;
+            var headers = new MockHttpRequest.MockHeaders();
+            var helper = new StreamReaderHelper(stream);
 
             var stringBuilder = new StringBuilder();
 
-            var chArray = new byte[bufferSize];
+            // Read POST
+            await helper.ReadUntil(stringBuilder, stopChar: ' ').ConfigureAwait(false);
 
-            async Task GoNextChar()
+            // This will have a null character prefixed on it because of reasons
+            var method = stringBuilder.ToString(1, stringBuilder.Length - 1);
+            stringBuilder.Clear();
+
+            // Read /path?request
+            await helper.GoNextChar().ConfigureAwait(false);
+            await helper.ReadUntil(stringBuilder, stopChar: ' ').ConfigureAwait(false);
+
+            var pathAndQuery = stringBuilder.ToString().Trim();
+            stringBuilder.Clear();
+
+            // Skip to end of line
+            await helper.ReadUntilNewLine(stringBuilder).ConfigureAwait(false);
+            stringBuilder.Clear();
+
+            // Read headers
+            do
             {
-                var bytesRead = await stream.ReadAsync(chArray, offset: 0, count: 1).ConfigureAwait(false);
-                if (bytesRead == 0)
+                await helper.GoNextChar().ConfigureAwait(false);
+
+                // Check for end of headers
+                if (await helper.IsNewLine().ConfigureAwait(false))
                 {
-                    ThrowHelper.ThrowInvalidOperationException($"Unexpected end of stream at position {streamPosition}");
+                    // Empty line, content starts next
+                    break;
                 }
 
-                currentChar = Encoding.ASCII.GetChars(chArray)[0];
-                streamPosition++;
+                // Read key
+                await helper.ReadUntil(stringBuilder, stopChar: ':').ConfigureAwait(false);
+
+                var name = stringBuilder.ToString().Trim();
+                stringBuilder.Clear();
+
+                // skip separator
+                await helper.GoNextChar().ConfigureAwait(false);
+
+                // Read value
+                await helper.ReadUntilNewLine(stringBuilder).ConfigureAwait(false);
+
+                var value = stringBuilder.ToString().Trim();
+                stringBuilder.Clear();
+
+                headers.Add(name, value);
+            }
+            while (true);
+
+            var length = headers.TryGetValue(ContentLengthHeaderKey, out var contentLength)
+                             ? long.Parse(contentLength)
+                             : (long?)null;
+
+            var body = headers.TryGetValue("Transfer-Encoding", out var header) && header is "chunked"
+                           ? new ChunkedEncodingReadStream(stream)
+                           : stream;
+
+            return new MockHttpRequest()
+            {
+                Headers = headers,
+                Method = method,
+                PathAndQuery = pathAndQuery,
+                ContentLength = length,
+                Body = body
+            };
+        }
+
+        private class StreamReaderHelper(Stream stream)
+        {
+            // https://tools.ietf.org/html/rfc2616#section-4.2
+            private const int BufferSize = 10;
+            private readonly byte[] _chArray = new byte[BufferSize];
+            private readonly Stream _stream = stream;
+
+            private char _currentChar = char.MinValue;
+            private int _streamPosition = 0;
+
+            public async Task GoNextChar()
+            {
+                var bytesRead = await _stream.ReadAsync(_chArray, offset: 0, count: 1).ConfigureAwait(false);
+                if (bytesRead == 0)
+                {
+                    ThrowHelper.ThrowInvalidOperationException($"Unexpected end of stream at position {_streamPosition}");
+                }
+
+                _currentChar = Encoding.ASCII.GetChars(_chArray)[0];
+                _streamPosition++;
             }
 
-            async Task ReadUntil(StringBuilder builder, char stopChar)
+            public async Task ReadUntil(StringBuilder builder, char stopChar)
             {
-                while (!currentChar.Equals(stopChar))
+                while (!_currentChar.Equals(stopChar))
                 {
-                    builder.Append(currentChar);
+                    builder.Append(_currentChar);
                     await GoNextChar().ConfigureAwait(false);
                 }
             }
 
-            async Task ReadUntilNewLine(StringBuilder builder)
+            public async Task ReadUntilNewLine(StringBuilder builder)
             {
                 do
                 {
@@ -67,120 +136,24 @@ namespace Datadog.Trace.TestHelpers
                 while (true);
             }
 
-            async Task<bool> IsNewLine()
+            public async Task<bool> IsNewLine()
             {
-                if (currentChar.Equals(DatadogHttpValues.CarriageReturn))
+                if (_currentChar.Equals(DatadogHttpValues.CarriageReturn))
                 {
                     // end of headers
                     // Next character should be a LineFeed, regardless of Linux/Windows
                     // Skip the newline indicator
                     await GoNextChar().ConfigureAwait(false);
 
-                    if (!currentChar.Equals(DatadogHttpValues.LineFeed))
+                    if (!_currentChar.Equals(DatadogHttpValues.LineFeed))
                     {
-                        ThrowHelper.ThrowException($"Unexpected character {currentChar} in headers: CR must be followed by LF");
+                        ThrowHelper.ThrowException($"Unexpected character {_currentChar} in headers: CR must be followed by LF");
                     }
 
                     return true;
                 }
 
                 return false;
-            }
-
-            stringBuilder.Clear();
-
-            // Read POST
-            await ReadUntil(stringBuilder, stopChar: ' ').ConfigureAwait(false);
-
-            var method = stringBuilder.ToString();
-            stringBuilder.Clear();
-
-            // Read /path?request
-            await GoNextChar().ConfigureAwait(false);
-            await ReadUntil(stringBuilder, stopChar: ' ').ConfigureAwait(false);
-
-            var pathAndQuery = stringBuilder.ToString().Trim();
-            stringBuilder.Clear();
-
-            // Skip to end of line
-            await ReadUntilNewLine(stringBuilder).ConfigureAwait(false);
-            stringBuilder.Clear();
-
-            // Read headers
-            do
-            {
-                await GoNextChar().ConfigureAwait(false);
-
-                // Check for end of headers
-                if (await IsNewLine().ConfigureAwait(false))
-                {
-                    // Empty line, content starts next
-                    break;
-                }
-
-                // Read key
-                await ReadUntil(stringBuilder, stopChar: ':').ConfigureAwait(false);
-
-                var name = stringBuilder.ToString().Trim();
-                stringBuilder.Clear();
-
-                // skip separator
-                await GoNextChar().ConfigureAwait(false);
-
-                // Read value
-                await ReadUntilNewLine(stringBuilder).ConfigureAwait(false);
-
-                var value = stringBuilder.ToString().Trim();
-                stringBuilder.Clear();
-
-                headers.Add(name, value);
-            }
-            while (true);
-
-            var length = long.TryParse(headers.GetValue(ContentLengthHeaderKey), out var headerValue) ? headerValue : (long?)null;
-
-            return new MockHttpRequest()
-            {
-                Headers = headers,
-                Method = method,
-                PathAndQuery = pathAndQuery,
-                ContentLength = length,
-                Body = new StreamContent(stream, length)
-            };
-        }
-
-        internal class MockHttpRequest
-        {
-            public HttpHeaders Headers { get; set; } = new HttpHeaders();
-
-            public string Method { get; set; }
-
-            public string PathAndQuery { get; set; }
-
-            public long? ContentLength { get; set; }
-
-            public StreamContent Body { get; set; }
-
-            public static MockHttpRequest Create(HttpListenerRequest request)
-            {
-                var headers = new HttpHeaders(request.Headers.Count);
-
-                foreach (var key in request.Headers.AllKeys)
-                {
-                    foreach (var value in request.Headers.GetValues(key))
-                    {
-                        headers.Add(key, value);
-                    }
-                }
-
-                return new MockHttpRequest
-                {
-                    Headers = headers,
-                    Method = request.HttpMethod,
-                    PathAndQuery = request.Url?.PathAndQuery,
-                    ContentLength = request.ContentLength64,
-                    Body = new StreamContent(request.InputStream, request.ContentLength64),
-                };
             }
         }
     }

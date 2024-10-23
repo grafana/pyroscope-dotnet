@@ -26,9 +26,10 @@ public class WeakCipherTests : TestHelper
         : base("WeakCipher", output)
     {
         SetServiceVersion("1.0.0");
+        SetEnvironmentVariable("DD_APPSEC_STACK_TRACE_ENABLED", "false");
     }
 
-#if !NET7_0
+#if !NET7_0_OR_GREATER
     [SkippableFact]
     [Trait("Category", "EndToEnd")]
     [Trait("RunOnWindows", "True")]
@@ -40,7 +41,7 @@ public class WeakCipherTests : TestHelper
         const int expectedSpanCount = 6;
         var filename = "WeakCipherTests.SubmitsTraces";
         using var agent = EnvironmentHelper.GetMockAgent();
-        using var process = RunSampleAndWaitForExit(agent);
+        using var process = await RunSampleAndWaitForExit(agent);
         var spans = agent.WaitForSpans(expectedSpanCount, operationName: ExpectedOperationName);
 
         var settings = VerifyHelper.GetSpanVerifierSettings();
@@ -59,14 +60,13 @@ public class WeakCipherTests : TestHelper
     [InlineData("DD_IAST_ENABLED", "false")]
     [InlineData("DD_IAST_WEAK_CIPHER_ALGORITHMS", "invalidAlgorithm")]
     [InlineData($"DD_TRACE_{nameof(IntegrationId.SymmetricAlgorithm)}_ENABLED", "false")]
-    public void IntegrationDisabled(string variableName, string variableValue)
+    public async Task IntegrationDisabled(string variableName, string variableValue)
     {
         SetEnvironmentVariable("DD_IAST_ENABLED", "true");
         SetEnvironmentVariable(variableName, variableValue);
-        const int expectedSpanCount = 6;
         using var agent = EnvironmentHelper.GetMockAgent();
-        using var process = RunSampleAndWaitForExit(agent);
-        var spans = agent.WaitForSpans(expectedSpanCount, returnAllOperations: true);
+        using var process = await RunSampleAndWaitForExit(agent);
+        var spans = agent.Spans; // we expect no spans
 
         Assert.Empty(spans.Where(s => s.Name.Equals(ExpectedOperationName)));
     }

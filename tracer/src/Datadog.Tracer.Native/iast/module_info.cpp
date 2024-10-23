@@ -40,6 +40,7 @@ ModuleInfo::~ModuleInfo()
     DEL_MAP_VALUES(_specs);
     DEL_MAP_VALUES(_methods);
     DEL_MAP_VALUES(_fields);
+    DEL_MAP_VALUES(_properties);
     DEL_MAP_VALUES(_signatures);
 }
 
@@ -79,10 +80,6 @@ bool ModuleInfo::IsInlineEnabled()
 {
     return true;
 }
-bool ModuleInfo::ExcludeInChaining()
-{
-    return false;
-}
 
 bool ModuleInfo::IsNestedType(DWORD typeDefFlags)
 {
@@ -111,14 +108,19 @@ HRESULT ModuleInfo::GetTypeDef(const WSTRING& typeName, mdTypeDef* pTypeDef)
 {
     HRESULT hr = S_OK;
     auto parts = Split(typeName, WStr("+"));
-    if (parts.size() == 2)
+    if (parts.size() > 1)
     {
         mdTypeDef parentTypeDef;
-        hr = _metadataImport->FindTypeDefByName(parts[0].c_str(), 0, &parentTypeDef);
-        if (SUCCEEDED(hr))
+        mdTypeDef typeDef = 0;
+        for (int x = 0; x < parts.size(); x++)
         {
-            hr = _metadataImport->FindTypeDefByName(parts[1].c_str(), parentTypeDef, pTypeDef);
+            hr = _metadataImport->FindTypeDefByName(parts[x].c_str(), typeDef, &parentTypeDef);
+            if (SUCCEEDED(hr))
+            {
+                typeDef = parentTypeDef;
+            }
         }
+        *pTypeDef = typeDef;
     }
     else
     {
@@ -159,6 +161,10 @@ MemberRefInfo* ModuleInfo::GetMemberRefInfo(mdMemberRef token)
     {
         return GetFieldInfo(token);
     }
+    else if (typeFromToken == mdtProperty)
+    {
+        return GetPropertyInfo(token);
+    }
     else if (typeFromToken == mdtMethodSpec)
     {
         return GetMethodSpec(token);
@@ -180,6 +186,12 @@ FieldInfo* ModuleInfo::GetFieldInfo(mdFieldDef fieldDef)
 {
     CSGUARD(_cs);
     return Get<mdFieldDef, FieldInfo>(_fields, fieldDef, [this, fieldDef]() { return new iast::FieldInfo(this, fieldDef); });
+}
+
+PropertyInfo* ModuleInfo::GetPropertyInfo(mdProperty propId)
+{
+    CSGUARD(_cs);
+    return Get<mdProperty, PropertyInfo>(_properties, propId, [this, propId]() { return new iast::PropertyInfo(this, propId); });
 }
 
 MethodSpec* ModuleInfo::GetMethodSpec(mdMethodSpec methodSpec)
@@ -260,6 +272,34 @@ std::vector<MethodInfo*> ModuleInfo::GetMethods(mdTypeDef typeDef)
     this->_metadataImport->CloseEnum(hCorEnum);
     return methods;
 }
+
+std::vector<PropertyInfo*> ModuleInfo::GetProperties(mdTypeDef typeDef)
+{
+    HCORENUM hCorEnum = nullptr;
+    std::vector<PropertyInfo*> res;
+    mdProperty elements[64];
+    ULONG elementCount;
+
+    HRESULT hr = this->_metadataImport->EnumProperties(&hCorEnum, typeDef, elements,
+                                                            sizeof(elements) / sizeof(elements[0]),
+                                                            &elementCount);
+    if (SUCCEEDED(hr) && elementCount > 0)
+    {
+        res.reserve(elementCount);
+        for (ULONG i = 0; i < elementCount; i++)
+        {
+            auto element = GetPropertyInfo(elements[i]);
+            if (element)
+            {
+                res.push_back(element);
+            }
+        }
+    }
+
+    this->_metadataImport->CloseEnum(hCorEnum);
+    return res;
+}
+
 std::vector<MethodInfo*> ModuleInfo::GetMethods(mdTypeDef typeDef, const WSTRING& name)
 {
     HCORENUM hCorEnum = nullptr;
@@ -711,7 +751,7 @@ HRESULT ModuleInfo::GetILRewriter(const WSTRING& typeName, const WSTRING& method
     }
     return GetILRewriter(methodInfo, rewriter);
 }
-HRESULT ModuleInfo::CommitILRewriter(ILRewriter** rewriter, const std::string& applyMessage)
+HRESULT ModuleInfo::CommitILRewriter(ILRewriter** rewriter)
 {
     HRESULT hr = S_FALSE;
     if (*rewriter != nullptr)
@@ -719,7 +759,7 @@ HRESULT ModuleInfo::CommitILRewriter(ILRewriter** rewriter, const std::string& a
         auto method = (*rewriter)->GetMethodInfo();
         if (method != nullptr)
         {
-            hr = method->CommitILRewriter(applyMessage);
+            hr = method->CommitILRewriter();
         }
     }
     *rewriter = nullptr;
@@ -835,4 +875,52 @@ mdToken ModuleInfo::DefineMemberRef(const WSTRING& moduleName, const WSTRING& ty
         return 0;
     }
 }
+
+mdMethodSpec ModuleInfo::DefineMethodSpec(mdMemberRef targetMethod, SignatureInfo* sig)
+{
+    mdMethodSpec methodSpec = 0; 
+    HRESULT hr = _metadataEmit->DefineMethodSpec(targetMethod, sig->_pSig, sig->_nSig, &methodSpec);
+    if (FAILED(hr))
+    {
+        trace::Logger::Warn("DefineMethodSpec failed with code ", hr);
+        methodSpec = 0;
+    }
+
+    return methodSpec;
+}
+
+std::vector<WSTRING> ModuleInfo::GetCustomAttributes(mdToken token)
+{
+    std::vector<WSTRING> res;
+
+    HCORENUM hCorEnum = nullptr;
+    mdCustomAttribute enumeratedElements[64];
+    ULONG enumCount;
+
+    while (_metadataImport->EnumCustomAttributes(&hCorEnum, token, mdTokenNil, enumeratedElements,
+                                                sizeof(enumeratedElements) / sizeof(enumeratedElements[0]),
+                                                &enumCount) == S_OK)
+    {
+        mdToken attributeParentToken = mdTokenNil;
+        mdToken attributeCtorToken = mdTokenNil;
+        const void* attribute_data = nullptr; // Pointer to receive attribute data, which is not needed for our purposes
+        DWORD data_size = 0;
+
+        for (ULONG i = 0; i < enumCount; i++)
+        {
+            HRESULT hr = _metadataImport->GetCustomAttributeProps(enumeratedElements[i], &attributeParentToken,
+                                                                 &attributeCtorToken, &attribute_data, &data_size);
+            if (SUCCEEDED(hr))
+            {
+                auto attrCtor = GetMemberRefInfo(attributeCtorToken);
+                res.push_back(attrCtor->GetTypeName());
+            }
+        }
+    }
+
+    _metadataImport->CloseEnum(hCorEnum);
+    return res;
+}
+
+
 } // namespace iast

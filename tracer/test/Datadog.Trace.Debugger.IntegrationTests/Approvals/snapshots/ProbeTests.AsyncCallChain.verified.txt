@@ -3,7 +3,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -29,7 +28,7 @@
             "arguments": {
               "chain": {
                 "type": "Int32",
-                "value": "1"
+                "value": "2"
               },
               "this": {
                 "fields": {
@@ -62,7 +61,8 @@
           "location": {
             "method": "Async1",
             "type": "Samples.Probes.TestRuns.SmokeTests.AsyncCallChain"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -82,7 +82,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -98,13 +97,17 @@
             "arguments": {
               "chain": {
                 "type": "Int32",
-                "value": "2"
+                "value": "3"
               }
             },
             "locals": {
               "@return": {
                 "type": "Int32",
                 "value": "3"
+              },
+              "result": {
+                "type": "Int32",
+                "value": "2"
               }
             }
           }
@@ -117,7 +120,8 @@
           "location": {
             "method": "Async2",
             "type": "Samples.Probes.TestRuns.SmokeTests.AsyncCallChain"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"

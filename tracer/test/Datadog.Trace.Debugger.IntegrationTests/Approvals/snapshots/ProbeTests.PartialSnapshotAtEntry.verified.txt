@@ -3,7 +3,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "duration": "ScrubbedValue",
@@ -14,7 +13,8 @@
           "location": {
             "method": null,
             "type": "Samples.Probes.TestRuns.ExpressionTests.PartialSnapshotAtEntry"
-          }
+          },
+          "version": 0
         },
         "timestamp": "ScrubbedValue"
       }

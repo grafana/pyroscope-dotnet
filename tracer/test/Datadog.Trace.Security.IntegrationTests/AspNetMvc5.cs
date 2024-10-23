@@ -34,6 +34,8 @@ namespace Datadog.Trace.Security.IntegrationTests
         }
     }
 
+    // in classic mode, you can't access either request or response headers
+    // so the verify files for these tests don't contain the attack data
     [Collection("IisTests")]
     public class AspNetMvc5ClassicWithSecurity : AspNetMvc5
     {
@@ -52,23 +54,23 @@ namespace Datadog.Trace.Security.IntegrationTests
         }
     }
 
-    public abstract class AspNetMvc5 : AspNetBase, IClassFixture<IisFixture>
+    public abstract class AspNetMvc5 : AspNetBase, IClassFixture<IisFixture>, IAsyncLifetime
     {
         private readonly IisFixture _iisFixture;
-        private readonly string _testName;
+        private readonly bool _classicMode;
 
         public AspNetMvc5(IisFixture iisFixture, ITestOutputHelper output, bool classicMode, bool enableSecurity)
             : base(nameof(AspNetMvc5), output, "/home/shutdown", @"test\test-applications\security\aspnet")
         {
             SetSecurity(enableSecurity);
             SetEnvironmentVariable(Configuration.ConfigurationKeys.AppSec.Rules, DefaultRuleFile);
+            SetEnvironmentVariable(Configuration.ConfigurationKeys.DebugEnabled, "1");
 
+            _classicMode = classicMode;
             _iisFixture = iisFixture;
-            _iisFixture.TryStartIis(this, classicMode ? IisAppType.AspNetClassic : IisAppType.AspNetIntegrated);
             _testName = "Security." + nameof(AspNetMvc5)
                      + (classicMode ? ".Classic" : ".Integrated")
                      + ".enableSecurity=" + enableSecurity;
-            SetHttpPort(iisFixture.HttpPort);
         }
 
         [Trait("Category", "EndToEnd")]
@@ -79,9 +81,11 @@ namespace Datadog.Trace.Security.IntegrationTests
         [InlineData(AddressesConstants.RequestQuery, "/Health/?arg=[$slice]", null)]
         [InlineData(AddressesConstants.RequestQuery, "/Health/?arg&[$slice]", null)]
         [InlineData(AddressesConstants.RequestPathParams, "/Health/params/appscan_fingerprint", null)]
+        [InlineData(AddressesConstants.RequestPathParams, "/Health/params/appscan_fingerprint?&q=help", null)]
         [InlineData(AddressesConstants.RequestBody, "/Home/Upload", "{\"Property1\": \"[$slice]\"}")]
         [InlineData(AddressesConstants.RequestBody, "/Home/UploadStruct", "{\"Property1\": \"[$slice]\"}")]
         [InlineData(AddressesConstants.RequestBody, "/Home/UploadJson", "{\"DictionaryProperty\": {\"a\":\"[$slice]\"} }")]
+        [InlineData(AddressesConstants.ResponseHeaderNoCookies, "/Home/LangHeader", null)]
         public Task TestSecurity(string test, string url, string body)
         {
             // if blocking is enabled, request stops before reaching asp net mvc integrations intercepting before action methods, so no more spans are generated
@@ -102,6 +106,14 @@ namespace Datadog.Trace.Security.IntegrationTests
             var settings = VerifyHelper.GetSpanVerifierSettings(test);
             await TestAppSecRequestWithVerifyAsync(_iisFixture.Agent, url, null, 5, SecurityEnabled ? 1 : 2, settings, userAgent: "Hello/V");
         }
+
+        public async Task InitializeAsync()
+        {
+            await _iisFixture.TryStartIis(this, _classicMode ? IisAppType.AspNetClassic : IisAppType.AspNetIntegrated);
+            SetHttpPort(_iisFixture.HttpPort);
+        }
+
+        public Task DisposeAsync() => Task.CompletedTask;
 
         protected override string GetTestName() => _testName;
     }

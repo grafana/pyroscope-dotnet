@@ -13,7 +13,8 @@
 // This method is called from the CLR so we need to use STDMETHODCALLTYPE macro to match the CLR declaration
 HRESULT STDMETHODCALLTYPE StackSnapshotCallbackHandlerImpl(FunctionID funcId, UINT_PTR ip, COR_PRF_FRAME_INFO frameInfo, ULONG32 contextSize, BYTE context[], void* clientData);
 
-Windows32BitStackFramesCollector::Windows32BitStackFramesCollector(ICorProfilerInfo4* const _pCorProfilerInfo) :
+Windows32BitStackFramesCollector::Windows32BitStackFramesCollector(ICorProfilerInfo4* const _pCorProfilerInfo, IConfiguration const* configuration, CallstackProvider* callstackProvider) :
+    StackFramesCollectorBase(configuration, callstackProvider),
     _pCorProfilerInfo(_pCorProfilerInfo)
 {
     _pCorProfilerInfo->AddRef();
@@ -44,7 +45,7 @@ StackSnapshotResultBuffer* Windows32BitStackFramesCollector::CollectStackSampleI
             *pHR = E_ABORT;
             return GetStackSnapshotResult();
         }
-        
+
         // Sometimes, we could hit an access violation, so catch it and just return.
         // This can happen if we are in a deadlock situation and resume the target thread
         // while walking its stack.

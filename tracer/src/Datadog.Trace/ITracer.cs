@@ -3,7 +3,10 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
+#nullable enable
+
 using Datadog.Trace.Configuration;
+using Datadog.Trace.SourceGenerators;
 
 namespace Datadog.Trace
 {
@@ -15,7 +18,7 @@ namespace Datadog.Trace
         /// <summary>
         /// Gets the active scope
         /// </summary>
-        IScope ActiveScope { get; }
+        IScope? ActiveScope { get; }
 
         /// <summary>
         /// Gets this tracer's settings.
@@ -27,6 +30,7 @@ namespace Datadog.Trace
         /// </summary>
         /// <param name="operationName">The span's operation name</param>
         /// <returns>A scope wrapping the newly created span</returns>
+        [PublicApi]
         IScope StartActive(string operationName);
 
         /// <summary>

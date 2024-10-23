@@ -6,11 +6,14 @@
 #include "CollectorBase.h"
 #include "RawCpuSample.h"
 
+#include "shared/src/native-src/dd_memory_resource.hpp"
+
 // forward declarations
 class IConfiguration;
 class IFrameStore;
 class IAppDomainStore;
 class IRuntimeIdStore;
+class SampleValueTypeProvider;
 
 
 class CpuTimeProvider
@@ -18,15 +21,16 @@ class CpuTimeProvider
     public CollectorBase<RawCpuSample> // accepts cputime samples
 {
 public:
-    static std::vector<SampleValueType> SampleTypeDefinitions;
-
-public:
     CpuTimeProvider(
-        uint32_t valueOffset,
+        SampleValueTypeProvider& valueTypeProvider,
         IThreadsCpuManager* pThreadsCpuManager,
         IFrameStore* pFrameStore,
         IAppDomainStore* pAppDomainStore,
         IRuntimeIdStore* pRuntimeIdStore,
-        IConfiguration* pConfiguration
+        IConfiguration* pConfiguration,
+        shared::pmr::memory_resource* memoryResource
         );
+
+private:
+    static std::vector<SampleValueType> SampleTypeDefinitions;
 };

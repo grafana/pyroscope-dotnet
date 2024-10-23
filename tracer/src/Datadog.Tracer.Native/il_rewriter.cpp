@@ -199,6 +199,11 @@ HRESULT ILRewriter::Import()
 
     IfFailRet(m_pICorProfilerInfo->GetILFunctionBody(m_moduleId, m_tkMethod, &pMethodBytes, nullptr));
 
+    return Import(pMethodBytes);
+}
+
+HRESULT ILRewriter::Import(LPCBYTE pMethodBytes)
+{
     COR_ILMETHOD_DECODER decoder((COR_ILMETHOD*) pMethodBytes);
 
     // Import the header flags
@@ -678,8 +683,10 @@ again:
             // If we will not follow that, we might face InvalidProgramException.
             // That's why we order the Exception Clauses right before applying them.
 
-            std::sort(m_pEH, m_pEH + m_nEH,
-                  [](EHClause a, EHClause b) { return a.m_pTryBegin->m_offset > b.m_pTryBegin->m_offset && a.m_pTryEnd->m_offset < b.m_pTryEnd->m_offset; });
+            std::sort(m_pEH, m_pEH + m_nEH, [](EHClause a, EHClause b) {
+                return a.m_pTryBegin->m_offset > b.m_pTryBegin->m_offset &&
+                       a.m_pTryEnd->m_offset < b.m_pTryEnd->m_offset;
+            });
 
             for (unsigned iEH = 0; iEH < m_nEH; iEH++)
             {

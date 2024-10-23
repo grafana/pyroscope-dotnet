@@ -5,17 +5,27 @@
 
 #nullable enable
 using System.Diagnostics.CodeAnalysis;
+using Datadog.Trace.Ci.CiEnvironment;
 using Datadog.Trace.Configuration;
+using Datadog.Trace.Telemetry;
 
 namespace Datadog.Trace.Ci.Configuration;
 
 internal class CIGitMetadataTagsProvider : IGitMetadataTagsProvider
 {
+    private readonly ITelemetryController _telemetry;
+
+    public CIGitMetadataTagsProvider(ITelemetryController telemetry)
+    {
+        _telemetry = telemetry;
+    }
+
     public bool TryExtractGitMetadata([NotNullWhen(true)] out GitMetadata? gitMetadata)
     {
         if (CIEnvironmentValues.Instance is { Commit: { Length: > 0 } commit, Repository: { Length: > 0 } repository })
         {
             gitMetadata = new GitMetadata(commit, repository);
+            _telemetry.RecordGitMetadata(gitMetadata);
             return true;
         }
 

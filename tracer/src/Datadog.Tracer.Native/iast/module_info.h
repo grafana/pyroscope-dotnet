@@ -17,6 +17,7 @@ namespace iast
     class MethodSpec;
     class MethodInfo;
     class FieldInfo;
+    class PropertyInfo;
     class DataflowAspect;
     class DataflowAspectReference;
     class AspectFilter;
@@ -30,10 +31,12 @@ namespace iast
         friend class Dataflow;
         friend class ILRewriter;
         friend class TypeInfo;
+        friend class MemberInfo;
         friend class MemberRefInfo;
         friend class MethodSpec;
         friend class MethodInfo;
         friend class FieldInfo;
+        friend class PropertyInfo;
         friend class DataflowAspectClass;
         friend class DataflowAspect;
         friend class DataflowAspectReference;
@@ -51,13 +54,13 @@ namespace iast
         std::unordered_map<mdMemberRef, MemberRefInfo*> _members;
         std::unordered_map<mdMethodDef, MethodInfo*> _methods;
         std::unordered_map<mdMethodDef, FieldInfo*> _fields;
+        std::unordered_map<mdProperty, PropertyInfo*> _properties;
         std::unordered_map<mdMethodSpec, MethodSpec*> _specs;
         std::unordered_map<mdSignature, SignatureInfo*> _signatures;
 
-        CS _cs;
-        //std::map<mdMethodDef, std::function<HRESULT(MethodInfo*, Dataflow*)>> _jitHooks;
 
     protected:
+        CS _cs;
         Dataflow* _dataflow = nullptr;
         IMetaDataImport2* _metadataImport = nullptr;
         IMetaDataEmit2* _metadataEmit = nullptr;
@@ -109,14 +112,15 @@ namespace iast
         virtual bool IsCoreLib();
         WSTRING GetModuleFullName();
         mdToken DefineMemberRef(const WSTRING& moduleName, const WSTRING& typeName, const WSTRING& methodName, const WSTRING& methodParams);
+        mdMethodSpec DefineMethodSpec(mdMemberRef targetMethod, SignatureInfo* sig);
 
         virtual bool IsInlineEnabled();
-        virtual bool ExcludeInChaining();
 
         TypeInfo* GetTypeInfo(mdTypeDef typeDef);
         MemberRefInfo* GetMemberRefInfo(mdMemberRef token);
         MethodInfo* GetMethodInfo(mdMethodDef methodDef);
         FieldInfo* GetFieldInfo(mdFieldDef fieldDef);
+        PropertyInfo* GetPropertyInfo(mdProperty propId);
         MethodSpec* GetMethodSpec(mdMethodSpec methodSpec);
         SignatureInfo* GetSignature(mdSignature sigToken);
         WSTRING GetUserString(mdString token);
@@ -125,6 +129,8 @@ namespace iast
         std::vector<MethodInfo*> GetMethods(mdTypeDef typeDef, const WSTRING& name);
         std::vector<MethodInfo*> GetMethods(mdTypeDef typeDef, const WSTRING& methodName, ULONG paramCount);
         std::vector<MethodInfo*> GetMethods(const WSTRING& typeName, const WSTRING& methodName);
+
+        std::vector<PropertyInfo*> GetProperties(mdTypeDef typeDef);
 
         MethodInfo* GetMethod(const WSTRING& typeName, const WSTRING& methodName, PCCOR_SIGNATURE pSignature, ULONG nSignature);
         MethodInfo* GetMethod(mdTypeDef typeDef, const WSTRING& methodName, PCCOR_SIGNATURE pSignature, ULONG nSignature);
@@ -136,11 +142,13 @@ namespace iast
         static HRESULT GetILRewriter(MethodInfo* methodInfo, ILRewriter** rewriter);
         HRESULT GetILRewriter(const WSTRING& typeName, const WSTRING& methodName, int requiredParamCount, ILRewriter** rewriter);
         HRESULT GetILRewriter(const WSTRING& typeName, const WSTRING& methodName, PCCOR_SIGNATURE pSignature, ULONG nSignature, ILRewriter** rewriter, MethodInfo** pMethodInfo = nullptr);
-        static HRESULT CommitILRewriter(ILRewriter** rewriter, const std::string& applyMessage = "");
+        static HRESULT CommitILRewriter(ILRewriter** rewriter);
 
         bool AreSameTypes(mdTypeRef typeRef1, mdTypeRef typeRef2);
 
         HRESULT FindMemberRefsByName(mdTypeRef typeRef, const WSTRING& memberName, std::vector<mdMemberRef>& members);
         HRESULT GetAssemblyTypeRef(const WSTRING& assemblyName, const WSTRING& typeName, mdTypeRef* typeRef);
+
+        std::vector<WSTRING> GetCustomAttributes(mdToken token);
     };
 }

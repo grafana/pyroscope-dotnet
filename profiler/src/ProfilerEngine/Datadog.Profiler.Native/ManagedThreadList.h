@@ -15,46 +15,44 @@
 #include "ManagedThreadInfo.h"
 #include "shared/src/native-src/string.h"
 #include "IManagedThreadList.h"
+#include "ServiceBase.h"
 
-
-class ManagedThreadList : public IManagedThreadList
+class ManagedThreadList
+    :
+    public IManagedThreadList,
+    public ServiceBase
 {
 public:
     ManagedThreadList(ICorProfilerInfo4* pCorProfilerInfo);
-    ~ManagedThreadList() override;
+    ~ManagedThreadList();
 
 private:
     ManagedThreadList() = delete;
 
 public:
     const char* GetName() override;
-    bool Start() override;
-    bool Stop() override;
-    bool GetOrCreateThread(ThreadID clrThreadId) override;
     bool RegisterThread(std::shared_ptr<ManagedThreadInfo>& pThreadInfo) override;
     bool UnregisterThread(ThreadID clrThreadId, std::shared_ptr<ManagedThreadInfo>& ppThreadInfo) override;
     bool SetThreadOsInfo(ThreadID clrThreadId, DWORD osThreadId, HANDLE osThreadHandle) override;
     bool SetThreadName(ThreadID clrThreadId, const shared::WSTRING& threadName) override;
     uint32_t Count() override;
+    uint32_t GetHighCountAndReset() override;
+    uint32_t GetLowCountAndReset() override;
     uint32_t CreateIterator() override;
     std::shared_ptr<ManagedThreadInfo> LoopNext(uint32_t iterator) override;
-    bool TryGetThreadInfo(std::uint32_t profilerThreadInfoId,
-                          ThreadID* pClrThreadId,
-                          DWORD* pOsThreadId,
-                          HANDLE* pOsThreadHandle,
-                          WCHAR* pThreadNameBuff,
-                          std::uint32_t threadNameBuffLen,
-                          std::uint32_t* pActualThreadNameLen) override;
     HRESULT TryGetCurrentThreadInfo(std::shared_ptr<ManagedThreadInfo>& ppThreadInfo) override;
-
-private:
-    std::shared_ptr<ManagedThreadInfo> GetOrCreate(ThreadID clrThreadId);
+    std::shared_ptr<ManagedThreadInfo> GetOrCreate(ThreadID clrThreadId) override;
+    bool TryGetThreadInfo(uint32_t osThreadId, std::shared_ptr<ManagedThreadInfo>& ppThreadInfo) override;
+    void ForEach(std::function<void (ManagedThreadInfo*)> callback) override;
 
 private:
     const char* _serviceName = "ManagedThreadList";
-    static const std::uint32_t MinBufferSize;
+    static const std::uint32_t DefaultThreadListSize;
 
 private:
+    bool StartImpl() override;
+    bool StopImpl() override;
+
     // We do most operations under this lock.
     // We expect very little contention on this lock:
     // Modifying operations are expected to be rare and, especially in a thread-pooled architecture.
@@ -65,28 +63,20 @@ private:
     // Also, threads are "directly" accessible from their CLR ThreadID via an index
     std::vector<std::shared_ptr<ManagedThreadInfo>> _threads;
     std::unordered_map<ThreadID, std::shared_ptr<ManagedThreadInfo>> _lookupByClrThreadId;
+    std::unordered_map<uint32_t, std::shared_ptr<ManagedThreadInfo>> _lookupByOsThreadId;
 
     // An iterator is just a position in the vector corresponding to the next thread to be returned by LoopNext
     // so keep track of them in a vector of positions initialized to 0
     std::vector<uint32_t> _iterators;
 
-    // ProfilerThreadInfoId is unique numeric ID of a ManagedThreadInfo record.
-    // We cannot use the OS id, because we do not always have it, and we cannot use the Clr internal thread id,
-    // because we do not want to architecturally restrict ourselves to never profile native threads in the future
-    // + it could be reused for a different thread by the CLR since this is the value of the pointer to the internal
-    // representation of the managed thread.
-    //
-    // We tag all collected stack samples using the ProfilerThreadInfoId.
-    // When the managed engine subsequently processes the stack samples, it may request
-    // the info from the corresponding ManagedThreadInfo.
-    // When that happens, we use the '_lookupByProfilerThreadInfoId' table to look up the ManagedThreadInfo instance
-    // that corresponds to the id. If the thread is dead, it will no longer be in the table.
-    std::unordered_map<std::uint32_t, std::shared_ptr<ManagedThreadInfo>> _lookupByProfilerThreadInfoId;
-
     ICorProfilerInfo4* _pCorProfilerInfo;
+
+    // Keep track of the highest/lowest number of threads
+    // Will be reset each time the value is read
+    uint32_t _highCount;
+    uint32_t _lowCount;
 
 private:
     void UpdateIterators(uint32_t pos);
     std::shared_ptr<ManagedThreadInfo> FindByClrId(ThreadID clrThreadId);
-    std::shared_ptr<ManagedThreadInfo> FindByProfilerId(uint32_t profilerThreadInfoId);
 };

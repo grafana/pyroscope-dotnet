@@ -5,28 +5,25 @@
 #include "cor.h"
 #include "corprof.h"
 
-#include "IService.h"
 #include "ManagedThreadInfo.h"
 
+#include <functional>
 #include <memory>
 
-class IManagedThreadList : public IService
+class IManagedThreadList
 {
 public:
-    virtual bool GetOrCreateThread(ThreadID clrThreadId) = 0;
     virtual bool RegisterThread(std::shared_ptr<ManagedThreadInfo>& pThreadInfo) = 0;
     virtual bool UnregisterThread(ThreadID clrThreadId, std::shared_ptr<ManagedThreadInfo>& ppThreadInfo) = 0;
     virtual bool SetThreadOsInfo(ThreadID clrThreadId, DWORD osThreadId, HANDLE osThreadHandle) = 0;
     virtual bool SetThreadName(ThreadID clrThreadId, const shared::WSTRING& threadName) = 0;
     virtual uint32_t Count() = 0;
+    virtual uint32_t GetHighCountAndReset() = 0;
+    virtual uint32_t GetLowCountAndReset() = 0;
     virtual uint32_t CreateIterator() = 0;
     virtual std::shared_ptr<ManagedThreadInfo> LoopNext(uint32_t iterator) = 0;
-    virtual bool TryGetThreadInfo(uint32_t profilerThreadInfoId,
-                          ThreadID* pClrThreadId,
-                          DWORD* pOsThreadId,
-                          HANDLE* pOsThreadHandle,
-                          WCHAR* pThreadNameBuff,
-                          uint32_t threadNameBuffLen,
-                          uint32_t* pActualThreadNameLen) = 0;
     virtual HRESULT TryGetCurrentThreadInfo(std::shared_ptr<ManagedThreadInfo>& ppThreadInfo) = 0;
+    virtual std::shared_ptr<ManagedThreadInfo> GetOrCreate(ThreadID clrThreadId) = 0;
+    virtual bool TryGetThreadInfo(uint32_t osThreadId, std::shared_ptr<ManagedThreadInfo>& ppThreadInfo) = 0;
+    virtual void ForEach(std::function<void (ManagedThreadInfo*)> callback) = 0;
 };

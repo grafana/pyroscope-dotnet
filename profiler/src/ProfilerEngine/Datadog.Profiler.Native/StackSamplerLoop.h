@@ -18,9 +18,11 @@
 
 #include "ManagedThreadInfo.h"
 #include "ICollector.h"
+#include "ServiceBase.h"
 #include "RawCpuSample.h"
 #include "RawWallTimeSample.h"
-
+#include "MetricsRegistry.h"
+#include "MeanMaxMetric.h"
 #include "shared/src/native-src/string.h"
 
 // forward declarations
@@ -38,7 +40,7 @@ typedef enum
     CpuTime
 } PROFILING_TYPE;
 
-class StackSamplerLoop
+class StackSamplerLoop : public ServiceBase
 {
     friend StackSamplerLoopManager;
 
@@ -52,14 +54,15 @@ public:
         IManagedThreadList* pManagedThreadList,
         IManagedThreadList* pCodeHotspotThreadList,
         ICollector<RawWallTimeSample>* pWallTimeCollector,
-        ICollector<RawCpuSample>* pCpuTimeCollector
+        ICollector<RawCpuSample>* pCpuTimeCollector,
+        MetricsRegistry& metricsRegistry
         );
     ~StackSamplerLoop();
     StackSamplerLoop(StackSamplerLoop const&) = delete;
     StackSamplerLoop& operator=(StackSamplerLoop const&) = delete;
 
-    void Join();
-    void RequestShutdown();
+    // Inherited via IService
+    const char* GetName() override;
 
 private:
     ICorProfilerInfo4* _pCorProfilerInfo;
@@ -72,7 +75,7 @@ private:
     ICollector<RawWallTimeSample>* _pWallTimeCollector;
     ICollector<RawCpuSample>* _pCpuTimeCollector;
 
-    std::thread* _pLoopThread;
+    std::unique_ptr<std::thread> _pLoopThread;
     DWORD _loopThreadOsId;
     volatile bool _shutdownRequested = false;
     std::shared_ptr<ManagedThreadInfo> _targetThread;
@@ -84,13 +87,13 @@ private:
     int32_t _codeHotspotsThreadsThreshold;
 
 private:
-    std::unordered_map<HRESULT, uint64_t> _encounteredStackSnapshotHRs;
-    std::unordered_map<size_t, uint64_t> _encounteredStackSnapshotDepths;
-    uint64_t _totalStacksCollectedCount{0};
-    uint64_t _lastStackSnapshotResultsStats_LogTimestampNS{0};
-    std::unordered_map<shared::WSTRING, uint64_t> _encounteredStackCountsForDebug;
     std::chrono::nanoseconds _samplingPeriod;
     uint32_t _nbCores;
+    bool _isWalltimeEnabled;
+    bool _isCpuEnabled;
+    bool _areInternalMetricsEnabled;
+    std::shared_ptr<MeanMaxMetric> _walltimeDurationMetric;
+    std::shared_ptr<MeanMaxMetric> _cpuDurationMetric;
 
 private:
     void MainLoop();
@@ -102,12 +105,14 @@ private:
                                      int64_t thisSampleTimestampNanosecs,
                                      int64_t duration,
                                      PROFILING_TYPE profilingType);
-    void LogEncounteredStackSnapshotResultStatistics(int64_t thisSampleTimestampNanosecs, bool useStdOutInsteadOfLog = false);
     int64_t ComputeWallTime(int64_t currentTimestampNs, int64_t prevTimestampNs);
     static void UpdateSnapshotInfos(StackSnapshotResultBuffer* pStackSnapshotResult, int64_t representedDurationNanosecs, time_t currentUnixTimestamp);
     void UpdateStatistics(HRESULT hrCollectStack, std::size_t countCollectedStackFrames);
     static time_t GetCurrentTimestamp();
-    void PersistStackSnapshotResults(StackSnapshotResultBuffer const* pSnapshotResult,
+    void PersistStackSnapshotResults(StackSnapshotResultBuffer* pSnapshotResult,
                                      std::shared_ptr<ManagedThreadInfo>& pThreadInfo,
                                      PROFILING_TYPE profilingType);
+
+    bool StartImpl() override;
+    bool StopImpl() override;
 };

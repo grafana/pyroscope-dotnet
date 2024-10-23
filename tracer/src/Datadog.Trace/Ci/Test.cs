@@ -6,12 +6,17 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
+using Datadog.Trace.Ci.CiEnvironment;
 using Datadog.Trace.Ci.Tagging;
 using Datadog.Trace.Ci.Tags;
+using Datadog.Trace.Ci.Telemetry;
 using Datadog.Trace.Pdb;
 using Datadog.Trace.Sampling;
+using Datadog.Trace.Telemetry;
+using Datadog.Trace.Telemetry.Metrics;
 
 namespace Datadog.Trace.Ci;
 
@@ -21,33 +26,51 @@ namespace Datadog.Trace.Ci;
 public sealed class Test
 {
     private static readonly AsyncLocal<Test?> CurrentTest = new();
+    private static readonly HashSet<Test> OpenedTests = new();
+
     private readonly Scope _scope;
     private int _finished;
+    private List<Action<Test>>? _onCloseActions;
 
     internal Test(TestSuite suite, string name, DateTimeOffset? startDate)
+        : this(suite, name, startDate, default, 0)
+    {
+    }
+
+    internal Test(TestSuite suite, string name, DateTimeOffset? startDate, TraceId traceId, ulong spanId)
     {
         Suite = suite;
         var module = suite.Module;
 
         var tags = new TestSpanTags(Suite.Tags, name);
-        var scope = Tracer.Instance.StartActiveInternal(
+        var tracer = Tracer.Instance;
+        var span = tracer.StartSpan(
             string.IsNullOrEmpty(module.Framework) ? "test" : $"{module.Framework!.ToLowerInvariant()}.test",
             tags: tags,
-            startTime: startDate);
+            startTime: startDate,
+            traceId: traceId,
+            spanId: spanId);
+        var scope = tracer.TracerManager.ScopeManager.Activate(span, true);
 
         scope.Span.Type = SpanTypes.Test;
         scope.Span.ResourceName = $"{suite.Name}.{name}";
-        scope.Span.Context.TraceContext.SetSamplingPriority((int)SamplingPriority.AutoKeep, SamplingMechanism.Manual);
+        scope.Span.Context.TraceContext.SetSamplingPriority(SamplingPriorityValues.AutoKeep, SamplingMechanism.Manual);
         scope.Span.Context.TraceContext.Origin = TestTags.CIAppTestOriginName;
+        TelemetryFactory.Metrics.RecordCountSpanCreated(MetricTags.IntegrationName.CiAppManual);
 
         _scope = scope;
 
         if (CIVisibility.Settings.CodeCoverageEnabled == true)
         {
-            Coverage.CoverageReporter.Handler.StartSession();
+            Coverage.CoverageReporter.Handler.StartSession(module.Framework);
         }
 
         CurrentTest.Value = this;
+        lock (OpenedTests)
+        {
+            OpenedTests.Add(this);
+        }
+
         CIVisibility.Log.Debug("######### New Test Created: {Name} ({Suite} | {Module})", Name, Suite.Name, Suite.Module.Name);
 
         if (startDate is null)
@@ -55,7 +78,17 @@ public sealed class Test
             // If a test doesn't have a fixed start time we reset it before running the test code
             scope.Span.ResetStartTime();
         }
+
+        // Record EventCreate telemetry metric
+        if (TelemetryHelper.GetEventTypeWithCodeOwnerAndSupportedCiAndBenchmark(
+                MetricTags.CIVisibilityTestingEventType.Test,
+                module.Framework == CommonTags.TestingFrameworkNameBenchmarkDotNet) is { } eventTypeWithMetadata)
+        {
+            TelemetryFactory.Metrics.RecordCountCIVisibilityEventCreated(TelemetryHelper.GetTelemetryTestingFrameworkEnum(module.Framework), eventTypeWithMetadata);
+        }
     }
+
+    internal bool IsClosed => Interlocked.CompareExchange(ref _finished, 0, 0) == 1;
 
     /// <summary>
     /// Gets the test name
@@ -79,6 +112,20 @@ public sealed class Test
     {
         get => CurrentTest.Value;
         set => CurrentTest.Value = value;
+    }
+
+    /// <summary>
+    /// Gets the active tests
+    /// </summary>
+    internal static IReadOnlyCollection<Test> ActiveTests
+    {
+        get
+        {
+            lock (OpenedTests)
+            {
+                return OpenedTests.Count == 0 ? [] : OpenedTests.ToArray();
+            }
+        }
     }
 
     /// <summary>
@@ -318,17 +365,25 @@ public sealed class Test
         var tags = (TestSpanTags)scope.Span.Tags;
 
         // Calculate duration beforehand
-        duration ??= _scope.Span.Context.TraceContext.ElapsedSince(scope.Span.StartTime);
+        duration ??= _scope.Span.Context.TraceContext.Clock.ElapsedSince(scope.Span.StartTime);
 
         // Set coverage
-        if (CIVisibility.Settings.CodeCoverageEnabled == true && Coverage.CoverageReporter.Handler.EndSession() is Coverage.Models.Tests.TestCoverage testCoverage)
+        if (CIVisibility.Settings.CodeCoverageEnabled == true)
         {
-            testCoverage.SessionId = tags.SessionId;
-            testCoverage.SuiteId = tags.SuiteId;
-            testCoverage.SpanId = _scope.Span.SpanId;
+            if (Coverage.CoverageReporter.Handler.EndSession() is Coverage.Models.Tests.TestCoverage testCoverage)
+            {
+                testCoverage.SessionId = tags.SessionId;
+                testCoverage.SuiteId = tags.SuiteId;
+                testCoverage.SpanId = _scope.Span.SpanId;
 
-            CIVisibility.Log.Debug("Coverage data for SessionId={SessionId}, SuiteId={SuiteId} and SpanId={SpanId} processed.", testCoverage.SessionId, testCoverage.SuiteId, testCoverage.SpanId);
-            CIVisibility.Manager?.WriteEvent(testCoverage);
+                CIVisibility.Log.Debug("Coverage data for SessionId={SessionId}, SuiteId={SuiteId} and SpanId={SpanId} processed.", testCoverage.SessionId, testCoverage.SuiteId, testCoverage.SpanId);
+                CIVisibility.Manager?.WriteEvent(testCoverage);
+            }
+            else if (status != TestStatus.Skip)
+            {
+                var testName = scope.Span.ResourceName;
+                CIVisibility.Log.Warning("Coverage data for test: {TestName} with Status: {Status} is empty. File: {File}", testName, status, tags.SourceFile);
+            }
         }
 
         // Set status
@@ -344,14 +399,63 @@ public sealed class Test
             case TestStatus.Skip:
                 tags.Status = TestTags.StatusSkip;
                 tags.SkipReason = skipReason;
+                if (tags.SkipReason == IntelligentTestRunnerTags.SkippedByReason)
+                {
+                    tags.SkippedByIntelligentTestRunner = "true";
+                    Suite.Tags.AddIntelligentTestRunnerSkippingCount(1);
+                    TelemetryFactory.Metrics.RecordCountCIVisibilityITRSkipped(MetricTags.CIVisibilityTestingEventType.Test);
+                }
+                else
+                {
+                    tags.SkippedByIntelligentTestRunner = "false";
+                }
+
                 break;
+        }
+
+        if (tags.Unskippable is not null && string.Equals(tags.Unskippable, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            TelemetryFactory.Metrics.RecordCountCIVisibilityITRUnskippable(MetricTags.CIVisibilityTestingEventType.Test);
+        }
+
+        if (tags.ForcedRun is not null && string.Equals(tags.ForcedRun, "true", StringComparison.OrdinalIgnoreCase))
+        {
+            TelemetryFactory.Metrics.RecordCountCIVisibilityITRForcedRun(MetricTags.CIVisibilityTestingEventType.Test);
+        }
+
+        // Call close actions
+        if (_onCloseActions is not null)
+        {
+            foreach (var action in _onCloseActions)
+            {
+                action(this);
+            }
+
+            _onCloseActions.Clear();
         }
 
         // Finish
         scope.Span.Finish(duration.Value);
         scope.Dispose();
 
+        // Record EventFinished telemetry metric
+        if (TelemetryHelper.GetEventTypeWithCodeOwnerAndSupportedCiAndBenchmarkAndEarlyFlakeDetection(
+                MetricTags.CIVisibilityTestingEventType.Test,
+                tags.Type == TestTags.TypeBenchmark,
+                tags.EarlyFlakeDetectionTestIsNew == "true",
+                tags.EarlyFlakeDetectionTestAbortReason == "slow",
+                !string.IsNullOrEmpty(tags.BrowserDriver),
+                tags.IsRumActive == "true") is { } eventTypeWithMetadata)
+        {
+            TelemetryFactory.Metrics.RecordCountCIVisibilityEventFinished(TelemetryHelper.GetTelemetryTestingFrameworkEnum(tags.Framework), eventTypeWithMetadata);
+        }
+
         Current = null;
+        lock (OpenedTests)
+        {
+            OpenedTests.Remove(this);
+        }
+
         CIVisibility.Log.Debug("######### Test Closed: {Name} ({Suite} | {Module}) | {Status}", Name, Suite.Name, Suite.Module.Name, tags.Status);
     }
 
@@ -363,5 +467,21 @@ public sealed class Test
     internal ISpan GetInternalSpan()
     {
         return _scope.Span;
+    }
+
+    internal TestSpanTags GetTags()
+    {
+        return (TestSpanTags)_scope.Span.Tags;
+    }
+
+    internal void SetName(string name)
+    {
+        ((TestSpanTags)_scope.Span.Tags).Name = name;
+    }
+
+    internal void AddOnCloseAction(Action<Test> action)
+    {
+        _onCloseActions ??= [];
+        _onCloseActions.Add(action);
     }
 }

@@ -6,17 +6,2575 @@
 
 
 
+## [Release 3.3.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v3.3.0)
+
+## Summary
+
+- [ASM] Fix some minor bugs (#5943, #5955, #6017)
+- [ASM] Improvements to stack trace reporting (#6011, #5997)
+- [Dynamic Instrumentation] Add support for `typeof` expression
+- [Continuous Profiler] Add support for heuristic-based activation (#5240, #6002, #6026)
+- [DBM] Full propagation mode for SQL Server (#5859)
+
+## Changes
+
+### ASM
+* [ASM] Avoid unhandled HttpRequestValidationExceptions (#5943)
+* [ASM] Avoid reporting unknown matcher WAF errors (#5955)
+* [ASM] RASP: add telemetry tag for shell injection (#5993)
+* [ASM] Add new capabilities for RC (#6008)
+* [ASM] Change stack trim proportion (#6011)
+* [ASM]Fix InvalidOperationException in httpContext.Items (#6017)
+* [ASM] Capabilities reporting against WAF versions. (#6028)
+* [IAST] Add Stack trace to vuln location (#5997)
+* [IAST] Fix system test weak_cipher system test (#6034)
+
+### Continuous Profiler
+* [Profiler] Support Single Step Instrumentation deployment and activation (#5240)
+* [Profiler] Contention profiling: add blocking thread name (#5981)
+* [Profiler] Fix duplicated lifecycle telemetry (#6002)
+* [Tool] update continuous profiler diagnostics (#6014)
+* [Profiler] Disable `timer_create`-based CPU profiler when required (#6015)
+* [Profiler] Send ssi info with profiles (#6026)
+
+### Debugger
+* [Dynamic Instrumentation] DEBUG-2323 Add support for `typeof` expression in EL (#5539)
+
+### Build / Test
+* [Profiler] Disable SSI telemetry by default (#6020)
+* Fix SSI tests for profiler integration tests (#6016)
+* [Profiler/CI] Disable Profiler Windows ASAN job (#5987)
+* Add explicit permissions to all workflows (#5728)
+* [Test Package Versions Bump] Updating package versions (#5873)
+* [build] Build tracer with ReadyToRun (#5962)
+* Display the crash tests stdout live (#5964)
+* Timeit bump and fixes (#5971)
+* Add `linux-musl-arm64` standalone `dd-trace` to the v3 release artifacts (#5974)
+* [CONTSEC-1501] Comment the action that uploads SARIF to Datadog (#5977)
+* Include snapshot diff in snapshot body (#5988)
+* Make sure we run all the TFMs on master builds (#5990)
+* Minor CI fixes (#6000)
+* Fix installer tests (#5994 => main) (#6004)
+* Fix the trace pipeline stage (#6007)
+* [Build] Update and fix linux debug symbols artifact (#6009)
+* Fix bug in version bump task (#6022)
+* [CI] Shorten too long snapshot file names (#6024)
+* Fix gitlab build (#6025)
+* [BUILD] Fix merge conflict (#6033)
+
+### Miscellaneous
+* DSM Full propagation mode for SQL Server (#5859)
+* [Crashtracking] Fix the handling of COMPlus_DbgMiniDumpName (#5980)
+
+[Changes since 3.2.0](https://github.com/DataDog/dd-trace-dotnet/compare/v3.2.0...v3.3.0)
+
+## [Release 3.2.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v3.2.0)
+
+## Summary
+
+This is the first stable release of the next major version of the .NET APM SDK. 
+
+The following are the high-level changes present in the 3.x.x release line compared to 2.x.x. These include breaking changes in public APIs, changes in artifacts, and changes to default settings. 
+
+For the full list of changes, including exactly what changed and how you should handle them, please see the [MIGRATING](https://github.com/DataDog/dd-trace-dotnet/blob/master/docs/MIGRATING.md) document
+
+### New Features
+- **Support for alpine images on ARM64**. `alpine` images with version `3.18` and above, running on ARM64 images are now supported on .NET 6+.
+
+### Breaking changes
+- **Custom-only tracing (using the _Datadog.Trace_ NuGet package), _without_ any automatic tracing, is no longer supported**. Custom instrumentation with the  _Datadog.Trace_ NuGet where you have _also_ configured [automatic-instrumentation](https://docs.datadoghq.com/tracing/trace_collection/automatic_instrumentation/) is still supported as it was in v2.x.x.
+- **The public API surface has changed** in the *Datadog.Trace* NuGet package. A number of previously obsolete APIs have been removed, and some other APIs have been marked obsolete. Most changes are related to how you create `TracerSettings`  and `Tracer` instances.
+- **Changes to default settings**. The default values of some settings have changed, and others have been removed. See below for more details.
+- **Changes in behavior**. The semantic requirements and meaning of some settings have changed, as have some of the tags added to traces.  See below for more details.
+- **The 32-bit MSI installer will no longer be available**. The 64-bit MSI installer already includes support for tracing 32-bit processes, so you should use this installer instead. 
+- **The client library will still be injected when `DD_TRACE_ENABLED=0`**. In v2.x.x, setting `DD_TRACE_ENABLED=0` would prevent the client library from being injected into the application completely. In v3.0.0+, the client library will still be injected, but tracing will be disabled.
+- **Referencing the `Datadog.Trace.AspNet` module is no longer supported**. In v1.x.x and 2.x.x ASP.NET support allowed adding a reference to the `Datadog.Trace.AspNet` module in your web.config. This is no longer supported in v3.x.x.
+
+### Deprecation notices
+- **.NET Core 2.1 is marked EOL** in v3.0.0+ of the tracer. That means versions 2.0, 2.1, 2.2 and 3.0 of .NET Core are now EOL. These versions may still work with v3.0.0+, but they will no longer receive significant testing and you will receive limited support for issues arising with EOL versions.
+- **Datadog.Trace.OpenTracing is now obsolete**. OpenTracing is considered deprecated, and so _Datadog.Trace.OpenTracing_ is considered deprecated. See the following details on future deprecation.
+- **macOS 11 is no longer supported for CI Visibility** in v3.0.0+. Only macOS 12 and above are supported.
+
+### Major version policy and future deprecation
+- **Announcing a major version roadmap**. We intend to make yearly major releases, starting from v3.0.0 in 2024, and v4.0.0 in 2025. We will aim for minimal breaking changes, with the primary focus being on maintaining support for new versions of .NET and removal of EOL frameworks and operating systems.
+- **Planned removal of support for .NET Core 2.x and .NET Core 3.0** in version v4.0.0+. We intend to completely remove support for .NET Core 2.x and .NET Core 3.0 in v4.0.0. .NET Framework 4.6.1+ will continue to be supported.
+- **Planned removal of support for some linux distributions**. In version v4.0.0, we intend to drop support for CentOS 7, RHEL 7, and CentOS Stream 8.
+- **Planned remove of support for App Analytics**. In version v4.0.0, we intend to drop support for App Analytics and associated settings.
+
+For the full list of changes, including exactly what changed and how you should handle them, please see the [MIGRATING](https://github.com/DataDog/dd-trace-dotnet/blob/master/docs/MIGRATING.md) document
+
+## Updates in this release
+
+In addition to the changes described above, this release includes the following features:
+
+* [Tracer] Skip inserting the startup hook into methods in the type `Costura.AssemblyLoader` (#5910)
+* [Tracer] Fix bug in ADO.NET connection string extraction (#5949)
+* [Exception Replay] Update configuration values (#5821)
+* [IAST] Taint values coming from database (#5804)
+* [IAST] Allow customized cookie filtering (#5804)
+* [ASM] RASP shell injection vulnerability (#5871)
+* [Profiler] Provide the thread id that blocked another thread (#5959)
+
+## Changes
+
+### Tracer
+* [Tracer] Skip inserting the startup hook into methods in the type `Costura.AssemblyLoader` (#5910)
+* Add support for alpine on arm64  (#5933)
+* Fix incorrect instrumentation for `new TracerSettings(bool)` (#5949)
+* Protect the connection string tags extractor from an invalid connection string (#5956)
+
+### CI Visibility
+* Don't include the Datadog.Trace.BenchmarkDotNet NuGet in the release artifacts (#5954)
+
+### ASM
+* [IAST] Taint values coming from database (#5804)
+* [ASM] RASP shell injection vulnerability (#5871)
+* [IAST] CallSite with generics support (#5913)
+* [IAST] Move analyzers init to an explicit call (#5920)
+* [IAST] Taint db minor fixes (#5926)
+* [IAST] Support for specifying aspect min version (#5931)
+* [IAST] Cookie filter implementation (#5947)
+
+### Continuous Profiler
+* [Profiler] Provide the thread id that blocked another thread (#5959)
+* [Profiler] Improve .NET Framework profiling support (#5867)
+
+### Debugger
+* [Exception Replay] Update configuration and add test suite for ASP.NET Core (#5821)
+
+### Serverless
+* [Mini Agent][Private Beta Testing] Mini-agent for Azure Function Apps for non-consumption plans (#5792)
+* [serverless] No-op AWS Lambda integration on missing API Key (#5900)
+* Revert "[serverless] No-op AWS Lambda integration on missing API Key" (#5941)
+
+### Build / Test
+* [Profiler] Fix `LinuxDlIteratePhdrDeadlock` test (#5963)
+* Output samples to a single top-level "artifacts" folder  (#5744)
+* Try to head off future build issues (#5770)
+* Fix bug in verification stage of release (#5894)
+* Need to freeze/unfreeze all PRs (#5902)
+* Replace fpm with nfpm (#5905)
+* Ignore `StyleCop.Analyzers` in dependabot (#5906)
+* Fix gitlab build (#5907)
+* Remove prerelease flag from smoke tests (#5912)
+* Enable ad-hoc memory dumps on Windows x86 (#5919)
+* Stop testing .NET Core 2.1 on PRs (#5922)
+* Try fix single step download builds (#5923)
+* Remove obsolete lib-injection build artifacts (#5927)
+* Remove dependency of download-single-step-artifacts on build (#5945)
+* Ensure we clean log files before testing with Nuke (#5950)
+* Log to a random file in telemetry forwarder tests (#5951)
+* Remove the xml and pdb files from the linux packages (#5961)
+* Fix debugger arm64 alpine tests (#5965)
+* [IAST] Added missing netstd snapshot (#5966)
+
+### Miscellaneous
+* Normalize the environment variable names used by crashtracking (#5898)
+* Pin `StyleCop.Analzyers` to latest pre-release (#5908)
+* Fix signature size check in ModifyLocalSig (#5921)
+* Use a native logger for critical failures in the loader (#5929)
+* Fix ToString and ToWString on large strings (#5930)
+* Prevent the native loader from being unloaded while sending telemetry (#5944)
+* [Crashtracking] Keep mangled name in case of error (#5952)
+
+[Changes since 2.58.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.58.0...v3.2.0)
+
+
+## [Release 3.1.0-prerelease](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v3.1.0-prerelease)
+
+## Summary
+
+This is the second pre-release of the next major version of the .NET APM SDK. 
+
+- [ASM] Changes to the collection of usr.id for authenticated clients
+- [ASM] IAST Email HTML Injection vulnerability
+- [Dynamic Instrumentation] Support nullable types in templates and string lexicographic comparison
+- [Dynamic Instrumentation] SymDb readiness for Open Beta, matching symbols based on signature
+- [Exception Replay] Normalized exception hashing for more fine-grained aggregation
+
+In addition, the following are the high-level changes present in the 3.x.x release line compared to 2.x.x. These include breaking changes in public APIs, changes in artifacts, and changes to default settings. 
+
+For the full list of changes, including exactly what changed and how you should handle them, please see the [MIGRATING](https://github.com/DataDog/dd-trace-dotnet/blob/master/docs/MIGRATING.md) document
+
+### Breaking changes
+- **Custom-only tracing (using the _Datadog.Trace_ NuGet package), _without_ any automatic tracing, is no longer supported**. Custom instrumentation with the  _Datadog.Trace_ NuGet where you have _also_ configured [automatic-instrumentation](https://docs.datadoghq.com/tracing/trace_collection/automatic_instrumentation/) is still supported as it was in v2.x.x.
+- **The public API surface has changed** in the *Datadog.Trace* NuGet package. A number of previously obsolete APIs have been removed, and some other APIs have been marked obsolete. Most changes are related to how you create `TracerSettings`  and `Tracer` instances.
+- **Changes to default settings**. The default values of some settings have changed, and others have been removed. See below for more details.
+- **Changes in behavior**. The semantic requirements and meaning of some settings have changed, as have some of the tags added to traces.  See below for more details.
+- **The 32-bit MSI installer will no longer be available**. The 64-bit MSI installer already includes support for tracing 32-bit processes, so you should use this installer instead. 
+- **The client library will still be injected when `DD_TRACE_ENABLED=0`**. In v2.x.x, setting `DD_TRACE_ENABLED=0` would prevent the client library from being injected into the application completely. In v3.0.0+, the client library will still be injected, but tracing will be disabled.
+- **Referencing the `Datadog.Trace.AspNet` module is no longer supported**. In v1.x.x and 2.x.x ASP.NET support allowed adding a reference to the `Datadog.Trace.AspNet` module in your web.config. This is no longer supported in v3.x.x.
+
+### Deprecation notices
+- **.NET Core 2.1 is marked EOL** in v3.0.0+ of the tracer. That means versions 2.0, 2.1, 2.2 and 3.0 of .NET Core are now EOL. These versions may still work with v3.0.0+, but they will no longer receive significant testing and you will receive limited support for issues arising with EOL versions.
+- **Datadog.Trace.OpenTracing is now obsolete**. OpenTracing is considered deprecated, and so _Datadog.Trace.OpenTracing_ is considered deprecated. See the following details on future deprecation.
+- **macOS 11 is no longer supported for CI Visibility** in v3.0.0+. Only macOS 12 and above are supported.
+
+### Major version policy and future deprecation
+- **Announcing a major version roadmap**. We intend to make yearly major releases, starting from v3.0.0 in 2024, and v4.0.0 in 2025. We clearly will aim for minimal breaking changes, with the primary focus being on maintaining support for new versions of .NET and removal of EOL frameworks and operating systems.
+- **Planned removal of support for .NET Core 2.x and .NET Core 3.0** in version v4.0.0+. We intend to completely remove support for .NET Core 2.x and .NET Core 3.0 in v4.0.0. .NET Framework 4.6.1+ will continue to be supported.
+- **Planned removal of support for some linux distributions**. In version v4.0.0, we intend to drop support for CentOS 7, RHEL 7, and CentOS Stream 8.
+- **Planned remove of support for App Analytics**. In version v4.0.0, we intend to drop support for App Analytics and associated settings.
+
+For the full list of changes, including exactly what changed and how you should handle them, please see the [MIGRATING](https://github.com/DataDog/dd-trace-dotnet/blob/master/docs/MIGRATING.md) document
+
+
+## Changes
+
+### Tracer
+* Fix `NullReferenceException` in ASP.NET Core when `RoutePattern.RawText` is `null` (#5880)
+* Fix `NullReferenceException` in `HttpClientResponse.GetCharsetEncoding` (#5881)
+* Disable keep-alive in HttpClientRequestFactory (#5810)
+* Fix error checking for CallTargetBubbleUpException (#5836)
+* Ensure top-level entry points are wrapped with try-catch (#5838)
+* Add an `IsManualInstrumentationOnly` flag to Datadog.Trace.Manual (#5866)
+
+### ASM
+* [ASM] Changes to the collection of usr.id for authenticated clients (#5738)
+* [ASM] IAST Email HTML Injection vulnerability (#5780)
+* [ASM] Upgrade WAF to version 1.19.1 (#5820)
+* [ASM] Add RASP timeout flag (#5827)
+* [IAST] Safeguard Insert Before / After aspects with try/catch (#5839)
+* [IAST] Safeguard Method Replace aspects with try/catch (#5841)
+* [ASM] Detect enabled RASP rules (#5846)
+* [ASM] Disable email Injection instrumented tests (#5875)
+* [ASM] ensure struct is on the stack before passing to native code (#5882)
+* [IAST] Broaden AspNet cookies filtering (#5830)
+* [ASM] Refactor hardcoded secret analyzer (#5883)
+
+### Continuous Profiler
+* [Profiler] LibrariesInfoCache: fix reload bug (#5837)
+* [Profiler] Add Callstack::CopyFrom method (#5842)
+* [Profiler] Fix null named thread (#5851)
+
+### Debugger
+* [Dynamic Instrumentation] DEBUG-2489 Add default 3rd party detection includes\excludes (#5722)
+* [Dynamic Instrumentation] DEBUG-2664 Remove `this` from static methods arguments upload (#5833)
+* [Dynamic Instrumentation] DEBUG-2216 Getting value of field or property throws `NotSupportedException` (#5558)
+* [Dynamic Instrumentation] DEBUG-2365 Support string lexicographic comparison (#5538)
+* [Dynamic Instrumentation] DEBUG-2088 Support nullable types in templates (#5543)
+* [Dynamic Instrumentation] DEBUG-2560 EL- Fix `IsEmpty` for string and collections (#5809)
+* [Dynamic Instrumentation] DEBUG-2524 Fix EL numeric binary operations (#5815)
+* [Dynamic Instrumentation] Improved instrumentation matching of symbols received through SymDb (#5829)
+* [Exception Replay] Normalized exception hashing for more fine-grained aggregation (#5872)
+
+### Build / Test
+* [Samples] Update IIS sample Dockerfile (#5805)
+* Update `config_norm_rules` with old DI config (#5816)
+* Simplify determining whether it's a debug run or not (#5817)
+* Use unified Gitlab pipeline for APM SDKs for SSI artifacts (#5818)
+* [Test Package Versions Bump] Updating package versions (#5819)
+* Fix builds on release/2.x (#5826 -> master) (#5828)
+* Add a scheduled job that sets the SSI variables in all tests (#5832)
+* Add Callsite aspects analyzer to check for "safe" patterns (#5835)
+* Catch exceptions when trying to shutdown IIS (#5840)
+* [Test Package Versions Bump] Updating package versions (#5845)
+* [Dynamimc Instrumentation] Update debugger .slnf file (#5858)
+* Skip the mass transit test to see if it solves flake issues (#5861)
+* Add verification step to create_draft_release to check SSI one-pipeline succeeded (#5865)
+* [build] change agent image source (#5874)
+* Try fix smoke tests (#5889)
+* * [Dynamic Instrumentation] Fix broken debugger integration test (#5869)
+
+### Miscellaneous
+* [IAST] Add a mark to the modified instructions in IL dumps (#5854)
+* Update Datadog.Trace README to reference v3 migration guide (#5857)
+* Config refactor - Add telemetry to otel config (#5717)
+* Exclude an SSIS service from auto-tracing (#5813)
+* [CrashTracking] Ensure crashtracking does not prevent coredump collection (#5852)
+
+[Changes since 2.56.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.56.0...v3.1.0-prerelease)
+
+
+## [Release 2.56.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.56.0)
+
+## Summary
+
+- [Tracing] Fix mapping of `http.status_code` OpenTelemetry tag
+- [Tracing] Fix bug where runtime metrics turns a recoverable OOM into an unrecoverable crash
+- [Dynamic Instrumentation] Improve exception replay capturing accuracy
+- [Dynamic Instrumentation] Fix potential crash related to exception replay
+
+## Changes
+
+### Tracer
+* Map `http.status_code` to meta dictionary (#5782)
+* Record when we use v2 instrumentation with a v3 version of the manual tracer (#5791)
+* Improve handling of OOM (#5797)
+
+### Debugger
+* [Exception Replay] Improved exceptions capturing accuracy + fixed a crash caused by mishandling of exception case probe statuses (#5798)
+
+### Miscellaneous
+* Tracer flare - Inspect the AGENT_CONFIG content to set the log level (#5802)
+
+### Build / Test
+* [Test Package Versions Bump] Updating package versions (#5776)
+* [Test Package Versions Bump] Updating package versions (#5796)
+* Include a version.txt and index.txt in the uploaded Azure assets (#5794)
+* Build OCI images for every branch (#5800)
+* Package musl assets in linux glibc tar folder (#5801)
+
+
+[Changes since 2.55.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.55.0...v2.56.0)
+
+
+## [Release 2.55.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.55.0)
+
+## Summary
+
+- [Dynamic Instrumentation] Fixed rewriting issues stemmed from combination of multiple instrumentations
+- [Tracing] dd support for MySql.Data 9.0.0
+- [Tracing] Handle unknown service names for OpenTelemetry/Activities
+- [ASM] Standalone Billing
+
+## Changes
+
+### Tracer
+* Add support for MySql.Data 9.0 (#5786)
+* Correctly set `activityKey` when we change the Trace ID (#5771)
+* Change unknown_service to DefaultServiceName (#5671)
+
+### ASM
+* [ASM] Standalone Billing (#5565)
+* [ASM] Standalone Billing (part 2: Propagation) (#5743)
+* [ASM] Appsec events in meta struct (#5779)
+
+### Continuous Profiler
+* [Profiler] Support "auto" for profiler enablement (#5766)
+* [Profiler] Fix bug when create thread lifetime event (#5769)
+
+### Debugger
+* [Dynamic Instrumentation] Fixed Instrumentation failures revealed by the Exploration Tests of Line & Method probes (#5784)
+* [Dynamic Instrumentation] Fixed SymDB upload when PDB is absent (#5789)
+* [Exception Replay] Mitigating an exception thrown while processing the methods participating in exception stack traces (#5783)
+
+### Miscellaneous
+* [SSI] Bail out on known-faulty .NET 6 version (#5761)
+
+### Build / Test
+* Integration test for Oracle (#5607)
+* Skip flaky `ActivityTests` on macos (#5763)
+* Fix macOS cmake warnings/errors (#5788)
+
+
+[Changes since 2.54.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.54.0...v2.55.0)
+
+
+## [Release 2.54.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.54.0)
+
+## Summary
+
+* [ASM] Exploit prevention: Support SQL Injection attacks
+* [Profiler] Add `timer_create`-based CPU profiling on Linux
+* Multiple fixes
+
+## Changes
+
+### Tracer
+* [Tracer] Rejit refactor to support multiple products in the same method (#5533)
+* [Tracer] Move definitions to native side (#5592)
+* [Remote Configuration] Buffer the response and include in error (#5675)
+* [Dynamic Instrumentation] DEBUG-2356 3rd party detection Include\exclude for SymDB (#5681)
+* [TRACER] Ensure synchronization in MethodInfo lazy operations (#5698)
+* Config refactor - distinguish between "not present" and "not valid" (#5713)
+* Config refactor - support "converters" for other configuration types (#5714)
+* Config refactor - fix struct/class `T` nullable ref issues, and allow "raw" access to `ConfigurationResult` (#5715)
+* Config refactor - remove duplication and OTel-specific code from `ConfigurationBuilder` (#5716)
+* [Tracing] fix precedence of remote vs local sampling rules (#5720)
+* [Tracer] Extracting Last Parent Id If Conflicting SpanIds are Found with The W3C Headers (#5721)
+* Fix flake in `SimpleActivitiesAndSpansTest` (#5735)
+* [Dynamic Instrumentation] Fix SymDB config keys to match RFC (#5737)
+* Do not reset `Activity.Id` for non-W3C formats (#5739)
+* Fix `ContentEncoding` in `IApiResponse` (#5748)
+
+### CI Visibility
+* Update CI Visibility metrics to latest requirements (#5747)
+
+### ASM
+* [ASM] Exploit prevention: Support SQL Injection attacks (#5651)
+* [ASM] Fix WAF timeout false positives (#5724)
+* [ASM] Capture ObjectDisposedException (#5732)
+* [ASM][IAST] Add support for CallSites in functions with by ref value type arguments (#5755)
+* [ASM] Iast/Rasp vulnerability manager (#5764)
+* [ASM] Fix - InvalidOperationException/ConcurrentOperationsNotSupported (#5765)
+
+### Continuous Profiler
+* [Profiler] Add `timer_create`-based CPU profiling on Linux (#5476)
+* [Profiler] Add custom dl_iterate_phdr and use it in libunwind (#5660)
+* [Profiler] Add heap size metrics (gen2, loh and poh) (#5669)
+* [Profiler] Add global flag to prevent the profiler from stackwalking while the app is crashing (#5729)
+
+### Debugger
+* [Dynamic Instrumentation] Fixed instrumentation error (InvalidProgramException) related to EH clauses (#5774)
+
+### Build / Test
+* Update Windows hosted image to latest software (#5416)
+* Build native test binaries in build jobs (#5614)
+* Run smoke tests as though they're in SSI (#5673)
+* Enforce not referencing Datadog.Trace directly in sample projects (#5683)
+* [builds] fix `build_in_docker` scripts (#5688)
+* [Tracing] [Samples] Update MicrosoftExtensionsExample.csproj to remove incompatible library (#5689)
+* Update codeowners to make Directory.Build.props to make them universal (#5703)
+* Build against `macos-12` instead of `macos-11` (#5707)
+* Set CODEOWNERS of debugger configuration keys to the debugger team (#5709)
+* Add basic smoke tests for macos (#5710)
+* Update workflow file again (#5712)
+* Try to fix the build by changing BuildId (#5718)
+* Fix Gitlab build and codeCoverage bugs (#5723)
+* Fix some macOS build issues (#5725)
+* Better logs folder creation in chiseled smoke test (#5731)
+* Add workflow monitor to all workflows (#5733)
+* Minor github action changes (#5734)
+* Revert "Add workflow monitor to all workflows (#5733)" (#5741)
+* Make BuildTracerHome build the native profiler (#5750)
+* Skip flaky tests on .NET Core 2.1 (#5753)
+* Add attribute for skipping tests in CI without using `[Fact(Skip = "")]` (#5756)
+* Re-order integrations folder in CODEOWNERS (#5762)
+* Stop testing with a specific build in macos smoke tests (#5772)
+* Filter out .NET Core 3.1 NuGet tests in prerelease versions (#5773)
+* Switch system-tests to python 3.12 (#5777)
+
+### Miscellaneous
+* [Test Package Versions Bump] Updating package versions (#5639)
+* Single-step guard rails: Use stdin instead of args to invoke telemetry (#5677)
+* [Test Package Versions Bump] Updating package versions (#5699)
+* [Test Package Versions Bump] Updating package versions (#5727)
+* [Test Package Versions Bump] Updating package versions (#5752)
+* Lock access to rejitters (#5757)
+* Revert native changes that moved the definitions to the native side (#5768)
+
+
+[Changes since 2.53.2](https://github.com/DataDog/dd-trace-dotnet/compare/v2.53.2...v2.54.0)
+
+
+## [Release 2.53.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.53.0)
+
+## Summary
+
+* [Tracing] Add support for ActivityLinks/OTEL Span Links
+* [Tracing] Add support for OpenTelemetry's AddEvent and RecordException API's, and environment variables
+* [Tracing] Add support for Serilog v4 and NLog 5.3.0
+* [CI Visibility] Add support for Microsoft.CodeCoverage
+* [CI Visibility] Add support for UDS and NamedPipes
+* [ASM] Enable Runtime Application Self-Protection (RASP) by default
+* [Dynamic Instrumentation] Support using Boolean literals in the expression language
+* [DBM] Add injection support for Oracle queries (service mode only)
+
+## Changes
+
+### Tracer
+* [Tracer] Support remote config for `DD_TRACE_SAMPLING_RULES` and Adaptive Sampling (#5453)
+* [Tracer] Finishes Adding Support for ActivityLink (#5627)
+* [Tracing] Add standardized support for OpenTelemetry AddEvent and RecordException API's (#5630)
+* Add support for Serilog v4 (#5649)
+* Remap `http.response.status_code` to `http.status_code` (#5654)
+* Exclude vsdbg from tracing (#5657)
+* [Tracing] Adds support for mapping stable OpenTelemetry environment variables to their Datadog equivalents (#5661)
+* Don't allocate very large buffers when deserializing responses (#5665)
+* [Tracer] SpanLinks Permissive null Clean Up (#5674)
+
+### CI Visibility
+* [CI Visibility] Automatic reporting of Microsoft.CodeCoverage percentage (#5633)
+* [CI Visibility] UDS and NamedPipes support (#5634)
+
+### ASM
+* [ASM] Update WAF log messages (#5571)
+* [ASM] Improved Unsafe Encoder readability  (#5587)
+* [ASM] Add the span id to the RASP events (#5588)
+* [ASM] Add test for null response in aspnet core (#5590)
+* [ASM] RASP: Add stack trace bottom and top filtering (#5621)
+* [ASM] Enable RASP by default (#5625)
+* [ASM] Capture exception to avoid errors (#5662)
+* [ASM] Fix CloseLibrary condition (#5667)
+* [ASM][IAST] Add `_dd.iast.json.tag.size.exceeded` telemetry metric (#5641)
+
+### Continuous Profiler
+* [Profiler] Fix services start/stop (#5616)
+* [Profiler] Few missing changes for IService startup/stop (#5619)
+* [Profiler] Improve configuration aroung SSI/non-SSI (#5620)
+* Add a space before |fg: in case of an unknown type (#5624)
+* Normalize the profiler thread names (#5626)
+* [Profiler] Investigate and fix profiler benchmarks failures (#5631)
+
+### Debugger
+* [Dynamic Instrumentation] Aligned the line probe snapshot to fix System Tests failures (#5628)
+* [Dynamic Instrumentation] Check specific path for diagnostics upload (#5461)
+* [Dynamic Instrumentation] Cleansing third party module names to avoid conflicts with customer's modules (#5622)
+
+### Fixes
+* Fix RCM Capabilities bugs (#5606)
+* Fix NLog direct log shipping 5.3+ when no config is present (#5609)
+
+### Miscellaneous
+* [DBM] add injection support for oracle queries (but only service mode) (#5506)
+* [CrashTracking] Check if native crashes are caused by Datadog (#5573)
+* Make crash tracking opt-out (#5582)
+* [Test Package Versions Bump] Updating package versions (#5605)
+* Fix NLog direct log shipping 5.3+ when no config is present (#5609)
+* Record SSI injection values in configuration (#5611)
+* Single-step guard rails: Move version.h to shared code (#5635)
+* Single-step guard rails: Update `RuntimeInformation` to include "inferred" runtime version (#5636)
+* Single-step guard rails: telemetry (#5637)
+* Normalize the tracer thread names (#5644)
+* Update libdatadog to v10 (#5653)
+* [CrashTracking] Let libdatadog set the endpoint (#5666)
+* [Crashtracking] Mark DD_* threads as suspicious (#5647)
+
+### Build / Test
+* Display C++ static analysis errors in the CI output (#5608)
+* chore(lib-injection): update base image to alpine 3.20 (#5613)
+* Set LD_PRELOAD in integration tests (#5617)
+* [SINT-1401] update windows code signer to v0.2.3 (#5629)
+* Ensure we catch exceptions in named pipe mock agent (#5646)
+* Fix broken tests that only run on main (#5670)
+* chore(serverless): update `CODEOWNERS` (#5672)
+* [Profiler/Tracer] Bump FluentAssertions to 6.12.0 (#5599)
+* [Profiler] Capture dump on timeout in wrapper tests (#5602)
+* [Profiler] Fix race condition in SocketTimeout (#5648)
+
+
+[Changes since 2.52.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.52.0...v2.53.0)
+
+
+## [Release 2.52.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.52.0)
+
+## Summary
+
+* [CIVisibility] Fixes for `test.command` tag value and version-conflict scenarios
+* [ASM] Adds support for session-timeout vulnerability
+* [ASM] Adds support for Grpc.AspNetCore source tainting and exclusion marks
+* [Tracing] Single step instrumentation no longer instruments EOL runtimes by default
+
+## Changes
+
+### Tracer
+* [Tracer] Delay sampling decisions (#5306)
+* [Tracer] Only set `_dd.agent_psr` tag when using sampling rates from Agent (#5545)
+* Refactor `LifetimeManager` callbacks for `UnhandledException` (#5557)
+
+### CI Visibility
+* [CIVisibility] Add SourceLink support to CIEnvironmentValues (#5535)
+* [CI Visibility] IPC subsystem (#5537)
+* [CI Visibility] - Close and flush incomplete TSLV objects before exiting (#5549)
+* [CI Visibility] Send data to the test session using IPC (#5551)
+* [CIVisibility] Fix test.command tag value (#5560)
+* [CIVisibility] Add a code coverage injection session tag (#5561)
+* [CIVisibility] Tag profiles created by BenchmarkDotnet integration and add the IgnoreProfileAttribute (#5568)
+* [CIVisibility] Fix support for custom spans with version mismatch (#5578)
+
+### ASM
+* [ASM][IAST] Add source tainting for Grpc dotnet (#5473)
+* [ASM] Rasp sinks instrumentation (#5512)
+* [ASM][IAST] Add vulnerability marks to Range + Add the mark to Escaped XSS (#5531)
+* [ASM] RASP span metrics (#5542)
+* [ASM] Upgrade WAF to version 1.18 (#5546)
+* [ASM] Remove the need to pass httpcontext to SecurityCoordinators (#5548)
+* [ASM][IAST] Session Timeout vulnerability (#5559)
+* [ASM][IAST] Fix System.Text.Json: Properly implement GetRawText() aspect (#5572)
+* [ASM] Fix null ref (#5596)
+
+### Miscellaneous
+* Bail out of instrumentation in SSI when an unsupported platform is detected (#5524)
+* Don't instrument most `dotnet` SDK calls (#5564)
+* [Test Package Versions Bump] Updating package versions (#5569)
+* [Test Package Versions Bump] Updating package versions (#5585)
+* Crash tracking (#5451)
+
+### Build / Test
+* Update `CODEOWNERS` for APM SDK IDM ownership (#5525)
+* [All Natives] Fix C5105 Warning for Windows Native Projects (#5541)
+* Update lib-injection docker image tags (#5544)
+* Try fixing flake in `TelemetryControllerShouldUpdateGitMetadataWithTelemetry` on macOS (#5547)
+* "Manually" install MSI dependencies instead of using choco install (#5553)
+* Update the .DotSettings in `_build` (#5555)
+* Remove span count assertions from Azure Function tests (#5556)
+* [Tracer] scrub `_dd.agent_psr` from test snapshots (#5562)
+* If a lot of snapshots have changed, we should check them all (#5563)
+* [Build] Fix chiseled smoke tests jobs + capture coredump when crashing in all smoke tests jobs (#5570)
+* Failing serverless tests are not reported in CI (#5574)
+* [Tests] add null checks in `VerifyHelper` (#5575)
+* Fix dependabot and improve `GeneratePackageVersions` (#5579)
+* Disable automatic flush in AgentWriterTests.FaultyApi (#5581)
+* Improve lib-injection tagging script (#5598)
+* Bump Fody from 6.8.0 to 6.8.1 in /tracer/src/Datadog.Trace (#5576)
+* [Tracer][Tests] scrub `_dd.agent_psr` tag from `TraceAnnotationsTests` snapshots only (#5591)
+
+
+[Changes since 2.51.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.51.0...v2.52.0)
+
+
+## [Release 2.51.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.51.0)
+
+## Summary
+
+- [APM] Fix rare `TypeLoadException` when running instrumented code
+- [APM] Fix issue with runtime metrics that could cause memory usage to be reported as negative on x86
+- [IAST] Directory listing leak vulnerability detection (Kestrel)
+- [ASM] RASP: SSRF blocking. LFi reporting.
+- [CI Visibility] Early Flake Detection
+- [CI Visibility]  Selenium + RUM support
+- [Dynamic Instrumentation] Support pointer and pinned local
+- [Profiler] Several fixes
+
+## Changes
+
+### Tracer
+* Encode the last seen Datadog span ID within `tracestate` (#5176)
+* Check to ignore Activity when creating TraceID (#5318)
+* read variable responsible for enabling SCA (#5432)
+* Fix sending `Content-Length: 0` when using chunked-encoding (#5445)
+* Add full support for multipart form requests (#5448)
+* Avoid batching updates in runtime metrics (#5469)
+* Update `RegexBuilder` to accept a `Timeout` so we can reduce flake (#5471)
+* [Tracing] sampling code cleanup (#5477)
+* Switch memory mapped counters to unsigned (#5480)
+* [Dynamic Instrumentation] Add 'connectionString' to the list of redacted values (#5487)
+* [Dynamic Instrumentation] Do not create probe processor and rate limiting for unbound line probes (#5503)
+* [Dynamic Instrumentation] Consolidate PII redaction keys for all libraries. (#5522)
+
+### CI Visibility
+* [CI Visibility] Early Flake Detection (#5320)
+* [CI Visibility] - Improvements to the `dd-trace ci ...` commands (#5468)
+* [CI Visibility] - Selenium + RUM support (#5505)
+* [CI Visibility] - Ensure continuous profiler flush on CI Visibility close method (#5513)
+* [CI Visibility] - Fix force Evp proxy environment variable (#5526)
+* [CI Visibility] Add linux `whereis` command as a fallback to locate the target binary. (#5532)
+
+### ASM
+* [ASM][IAST] Add Directory listing leak vulnerability (kestrel) (#5475)
+* [ASM] change env variable name to remove experimental keyword (#5478)
+* [ASM][IAST] Add exception for Vary: Origin (#5486)
+* Send Rasp settings. Change codeowner file for snapshots. (#5490)
+* [ASM] RASP: Lfi reporting (#5491)
+* [ASM] Rasp: Block SSRF attacks (#5507)
+* [ASM] Add stack traces to the span for RASP vulnerabilities (#5515)
+* [ASM] Add RASP telemetry (#5527)
+
+### Continuous Profiler
+* [Profiler] Fix crash in Sampler at shutdown (#5483)
+* [Profiler] Fix various thing in the profiler testing infrastructure (#5495)
+* [Profiler] Fix bug debug info store & line of code (Code viewer) (#5496)
+
+### Debugger
+* [Dynamic Instrumentation] Fix `System.ArgumentNullException` while processing span decoration probes with empty tags (#5444)
+* [Debugger][Test] skip some tests that fail in `DEBUG` mode (#5452)
+* [Dynamic Instrumentation] DEBUG-2320 Support pointer and pinned local (#5464)
+* [Dynamic Instrumentation] DEBUG-2321 Add local pinned and pointer for instrumentation verification (#5465)
+* [Dynamic Instrumentation] DEBUG-2322 Find correct member ref based on best candidate (#5467)
+* [Dynamic Instrumentation] Fix PinnedLocalTest (#5511)
+
+### Serverless
+* [Serverless] add `CI_COMMIT_TAG` to be sent downstream (#5460)
+
+### Fixes
+* Fix nullable reference bugs in Kinesis integration (#5528)
+
+### Build / Test
+* Avoid more flake in smoke tests (#5413)
+* Try again to fix dd-trace build (#5429)
+* Refactor test infrastructure to support chunked encoding/gzip correctly (#5446)
+* Add testing of `IMultipartApiRequest` for UDS, streams and gzip (#5447)
+* [CI] Minor cleanup (#5450)
+* Fix dotnet_tool build (#5470)
+* Fix some flaky tests in IAST and sampling (#5472)
+* Ignore expected CI Visibility error (#5482)
+* [CLI Tool] Updated COMPlus_EnableDiagnostics Message  (#5485)
+* Simplify CI Visibility snapshot names (#5488)
+* [CI] Fix flake in Git Telemetry (#5497)
+* Remove direct references to Datadog.Trace from Security samples (#5500)
+* Fix DSM SQS tests (#5530)
+
+### Miscellaneous
+* Calltarget `ref struct` support (#5442)
+* [APM] Add git reference to application telemetry (#5459)
+* Update WAF to version 1.17 (#5463)
+* Don't send errors from Exceptions during requests to RCM (#5466)
+* Fix RegisterIastAspects signature (#5474)
+* Fix git metadata collection (#5489)
+* Fix race condition when initializing metadata (#5508)
+* Remove some write flags from GetModuleMetaData calls (#5517)
+* Prefix dynamic assemblies with "Datadog." (#5523)
+* Include inner exceptions in the telemetry logs (#5529)
+
+
+[Changes since 2.50.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.50.0...v2.51.0)
+
+
+## [Release 2.50.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.50.0)
+
+## Summary
+
+- [CI Visibility] - Improvements for MSTest: custom `TestMethod`, custom `DisplayName`, and missing tests
+- [IAST] - NHibernate SQLI vulnerability detection
+- [ASM] - Add support for null-returning controller actions
+- [Dynamic Instrumentation] - Improvements to async method handling
+- [Dynamic Instrumentation] - Improvements to symbol database
+
+## Changes
+
+### Tracer
+* [ASM] Report external wafs headers (#5178)
+* Add rate limit for the log written by `TraceRateLimiter` (#5229)
+* Optimize HttpMessage.GetContentEncoding using spans (#5301)
+* Use `TraceId128` in log instead of `TraceId` (#5312)
+* Use vendored span in HexString (#5313)
+* Add support for span links (#5354)
+* [Tracing] Add `IsRemote` to `SpanContext` (#5385)
+* Adding nullability to CallTarget code and null checks to the ducktyping constraints proxy (#5393)
+* Add try/finally to Msmq integration (#5457)
+
+### CI Visibility
+* [CI Visibility] - New CI Visibility code coverage algorithm (#5254)
+* [CI Visibility] Fix some test to avoid flakiness on retries. (#5325)
+* [CI Visibility] - MSTest2 Improvements and Fixes (#5381)
+* [CI Visibility] - Fix ITR Code Coverage collector attach algorithm (#5412)
+* [CI Visibility] - Find .git folder when using GetFrom method as a fallback (#5425)
+
+### ASM
+* [ASM][ApiSecurity] Change Api Securitysampling algorithm (#5257)
+* [ASM] never log WAF at debug level, since (#5295)
+* [ASM] Dont deserialize rcm payloads until they are needed for memory optimization (#5296)
+* [ASM] Fix our legacy encoder benchmarks memory leak  (#5308)
+* Fix how security settings are read (#5317)
+* [ASM] Ensure new sample and agent are used on each test (#5339)
+* [ASM][IAST] NHibernate support (SQLI Vuln) (#5347)
+* [ASM] Fix nullreference exception escalation on response body instrumentation for NET Fx (#5365)
+
+### Continuous Profiler
+* [Profiler] Use a homemade implementation of linked-list (#5284)
+* [Profiler] Add FlushProfile public method (#5303)
+* [Profiler] Remove flakiness for GC CPU comsumption (#5323)
+* [Profiler] Add callstack provider (#5328)
+* [Profiler] Avoid named pipe test flackiness (#5331)
+* [Profiler] Bump to libdatadog 8 (#5348)
+* Update libunwind to 1.8.1 (#5358)
+* [Profiler] Fix bug in case of Agent error with .NET Framework (#5368)
+* Include the libunwind double-free fix (#5397)
+* [Profiler] Upgrade cppcheck to 2.12 (#5398)
+* Fix profiler integration tests (#5423)
+* [Profiler] Move GetAppDomain to ManagedThreadInfo (#5427)
+* [Profiler] Pass memory_resource around (#5434)
+* [Profiler] Fix possible crash when Agent does not answer namedpipe connection (#5437)
+* [Profiler] Fix use-after-free ASAN diagnostic (#5441)
+
+### Debugger
+* [Dynamic Instrumentation] Consider 3rd party assemblies on SymDB (#5380)
+* [Dynamic Instrumentation] Support legacy endpoint for diagnostics uploading (#5456)
+* [Dynamic Instrumentation] Reduce allocations in probe processing (#5132)
+* [Dynamic Instrumentation] Handle Out Of Range exception in SymDB (#5162)
+* [Dynamic Instrumentation] Fix number of locals in async method (#5131)
+* [Dynamic Instrumentation] Add NotCapturedReason for unreachable local var value in async method (#5161)
+* [Dynamic Instrumentation] Normalize redaction keywords + add missing keywords (#5350)
+* [Dynamic Instrumentation] Acknowledge log probe capture limits (#5364)
+* [Dynamic Instrumentation] Added emitting status for probes (#5372)
+* [Dynamic Instrumentation] Introduce diagnostics endpoint (#5373)
+* [Dynamic Instrumentation] Temporary disable system tests (#5411)
+* [Dynamic Instrumentation] Fix type of local in async method (#5414)
+* [Dynamic Instrumentation] Fix probe status upload + refactor upload process (#5422)
+
+### Exception Debugging
+* [Exception Debugging] Introducing the Exception Debugging product (#5163)
+* [Exception Debugging] Minor post-merge fix to Exception Debugging unwinding logic (#5327)
+* [Exception Debugging] Better communicate non-captured exceptions (#5371)
+* [Exception Debugging] Enhanced the reporting of non-captured exceptions (#5391)
+
+### Serverless
+* [Serverless] add serverless benchmarks (#5374)
+* [Serverless] update benchmark variables (#5409)
+
+### Fixes
+* Add some more `#nullable enable` (#5332)
+
+### Build / Test
+* Fix 2.7.0 XUnit tests (#5341)
+* Update CI support for release branches (#4811)
+* Add explicit "clean" step to clone repo (#5309)
+* Clean dangling AgentWriter instances in unit tests (#5311)
+* Fix lib-injection container images (#5322)
+* Increase the margin for the number of threads in RuntimeMetricsWriterTests (#5329)
+* Remove automatic deploy to di (#5330)
+* [Test] Running AspNetCore5IastTestsFullSampling Tests Serially (#5333)
+* Disable inlining for restsharp exploration tests (#5335)
+* Start pushing `latest_snapshot` images for lib-injection images (#5336)
+* Filtering out Timer ExitApp span (#5337)
+* [Test Package Versions Bump] Updating package versions (#5338)
+* [ci] Add oci package build (#5340)
+* Update CODEOWNERS file for MethodSymbolResolver.cs (#5342)
+* [Build] Extend Azure Service Bus testing from versions 7.4.x - 7.17.x (#5343)
+* Disable Inlining to 0 for both Cake & swashbuckle tests (#5344)
+* Disabling ASM Throughput Job  (#5345)
+* Running all WafLibraryRequiredTest tests serially (#5346)
+* Exclude known error from smoke tests (#5349)
+* Update some packages (#5353)
+* Fix some warnings in the samples (#5366)
+* separate DSM tests for more clarity (#5367)
+* Fix smoke test issue and pin versions (#5376)
+* Fix some more build warnings from the samples (#5378)
+* Don't print snapshots diff unless running in CI (#5379)
+* [Auto instrumentation generator] Add support for nested types (#5382)
+* K8s Lib Injection: Migration (#5383)
+* Try fix macos unit test crash (#5384)
+* Try working around missing Docker Compose v1 in hosted runners (#5386)
+* _Really_ clean up before doing anything (#5387)
+* Only publish `:latest` lib-injection container images on merges to master (#5388)
+* Temporarily disable profiler CppCheck (#5389)
+* Split the macos build into 2 jobs and parallelise (#5390)
+* Ensure we also clean hidden folders (#5399)
+* Use docker mirror image in GitLab instead of dockerhub (#5401)
+* Remove direct reference to Samples.AspNetCore.RazorPages from integration test project (#5402)
+* Set the obfuscation querystring regex to something large to avoid flake in integration tests (#5403)
+* Don't specify port for Yarp test to avoid flake (#5404)
+* [Test Package Versions Bump] Updating package versions (#5405)
+* Update approvals for debugger async tests (#5406)
+* Update GitHub token to one that's not about to expire (#5407)
+* Ignore complaints from NuGet about out of support packages (#5415)
+* Add an explicit "clean docker" step (#5417)
+* Don't re-build everything when building the runner in CI (#5424)
+* Bump the timeout of the integration_tests_windows stage (#5426)
+* Bump the macos timeout (#5430)
+
+### Miscellaneous
+* [Tracer][Logs] ILogger sample in Azure Functions (#4065)
+* [DSM] - Use the same header adapter on get and put (#5361)
+
+
+[Changes since 2.49.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.49.0...v2.50.0)
+
+
+## [Release 2.49.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.49.0)
+
+## Summary
+* Significantly improved runtime metrics performance
+* Fixes for MSTestV2 integration on .NET Framework
+* Fixes for IbmMq instrumentation for DSM
+* Added additional integration and improvements for IAST
+* Added `DD_TAGS` to snapshot query parameter for Dynamic Instrumentation
+
+## Changes
+
+### Tracer
+* [Tracing] Support configuring `DD_TRACE_ENABLED` remotely (#5181)
+* Add support for `DD_DOGSTATSD_URL` (#5224)
+* Minor (potential) fixes for `NullReferenceException` (#5230)
+* Warm up the query string obfuscator regex (#5266)
+* Include the trace sampling priority in the span debug log (#5274)
+* [Tracer] Include propagation style in the configuration log (#5275)
+* Fix errors identified from telemetry (#5279)
+* Allow skipping span generation in `ProcessStart` integration (#5280)
+* Don't allow adding `null` to the GRPC headers (#5286)
+* Add `meta_struct` capability to the tracer (#5287)
+* Handle case where `SetExceptionTags()` throws (#5291)
+* Use vendored spans in tags generation (#5298)
+* Optimize runtime metrics (#5304)
+* [Tracing] Update instrumentation point for DD_TRACE_DELAY_WCF_INSTRUMENTATION_ENABLED=true (#5206)
+
+### CI Visibility
+* [CI Visibility] - Enable snapshot testing of current testing framework implementations (#5226)
+* [CI Visibility] - Add a rate limit to the warning message of the OriginTagTraceProcessor (#5261)
+* Disable profiling in benchmarks (#5262)
+* [CI Visibility] Fix MSTestV2 integration on .NET Framework (#5269)
+
+### ASM
+* [ASM][IAST] Insecure Auth Vulnerability (#5148)
+* [IAST] Added tests cases for Custom Manual and Attribute spans (#5218)
+* [ASM][IAST] Support manual JSON deserialisation (System.Text.Json)  (#5223)
+* [IAST] XSS vulnerability (#5231)
+* [ASM] Rework encoder telemetry and logs (#5234)
+* [ASM][IAST] Support manual JSON deserialisation (Newtonsoft.Json) (#5238)
+* [IAST] Set redaction config values according to documentation (#5242)
+* [ASM] Add processors and scanners to ruleset  (#5248)
+* [ASM][IAST] Support manual JSON deserialisation (JavaScriptSerializer) #5238  (#5251)
+* [ASM] Exclude NHibernate from callsite instrumentation (#5265)
+* [ASM][IAST] Configure maximum IAST Ranges (#5292)
+* [ASM] Deactivate benchmark for legacy encoder to help CI (#5299)
+* [IAST] Vulnerability and Evidence truncation (#5302)
+* [ASM] Try fix memory buildup in asm benchmarks removing destructor in Obj (#5305)
+* [ASM] Add dummy agent writer for benchmarks (#5307)
+* [ASM] - Fix HttpRequestValidationException Error (#5221)
+* [IAST] Path in location is always the fully qualified type name (#5256)
+* [IAST] Fix version parsing in Dataflow (#5263)
+
+### Continuous Profiler
+* [Profiler] Force gen2 GCs to avoid test flakyness (#5273)
+* [Profiler] Exclude export error message from flaky test (#5277)
+
+### Debugger
+* [Dynamic Instrumentation] Fix not equal (ne\!=) operator in EL (#5212)
+* [Dynamic Instrumentation] Remove async void in SymbolsUploader (#5155)
+* [Dynamic Instrumentation] Adding ddtags to snapshot query parameter (#5210)
+
+### Build / Test
+* Enable Datadog static analysis (#5057)
+* Try play asm benchmark only on  appsec changed (#5066)
+* Report library configuration through telemetry (#5126)
+* Removing check to allow the test to create snapshots (#5246)
+* [Tracer] Adding Optional Parameter for MockTraceAgent's WaitForSpans (#5253)
+* [Tracer] Fixing Missing Query String for CleanUri_HttpUrlTag Tests (#5258)
+* [Tracer] Updating GrpcLegacy Sample App and Tests (#5264)
+* Add analyzer to avoid implicitly capturing parameters with primary constructors (#5276)
+* add a test case where message attributes are null (integration tests) (#5282)
+* Skip .NET Core 2.1 tests on ARM64 (#5283)
+* Set big regex timeouts for tests (#5297)
+* Running All Datadog.Trace.ClrProfiler.IntegrationTests Tests Serially  (#5310)
+* Fix: Skip System.Text.Json tainting tests on netcore3.0 (#5314)
+* Skipping 3.0 Snapshot Check (#5316)
+* [Tracer] Increasing GraphQL ObfuscationQueryStringRegexTimeout To Prevent Flakes (#5255)
+
+### Miscellaneous
+* [DSM] - Fixes for IbmMq instrumentation (#5271)
+* Add db name & host to sql injected tags (#5278)
+
+[Changes since 2.48.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.48.0...v2.49.0)
+
+
+## [Release 2.48.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.48.0)
+
+## Summary
+
+* [Tracing] Swap default propagation styles from `tracecontext,Datadog` to `Datadog,tracecontext`
+- [Tracing] Fix bug where dogstatsd tries to send to the wrong hostname
+- [Tracing] Fix bug when trace-agent uses chunked responses
+- [ASM/IAST] Add detection of Reflection injection vulnerability
+- [Continuous Profiler] Enable exception profiling by default
+- [Continuous Profiler] Fix race condition in stack unwind
+- [DSM] Add DSM support for SQS
+
+## Changes
+
+### Tracer
+* Swap default propagation styles from `tracecontext,Datadog` to `Datadog,tracecontext` (#5115)
+* [Tracing] special-case the "any" pattern in sampling rules (#5142)
+* Remove non-backtracking regular expressions (#5194)
+* Fix scenario where dogstatsd tries to send to the wrong hostname (#5222)
+* Fix product data collected for tracer flare (#5228)
+* Add a `ChunkedEncodingReadStream` to use when talking to the agent (#5241)
+* Update `DatadogHttpClient` to support `chunked` encoding (#5244)
+* Remove usage of `ArrayPool<T>` from `ChunkedEncodingReadStream` (#5247)
+
+### CI Visibility
+* [CI Visibility] Sanitize git get-objects output (#5232)
+
+### ASM
+* [ASM] Rasp callsite instrumentation (#5186)
+* [ASM] increase waf timeout on flaky unit tests (#5196)
+* [IAST] Enabled hash in integration tests (#5205)
+* [IAST] Add support to AspectMethodReplace with struct arguments (#5213)
+* [ASM][IAST] Reflection Injection (#5219)
+* [ASM] Update RASP snapshots (#5233)
+* [ASM] handle array list in legacy encoder (#5239)
+* [ASM] Fix null reference exception (#5243)
+
+### Continuous Profiler
+* [Profiler] Refactor to optimize samples collection (#5174)
+* [Profiler] Optimize AppDomainStore (#5175)
+* [Profiler] Detect Single Step Instrumentation (#5184)
+* [Profiling] Reduce available symbols (#5195)
+* [Profiler] On linux we may crash if we unwind a thread that was already unwinding its own callstack (#5197)
+* [Profiler] Cleanup compilation warnings (#5201)
+* [Profiler] Enable exception profiling by default (#5202)
+
+### Miscellaneous
+* [Test Package Versions Bump] Updating package versions (#4972)
+* DSM support for SQS (#4973)
+* refactor SQS send/receive instrumentation code (#5120)
+* [Documentation] Add a sample that configures an ASP.NET Core app with OpenTelemetry (#5203)
+* Support DOTNET_EnableDiagnostics in dd-dotnet (#5208)
+* Move DSM checkpointing responsibility for Kafka from API method to integration (#5211)
+* Use vendored unsafe class instead of emitting IL (#5215)
+* IntegrationMapper.ConvertType simplification and Ducktype optimization (#5216)
+
+### Build / Test
+* Add testing for AWS Lambda on .NET 8 (#5236)
+* Don't require additional Windows SDK for Nuke desktop notification (#5192)
+* Tweak OpenTelemetry sample (#5204)
+* Add IntegrationIdExtensions.cs to codeowners common files (#5217)
+* Force update to latest Octokit version (#5249)
+* Missing generated aspects (#5225)
+
+[Changes since 2.47.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.47.0...v2.48.0)
+
+
+## [Release 2.47.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.47.0)
+
+## Summary
+
+* [CI Visibility] - Add configure jenkins command in dd-trace
+* [CI Visibility] - Add GAC installation feature for .NET Framework
+* [ASM] - Add API Security for .NET Framework
+* [ASM] - Add nosql (Mongo), stack trace leak, and xpath injection vulnerability detection
+* [Profiler] - Add high/low thread count metrics
+* [Dynamic Instrumentation] - Add `instanceof`, `isDefined`, parent type, static, public, and protected members to expression language
+* [DSM] - Simplify DSM pathway context inheritance
+
+## Changes
+
+### Tracer
+* Make MessagePack compatible with AOT compilation (#5092)
+* Fix JSON.NET warnings for NativeAOT (#5122)
+* Change AsyncManualResetEvent to use a TaskCompletionSource<bool> (#5165)
+* [Tracing][ASM] http query string obfuscation should be case-insensitive (#5188)
+
+### CI Visibility
+* [CI Visibility] - Add intelligent test runner CorrelationId support (#5111)
+* [CI Visibility] - Add support for event proxy v4 endpoint (gzip support) (#5114)
+* [CI Visibility] - Include GAC installation feature to fix compatibility with .NET Framework (#5129)
+* [CI Visibility] - Update CI specs (#5137)
+* [CI Visibility] - Add configure jenkins command in dd-trace ci (#5158)
+* [CI Visibility] Small optimizations (#5160)
+* [CI Visibility] GAC commands in dd-trace (#5167)
+* [CI Visibility] - Add netcoreapp2.x support for dd-trace GAC commands (#5173)
+* [CI Visibility] - Fix DiscoveryService Agent configuration callback (#5187)
+* [CI Visibility] Fix MakeRelativePathFromSourceRoot method when the path is invalid (#5189)
+* Changes missing on the SCI git metadata spec (#5082)
+
+### ASM
+* [ASM] Add timeouts to the tokenizers regex (#5083)
+* [ASM] Allow 0 values for iast regex timeout (#5139)
+* [ASM] Fix of Context's disposing too early + new encoder's limits bug (#4884)
+* [ASM] Api security for netfx (#4942)
+* [ASM][IAST] MongoDB Integration (#4995)
+* [ASM] Adapt ASM benchmarks (#5010)
+* [ASM][IAST] New scrubbing for location data (#5047)
+* [ASM] Concatenate the results of multi-WAF runs (#5055)
+* [ASM] Stack trace leak vulnerability detection (#5067)
+* [ASM] Xpath injection vulnerability (#5113)
+* [ASM][IAST] Test IAST enum (#5116)
+* [ASM] Exposes and test ephemeral address (#5121)
+* [ASM] Fix flaky test (#5123)
+* [ASM] Prevent null references: harden ControllerExtensions integration (#5124)
+* [ASM] Fix log messaage for sys tests (#5135)
+* [ASM] Add RASP configuration settings (#5136)
+* [ASM][IAST] Fix Tests Location  (#5143)
+* [ASM] Update waf to 1.16.0 (#5164)
+* [ASM] Fix building IAST instrumented tests on macOS + increase QoL on macOS (#5169)
+* [ASM] when appsec rules files is not found, dont continue init process and log confusing messages (#5171)
+* [ASM][IAST] Fix weakcipher on macos (#5172)
+
+### Continuous Profiler
+* [Profiler] Refactor with a support for named pipes to communicate with Datadog Agent  (#4820)
+* [Profiler] Remove unused statistics method in StackSamplerLoop (#5101)
+* [Profiler] Add high/low thread count metrics (#5138)
+
+### Debugger
+* [Dynamic Instrumentation] Add probe-id tag to metric probe (#5023)
+* [Dynamic Instrumentation] Send metric duration in case of evaluation error (#5059)
+* [Dynamic Instrumentation] Support `isDefined` in expression language (#5021)
+* [Dynamic Instrumentation] Fix EL operation names (#5022)
+* [Dynamic Instrumentation] Add `instanceof` expression to EL (#5024)
+* [Dynamic Instrumentation] Support parent type static public and protected members in EL (#5026)
+* [Dynamic Instrumentation] Add @exception to locals (like @return) (#5051)
+* [Dynamic Instrumentation] Replace @exceptions with @exception in template tests (#5140)
+* [Dynamic Instrumentation] Scrub stacktrace value in probe tests snapshots (#5149)
+
+### Build / Test
+* Update OpenTelemetry snapshots for 1.7.0 (#4978)
+* Update CosmosDb snapshots and csproj to ignore .NET Standard warning (#4979)
+* Update PublishAotCompressed and enable LZMA compression (#5070)
+* Fix `Non-serializable data ('System.Object[]') found` in tests (#5089)
+* Stop rebuilding dddotnet (#5103)
+* Fix instrumentation definitions source generator IDE performance (#5108)
+* Test source generators for incrementality (#5109)
+* [Build] Update the ubuntu Microsoft-hosted agents (#5117)
+* Fix Debugger's snapshot tests (#5125)
+* Avoid using dotnet run in nuke (#5127)
+* [Build] Finish updating recent snapshots (#5130)
+* fix unit test broket on master after merge in wrong order (#5133)
+* Force execute permissions on OSX (#5145)
+* Fix the issue of not having branch name when azure pipeline works with a detached HEAD (#5146)
+* Output branch name to console output (#5150)
+* [APM] Move common (more) files ownership on tracer folder to APM group (#5151)
+* Add a fast developer loop option to the build project. (#5152)
+* Create and publish arm64 version for docker image `latest_snapshot` (#5170)
+* Default to .net core runtime on Linux in dd-dotnet (#5177)
+* [Build] Fix dd-trace-dotnet:latest_snapshot image for system-tests (#5182)
+* [APM] Move common files ownership on tracer folder to APM group (#5147)
+* [tests] remove unused front-end files in sample/test web apps (jQuery, Bootstrap, fonts) (#4797)
+
+### Miscellaneous
+* simplify & fix DSM pathway context inheritance (#5074)
+
+
+[Changes since 2.46.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.46.0...v2.47.0)
+
+
+## [Release 2.46.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.46.0)
+
+## Summary
+
+* [Tracing] Add support for matching sampling rules by resource name and span tags, and for using glob patterns
+* [Tracing] Add support for tracer flare for faster support resolution
+* [CI Visibility] Reduce overhead of intelligent test runner, payload upload, and git unshallow
+* [IAST] Add support for header injection vulnerability
+* [IAST] Fix false-positive related to small-integer string cache
+* [Serverless] Report exception details to Lambda extension
+
+## Changes
+
+### Tracer
+* Add `DD_TRACE_SAMPLING_RULES_FORMAT` setting (#4984)
+* [tracer] Match sampling rules by resource name and span tags (#5013)
+* [Tracer] Update signature parsing in the tracer's native library to account for `ELEMENT_TYPE_PTR` byte (#5042)
+* [Tracer] Send the Datadog-Entity-ID header, containing either the container-id or the cgroup inode if available (AIT-9281) (#5058)
+* `NullConfigurationSource` should implement `ITelemetredConfigurationSource` (#5033)
+
+### CI Visibility
+* [CI Visibility] - Update Code Coverage percentage reporting (#5032)
+* [CI Visibility] - Improve git upload logic (#5039)
+* [CI Visibility] - Intelligent Test Runner: reduce overhead of the default branch (#5041)
+* [CI Visibility] - Enable AutomaticDecompression on CI Visibility http clients (#5043)
+* [CI Visibility] - Add support for GZip compression in Multipart payloads (#5060)
+* [CI Visibility] - Fix exception when the CodeCoverage environment variable value is null (#5063)
+* [CI Visibility] - TestPlatform AssemblyResolver .ctor integration (#5088)
+* Ignore TestPlatform SDK assembly resolve error from CI CheckBuildLogs (#5084)
+
+### ASM
+* [ASM] IAST Header injection vulnerability detection. (#4981)
+* [ASM] Dont catch CallTargetBubbleUpException native side, like on managed side (#5034)
+* [IAST] SourceType refactor (#5037)
+* [ASM] Add max concurrent request setting for api sec (#5048)
+* [IAST] Dani/asm/small string cache bugfix (#5064)
+
+### Dynamic Instrumentation
+* [Dynamic Instrumentation] Upload symbols to SymDB (with System.Reflection.Metadata) (#4782)
+* [Dynamic Instrumentation] Made the captured members size flexible due to `IndexOutOfRangeException` (#5099)
+
+### Serverless
+* Fix AWS Lambda tests (#5050)
+* [SLES-1357] set exception on the aws.lambda span (#5054)
+
+### Build / Test
+* [Build] adds a notification on build end (#5008)
+* Add an API to create a suspended process (#5015)
+* Convert integration tests to async (#5018)
+* bump default kafka lib version in sample app to solve a bug with mac (#5028)
+* AutoGenerator bug fixes (#5029)
+* [IAST] Folder casing fix (#5035)
+* Use native debugging for procdump (#5046)
+* [IAST] Removed Activator calls in SourceGenerator for performance reasons (#5052)
+* Minor CI fixes (#5056)
+* Fix BenchmarkTests civisibility reporting (#5069)
+* Fix failing GraphQL tests on .NET Core 2.1 on alpine (#5075)
+* Dani/asm/source generator refactor (#5078)
+* Shorting the symbol extractor tests approval names (#5079)
+* Fix trimming file (#5080)
+* Disable code coverage unless forced (#5090)
+* Suppress build warnings we don't care about (#5096)
+* Skip debugger `SymbolExtractorTest` tests (#5095)
+
+### Miscellaneous
+* Reenable tracer flare and handle debug request (#5040)
+* Fix - Change DelegateInstrumentation set continuations behaviour to copy Calltarget (#5049)
+* Disable remote configuration in Serverless and CI scenarios (#5053)
+* Always log rejit errors (#5061)
+* Include telemetry data in tracer flare (#5062)
+* Update some Github docs (#5077)
+
+[Changes since 2.45.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.45.0...v2.46.0)
+
+
+## [Release 2.45.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.45.0)
+
+## Summary
+
+* [Tracing] Fix trace context propagation when instrumenting a YARP reverse proxy
+* [dd-dotnet tool] Detect when aspnetcore out-of-process is not initialized
+* [ASM] Update waf 1.15.1 and rules 1.10.0
+* [ASM] Fix incorrect encoding of route data in WAF
+
+## Changes
+
+### Tracer
+* [Tracing] Fix trace context propagation when instrumenting a YARP reverse proxy (#5025)
+* [Tracer] Update SNS integration (#4712)
+* Add `PushStream` support to `IApiRequest` and support chunked-encoding (#4989)
+* Add peer.hostname tag to grpc clients (#4992)
+* Make custom sampling rules case-insensitive (#4999)
+
+### ASM
+* [ASM] Update waf 1.15.1 and rules 1.10.0 (#4958)
+* [ASM] Fix path params not being all transformed to waf encodable values (#5011)
+* [ASM] Division by zero could happen if param was 0 and apisecurity is enabled (#4975)
+
+### Tools
+* Detect when aspnetcore out-of-process is not initialized (#5012)
+
+### Build / Test
+* [ASM][IAST] Fix macOS build for IAST Instrumented tests (#4993)
+* [Build] Fix Tracer Native Build on MacOS ARM64 (#4969)
+* Change the echo output in Samples.Console (#4982)
+* More workarounds for Rider/NuGet bug (#4986)
+* Try to fix the RedirectInput test (#4998)
+* Explicitly sort files before generating missing nullability csv (#5000)
+* speedup CI step verify_files_without_nullability (#5003)
+* Disable inlining on automapper tests (#5004)
+* Remove SA1010 exclusions (#5007)
+* Make sure OsX ITests don't require dd_dotnet stuff (#5009)
+* little quality of life improvements on integration tests (#5016)
+* Fix OSX solution filter (#5027)
+* Small fixes for `MockTracerAgent` and `MockHttpParser` parsing (#4988)
+* Refactor `MockTracerAgent` to allow sending custom responses for any endpoint (#4997)
+
+### Miscellaneous
+* Making RCM async (#4996)
+* Add helpers for creating a sentinel file and for zipping debug logs (#4987)
+* Add `TracerFlareApi` implementation for sending requests to endpoint (#4990)
+* Add remote-configuration + manager support for tracer flare (#4991)
+* Add nullable annotations to the datadog logging files (#4994)
+* Add install signature to app-started telemetry event (#5002)
+* Restore log level after tracer flare (#5017)
+* Temporarily disable the tracer flare functionality (#5036)
+
+[Changes since 2.44.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.44.0...v2.45.0)
+
+
+## [Release 2.44.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.44.0)
+
+## Summary
+
+- [Tracer] Add support for NUnit 4.0. and Aersospike 7.0.0+
+- [Tracer] Add workaround for NGEN bug in .NET runtime
+- [Tracer] Add logs inject + agentless logging support for Microsoft.Extensions.Telemetry
+- [ASM] Missing HSTS header and unvalidated redirect vulnerability detection
+- [Dynamic Instrumentation] Added type support for PII redaction
+
+## Changes
+
+### Tracer
+* Add global tags to dynamic config (#4901)
+* Revert "Add CorProfilerInfo7::ApplyMetadata call" (#4945)
+* Add logs injection + direct log shipping for Microsoft.Extensions.Telemetry (#4951)
+* Add support for NUnit 4 (#4959)
+* Un-skip manual instrumentation tests and fix flake (#4960)
+* Stop caching exceptions in lazy (#4962)
+* Add support for aerospike v7 (#4974)
+* [IAST] Added missing nullable enable (#4977)
+
+### ASM
+* [ASM] Hsts header missing vulnerability (#4873)
+* [IAST] Unvalidated redirect vulnerability detection (#4925)
+* Add fix for null key in `SecurityCoordinator` (#4961)
+* [IAST] Hardcoded Secrets location bugfix (#4965)
+* [ASM] Add client IP feature to the AspNetMvc integration (#4970)
+
+### Dynamic Instrumentation
+* [Dynamic Instrumentation] Added type support for PII redaction (#4941)
+
+### Build / Test
+* Increase the dd-dotnet artifact tests timeout to 30 seconds. (#4947)
+* Remove test environment variable in Samples.Console (#4948)
+* [Build/Test] Add GitHub Action to track files without nullable reference types (#4954)
+* [Test Package Versions Bump] Updating package versions (#4956)
+* Add workaround for Rider bug (#4976)
+
+
+[Changes since 2.43.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.43.0...v2.44.0)
+
+
+## [Release 2.43.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.43.0)
+
+## Summary
+
+- [Tracing] Add support for WCF Web HTTP
+- [Tracing] Add support for Npgqsl v8.0.0 and ServiceStack.Redis v8.0.0
+- [Serverless] Remove up to 100ms latency in AWS Lambda when flushing traces
+
+- [IAST] Trust boundary violation vulnerability detection
+
+
+## Changes
+### Tracer
+* Add support for WCF Web HTTP `UriTemplate`s in WCF integration (#4903)
+* [DBM] Don't inject DBM attributes into `IDbCommand` twice (#4909)
+* Add support for Npgqsl 8.0.0 (#4910)
+* Add support for ServiceStack.Redis 8.0.0 (#4911)
+* Don't send some error logs to telemetry (#4934)
+* Tiny cleanup of static `Tracer` instance usages (#4936)
+* Set default batch interval in serverless scenarios (#4946)
+
+### ASM
+* [ASM] Handle anonymous types when extracting object (#4865)
+* [IAST] Trust Boundary Violation vulnerability implementation (#4896)
+* [ASM] Downgrade middleware log if no current span found (#4932)
+
+### Continuous Profiler
+* [Profiler] Update managed projects to net462 (#4683)
+* [Profiler] Bump libdatadog to 5.0.0 (#4719)
+
+### Dynamic Instrumentation
+* [Dynamic Instrumentation] Improved snapshot pruning algorithm (#4893)
+
+### Fixes
+* Handle exception in MSMQ integration (#4931)
+* Add manual+automatic instrumentation tests + fix `SetUser` bug (#4938)
+* Fix recheck interval in DiscoveryService (#4907)
+* Add null reference checks to SNS integration (#4917)
+* Add null reference checks to elasticsearch7 integration (#4918)
+* Fix ASP.NET Core DiagnosticObserver bugs (#4920)
+* Add null reference checks to StackExchange.Redis integration  (#4921)
+* Add null reference checks to RabbitMq integration (#4922)
+* Fix bugs with DogStatsD when using named pipes or UDS (#4933)
+* Wire up the DD_TRACE_BATCH_INTERVAL setting (#4940)
+* [ASM] Add null check for content body before running security checks (#4950)
+
+### Build / Test
+* [Profiler] Adjust profiler tests for .NET 8 (#4908)
+* [IAST] Added StringAspects.Concat() micro benchmark (#4713)
+* Compile native code with C++20 (#4054)
+* Reinstate version mismatch tests (#4879)
+* [Test Package Versions Bump] Updating package versions (#4882)
+* Remove pre-.NET8 workaround for MacOS in CI (#4888)
+* [CI] Make sure all Linux images use Clang 16.0.6 (#4894)
+* Attempt to add ignore various C++ warnings/errors (#4898)
+* Make the agent check less verbose (#4905)
+* Fix memory dumps on artifact tests (#4906)
+* Fix AWS SQS test snapshots (#4913)
+* Increase timeout benchmarks (#4919)
+* Fix `dd_dotnet` version (#4923)
+* [Tests] Ignore UDS telemetry test on windows (#4926)
+* Sign `dd-dotnet.exe` that we package in MSI (#4939)
+* Enable diagnostic messages in dd-dotnet artifact tests (#4944)
+* Skip flaky manual instrumentation tests (#4949)
+
+
+[Changes since 2.42.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.42.0...v2.43.0)
+
+
+## [Release 2.42.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.42.0)
+
+## Summary
+
+- [Tracer] Update support for W3C interoperability (default propagation, enable 128-bits by default, improve operation names)
+- [Tracer] Bundle dd-dotnet tool with installers, for easier onboarding and diagnostics
+- [ASM] Support full URL request tainting, HTTP header tainting, X-Content-Type misconfiguration, and hardcoded secret detection
+- [ASM] Fix potential native memory management bug
+- [DSM] - Add support for IBM MQ
+- [Tracer] Add support for .NET 8 GA
+- [Tracer] Add support for .NET Remoting
+
+## Changes
+
+### Tracer
+* [Tracer] add propagated (`_dd.p.*`) trace tags to the correct spans (#4332)
+* Create a better `OperationName` for `Activity`/`OpenTelemetry` (#4700)
+* [Tracer] Enable 128 bits by default (#4827)
+* [Tracer] Updates Default W3C tracecontext Propagation AIT-8606 (#4859)
+* [Tracer] .NET Remoting instrumentation (#4829)
+
+### CI Visibility
+* Add support for NUnit 3.14.0 (#4825)
+
+### ASM
+* [ASM] Api security foundation for dotnet core  (#4654)
+* [ASM][IAST] Hardcoded secrets (#4666)
+* [ASM] Taint full url of a request in IAST (#4789)
+* [ASM] Enable IAST coverage tests NET8 (#4801)
+* [ASM] unknown type to encode: log debug instead of warning (#4809)
+* [ASM] Add IAST header tainting integration tests (#4814)
+* [ASM] X-Content-Type header missing vulnerability (#4836)
+* [ASM] Add the vale of the cookie/header name in source (#4856)
+* Revert "[ASM] New marshalling system for Waf.Run calls to improve spe… (#4891)
+
+### Continuous Profiler
+* [Profiler] Refactoring to better wrap libdatadog (#4763)
+* [Profiler] Add a scenario with obfuscation (#4788)
+* [Profiler] Skip LinuxOnly Tests in VS Test explorer (#4803)
+* [Profiler] Adjust Linux smoke test to avoid flakiness (#4842)
+* [Profiler/CI] Align Cppcheck commandline linux/windows (#4854)
+* [Profiler] Fix compilation warnings (#4855)
+* [Profiler] Fix code hotspot feature tests (#4890)
+
+### Debugger
+* Dudik/instrumentation verification fixes (#4612)
+* [Dynamic Instrumentaiton] Enriched probe status uploads with version and runtime id (#4853)
+
+### Data Streams Monitoring
+* [DSM] - Initial IBM MQ support (#4776)
+
+### Fixes
+* Stop pushing to the reliability environment (#4810)
+* Tiny fix for crashing if `DD_PROFILER_ENABLED` is not set (#4849)
+* Fix `NullReferenceException` in SQS integration (#4860)
+
+### Build / Test
+* Build standalone trimmed version for net7.0 (#4727)
+* [Test Package Versions Bump] Updating package versions (#4806)
+* Fix flaky DSM transport test (#4826)
+* Properly read the installed tracer version in dd-dotnet (#4828)
+* Fix `config_norm_rules.json` and `config_prefix_block_list.json` (#4830)
+* [CI] Rerun waf download If it times out (#4838)
+* [Test] Add propagator injection unit tests using 128-bit trace-ids (#4840)
+* Try enabling crash dumps in artifact tests (#4841)
+* Try to fix flake in hardcoded secrets test (#4843)
+* Try to fix the pipeline monitor (#4844)
+* [Test Package Versions Bump] Updating package versions (#4846)
+* [CI] Delete previously generated files on Windows (#4848)
+* Update xunit testing to latest (#4850)
+* [Build] Update deb/rpm packaging with arm64 variant (APMON-377) (#4857)
+* Re-instate the building of the system-test docker images (#4858)
+* Add dd-dotnet to path on Windows (#4863)
+* Handle ctrl+c in dd-dotnet (#4864)
+* Add dd-dotnet to path on Linux (#4866)
+* Update to .NET 8 GA release (#4869)
+* Fix system-test snapshot image creation (#4871)
+* Actually, really, definitely, fix the system-tests docker image (#4874)
+* Run ARM64 integration tests against .NET 8 (#4875)
+* Add testing for Microsoft.Data.Sqlite (#4881)
+* Fix the system-test docker images once and for all (#4883)
+* [ASM] Fix snapshot (#4886)
+* Fix localstack not starting issue (#4895)
+
+### Miscellaneous
+* Add full null checking to MongoDB and AWS.SDK integrations (#4815)
+* Update source generator to record the "instrumented assemblies" (#4832)
+* Add redacted-error-log telemetry collector and sinks (#4833)
+* Add redaction of telemetry error logs (#4834)
+* Add de-duplication of telemetry logs (#4835)
+* Stop recording individual integration telemetry (#4872)
+* Record duplicate log count in log-message data (#4885)
+* Improve `HostMetadata.OsVersion` value (#4819)
+
+
+[Changes since 2.41.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.41.0...v2.42.0)
+
+
+## [Release 2.41.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.41.0)
+
+## Summary
+
+- [Tracer] Improvements to the diagnostic tool
+- [Tracer] Bug fixes for mixed-mode assemblies, ducktyping, and `WebRequest` handling
+- [Tracer] Provisional support for .NET 8
+- [Continuous Profiler] Workaround for unwinding crash
+- [Dynamic Instrumentation] Added PII redaction support
+
+## Changes
+
+### Tracer
+* Enabled invariant globalization in `dd-trace` tool (#4721)
+* Include Datadog.Trace in our root-descriptors file (#4723)
+* Diagnostic tool improvements (#4725)
+* Use dd-dotnet in dd-trace (#4732)
+* Add a better error message when inspecting worker process (#4735)
+* Change the installer message in dd-dotnet (#4746)
+* Add provisional support for .NET 8 (#4731)
+* Add error message when IIS is not found (#4774)
+* [Tracer] Elasticsearch Refactor Part 1 (AIT-8764) (#4767)
+* Remove the check command on OSX (#4769)
+* Update context propagation when using OTEL API is Enabled (#4783)
+* Properly feed the arguments to dd-dotnet (#4775)
+* 
+### CI Visibility
+* [CI Visibility] - BenchmarkDotNet + Datadog Profiler  (#4650)
+
+### ASM
+* Improve query string obfuscation regex  (#4504, #4764)
+* [ASM] Remove debug mode for unit tests (#4728)
+* [ASM]Cleanup null chars (#4733)
+* [ASM] Update IAST source names (#4755)
+* [ASM] Correct location error (#4780)
+* [ASM] Join with char separator bug fix (#4793)
+
+### Continuous Profiler
+* [Profiler] Workaround to avoid unwinding SIGSEGV signal handler (#4753)
+
+### Debugger
+* [Dynamic Instrumentation] Fixed a crash caused by improper handling of module unload (#4779)
+* [Dynamic Instrumentation] Added PII redaction support (#4786)
+* [Dynamic Instrumentation] Improved probe status polling mechanism + fixed snapshot issues (#4678)
+
+### Serverless
+* [Serverless] Support tracing top-level statements for AWS Lambda (#4535)
+* [serverless][SVLS-579] Add span error metadata to DD Lambda Extension request headers (#4743)
+* [Serverless] [Fix PR-4535] EndInvocationAsync should be awaited. (#4752)
+
+### Fixes
+* Handle potential `NullReferenceException` in DSM (#4744)
+* [Tracing] Fix WebRequest bug with existing distributed tracing headers (#4770)
+* Fix bug when duck typing types with very long names (#4756)
+* Avoid loader injection on <CrtImplementationDetails> (#4760)
+
+### Build / Test
+* [SLN file] move new test project into `test-applications` solution folder (#4798)
+* Bump logger version (#4165)
+* [TESTS] Segregate samples logs (#4698)
+* [TESTS]Added BenchmarkDotNet debug helper (#4717)
+* Update native build to use `/FS` option (#4718)
+* Tweak `CopyNativeFilesForAppSecUnitTests` to stop it doing so much work (#4724)
+* [Test Package Versions Bump] Updating package versions (#4734)
+* Make `compare_throughput` stage more robust (#4739)
+* Merge `throughput_appsec` into `throughput` stage (#4740)
+* Fix flaky DSM test (#4741)
+* [Test Package Versions Bump] Updating package versions (#4742)
+* Disable profiling integration tests on non-profiler PRs (#4745)
+* [Test Package Versions Bump] Updating package versions (#4758)
+* [DD Tool] Port message changes to dd tool (#4762)
+* Bump Timeit version to v0.1.14 (#4766)
+* [Test Package Versions Bump] Updating package versions (#4773)
+* Add missing dependencies to dotnet_tool job (#4777)
+* Fix installer smoke tests (#4785)
+* Produce "supported versions" artifacts (#4787)
+* Fix MSBuild location in Nuke (#4790)
+* [Test Package Versions Bump] Updating package versions (#4792)
+* Update python packages and use the new image in gitlab (#4794)
+* Increase timeout for query string obfuscator unit tests (#4802)
+* Try to fix flake in DSM test (#4804)
+* Basic smoke tests for .NET chiseled containers (#4805)
+* Fix compilation errors in CodeQL job (#4768)
+
+### Miscellaneous
+* [DSM] - Lag metrics support (original PR #4574) (#4720)
+* Update duck-typing documentation with best-practice recommendations (#4761)
+* Add support for NLog 5.2.5 (#4772)
+* Update URLs in README.md (#4778)
+* Delete Telemetry V1 implementation (#4750)
+* Rename TelemetryV2 to Telemetry (#4751)
+
+[Changes since 2.40.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.40.0...v2.41.0)
+
+
+## [Release 2.40.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.40.0)
+
+## Summary
+
+Fixes a possible application crash when using ASM. This issue was introduced in `2.38.0`. If you are using ASM with `2.38.0` or `2.39.0`, please upgrade to `2.40.0`.
+
+## Changes
+
+### CI Visibility
+* [CI Visibility] Add support for AWS Code Pipeline (#4714)
+
+### Continuous Profiler
+* [Profiler] Add GC benchmarks for Windows (#4708)
+* [Profiler] Add Profiler_Version as exported symbol to allow version check in dumps (#4710)
+
+### ASM
+* Fix possible application crash (#4726)
+
+### Miscellaneous
+* [Tool] Updating Tool checks for Windows scenarios (#4605)
+
+### Build / Test
+* Use dd-dotnet in the nuget smoke tests (#4695)
+* Fix various GitHub Actions (#4716)
+
+
+[Changes since 2.39.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.39.0...v2.40.0)
+
+
+## [Release 2.39.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.39.0)
+
+## Summary
+
+- NLog logs-injection / agentless logging no longer requires configuration changes
+- [CI Visibility] Remove ApplicationKey requirement from Intelligent Test Runner and add Unskippable tests support
+- [ASM] - Weak-randomness vulnerability detection
+- [Profiler] - The profiler takes care of some non-restartable syscalls (ex: `select`, `poll`...): restart them if the profiler interrupted them and/or avoid interrupting them whenever it's possible
+- [Profiler] - Fix crash when resolving symbols from unloaded modules (ex: ASP.NET)
+
+## Changes
+
+### Tracer
+* Make NLog configuration optional for Logs Injection/Agentless Logging (#4616)
+* Introducing the Fault-Tolerant Instrumentation: A Self-Healing Mechanism for .NET Instrumentation Failures (disabled by default) (#4470)
+* Add new dd-dotnet tool (#4623)
+* [Tracer] Use peer.service as dddbs for DBM when available (#4619)
+* [Tracer] add `dynamodb` integration (#4627)
+* Adjust default log folder when running on AAS (#4656)
+
+### CI Visibility
+* [CIVisibility] Enable GZip compression on agentless mode (#4637)
+* [CI Visibility] Intelligent Test Runner - Unskippable tests support (#4645)
+* [CI Visibility] Remove ApplicationKey requirement from Intelligent Test Runner (#4659)
+* [CI Visibility] Ensure Code Coverage percentage is always a valid number for the backend. (#4661)
+* [CI Visibility] Improve unshallowing process with fallback commands (#4663)
+* [CI Visibility] LifeTimeManager handling on VSTest (#4671)
+* Simplify CiVisibility Telemetry check (#4679)
+* [CI Visibility] Add dropped payloads Telemetry metric (#4681)
+* [CI Visibility] Fix code coverage reporter (#4689)
+* [CI Visibility] Capture network exceptions for telemetry (#4699)
+* [CI Visibility] Telemetry metrics (#4596)
+
+### ASM
+* [ASM] Implementation of the weak randomness vulnerability detection (#4629)
+* [ASM] Fix waf memory tests flakiness (#4636)
+* [ASM] Add IAST throughput tests (#4640)
+* [ASM] Limit number of same warning messages in waf benchmarks (#4643)
+* [ASM] Filter `AspNetCore.Correlation.*` cookies vulnerabilities (#4652)
+* [ASM] Taint Newtonsoft .net framework request body parameters (#4669)
+* [ASM][IAST] Evidence redaction rules update (#4685)
+* [ASM] Refactor the use of enums for WAF return codes (#4688)
+
+### Continuous Profiler
+* [Profiler] Add profiler timeit-based benchmarks (#4408)
+* [Profiler] Wrap socket syscalls to prevent application errors (#4488)
+* [Profiler] Clean up profiler C++ code (#4587)
+* [Profiler] Fix flacky unit test on Alpine (#4647)
+* [Profiler] POC for named pipes based IPC (#4649)
+* [Profiler] Revisit the presence of the wrapping library check (#4655)
+* [Profiler] Check choco exit code and retry if needed (#4665)
+* [All] Run throughput jobs when they should run (#4670)
+* [Profiler] Fix issue with Sentinel One Agent (#4672)
+* [Profiler] Clean up profiler benchmark tests (#4673)
+* [Profiler] Change Garbage Collector frame layout (#4696)
+* [Profiler] Fix unit tests flackyness on Alpine (#4697)
+* [Profiler] Fix Preprocessor variable (#4707)
+
+### Debugger
+* [Debugger] Run system tests for debugger scenarios (#4657)
+
+### Fixes
+* Delete unused `Distribution` metric (#4635)
+* Add missing metric in agent writer (#4706)
+
+### Miscellaneous
+* [ASM] Move files in incorrect directory (#4687)
+* [DSM] - Lag metrics support (#4574)
+* Revert "[DSM ] - Lag metrics support (#4574)" (#4704)
+* Add support for multiple enums in telemetry source generator (#4631)
+* Store CIVisibility (and shared) metrics separately from APM/ASM  (#4634)
+* Add artifact tests for the "run" command (#4639)
+* Source generate the metric collector implementations (#4642)
+* Improve the dd-dotnet.sh error message (#4664)
+* Disable LZMA on Linux (#4668)
+* Publish dd-dotnet symbols with the proper path (#4674)
+* [Tracer][Telemetry] Add incentives to impact the telemetry config when adding an integration (#4701)
+* Record TFM value in telemetry (#4702)
+* Stop using public properties in built-in record methods (#4703)
+* Inject serverless headers in agentless telemetry (#4705)
+* [All] Add build-id to Linux binaries (#4711)
+
+### Build / Test
+* Add a dd-dotnet test for named pipes (#4646)
+* Package dd-dotnet with the tracer (#4648)
+* Disable dd_dotnet AOT build in OSX (#4658)
+* Updates to source generators (#4660)
+* Add copyright headers to source generated code (#4662)
+* Add dd-dotnet to bundle nuget package (#4667)
+* Add smoke tests for `dd-dotnet.sh` and `dd-dotnet.cmd` (#4675)
+* Fix flake in `TracerSettingsTests` due to using environment variables (#4677)
+* Try to fix GitLab build (#4684)
+* Move `cppcheck` calls to separate stage (#4690)
+* Rename intermediate Linux artifacts for consistency (#4692)
+* Re-enable runnign the throughput tests on all PRs (#4693)
+* Bump timeitsharp version (#4694)
+* Try to fix GitLab flake (#4709)
+
+
+[Changes since 2.38.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.38.0...v2.39.0)
+
+
+## [Release 2.38.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.38.0)
+
+## Summary
+
+This release mainly contains:
+- A _Kinesis_ integration for tracing
+
+## Changes
+
+### Tracer
+* [Tracer] add `Kinesis` integration (#4521)
+* [ASM] Filter azure assemblies in the stack of vulnerabilities (#4577)
+* Lazy initialize the `AggregatedMetrics`. (#4602)
+* Fix `HeaderTagsNormalizationFixEnabled` is not saved in settings (#4604)
+* Fix race-condition in DuckType (#4608)
+* Restrict sending APM-related metrics when running in CI app (#4618)
+
+### CI Visibility
+* [CIVisibility] Add code coverage exclusion filters (#4507)
+* Allow explicitly disabling CI Visibility (#4550)
+* [CI Visibility] `dd-trace ci configure` improvements (#4572)
+* [CIVisibility] - Adds support for `System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute` (#4590)
+* [CI Visibility] BenchmarkDotNet instrumentation refactor and fixes (#4628)
+
+### ASM
+* [ASM] New marshalling system for Waf.Run calls to improve speed and reduce allocations (#4302)
+* [ASM] Waf update to 1.14.0 (#4523)
+* [ASM] IAST fix for the 0 line bug (#4568)
+* [ASM] Add waf benchmark with attack (#4578)
+* [ASM] Iast telemetry metrics: executed instrumentation points (#4586)
+* [ASM] Update IAST instrumented tests scripts for local debugging (#4595)
+* [ASM] Fix IAST MVC telemetry test in Net4 (#4606)
+* [ASM] Improve waf benchmarks (#4609)
+* [ASM] Add request.tainted metric (#4610)
+* [ASM] Update waf ruleset to 1.8 (#4633)
+* Skip flaky Waf Memory Tests (#4641)
+
+### Continuous Profiler
+* [Profiler] Add missing runtime metrics (#4436)
+* [Profiler] Remove unneeded debug logs (to be replaced by frames related metrics) (#4493)
+* [Profiler] Add tests for Wrapper library + pthread_create for alpine (#4560)
+* [Profiler] Improve integration tests output (#4569)
+* [Profiler] Fix log message to have thread id in hexadecimal (#4583)
+* [Profiler] Avoid returning managed thread with invalid handle (#4584)
+* [Profiler] Fix vcxproj and filters (#4585)
+* [Profiler] Add thread start/stop events to timeline (#4597)
+
+### Serverless
+* [Serverless][AWS] Fix serialization to use `JsonConverter` (#4559)
+* Refactor `LambdaMetadata` settings creation (#4624)
+* Disable telemetry metrics when running in serverless environment (#4625)
+
+### Fixes
+* Fix runtime metrics bugs + allow DD_TAGS tagging (#4580)
+
+### Build / Test
+* Change Samples.TracingWithoutLimits to use Samples.Shared (#3916)
+* Swap Samples.WebRequest to use Activity (#4101)
+* Assert that we don't timeout for MockTracerAgent (#4486)
+* Add a retry to the macos unit tests (#4571)
+* Try to remove more flake (#4581)
+* Add separate log folder for throughput run (#4594)
+* Crank: add logs as artifacts  (#4607)
+* Fix HotChocolate tests and bump version to latest (#4614)
+* Fix flake in smoke tests (#4617)
+* Fix GraphQL integration tests (#4620)
+* Fix flake in telemetry metric unit test (#4622)
+* Fix `docker-compose stop` related flake (#4626)
+* Update CODEOWNERS for serverless (#4630)
+
+### Miscellaneous
+* Initial version of the Datadog AutoInstrumentation Generator (#4422)
+* [ASM] forgotten user blocking capability (#4545)
+* Set the `Integration.Enabled` telemetry flag for direct log submission (#4552)
+* [Test Package Versions Bump] Updating package versions (#4555)
+* [Tracing] Add first-class tracing support for Azure Service Bus (#4575)
+* [DSM] Add datastreams monitoring to Azure Service Bus integration (#4576)
+* DuckType improvements (#4582)
+* Use alpine base for lib-injection image (#4589)
+* Update native log verbosity (#4591)
+* [Test Package Versions Bump] Updating package versions (#4593)
+* Delete unused helper (#4600)
+* Add support for "missing" tag values in telemetry metrics (#4601)
+* Support for Delegate instrumentation (#4613)
+* Ducktyping `ValueWithType` struct support (#4621)
+* Enable v2 telemetry by default (#4638)
+
+
+[Changes since 2.37.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.37.0...v2.38.0)
+
+
+## [Release 2.37.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.37.0)
+
+## Summary
+
+[DSM] - Report default time in queue and payload size
+
+## Changes
+
+### Tracer
+* [Tracer] Fix telemetry metrics and add validator (#4543)
+* [Tracer] use 2^64-1 as the modulo in the sampling formula (#4548)
+* [Tracer] Make sure Process is not used concurrently (#4567)
+
+### CI Visibility
+* [CI Visibility] `ConfigureCiCommand` fixes. (#4558)
+* [CI Visibility] Update CI specs (#4565)
+
+### ASM
+* [ASM] Create new appsec waf benchmark with benchmark agent (#4534)
+* [ASM] Fix ASM WAF benchmarks (#4547)
+* [ASM] DecompileDelegate lib bugfix (#4554)
+* [ASM] bugfix - stop misreporting RC update failure (#4557)
+
+### Continuous Profiler
+* [Profiler] Add Sample value type provider (#4480)
+* [Profiler] Fix race in ManagedThreadList class (#4513)
+* [Profiler] Prevent symbols resolution from crashing on Windows (#4564)
+
+### Build / Test
+* Add OpenTelemetry Benchmarks (#4381)
+* Test Package Versions Bump, Updating package versions (#4539)
+* Bump the version of GRPC tested by default (in Windows) (#4542)
+* Validate that we only use known configuration keys in telemetry (#4546)
+* Fix flake in StackExchange.Redis integration tests (#4549)
+* Fix warning in sample (#4551)
+* Add a GH action for forcing required checks for version-bump PR to success (#4556)
+* Fix version-bump PR forcer action (#4563)
+
+### Miscellaneous
+* [DSM] - Default time in queue + payload size (#4520)
+* Migrate from Spectre.Console.Cli to System.CommandLine (#4395)
+
+
+[Changes since 2.36.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.36.0...v2.37.0)
+
+
+## [Release 2.36.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.36.0)
+
+## Summary
+
+This release:
+- Fixes a regression with runtime metrics introduced in 2.31.0 where memory was not reported correctly
+- WebRequest 4xx responses will not be reported as error if excluded by `DD_HTTP_CLIENT_ERROR_STATUSES`
+- Add support for identifying PCF container IDs
+- [ASM] Add support for trusted IP
+- [ASM] Add shell commands integration
+- [IAST] Add SSRF and LDAP injection vulnerability injection
+
+## Changes
+
+### Tracer
+* [Agent] Do not retry response codes: 429, 413, and 408 (#4401)
+* [Tracer] Consistent APM tagging for AWS requests (#4474)
+* [Tracer] Logs The Setting used by dbm_propagation_mode to TracerManager (#4476)
+* [Tracer] _dd.base_service now keeps the original service name when changed (#4481)
+* [Tracer] Only tag Spans when DBM TraceParent is Injected (#4483)
+* [Tracer] Fix WebRequest span when HTTP status code is 4XX (#4527)
+* Add support for identifying Pivotal Cloud Foundry container IDs (#4536)
+
+### CI Visibility
+* [CIVisibility] Add new Intelligent Test Runner tags (#4458)
+
+### ASM
+* [ASM] Add Shell Commands collection (#4181)
+* [ASM] IAST SSRF vulnerability detection (#4451)
+* [ASM] Update waf to version 1.12.0 (#4482)
+* [ASM] add trusted ip capablity (#4503)
+* [ASM] IAST: Ldap injection vulnerability (#4506)
+* [ASM] Improve the stack walker performance (#4537)
+* [ASM] Filter new assemblies in the vulnerability stack (#4501)
+* [ASM] Use of filters in the IAST stack walker (#4522)
+
+### Continuous Profiler
+* [Profiler] Clean up logs (#4418)
+* [Profiler] Check HRESULT for generic parameter enumeration (#4443)
+
+### Serverless
+* [Serverless] Spawn mini agent in GCP & Azure Functions (#4204)
+
+### Fixes
+* Fix runtime metric generation (#4531)
+
+### Build / Test
+* Run all the system tests in CI (#4416)
+* Various CI improvements (#4447)
+* Fix GraphQL tests not running against package-versions API (#4455)
+* [Build] Stop running master on the weekend (#4467)
+* [Test Package Versions Bump] Updating package versions (#4473)
+* Bump timeit version (#4478)
+* Assorted speed improvements to tests (#4479)
+* Fix macOS flaky unit test  (#4484)
+* Bump timeitsharp version to v0.0.15 (#4485)
+* Update java version to 1.17 (current LTS version) (#4496)
+* Update pull_request_template to mention approval requirements (#4505)
+* [Test Package Versions Bump] Updating package versions (#4510)
+* CI fixes to increase reliability (#4512)
+* More CI fixes to reduce flake (#4514)
+* [Test Package Versions Bump] Updating package versions (#4517)
+* Fix some flake and speed up some integration tests (#4519)
+* Add Nuke helper for performing CPA on pipeline results (#4524)
+* Add github action to run the generate package versions target (#4525)
+* Split system tests as they're on the critical path (#4526)
+* Fix flake in Metrics Telemetry collector tests (#4515)
+
+### Miscellaneous
+* Populate extra_services field (#4419)
+* Add docs about testing automatic instrumentation (#4477)
+* [Telemetry] Aggregate metrics in a separate loop (#4491)
+* Don't include app-heartbeat in the first message-batch (#4497)
+* Add Benchmarks public dashboard to the Readme file (#4502)
+* Enable V2 Telemetry and Metrics by default in AAS (#4518)
+* [Tracer] Explicit cases where configuration telemetry isn't recorded (#4464)
+
+
+[Changes since 2.35.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.35.0...v2.36.0)
+
+
+## [Release 2.35.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.35.0)
+
+## Summary
+
+This release mainly contains the last details of the preparatory work for the new service representation. It also disables the DBM and APM connection when executing a `StoredProcedure` command.
+
+## Changes
+
+### Tracer
+* [Tracer] v1 Schema: Update AWS SNS spans (#4427)
+* [Tracer] Add peer.service to RabbitMQ integration (#4341)
+* [Tracer] Avoid including peer.service in kafka inbound flow (#4428)
+* [Tracer] Separate inbound, outbound and client flows for msmq (#4432)
+* [Tracer] Add peer.service to Service Remoting integration (#4435)
+* [Tracer] Don't inject DBM data into stored procedures (#4466)
+* [Tracer] Ensure the configuration of the trace context propagator is included in our telemetry (#4460)
+
+### Miscellaneous
+* [RabbitMQ] Add tracing for basic.consume, and add queue name as tag to DSM data on consume (#4398)
+* Add known limitations from method_rewriter.cpp to docs (#4405)
+* Update duck typing docs (#4417)
+* [Test Package Versions Bump] Updating package versions (#4441)
+
+### Build / Test
+* Fix aspect definition order once and for all (#4438)
+* Various test improvements (#4439)
+* Fix `create_draft_release` when not specifying a specific commit (#4446)
+* Update the Rel Env docker-image workflow (#4448)
+* Change di backend repo to run dogfood pipelines (#4449)
+* [Release] Remove the extra CI variables (#4452)
+* Tweak GitLab jobs (#4453)
+* Fix flaky rabbitmq datastreams test (#4457)
+
+
+[Changes since 2.34.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.34.0...v2.35.0)
+
+
+## [Release 2.34.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.34.0)
+
+## Summary
+
+- Improved WCF support for being/end async operations and distributed tracing over TCP
+- Improvements to OpenTelemetry support
+- Add signature to methods in Profiler
+
+## Changes
+
+### Tracer
+* Replace the spinlock by a monitor in dogstatsd (#4328)
+* Log header warnings only once (#4369)
+* [Tracer] v1 Schema: Update AWS SQS spans  (#4386)
+* [Tracer] v1 Schema: Update Aerospike spans (#4333)
+* [Tracer] v1 Schema: Allow Peer.Service override (#4335)
+* [Tracer] v1 Schema: Update AWS SQS `inbound` spans (#4434)
+* [Tracer] Use ScopeContext instead of deprecated MDC for NLog 5.0.0 and higher (#4223)
+* Improve NativeCallTargetDefinition marshalling (#4326)
+* Fail gracefully when running with NetFx40_LegacySecurityPolicy (#4358)
+* [Tracer] [Kafka] Directly use SetMetric instead of SetTag (#4370)
+* [Tracer] WCF integration to read WCF message headers (#4387)
+* Default to `Activity.OperationName` for `Span.OperationName` (#4409)
+* Truncate mongodb query tag to 5K and Remove Generic Binary (#4421)
+* Add better support for begin/end async operations in WCF (#4423)
+
+### CI Visibility
+* [CI Visibility] - Fix ITR skipped test spans (#4352)
+* Add SetTag(string, double?) extension method (#4380)
+* Add TelemetryMetric to SetTag and remove GetTagObject (#4389)
+
+### ASM
+* [ASM] fix error: run the waf once outside of the loop (#4338)
+* [ASM] Check the path params count once list is finally built (#4365)
+* [ASM] Fix appsec status log message (#4397)
+* [ASM] Added 1 hour timer to vulnerability deduplication (#4411)
+
+### Continuous Profiler
+* [Profiler] Add signature to methods name (#4170)
+* [Profiler] Fix bug in GC threads reporting feature (#4351)
+* [Profiler] Bump libdatadog to 3.0.0 (#4356)
+* [Profiler] Fix a potential bug in libunwind-datadog (#4366)
+* [Profiler] Fix frame store for allocation recorder (#4382)
+* [Profiler] Fix flacky test (#4383)
+
+### Dynamic Instrumentation
+* [Dynamic Instrumentation] Fixed NRE in locals name mapping   (#4348)
+
+### Telemetry
+* Refactor `TelemetryControllerV2` to be a singleton (#4354)
+* Update Telemetry transport retry handling (#4371)
+* Include `app-closing` in final batch (#4375)
+* More telemetry fixes (#4359)
+* [Telemetry] Capture metrics on fixed 10s interval and avoid drift in timer (#4388)
+* Minor refactor of `BatchingSink` (#4402)
+
+### Miscellaneous
+* [BugFix] Break recursion in GetTypeInfo (#4415)
+* Fix IntegrationDefinitions generics and null parameter types (#4407)
+* [Test Package Versions Bump] Updating package versions (#4161)
+* Bump to Serilog v3 (#4294)
+* Ignore telemetry.sdk.* tags in OpenTelemetry 1.5.1 snapshots (#4330)
+* Enforced order in aspects generator (#4342)
+* [Diagnostic] Report process name  (#4353)
+* [Test Package Versions Bump] Updating package versions (#4363)
+* [Test Package Versions Bump] Updating package versions (#4400)
+* [Test Package Versions Bump] Updating package versions (#4404)
+* [Test Package Versions Bump] Updating package versions (#4414)
+* Swap to Datadog as default propagation style (#4420)
+* Revert "Swap to Datadog as default propagation style (#4420)" (#4442)
+* [ASM] Waf version upgrade to 1.11.0 (#4355)
+* Revert "[ASM] Waf version upgrade to 1.11.0 (#4355)" (#4430)
+
+### Build / Test
+* Remove AWS Lambda integration tests for <net6.0 (#4391)
+* Add version/license/description to .deb and .rpm packages (#4377)
+* Update test agent configuration (#4378)
+* [Release] Fix the onboarding pipeline (#4347)
+* Fix generated aspects order (#4379)
+* Bump .NET SDK to 7.0.306 (#4289)
+* [Release] Deploy AAS test apps twice a week to monitor memory leaks (#4322)
+* [CI] A try to reducing flakiness (#4336)
+* Add INTEGRATIONS system tests to Dotnet Tracer CI (#4345)
+* Fix system-tests lib-injection (#4349)
+* update CI parametric tests (#4350)
+* Update GitLab code-sign step (#4374)
+* Fix "obsolete warnings in NLog sample (#4384)
+* Download cppcheck from blob storage and check the hash (#4392)
+* Add AWS SNS integration automated tests, interation 1 (#4394)
+* Pin aerospike server to single version (#4396)
+* [Tests] Reintroduce retry on RuntimeMetricsTests with NamedPipes (#4406)
+* [Builds] Update Reports comments to be updates (#4425)
+
+
+[Changes since 2.33.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.33.0...v2.34.0)
+
+
+## [Release 2.33.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.33.0)
+
+## Summary
+
+- [Serverless] AWS SDK SNS context propagation (broken in 2.32.0) has been fixed.
+- [Tracer] Preparatory work for Dynamic Configuration and new service representation.
+- [Tracer] Telemetry about the tracer's health can now be collected. It is disabled for now but will be rolled out slowly in the coming weeks.
+- [Profiler] Report GC CPU time (disabled by default for now)
+
+## Changes
+
+### Tracer
+
+#### v1 Schema
+* [Tracer] v1 Schema: Update gRPC client spans (#4243)
+* [Tracer] v1 Schema: Update CosmosDb spans (#4247)
+* [Tracer] v1 Schema: Add peer.service tag to StackExchange and ServiceStack spans (#4261)
+* [Tracer] v1 Schema: Update Couchbase spans (#4278)
+* [Tracer] v1 Schema: Use existing tags for `_dd.peer.service.source` (#4306)
+* [Tracer] v1 Schema: Update MSMQ spans (#4309)
+
+#### Dynamic configuration
+* [Tracer] Implement dynamic configuration (#4235)
+* [Tracer] Move RCM state to the subscription manager (#4304)
+
+#### Telemetry
+* [Tracer] Send the telemetry app-started event only once (#4319)
+* [Tracer] Add more telemetry metrics (#4269)
+* [Tracer] Fixes for telemetry (#4291)
+* [Tracer] Fix integration_name tag name (#4334)
+
+#### Fixes
+* Extract OpenTelemetry exception attributes (#4273)
+* [Tracer] Fix Kafka span.kind tag regression (#4310)
+* [Tracer] Fix `DuckTypeException` in earlier CosmosDb versions (#4325)
+
+### CI Visibility
+* [CIVisibility] Improving client side commands for git metadata upload (#4312)
+
+### ASM
+* [ASM] Instrument all the string builder methods (#4276)
+* [ASM] Fix: avoid racing condition errors in IAST. (#4281)
+* [ASM] Change the server.request.uri.raw WAF address (#4283)
+* [ASM] path params: Dont run waf if no data (#4284)
+* [ASM] Add support for ASM metrics (#4293)
+* [ASM] Implement WAF metrics - part 1 (#4297)
+* [ASM]  User events auto instrumentation in .Net Core: extended mode (#4301)
+* [ASM] Insecure cookies vulnerability (#4317)
+
+### Continuous Profiler
+* [Profiler] Add CPU time for GC threads (#4256)
+* [Profiler] Adjust label value to make it cleaner to display (#4280)
+* [Profiler] Propagate git repository url and commit hash from tracer to profiler (#4298)
+* [Profiler] Remove Profiler Github Actions CI (#4300)
+* [Profiler] Enable new profiler and internal features for sanitizer jobs (#4318)
+* [Profiler] Avoid loading more than 1 profiler instance (#4321)
+* Fix compilation warnings (#4324)
+
+### Debugger
+* [Dynamic Instrumentation] Installing unbound probes upon module load (#4132)
+* [Dynamic Instrumentation] Enable mixed instrumentation types on the same method (#4231)
+* [Dynamic Instrumentation] Fixed update of probes (#4315)
+
+### Serverless
+* Fix SNS Context Propagation (#4305)
+
+### Miscellaneous
+* Use string create if net6.0 or greater (#4183)
+* Allow shared call targets instrumentation with flags  (#4271)
+* Revert removing IL2026 warning from customer trimming process. (#4295)
+* Add CorProfilerInfo7::ApplyMetadata call (#4296)
+* Handle new StyleCop errors (#4299)
+* [Release] Sign and upload our packages to the agent repository for libinjection (docker/bare metal) (#4303)
+* Fixup Datadog.Trace.sln file so it loads correctly on VS 2022 (#4314)
+
+### Build / Test
+* Add Windows support for -TestAllPackageVersions (#4277)
+* Fix more trim warnings (#4282)
+* [Tooling] Use pagination for code freeze (#4285)
+* [Release] Deploy AAS test apps twice a week to monitor memory leaks (#4286)
+* [Build] Remove the 3rd party pipeline (#4307)
+* Bump NuGet.CommandLine from 5.9.2 to 5.11.5 in /tracer/build/_build (#4323)
+* Fix the namedpipes runtime metrics tests (#4329)
+* [Release] Move git tag creation back to before creating the release (#4339)
+
+
+[Changes since 2.32.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.32.0...v2.33.0)
+
+
+## [Release 2.32.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.32.0)
+
+## Summary
+
+- **Trimmed apps support**: You can now instrument trimmed apps by including the [Datadog.Trace.Trimming](https://www.nuget.org/packages/Datadog.Trace.Trimming/) nuget package to your project. This is a pre-release, do not hesitate to share feedback through Github issues.
+* AWS SDK SNS is now supported by the tracer. 
+
+## Changes
+
+### Tracer
+
+* Add app trimming support (Datadog.Trace.Trimming nuget package) (#4195)
+* [Tracer] Add TraceClock implementation as a DateTimeOffset.UtcNow optimization (#4212)
+* [Tracer] Fix TracerManager initialization when replaced (#4218)
+* [Tracer] AWS SDK SNS integration (#4084)
+* [Tracer] v0 Schema: Add opt-in configuration for peer.service and client service name removal (#4207)
+* [Tracer] v1 Schema: Add peer.service tag to HttpClient and WebRequest spans (#4174)
+* [Tracer] v1 Schema: Add peer.service tag to AdoNet spans (#4176)
+* [Tracer] v1 Schema: Update operation name for WCF server integration (#4216)
+* [Tracer] v1 Schema: Update operation name for gRPC server integration (#4217)
+* [Tracer] v1 Schema: Update Elasticsearch spans (#4254)
+
+### CI Visibility
+* [CIVisibility] Fix repository and branch extraction in ITR and GitUpload (#4272)
+
+### ASM
+* [ASM] SqlInjection instrumented tests (EF, Sqlite, Dapper, SqlCommand, Linq2db) (#4168)
+* [ASM] .NET Framework response headers (#4173)
+* [ASM] static hash code for strings & ints (#4178)
+* [ASM] User events auto instrumentation in .Net Core (#4184)
+* [ASM] Instrumented tests for MySql, Oracle and Postgress (#4206)
+* [ASM] Netcore response headers passed to the WAF (#4209)
+* [ASM] Improve support of uri and response status addresses (#4211)
+* [ASM] Make library invoker static (#4240)
+* [ASM] Instrument all string methods (#4253)
+* [ASM] Sample little fixes , sign out action hiding controller base member (#4270)
+* [IAST] Update evidence redaction suite . yml and fixes accordingly (#4205)
+
+### Continuous Profiler
+* [Profiler] Fix warnings in the profiler (#4090)
+* [Profiler] Avoid exceptions in code hotspots tests to reduce flacky tests  (#4197)
+* [Profiler] Try to avoid a race condition in named pipe tests (#4199)
+* [Profiler] Fix reading from named pipe (#4222)
+* [Profiler] Introduce IThreadInfo interface (#4233)
+* [Profiler] Remove dead code (#4234)
+* [Profiler] Add http client to download files as demo app (#4244)
+* [Profiler] Try fixing code hotspots tests (#4250)
+* [Profiler] Allow lock contention provider to upscale by duration instead of by count (#4263)
+* [Profiler] Add labels to send raw lock contention data (i.e., before upscaling for timeline) (#4268)
+
+### Debugger
+* [Dynamic Instrumentation] Added the ability to dynamically add tags to APM spans from method parameters or return values (#4098)
+
+### Telemetry and Remote Configuration
+* Add bulk of telemetry V2 implementation (#4188)
+* Allow enabling v2 telemetry (#4198)
+* Update PublicApiGenerator + minor telemetry updates (#4214)
+* Delay recording of `TracerSettings` in configuration telemetry (#4221)
+* Add `[GeneratePublicApi]` to `TracerSettings` (#4232)
+* Update Telemetry Metrics implementation for performance (#4251)
+* Add telemetry to public settings (#4259)
+* Public API telemetry (#4257)
+* Small telemetry updates from feedback (#4258)
+* Ensure dependency collector persists across telemetry controllers (#4255)
+* Move RCM initialization in the TracerManager (#4202)
+* Update RCM and Telemetry poll settings (#4262)
+* [RCM] In the agent TargetsVersion is a uint64 (#4208)
+* Introduce per-trace settings (#4229)
+
+### Fixes
+* Fix NullReferenceException in GitMetadataTagsProvider (#4194)
+* Fix "GitMetadataTagsProvider.TryExtractGitMetadata Extremely Slow" (#4248)
+* Avoid making excessive & unnecessary calls to TryGetGitTagsFromSouceLink (#4249)
+* Fix `<Module>` type loader injection (#4274)
+
+### Build / Test
+* Disable nullable warnings in trimming app (#4266)
+* Swap Samples.GrpcLegacy to use .NET Activity (#3879)
+* Swap Samples.MongoDB to use Activity (#4097)
+* Disable parallelization for LargePayloadTests integration tests (#4185)
+* Fix benchmark tests (#4210)
+* Include CreateRootDescriptorsFile as a dependency of BuildTracerHome (#4260)
+* Fix build break that was introduced when we merged the gRPC server ch… (#4239)
+* Fix build: Update Trimming.xml and add missing NuGets to IntegrationGroups (#4245)
+
+### Miscellaneous
+* Refactor cache classes to avoid emitting new methods (#4192)
+* Stop using Serilog.Log (#4242)
+* Add the prerelease flag to the App trimming support (#4246)
+* Fix nesting of Samples.AWS.SimpleNotificationService project (#4252)
+* Fix explicit interface methods instrumentation (#4264)
+* Fixes and tests for telemetry  (#4265)
+* Fix TraceClock ctor() (#4275)
 
 
 
+[Changes since 2.31.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.31.0...v2.32.0)
 
 
+## [Release 2.31.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.31.0)
+
+## Summary
+
+[Serverless] Add support for instrumentation of methods in generic base classes
+
+## Changes
+
+### Tracer
+* [Tracing] Initial work on configuration telemetry (#4033)
+* [Tracing] clean up for 128-bit trace ids (#4075)
+* [Tracing] Remove Span and TraceContext locks and add a cache layer (#4125)
+* [Tracing] Add `nullable` and more tests for configuration (#4139)
+* [Tracing] Fix potential recursion in managed loader by moving log message (#4153)
+* [Tracing] Allows Adding `service` level DBM Comment on SqlServer queries. (#3989)
+* [Tracing] v1 Schema: Add peer.service tag to MongoDb and Kafka spans (#4141)
+
+### CI Visibility
+* [CIVisibility] Change the code coverage EVP subdomain to `citestcov-intake` (#4150)
+* [CIVisibility] Remove the pipeline url processing (#4177)
+
+### ASM
+* [ASM] Path traversal vulnerability (#4052)
+* [ASM] Taint request body (#4080)
+* IAST - Evidence sensitive data redaction (#4107)
+* [ASM] Add source: taint request cookies (#4120)
+* [ASM] Include ASM code ownership (#4121)
+* [ASM] fix bug in test that meant user agent was being repeated in snapshots (#4124)
+* [ASM] Add disabled flag and integration tests (#4129)
+* missing custom rules capability (#4136)
+* IAST - Evidence redaction Yaml suite (#4163)
+* [ASM] update ruleset 1.7.0 > 1.7.1 (#4182)
+* [ASM] Include path traversal method overloads in the netstandard library (#4131)
+
+### Continuous Profiler
+* [Profiler] Allow comparison for Poisson after allocation context (#4111)
+* [Profiler] Bump libdatadog to 2.2.0 (#4119)
+* [Profiler] Add the possible reason of SuspendThread failure (#4133)
+* [Profiler] Fix profiler clang-tidy job (#4134)
+* [Profiler] Allow .balloc/.pprof allocations comparison (#4145)
+* [Profiler] Add log about wrapped function (#4167)
+* [Profiler] Log information about secure-execution mode (#4196)
+
+### Debugger
+* [Dynamic Instrumentation] display object fields and collection items in log probe (#3947)
+
+### Serverless
+* [Serverless] Add support for instrumentation of methods in generic base classes (#4158)
+
+### Fixes
+* Add `Debug` build stage and fix warnings (#4140)
+
+### Miscellaneous
+
+* Add unit tests for all settings (#4115)
+* Use ReadOnlySpan<byte> on ITags source code generator. (#4123)
+* [Test Package Versions Bump] Updating package versions (#4128)
+* `IntegrationTelemetryCollector` should only return changed integrations (#4142)
+* Record enabled products in telemetry (#4143)
+* Properly handle a wrong setup where `DD_DOTNET_TRACER_HOME` isn't set (#4146)
+* Removed added lines and updated existent one (#4148)
+* Fix ducktype over non public struct fields (#4149)
+* [ASM] Merge IAST directories (#4151)
+* Refactor loader injection rewrite (#4152)
+* Improvements in the startup process. (#4157)
+* Upgrade Mono.Cecil to 0.11.5 (#4166)
+* Headers Tags improvements (#4172)
+* Small updates to telemetry in preparation for V2 (#4180)
+* More telemetry v2 preparation (#4187)
+
+### Build / Test
+* Add an additional scheduled run in which we explicitly enable debug mode (#4105)
+* Include signed dlls in windows-tracer-home artifact (#4164)
+* OSX Improvements (#4193)
 
 
+[Changes since 2.30.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.30.0...v2.31.0)
 
 
+## [Release 2.30.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.30.0)
+
+## Summary
+
+- [Tracer] Adds support for 128-bit Trace IDs
+- [ASM] Adds custom rules support
+- [Continuous Profiler] Enables timestamps and GC events by default for timeline view
+
+> **Note**
+> The Datadog .NET Tracer does not support application running in partial trust.
+
+## Changes
+
+### Tracer
+* [Tracing] add support for 128-bit trace ids (#3744)
+* Change the ownership of the RuntimeMetrics statsd instance (#4060)
+* Make ModuleMetadata thread-safe (#4061)
+* Update `MessagePack` to 1.9.11 (#4078)
+* Reduce allocations in sampling mechanism tagging (#4085)
+* [Tracer] Add interfaces to standardize operation name and service name calculations across schema versions (#4088)
+* Add support for MySql.Data 8.0.33 (#4109)
+
+### CI Visibility
+* [CI Visibility] Rename Intelligent Test Runner tag names (#3909)
+* [CI Visibility] Update ci specs and add codefresh support (#4049)
+* [CI Visibility] Add support for importing code coverage from cobertura and opencover format to the test session. (#4069)
+
+### ASM
+* [ASM] Update waf and custom rules (#4053)
+* [ASM] Add methods to location json (#4063)
+* [ASM] Fix ip resolution: some local ips weren't seen as local (#4067)
+* [ASM] Add custom rules support (#4077)
+* [ASM] Add IAST instrumented tests ownership to ASM (#4087)
+* [ASM] Update WAF (#4112)
+
+### Continuous Profiler
+* [Profiler] Enable timestamps and GC events by default for timeline view (#3982)
+* [Profiler] Make sure the memory dump is copied when a profiler test failed (#4047)
+* Fix rare and random crash on linux (#4055)
+* Investigate failing test on alpine (#4073)
+* [Profiler] Fix race for endpoint profiling (#4079)
+* [Profiler/Windows] Release HANDLE when Managed thread dies (#4089)
+
+### Fixes
+* Remove support for partial trust environment (#4083)
+* Add `EditorBrowsableState.Never` to types that should never be invoked (#4091)
+
+### Build / Test
+* [IAST] Enable deduplication tests on net7  (#3973)
+* Enable crash dumps on Windows (#3975)
+* [Tracer] Update samples for log collection, agentless logging, and logs trace ID correlation (#3994)
+* Update Nuke build to latest (#4000)
+* [Test Package Versions Bump] Updating package versions (#4013)
+* [Tracer] Attribute Schema configuration: Create distinct v0 and v1 span metadata rules (#4031)
+* Update dockerfile to build native code with clang-16 (#4036)
+* Add checksums for release artifacts (#4041)
+* Replace Datadog.Trace.OSX.sln with a solution filter (#4048)
+* [Tracer] Comprehensive package version testing fixes (#4057)
+* Fix CI Visibility source root in Docker based test (#4059)
+* InstrumentationVerification should override the log folder only if enabled (#4066)
+* Setup python3.9 for system tests (#4070)
+* Add `obj` as a folder exception in the static analysis workflow. (#4071)
+* Add debuglink to linux native lib to ease debugging experience (#4072)
+* Add jetbrains diagnoser to Benchmark tests (#4074)
+* Reduce the pressure on threadpool in the tests (#4086)
+* Option to add Datadog Profiler to the BenchmarkDotNet tests (#4094)
+* [Test Package Versions Bump] Updating package versions (#4096)
+* Fix BenchmarkDotNet tests build warnings (#4110)
+* Allow forcing code coverage in CI (#4113)
+* Stop the flake (#4114)
+
+### Miscellaneous
+* RCM refactoring from event model to subscriptions (#3983)
+* [Tracer] Improvement: Make the ServiceNames immutable (#4043)
+* Bump spdlog version (#4044)
+* Exclude more high-cardinality dependencies from telemetry (#4050)
+* Update Minimum required SDK version in Readme (#4092)
+* Skip injecting loader on partial trust (#4108)
+* Add `trace::profiler` null check (#4116)
+
+[Changes since 2.29.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.29.0...v2.30.0)
 
 
+## [Release 2.29.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.29.0)
+
+## Summary
+
+Fixes the following issues:
+- Fixes BadImageFormatException that occurred when trace annotations were used in conjunction with DD_TRACE_DEBUG
+- Fixes possible memory leaks
+
+## Changes
+
+### Tracer
+* [Tracer] Attribute Schema configuration: new configuration and v1 service naming (#4019)
+
+### Continuous Profiler
+* [Profiler] Compare fixed and Poisson threshold allocation sampling/upscaling (#4016)
+* [Profiler/Improvement] Make `RawSample` classes move-only (#4024)
+* [Profiler] Free the error structure on profile_add (#4025)
+* [Profiler] Fix possible memory leak (#4029)
+* [Profiler] Run Profiler Unit tests ASAN with leak detection enabled (#4034)
+* [Profiler] Make sure we catch tests that crashed in CI (#4037)
+* [Profiler] Fix missing CPU samples (#4046)
+
+### Fixes
+* Add more nullable annotations to settings objects (#4028)
+
+### Build / Test
+* Capture the sample output in IAST tests (#4021)
+* Fix IAST tests (#4027)
+
+### Miscellaneous
+* Add WaitForDiscoveryService test helper (#4023)
+* Bump DatadogTestLogger version to 0.0.38 (#4030)
+* Fix the tracer solution for OSX (#4039)
+* Fix BadImageFormatException that occurred when trace annotations were used in conjunction with DD_TRACE_DEBUG (#4045)
+
+
+[Changes since 2.28.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.28.0...v2.29.0)
+
+
+## [Release 2.28.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.28.0)
+
+## Summary
+
+Fixes a native memory leak when using the Continuous Profiler. This leak was introduced in `2.26.0`. If you are using the Continuous Profiler with `2.26.0` or `2.27.0`, please upgrade to `2.28.0`.
+
+Also the tracer now supports
+- HotChocolate 13
+- [Data Streams Monitoring](https://docs.datadoghq.com/data_streams/) for RabbitMQ
+
+## Changes
+
+### Tracer
+* [Tracer] Fix ActivityContext not being honored (#3796)
+* [Tracer] DataStreamMonitoring - RabbitMQ support (#3917)
+* [Tracer] Add `db.redis.database_index` to redis spans (#3941)
+* [Tracer] Fix duplicate logging issue with DirectLogSubmission and Serilog (#3952)
+* [Tracer] Reset the sampling mechanism tag during W3C tracecontext extraction (#3959)
+* [Tracer] Upgrade HotChocolate to Version 13 (#3966)
+* [Tracer] Fix AAS direct log submission log correlation (#3972)
+* [Tracer] Make the querystring length in http.url configurable (#3980)
+* [Tracer] Add nullable annotations to settings (#4009)
+
+### CI Visibility
+* [CI Visibility] Fix BenchmarkDotNet random value in job description (#3960)
+* [CI Visibility] - Refactor and changes to improve debugging and to help the datadog logger to extract env-vars. (#3990)
+
+### ASM
+* [ASM] Taint StringBuilder.Append() and AppendLine() Methods (#3931)
+* [ASM] Take into account if block exception is a child  (#3944)
+* [ASM] Command injection vulnerability detection (#3954)
+* [ASM] Remove weak hashing redundant tests (#3962)
+* [IAST] Add updated source names. (#3988)
+
+### Continuous Profiler
+* [Profiler] Keep track of sampled/real exception/lock contention count per type/bucket (#3838)
+* [Profiler] Avoid adding temporary runtime id names in cache (#3958)
+* [Profiler] Don't read ExitTime if the process hasn't exited (#3992)
+* [Profiler] Bump libdatadog version to 2.1.0 (#3993)
+* [Profiler] Fix bug when thread name is set to null or "" (#4005)
+* [Profiler] Fix native memory leaks (#4020)
+
+### Debugger
+* [Dynamic Instrumentation] Implemented the Span Probes (#3955)
+* [Dynamic Instrumentation] Evaluation error on metric probe (#4001)
+
+### Build / Test
+* [Samples] Add sample to demonstrate instrumentation of an ASP.NET application inside a Windows container (#3798)
+* [CI] Monitor retries and retry AgentMalFunctionTests on NamedPipes (#3887)
+* Swap Samples.DatabaseHelper to use Samples.Shared (#3915)
+* Swap Samples.LargePayload to use SampleHelpers (#3921)
+* Swap DatadogThreadTest to use SampleHelpers (#3922)
+* Swap DogStatsD.RaceCondition to not use Datadog.Trace (#3925)
+* Limit the concurrency in xunit (#3930)
+* Swap to SampleHelpers for LogsInjectionHelper (#3936)
+* Fix TimeIt jobs and replace it with TimeItSharp (#3942)
+* [Tracer] Fix flaky test graphql (#3945)
+* Setup python 3.9 for system tests (#3948)
+* Docker Base Images. Fix snapshot generation and fix draft releases (#3950)
+* Convert RabbitMQ tests to snapshot tests (#3951)
+* Capture full memory dumps instead of minidumps (#3963)
+* Upgrade C++ toolset to v143 (#3964)
+* Split `ZipMonitoringHomeLinux` task (#3967)
+* Downgrade AWS dotnet7 image (#3969)
+* Update the AspNetCoreTestFixture to let aspnetcore pick a port (#3971)
+* Revert "Downgrade AWS dotnet7 image" (#3977)
+* Temporarily remove python install from system tests (#3979)
+* Disable Microsoft.Data.Sqlite tests on .NET Core 2.1 (#3981)
+* Enable CI Visibility static analysis. (#3984)
+* Disable code coverage except for scheduled builds on master (#3987)
+* Reduce test flakiness in `ProbeTests.MethodProbeTest` (#3995)
+* Increase log level in AspNetCore2 security sample app (#3997)
+* Improve support of rolling log files in tests (#3998)
+* Attempt to fix the DataStreams test (#4002)
+* Try fix SetDotnetPath (#4003)
+* Fix exploration tests typo (#4006)
+* Remove the GraphQL4 websocket tests (#4010)
+* Start the PipeServer synchronously (#4011)
+* [Tracer] Set GraphQL7 Sample fixed packages version (#4022)
+* [Tracer] Fix test: remove WebSockets tests on GraphQL version 4 (#3999)
+* [Tracer] Add support for Metrics to span metadata (#3968)
+* [Tracer] Adds MySql and NpgSql snapshot tests and files (#3867)
+
+### Miscellaneous
+* Replace FMT x86 and x64 builds to a single source folder (#3943)
+* Windows ARM64 support (#3953)
+* [Test Package Versions Bump] Updating package versions (#3957)
+* Remove validation on IIS site names (#3961)
+* Add a "block list" to profiled processes in native profilers (#3965)
+* [Test Package Versions Bump] Updating package versions (#3978)
+* Bump DatadogTestLogger version up to 0.0.37 (#3985)
+* Fix the log level and remove redundant info (#3991)
+
+
+[Changes since 2.27.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.27.0...v2.28.0)
+
+
+## [Release 2.27.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.27.0)
+
+## Summary
+
+Tracer
+- Support for isolated functions in Azure
+- Support for GraphQL 7
+- Performance improvements in the startup time. We had slowly decreased performances since 2.9.0 by adding more features, we're back to an equivalent state now.
+
+## Changes
+
+### Tracer
+* Add a size limit to the serialization temp buffer (#3830)
+* [Tracer] add support for GraphQL 7 (#3842)
+* Optimize startup time (#3856)
+* [Tracer] Protect against null Activity TraceId (#3870)
+* [Tracing] parse propagated tags during header extraction (#3872)
+* Initial support for isolated Azure Functions (v4) (#3900)
+* Capture exceptions in Azure Functions (#3905)
+* Exclude `App_LocalResources.` deps from telemetry (#3906)
+* Performance improvements (#3907)
+* Record SourceContext in direct submission logs (#3910)
+* Add usr.id when propagating (#3912)
+* Add recording of HTTP status code to Azure Functions HTTP triggers (#3914)
+* Capture the querystring in `http.url` for client HTTP spans (#3935)
+
+### CI Visibility
+* [CI Visibility] Update CI Environment Variables spec (#3878)
+* [CI Visibility] - Fixes git parser when using a SSH signature (#3940)
+
+### ASM
+* [ASM] Update rules WAF rules to 1.5.2 (#3896)
+* [ASM] Correct casing for tag values in SDK (#3893)
+* [ASM] Optimize http body parsing (#3853)
+* [ASM] Taint String Substring and ToCharArray methods (#3854)
+* [ASM] Taint string.Remove() and string.Insert() methods in IAST (#3877)
+* [ASM] Taint string.Join, ToUpper and ToLower methods in IAST (#3897)
+* [ASM] Instrumentate String.Trim(), String.TrimStart(), String.TrimEnd() in IAST. (#3911)
+* [ASM] Instrument String.PadLeft() and String.PadRight() methods (#3918)
+* [ASM] Add integration tests for global rules switch (#3886)
+
+### Continuous Profiler
+* [Profiler ] Fixes in FrameStore (#3861)
+* [Profiler] Add support for Portable PDB in the profiler (#3904)
+
+### Debugger
+* [Dynamic Instrumentation] Add metric probe for dynamic instrumentation (#3727)
+* [Dynamic Instrumentation] Deploy dotnet to debugger backend demo applications (#3920)
+
+### Miscellaneous
+* [Test Package Versions Bump] Updating package versions (#3759)
+* Improve OSX dev experience (#3863)
+* [Tracer] Implement all system-tests W3C tracecontext behaviors (#3873)
+* Fix modules locking (#3892)
+* Use a wrapper for synchronized access to collections (#3895)
+* DSM - Span and Pathway linking (#3902)
+* [Test Package Versions Bump] Updating package versions (#3929)
+
+### Build / Test
+* Swap Samples.Telemetry to use .NET Activity (#3819)
+* Refine CodeOwners (#3860)
+* Fix the clone-repo template for hotfixes (#3866)
+* [Test] Fix flakiness in Aerospike integration test - Attempt 1 (#3890)
+* Add processors benchmarks (#3898)
+* Add support for attach jetbrains products in Benchmark tests (#3903)
+* Remove unused reference to Datadog.Trace in HttpMessageHandler.StackOverflowException (#3923)
+* Fix codeowners file around ASM folders. (#3926)
+* Test Azure Functions out of process on .NET 7 (#3927)
+* Fix a few issues with Samples.Shared (#3934)
+* Fix native compilation warning (#3932)
+
+
+[Changes since 2.26.0](https://github.com/DataDog/dd-trace-dotnet/compare/v2.26.0...v2.27.0)
 
 
 ## [Release 2.26.0](https://github.com/DataDog/dd-trace-dotnet/releases/tag/v2.26.0)

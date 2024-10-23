@@ -5,6 +5,7 @@
 
 #include "Log.h"
 #include "OpSysTools.h"
+#include "SamplesEnumerator.h"
 
 
 using namespace std::chrono_literals;
@@ -39,10 +40,10 @@ SamplesCollector::SamplesCollector(
     IExporter* exporter,
     IMetricsSender* metricsSender) :
     _uploadInterval{configuration->GetUploadInterval()},
-    _mustStop{false},
     _pThreadsCpuManager{pThreadsCpuManager},
     _metricsSender{metricsSender},
-    _exporter{exporter}
+    _exporter{exporter},
+    _cachedSample{std::make_shared<Sample>(0, std::string_view{}, 2048)}
 {
 }
 
@@ -56,26 +57,24 @@ void SamplesCollector::RegisterBatchedProvider(IBatchedSamplesProvider* batchedS
     _batchedSamplesProviders.push_front(std::make_pair(batchedSamplesProvider, 0));
 }
 
-bool SamplesCollector::Start()
+bool SamplesCollector::StartImpl()
 {
     Log::Info("Starting the samples collector");
-    _mustStop = false;
-    _workerThread = std::thread(&SamplesCollector::SamplesWork, this);
-    OpSysTools::SetNativeThreadName(&_workerThread, WorkerThreadName);
-    _exporterThread = std::thread(&SamplesCollector::ExportWork, this);
-    OpSysTools::SetNativeThreadName(&_exporterThread, ExporterThreadName);
+    _workerThread = std::thread([this]
+        {
+            OpSysTools::SetNativeThreadName(WorkerThreadName);
+            SamplesWork();
+        });
+    _exporterThread = std::thread([this]
+        {
+            OpSysTools::SetNativeThreadName(ExporterThreadName);
+            ExportWork();
+        });
     return true;
 }
 
-bool SamplesCollector::Stop()
+bool SamplesCollector::StopImpl()
 {
-    if (_mustStop)
-    {
-        return true;
-    }
-
-    _mustStop = true;
-
     _workerThreadPromise.set_value();
     _workerThread.join();
 
@@ -87,7 +86,7 @@ bool SamplesCollector::Stop()
     auto now = _time();
     auto startTime = truncate(now, _uploadInterval);
     auto endTime = startTime + _uploadInterval;
-    Export(startTime, endTime);
+    Export(startTime, endTime, true);
 
     return true;
 }
@@ -140,7 +139,7 @@ void SamplesCollector::ExportWork()
     }
 }
 
-void SamplesCollector::Export(ProfileTime &startTime, ProfileTime &endTime)
+void SamplesCollector::Export(ProfileTime &startTime, ProfileTime &endTime, bool lastCall)
 {
     bool success = false;
 
@@ -165,7 +164,7 @@ void SamplesCollector::Export(ProfileTime &startTime, ProfileTime &endTime)
             batchedSamplesProvider.second = 0;
         }
 
-        success = _exporter->Export(startTime, endTime);
+        success = _exporter->Export(startTime, endTime, lastCall);
     }
     catch (std::exception const& ex)
     {
@@ -185,14 +184,14 @@ void SamplesCollector::CollectSamples(std::forward_list<std::pair<ISamplesProvid
         {
             std::lock_guard lock(_exportLock);
 
-            auto result = samplesProvider.first->GetSamples();
-            samplesProvider.second += result.size();
+            auto samples = samplesProvider.first->GetSamples();
+            samplesProvider.second += samples->size();
 
-            for (auto const& sample : result)
+            while (samples->MoveNext(_cachedSample))
             {
-                if (!sample->GetCallstack().empty())
+                if (!_cachedSample->GetCallstack().empty())
                 {
-                    _exporter->Add(sample);
+                    _exporter->Add(_cachedSample);
                 }
             }
         }

@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <RunAnalyzersDuringBuild>true</RunAnalyzersDuringBuild>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
@@ -24,14 +25,11 @@
     <PackageReference Include="System.Reactive.Core" Version="3.1.1" />
     <PackageReference Include="System.Data.SqlClient" Version="4.8.2" />
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.113.7" />
+    <ProjectReference Include="..\..\src\Datadog.Trace.Manual\Datadog.Trace.Manual.csproj" Aliases="DatadogTraceManual" />
 
     <ProjectReference Include="..\..\src\Datadog.Trace\Datadog.Trace.csproj" />
     <ProjectReference Include="..\..\src\Datadog.Trace.Annotations\Datadog.Trace.Annotations.csproj" />
     <ProjectReference Include="..\Datadog.Trace.TestHelpers\Datadog.Trace.TestHelpers.csproj" />
-  </ItemGroup>
-
-  <ItemGroup Condition=" $(TargetFramework.StartsWith('net4')) ">
-    <ProjectReference Include="..\..\src\Datadog.Trace.AspNet\Datadog.Trace.AspNet.csproj" />
   </ItemGroup>
 
   <ItemGroup Condition=" $(TargetFramework.StartsWith('net4')) ">
@@ -52,7 +50,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="Telemetry\config_norm_rules.json" />
+    <None Remove="Telemetry\config_prefix_block_list.json" />
+    <EmbeddedResource Include="Telemetry\config_norm_rules.json" />
+    <EmbeddedResource Include="Telemetry\config_prefix_block_list.json" />
     <None Remove="Telemetry\telemetry_*.json" />
     <EmbeddedResource Include="Telemetry\telemetry_*.json" />
+    <None Remove="Telemetry\Metrics\*.json" />
+    <EmbeddedResource Include="Telemetry\Metrics\*.json" />
   </ItemGroup>
 </Project>

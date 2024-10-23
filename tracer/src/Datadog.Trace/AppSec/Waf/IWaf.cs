@@ -4,12 +4,9 @@
 // </copyright>
 
 using System;
-using System.Collections.Generic;
-using Datadog.Trace.AppSec.RcmModels.Asm;
-using Datadog.Trace.AppSec.RcmModels.AsmData;
+using Datadog.Trace.AppSec.Rcm;
 using Datadog.Trace.AppSec.Waf.NativeBindings;
 using Datadog.Trace.AppSec.Waf.ReturnTypes.Managed;
-using Datadog.Trace.Vendors.Newtonsoft.Json.Linq;
 
 namespace Datadog.Trace.AppSec.Waf
 {
@@ -19,17 +16,12 @@ namespace Datadog.Trace.AppSec.Waf
 
         public IContext CreateContext();
 
-        internal DDWAF_RET_CODE Run(IntPtr contextHandle, IntPtr rawArgs, ref DdwafResultStruct retNative, ulong timeoutMicroSeconds);
+        internal unsafe WafReturnCode Run(IntPtr contextHandle, DdwafObjectStruct* rawPersistentData, DdwafObjectStruct* rawEphemeralData, ref DdwafResultStruct retNative, ulong timeoutMicroSeconds);
 
-        /// <summary>
-        /// only this one returns a rulsetinfo from the waf
-        /// </summary>
-        /// <param name="rules">json rules</param>
-        /// <returns>returns InitOrUpdateResult</returns>
-        UpdateResult UpdateRules(string rules);
+        UpdateResult UpdateWafFromConfigurationStatus(ConfigurationStatus configurationStatus);
 
-        bool UpdateRulesData(List<RuleData> rulesData);
+        public string[] GetKnownAddresses();
 
-        bool UpdateRulesStatus(List<RuleOverride> res, List<JToken> exclusions);
+        public bool IsKnowAddressesSuported();
     }
 }

@@ -3,6 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using MessagePack; // use nuget MessagePack to deserialize
@@ -49,6 +50,12 @@ namespace Datadog.Trace.TestHelpers
         [Key("metrics")]
         public Dictionary<string, double> Metrics { get; set; }
 
+        [Key("meta_struct")]
+        public Dictionary<string, byte[]> MetaStruct { get; set; }
+
+        [Key("span_links")]
+        public List<MockSpanLink> SpanLinks { get; set; }
+
         public string GetTag(string key)
         {
             if (Tags.TryGetValue(key, out string value))
@@ -71,7 +78,7 @@ namespace Datadog.Trace.TestHelpers
 
         public override string ToString()
         {
-            return $"{nameof(TraceId)}: {TraceId}, {nameof(SpanId)}: {SpanId}, {nameof(Name)}: {Name}, {nameof(Resource)}: {Resource}, {nameof(Service)}: {Service}";
+            return $"{{{nameof(TraceId)}: {TraceId}, {nameof(SpanId)}: {SpanId}, {nameof(Name)}: {Name}, {nameof(Resource)}: {Resource}, {nameof(Service)}: {Service}}}";
         }
     }
 }

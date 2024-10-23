@@ -3,6 +3,8 @@
 
 #include "../../../shared/src/native-src/util.h"
 #include "cor.h"
+#include "instrumenting_product.h"
+#include "module_metadata.h"
 
 struct ILInstr;
 class ILRewriterWrapper;
@@ -25,24 +27,12 @@ public:
     {        
     }
 
-    virtual HRESULT Rewrite(RejitHandlerModule* moduleHandler, RejitHandlerModuleMethod* methodHandler) = 0;
+    virtual HRESULT Rewrite(RejitHandlerModule* moduleHandler, RejitHandlerModuleMethod* methodHandler,
+                            ICorProfilerFunctionControl* pFunctionControl, ICorProfilerInfo* corProfilerInfo) = 0;
+    virtual InstrumentingProducts GetInstrumentingProduct(RejitHandlerModule* moduleHandler, RejitHandlerModuleMethod* methodHandler) = 0;
+    virtual WSTRING GetInstrumentationId(RejitHandlerModule* moduleHandler, RejitHandlerModuleMethod* methodHandler) = 0;
 
     virtual ~MethodRewriter() = default;
-};
-
-
-class TracerMethodRewriter : public MethodRewriter
-{
-private:
-    ILInstr* CreateFilterForException(ILRewriterWrapper* rewriter, mdTypeRef exception, mdTypeRef type_ref, ULONG exceptionValueIndex);
-
-public:
-
-    TracerMethodRewriter(CorProfiler* corProfiler) : MethodRewriter(corProfiler)
-    {
-    }
-
-    HRESULT Rewrite(RejitHandlerModule* moduleHandler, RejitHandlerModuleMethod* methodHandler) override;
 };
 
 } // namespace trace

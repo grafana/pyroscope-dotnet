@@ -10,28 +10,30 @@
 #include "clr_helpers.h"
 #include "debugger_tokens.h"
 #include "integration.h"
+#include "tracer_integration_definition.h"
 #include "tracer_tokens.h"
+#include "fault_tolerant_tokens.h"
 #include "../../../shared/src/native-src/com_ptr.h"
 #include "../../../shared/src/native-src/string.h"
 
 namespace trace
 {
 
-class ModuleMetadata
+class ModuleMetadata : public ModuleMetadataBase
 {
 private:
     std::mutex wrapper_mutex;
+    std::once_flag tracer_tokens_once_flag;
+    std::once_flag debugger_tokens_once_flag;
+    std::once_flag fault_tolerant_tokens_once_flag;
     std::unique_ptr<std::unordered_map<shared::WSTRING, mdTypeRef>> integration_types = nullptr;
     std::unique_ptr<TracerTokens> tracerTokens = nullptr;
     std::unique_ptr<debugger::DebuggerTokens> debuggerTokens = nullptr;
+    std::unique_ptr<fault_tolerant::FaultTolerantTokens> faultTolerantTokens = nullptr;
     std::unique_ptr<std::vector<IntegrationDefinition>> integrations = nullptr;
     mdTypeSpec moduleSpecSanityToken = mdTypeSpecNil;
 
 public:
-    const ComPtr<IMetaDataImport2> metadata_import{};
-    const ComPtr<IMetaDataEmit2> metadata_emit{};
-    const ComPtr<IMetaDataAssemblyImport> assembly_import{};
-    const ComPtr<IMetaDataAssemblyEmit> assembly_emit{};
     const shared::WSTRING assemblyName = shared::EmptyWStr;
     const AppDomainID app_domain_id;
     const GUID module_version_id;
@@ -45,10 +47,7 @@ public:
                    std::unique_ptr<std::vector<IntegrationDefinition>>&& integrations,
                    const AssemblyProperty* corAssemblyProperty, const bool enableByRefInstrumentation,
                    const bool enableCallTargetStateByRef) :
-        metadata_import(metadata_import),
-        metadata_emit(metadata_emit),
-        assembly_import(assembly_import),
-        assembly_emit(assembly_emit),
+        ModuleMetadataBase(metadata_import, metadata_emit, assembly_import, assembly_emit),
         assemblyName(assembly_name),
         app_domain_id(app_domain_id),
         module_version_id(module_version_id),
@@ -64,10 +63,7 @@ public:
                    const shared::WSTRING& assembly_name, const AppDomainID app_domain_id,
                    const AssemblyProperty* corAssemblyProperty, const bool enableByRefInstrumentation,
                    const bool enableCallTargetStateByRef) :
-        metadata_import(metadata_import),
-        metadata_emit(metadata_emit),
-        assembly_import(assembly_import),
-        assembly_emit(assembly_emit),
+        ModuleMetadataBase(metadata_import, metadata_emit, assembly_import, assembly_emit),
         assemblyName(assembly_name),
         app_domain_id(app_domain_id),
         module_version_id(),
@@ -77,12 +73,14 @@ public:
     {
     }
 
-    bool TryGetIntegrationTypeRef(const shared::WSTRING& keyIn, mdTypeRef& valueOut) const
+    bool TryGetIntegrationTypeRef(const shared::WSTRING& keyIn, mdTypeRef& valueOut)
     {
         if (integration_types == nullptr)
         {
             return false;
         }
+
+        std::scoped_lock<std::mutex> lock(wrapper_mutex);
 
         const auto search = integration_types->find(keyIn);
 
@@ -108,20 +106,31 @@ public:
 
     TracerTokens* GetTracerTokens()
     {
-        if (tracerTokens == nullptr)
-        {
-            tracerTokens = std::make_unique<TracerTokens>(this, enable_by_ref_instrumentation, enable_calltarget_state_by_ref);
-        }
+        std::call_once(tracer_tokens_once_flag,
+            [this] {
+            tracerTokens = std::make_unique<TracerTokens>(this, enable_by_ref_instrumentation,
+                                                                  enable_calltarget_state_by_ref);
+            });
+
         return tracerTokens.get();
     }
 
     debugger::DebuggerTokens* GetDebuggerTokens()
     {
-        if (debuggerTokens == nullptr)
-        {
-            debuggerTokens = std::make_unique<debugger::DebuggerTokens>(this);
-        }
+        std::call_once(debugger_tokens_once_flag,
+            [this] {
+               debuggerTokens = std::make_unique<debugger::DebuggerTokens>(this);
+            });
+
         return debuggerTokens.get();
+    }
+
+    fault_tolerant::FaultTolerantTokens* GetFaultTolerantTokens()
+    {
+        std::call_once(fault_tolerant_tokens_once_flag,
+                       [this] { faultTolerantTokens = std::make_unique<fault_tolerant::FaultTolerantTokens>(this); });
+
+        return faultTolerantTokens.get();
     }
 };
 

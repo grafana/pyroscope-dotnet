@@ -58,6 +58,16 @@ namespace Datadog.Trace
         internal const string ProcessId = "process_id";
 
         /// <summary>
+        /// The database index redis is connected to
+        /// </summary>
+        internal const string RedisDatabaseIndex = "db.redis.database_index";
+
+        /// <summary>
+        /// A boolean indicating whether APM tracing is disabled. When APM is disabled, this metric is set to 0.
+        /// </summary>
+        internal const string ApmEnabled = "_dd.apm.enabled";
+
+        /// <summary>
         /// Whether the libraries application security features are enabled.
         /// </summary>
         public const string AppSecEnabled = "_dd.appsec.enabled";
@@ -76,6 +86,26 @@ namespace Datadog.Trace
         /// Total cumulative waf duration across spans for one request, including parameters encoding, bindings, for non managed waf
         /// </summary>
         public const string AppSecWafAndBindingsDuration = "_dd.appsec.waf.duration_ext";
+
+        /// <summary>
+        /// Total cumulative waf duration for RASP calls across spans for one request
+        /// </summary>
+        public const string RaspWafDuration = "_dd.appsec.rasp.duration";
+
+        /// <summary>
+        /// Total cumulative waf duration for RASP calls across spans for one request, including parameters encoding, bindings, for non managed waf
+        /// </summary>
+        public const string RaspWafAndBindingsDuration = "_dd.appsec.rasp.duration_ext";
+
+        /// <summary>
+        /// Is set to 1 if there was a RASP timeout.
+        /// </summary>
+        public const string RaspWafTimeout = "_dd.appsec.rasp.timeout";
+
+        /// <summary>
+        /// Counts the number of times a rule type is evaluated.
+        /// </summary>
+        public const string RaspRuleEval = "_dd.appsec.rasp.rule.eval";
 
         /// <summary>
         /// Float representing the number of rules loaded successfully

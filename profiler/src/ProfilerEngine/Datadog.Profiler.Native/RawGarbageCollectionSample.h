@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "GarbageCollection.h"
 #include "GCBaseRawSample.h"
+#include "GarbageCollection.h"
 #include "RawSample.h"
 #include "Sample.h"
 
@@ -14,12 +14,39 @@
 class RawGarbageCollectionSample : public GCBaseRawSample
 {
 public:
+    RawGarbageCollectionSample() = default;
+
+    RawGarbageCollectionSample(RawGarbageCollectionSample&& other) noexcept
+        :
+        GCBaseRawSample(std::move(other)),
+        Reason(other.Reason),
+        Type(other.Type),
+        IsCompacting(other.IsCompacting),
+        PauseDuration(other.PauseDuration),
+        TotalDuration(other.TotalDuration)
+    {
+    }
+
+    RawGarbageCollectionSample& operator=(RawGarbageCollectionSample&& other) noexcept
+    {
+        if (this == &other)
+        {
+            GCBaseRawSample::operator=(std::move(other));
+            Reason = other.Reason;
+            Type = other.Type;
+            IsCompacting = other.IsCompacting;
+            PauseDuration = other.PauseDuration;
+            TotalDuration = other.TotalDuration;
+        }
+        return *this;
+    }
+
     inline int64_t GetValue() const override
     {
         return TotalDuration;
     }
 
-    inline void DoAdditionalTransform(std::shared_ptr<Sample> sample, uint32_t valueOffset) const override
+    inline void DoAdditionalTransform(std::shared_ptr<Sample> sample, std::vector<SampleValueTypeProvider::Offset> const& valueOffsets) const override
     {
         sample->AddLabel(Label(Sample::GarbageCollectionReasonLabel, GetReasonText()));
         sample->AddLabel(Label(Sample::GarbageCollectionTypeLabel, GetTypeText()));
@@ -33,7 +60,7 @@ public:
     GCReason Reason;
     GCType Type;
     bool IsCompacting;
-    uint64_t PauseDuration;  // not used today
+    uint64_t PauseDuration; // not used today
     uint64_t TotalDuration;
 
 private:
@@ -58,8 +85,8 @@ private:
     }
 
 private:
-// text translation of enumerations
-// TODO: update it if new ones appear in forthcoming versions of .NET
+ // text translation of enumerations
+ // TODO: update it if new ones appear in forthcoming versions of .NET
     static const std::vector<std::string> _reasons;
     static const std::vector<std::string> _types;
 };

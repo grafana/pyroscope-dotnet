@@ -5,17 +5,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Drawing;
-using System.IO;
 using System.Linq;
 using System.Text;
 using Datadog.Profiler.IntegrationTests.Helpers;
-using Datadog.Profiler.SmokeTests;
 using FluentAssertions;
-using Perftools.Profiles;
 using Xunit;
 using Xunit.Abstractions;
-using static Google.Protobuf.Reflection.SourceCodeInfo.Types;
 
 namespace Datadog.Profiler.IntegrationTests.Allocations
 {
@@ -35,8 +30,9 @@ namespace Datadog.Profiler.IntegrationTests.Allocations
         public void ShouldGetAllocationSamples(string appName, string framework, string appAssembly)
         {
             var runner = new TestApplicationRunner(appName, framework, appAssembly, _output, commandLine: ScenarioGenerics);
-            runner.Environment.SetVariable(EnvironmentVariables.WallTimeProfilerEnabled, "0");
-            runner.Environment.SetVariable(EnvironmentVariables.CpuProfilerEnabled, "0");
+
+            EnvironmentHelper.DisableDefaultProfilers(runner);
+
             runner.Environment.SetVariable(EnvironmentVariables.AllocationProfilerEnabled, "1");
 
             // only allocation profiler enabled so should only see the 2 related values per sample
@@ -47,8 +43,7 @@ namespace Datadog.Profiler.IntegrationTests.Allocations
         public void ShouldAllocationProfilerBeDisabledByDefault(string appName, string framework, string appAssembly)
         {
             var runner = new TestApplicationRunner(appName, framework, appAssembly, _output, commandLine: ScenarioGenerics);
-            runner.Environment.SetVariable(EnvironmentVariables.WallTimeProfilerEnabled, "0");
-            runner.Environment.SetVariable(EnvironmentVariables.CpuProfilerEnabled, "0");
+            EnvironmentHelper.DisableDefaultProfilers(runner);
 
             using var agent = MockDatadogAgent.CreateHttpAgent(_output);
 
@@ -66,12 +61,12 @@ namespace Datadog.Profiler.IntegrationTests.Allocations
         }
 
         [TestAppFact("Samples.Computer01", new[] { "net6.0" })]
-        public void ExplicitlyDisableExceptionProfiler(string appName, string framework, string appAssembly)
+        public void ExplicitlyDisableAllocationProfiler(string appName, string framework, string appAssembly)
         {
             var runner = new TestApplicationRunner(appName, framework, appAssembly, _output, commandLine: ScenarioGenerics);
 
+            EnvironmentHelper.DisableDefaultProfilers(runner);
             runner.Environment.SetVariable(EnvironmentVariables.WallTimeProfilerEnabled, "1");
-            runner.Environment.SetVariable(EnvironmentVariables.CpuProfilerEnabled, "0");
             runner.Environment.SetVariable(EnvironmentVariables.AllocationProfilerEnabled, "0");
 
             using var agent = MockDatadogAgent.CreateHttpAgent(_output);
@@ -87,8 +82,7 @@ namespace Datadog.Profiler.IntegrationTests.Allocations
         {
             var runner = new TestApplicationRunner(appName, framework, appAssembly, _output, commandLine: ScenarioMeasureAllocation);
 
-            runner.Environment.SetVariable(EnvironmentVariables.WallTimeProfilerEnabled, "0");
-            runner.Environment.SetVariable(EnvironmentVariables.CpuProfilerEnabled, "0");
+            EnvironmentHelper.DisableDefaultProfilers(runner);
             runner.Environment.SetVariable(EnvironmentVariables.AllocationProfilerEnabled, "1");
 
             using var agent = MockDatadogAgent.CreateHttpAgent(_output);
@@ -309,11 +303,8 @@ namespace Datadog.Profiler.IntegrationTests.Allocations
         {
             static IEnumerable<(string Type, long Count, long Size, StackTrace Stacktrace, long Time)> GetAllocationSamples(string directory)
             {
-                foreach (var file in Directory.EnumerateFiles(directory, "*.pprof", SearchOption.AllDirectories))
+                foreach (var profile in SamplesHelper.GetProfiles(directory))
                 {
-                    using var stream = File.OpenRead(file);
-                    var profile = Profile.Parser.ParseFrom(stream);
-
                     foreach (var sample in profile.Sample)
                     {
                         var count = sample.Value[0];

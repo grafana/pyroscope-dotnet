@@ -3,13 +3,23 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
+using System;
+
 namespace Datadog.Trace
 {
     /// <summary>
-    /// Standard span tags used by integrations.
+    /// Standard Datadog span tags.
     /// </summary>
-    public static class Tags
+    public static partial class Tags
     {
+        /// <summary>
+        /// The name of the instrumented service. Its value is usually constant for the lifetime of a process,
+        /// but can technically change for each trace if the user sets it manually.
+        /// This tag is added during MessagePack serialization using the value from <see cref="SpanContext.ServiceName"/>
+        /// or <see cref="Tracer.DefaultServiceName"/>.
+        /// </summary>
+        internal const string Service = "service";
+
         /// <summary>
         /// The environment of the instrumented service. Its value is usually constant for the lifetime of a process,
         /// but can technically change for each trace if the user sets it manually.
@@ -102,9 +112,33 @@ namespace Datadog.Trace
         public const string SqlRows = "sql.rows";
 
         /// <summary>
+        /// The service name of a remote service.
+        /// </summary>
+        public const string PeerService = "peer.service";
+
+        /// <summary>
+        /// The orignal peer service name before remapping
+        /// </summary>
+        internal const string PeerServiceRemappedFrom = "peer.service.remapped_from";
+
+        /// <summary>
+        /// The name of the attribute that determined the peer.service tag value. Expected values are:
+        /// <ul>
+        ///   <li>{source_attribute} when the tag was set to a default value, using a defined precursor attribute</li>
+        ///   <li>peer.service when the tag was set by the user</li>
+        /// </ul>
+        /// </summary>
+        internal const string PeerServiceSource = "_dd.peer.service.source";
+
+        /// <summary>
         /// The hostname of a outgoing server connection.
         /// </summary>
         public const string OutHost = "out.host";
+
+        /// <summary>
+        /// Remote hostname.
+        /// </summary>
+        public const string PeerHostname = "peer.hostname";
 
         /// <summary>
         /// The port of a outgoing server connection.
@@ -136,6 +170,12 @@ namespace Datadog.Trace
         /// This tag is added during MessagePack serialization. It's value is always "dotnet".
         /// </summary>
         public const string Language = "language";
+
+        /// <summary>
+        /// Pseudo-tag used to expose the complete trace id as a hex string.
+        /// The string will have length 16 for 64-bit trace ids and length 32 for 128-bit trace ids.
+        /// </summary>
+        internal const string TraceId = "trace.id";
 
         /// <summary>
         /// The git commit hash of the instrumented service. Its value is usually constant for the lifetime of a process,
@@ -252,6 +292,26 @@ namespace Datadog.Trace
         internal const string GraphQLSource = "graphql.source";
 
         /// <summary>
+        /// The message source name.
+        /// </summary>
+        internal const string MessagingSourceName = "messaging.source.name";
+
+        /// <summary>
+        /// The message destination name.
+        /// </summary>
+        internal const string MessagingDestinationName = "messaging.destination.name";
+
+        /// <summary>
+        /// The message destination name, using legacy naming.
+        /// </summary>
+        internal const string LegacyMessageBusDestination = "message_bus.destination";
+
+        /// <summary>
+        /// The messaging operation.
+        /// </summary>
+        internal const string MessagingOperation = "messaging.operation";
+
+        /// <summary>
         /// The AMQP method.
         /// </summary>
         internal const string AmqpCommand = "amqp.command";
@@ -275,6 +335,11 @@ namespace Datadog.Trace
         /// The delivery mode of the AMQP message.
         /// </summary>
         internal const string AmqpDeliveryMode = "amqp.delivery_mode";
+
+        /// <summary>
+        /// The bootstrap servers as defined in producer or consumer config
+        /// </summary>
+        internal const string KafkaBootstrapServers = "messaging.kafka.bootstrap.servers";
 
         /// <summary>
         /// The partition associated with a record
@@ -309,7 +374,13 @@ namespace Datadog.Trace
         /// <summary>
         /// The region associated with the AWS SDK span.
         /// </summary>
+        [Obsolete("AwsRegion is a duplicate. Use Region instead.")]
         internal const string AwsRegion = "aws.region";
+
+        /// <summary>
+        /// The region associated with the span.
+        /// </summary>
+        internal const string Region = "region";
 
         /// <summary>
         /// The request ID associated with the AWS SDK span.
@@ -319,17 +390,55 @@ namespace Datadog.Trace
         /// <summary>
         /// The service associated with the AWS SDK span.
         /// </summary>
+        [Obsolete("AwsServiceName is a duplicate. Use AwsService instead.")]
         internal const string AwsServiceName = "aws.service";
+
+        /// <summary>
+        /// The AWS service associated with the AWS SDK span.
+        /// </summary>
+        internal const string AwsService = "aws_service";
 
         /// <summary>
         /// The queue name associated with the AWS SDK span.
         /// </summary>
+        [Obsolete("AwsTopicName is a duplicate. Use TopicName instead.")]
+        internal const string AwsTopicName = "aws.topic.name";
+
+        /// <summary>
+        /// The topic name associated with the AWS SDK SNS span.
+        /// </summary>
+        internal const string TopicName = "topicname";
+
+        /// <summary>
+        /// The queue name associated with the AWS SDK SQS span.
+        /// </summary>
+        [Obsolete("AwsQueueName is a duplicate. Use QueueName instead.")]
         internal const string AwsQueueName = "aws.queue.name";
+
+        /// <summary>
+        /// The queue name associated with the span.
+        /// </summary>
+        internal const string QueueName = "queuename";
+
+        /// <summary>
+        /// The topic arn associated with the AWS SDK span.
+        /// </summary>
+        internal const string AwsTopicArn = "aws.topic.arn";
 
         /// <summary>
         /// The queue URL associated with the AWS SDK span.
         /// </summary>
         internal const string AwsQueueUrl = "aws.queue.url";
+
+        /// <summary>
+        /// The stream name associated with the AWS SDK Kinesis span.
+        /// </summary>
+        internal const string StreamName = "streamname";
+
+        /// <summary>
+        /// The table name associated with the AWS SDK DynamoDB span.
+        /// </summary>
+        internal const string TableName = "tablename";
 
         /// <summary>
         /// Configures Trace Analytics.
@@ -503,6 +612,11 @@ namespace Datadog.Trace
         internal const string IastJson = "_dd.iast.json";
 
         /// <summary>
+        /// Indicates if the vulnerability json has been truncated because it exceeds the maximum tag size
+        /// </summary>
+        internal const string IastJsonTagSizeExceeded = "_dd.iast.json.tag.size.exceeded";
+
+        /// <summary>
         /// Indicates at the end of a request if IAST analisys has been performned
         /// </summary>
         internal const string IastEnabled = "_dd.iast.enabled";
@@ -528,9 +642,14 @@ namespace Datadog.Trace
 
         internal const string AerospikeUserKey = "aerospike.userkey";
 
+        internal const string CouchbaseSeedNodes = "db.couchbase.seed.nodes";
         internal const string CouchbaseOperationCode = "couchbase.operation.code";
         internal const string CouchbaseOperationBucket = "couchbase.operation.bucket";
         internal const string CouchbaseOperationKey = "couchbase.operation.key";
+
+        internal const string RpcMethod = "rpc.method";
+        internal const string RpcService = "rpc.service";
+        internal const string RpcSystem = "rpc.system";
 
         internal const string GrpcMethodKind = "grpc.method.kind";
         internal const string GrpcMethodPath = "grpc.method.path";
@@ -539,31 +658,45 @@ namespace Datadog.Trace
         internal const string GrpcMethodName = "grpc.method.name";
         internal const string GrpcStatusCode = "grpc.status.code";
 
+        // general Service Fabric
+        internal const string ServiceFabricApplicationId = "service-fabric.application-id";
+        internal const string ServiceFabricApplicationName = "service-fabric.application-name";
+        internal const string ServiceFabricPartitionId = "service-fabric.partition-id";
+        internal const string ServiceFabricNodeId = "service-fabric.node-id";
+        internal const string ServiceFabricNodeName = "service-fabric.node-name";
+        internal const string ServiceFabricServiceName = "service-fabric.service-name";
+
+        // Service Remoting
+        internal const string ServiceRemotingUri = "service-fabric.service-remoting.uri";
+        internal const string ServiceRemotingServiceName = "service-fabric.service-remoting.service";
+        internal const string ServiceRemotingMethodName = "service-fabric.service-remoting.method-name";
+        internal const string ServiceRemotingMethodId = "service-fabric.service-remoting.method-id";
+        internal const string ServiceRemotingInterfaceId = "service-fabric.service-remoting.interface-id";
+        internal const string ServiceRemotingInvocationId = "service-fabric.service-remoting.invocation-id";
+
         internal const string ProcessEnvironmentVariables = "cmd.environment_variables";
+        internal const string ProcessComponent = "cmd.component";
+        internal const string ProcessCommandExec = "cmd.exec";
+        internal const string ProcessCommandShell = "cmd.shell";
+        internal const string ProcessTruncated = "cmd.truncated";
 
         internal const string TagPropagationError = "_dd.propagation_error";
 
         /// <summary>
-        /// Marks a span as injected when DBM data was propagated
+        /// Marks a span as injected when DBM comment has the traceParent on it
         /// </summary>
-        internal const string DbmDataPropagated = "_dd.dbm_trace_injected";
+        internal const string DbmTraceInjected = "_dd.dbm_trace_injected";
 
-        internal static class AppSec
-        {
-            internal const string Events = "appsec.events.";
+        /// <summary>
+        /// Holds the original value for Service when Service is overriden after span creation
+        /// </summary>
+        internal const string BaseService = "_dd.base_service";
 
-            internal static string Track(string eventName) => $"{Events}{eventName}.track";
-
-            internal static class EventsUsersLogin
-            {
-                internal const string Success = AppSec.Events + "users.login.success.";
-                internal const string Failure = AppSec.Events + "users.login.failure.";
-                internal const string SuccessTrack = Success + "track";
-                internal const string FailureTrack = Failure + "track";
-                internal const string FailureUserId = Failure + "usr.id";
-                internal const string FailureUserExists = Failure + "usr.exists";
-            }
-        }
+        /// <summary>
+        /// Tag used to propagate the unsigned  64 bits last parent Id
+        /// lower-case 16 characters hexadecimal string
+        /// </summary>
+        internal const string LastParentId = "_dd.parent_id";
 
         internal static class User
         {
@@ -577,7 +710,27 @@ namespace Datadog.Trace
 
         internal static class Propagated
         {
+            /// <summary>
+            /// Tag used to propagate the sampling mechanism used to make a sampling decision.
+            /// See <see cref="Datadog.Trace.Sampling.SamplingMechanism"/>.
+            /// </summary>
+            /// <remarks>
+            /// This tag was originally meant to carry the name of the service that made the sampling decision,
+            /// hence its name: "decision maker".
+            /// </remarks>
             internal const string DecisionMaker = "_dd.p.dm";
+
+            /// <summary>
+            /// Tag used to propagate the higher-order 64 bits of a 128-bit trace id encoded as a
+            /// lower-case hexadecimal string with no zero-padding or `0x` prefix.
+            /// </summary>
+            internal const string TraceIdUpper = "_dd.p.tid";
+
+            /// <summary>
+            /// A boolean allowing the propagation to downstream services the information that the current distributed trace
+            /// is containing at least one ASM security event, no matter its type (threats, business logic events, IAST, etc.).
+            /// </summary>
+            internal const string AppSec = "_dd.p.appsec";
         }
     }
 }

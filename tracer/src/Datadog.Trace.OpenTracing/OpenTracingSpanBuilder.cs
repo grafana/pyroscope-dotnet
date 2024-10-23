@@ -3,10 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using Datadog.Trace.Logging;
 using OpenTracing;
 using OpenTracing.Tag;
 
@@ -14,8 +11,6 @@ namespace Datadog.Trace.OpenTracing
 {
     internal class OpenTracingSpanBuilder : ISpanBuilder
     {
-        private static readonly IDatadogLogger Log = DatadogLogging.GetLoggerFor<OpenTracingSpanBuilder>();
-
         private readonly OpenTracingTracer _tracer;
         private readonly object _lock = new object();
         private readonly string _operationName;
@@ -42,7 +37,6 @@ namespace Datadog.Trace.OpenTracing
                 }
             }
 
-            Log.Debug("ISpanBuilder.AddReference is not implemented for other references than ChildOf by Datadog.Trace");
             return this;
         }
 

@@ -12,10 +12,10 @@ using static Datadog.Trace.ClrProfiler.AutoInstrumentation.AdoNet.AdoNetClientIn
     AssemblyName = "Microsoft.Data.Sqlite",
     TypeName = "Microsoft.Data.Sqlite.SqliteCommand",
     MinimumVersion = "2.0.0",
-    MaximumVersion = "7.*.*",
+    MaximumVersion = "8.*.*",
     IntegrationName = nameof(IntegrationId.Sqlite),
     DataReaderType = "Microsoft.Data.Sqlite.SqliteDataReader",
-    DataReaderTaskType = "System.Threading.Tasks.Task`1<Microsoft.Data.Sqlite.SqliteDataReader>",
+    DataReaderTaskType = "System.Threading.Tasks.Task`1[Microsoft.Data.Sqlite.SqliteDataReader]",
     TargetMethodAttributes = new[]
     {
         // int Microsoft.Data.Sqlite.SqliteCommand.ExecuteNonQuery()
@@ -41,7 +41,7 @@ using static Datadog.Trace.ClrProfiler.AutoInstrumentation.AdoNet.AdoNetClientIn
     MaximumVersion = "2.*.*",
     IntegrationName = nameof(IntegrationId.Sqlite),
     DataReaderType = "System.Data.SQLite.SqliteDataReader",
-    DataReaderTaskType = "System.Threading.Tasks.Task`1<System.Data.SQLite.SqliteDataReader>",
+    DataReaderTaskType = "System.Threading.Tasks.Task`1[System.Data.SQLite.SqliteDataReader]",
     TargetMethodAttributes = new[]
     {
         // int System.Data.SQLite.SQLiteCommand.ExecuteNonQuery()
@@ -58,4 +58,40 @@ using static Datadog.Trace.ClrProfiler.AutoInstrumentation.AdoNet.AdoNetClientIn
         typeof(CommandExecuteScalarWithBehaviorAttribute),
         // int System.Data.SQLite.SQLiteCommand.ExecuteNonQuery(CommandBehavior)
         typeof(CommandExecuteNonQueryWithBehaviorAttribute),
+    })]
+
+[assembly: AdoNetClientInstrumentMethods(
+    AssemblyName = "Microsoft.Data.Sqlite",
+    TypeName = "Microsoft.Data.Sqlite.SQLiteDataReader",
+    MinimumVersion = "2.0.0",
+    MaximumVersion = "8.*.*",
+    IntegrationName = nameof(IntegrationId.SqlClient),
+    DataReaderType = "System.Data.SQLite.SQLiteDataReader",
+    DataReaderTaskType = "System.Threading.Tasks.Task`1[System.Data.SQLite.SQLiteDataReader]",
+    TargetMethodAttributes = new[]
+    {
+        // string System.Data.Common.DbDataReader.GetString()
+        typeof(ReaderReadAttribute),
+        typeof(ReaderReadAsyncAttribute),
+        typeof(ReaderCloseAttribute),
+        typeof(ReaderGetStringAttribute),
+        typeof(ReaderGetValueAttribute),
+    })]
+
+[assembly: AdoNetClientInstrumentMethods(
+    AssemblyName = "System.Data.SQLite",
+    TypeName = "System.Data.SQLite.SQLiteDataReader",
+    MinimumVersion = "1.0.0",
+    MaximumVersion = "2.*.*",
+    IntegrationName = nameof(IntegrationId.SqlClient),
+    DataReaderType = "System.Data.SQLite.SQLiteDataReader",
+    DataReaderTaskType = "System.Threading.Tasks.Task`1[System.Data.SQLite.SQLiteDataReader]",
+    TargetMethodAttributes = new[]
+    {
+        // string System.Data.Common.DbDataReader.GetString()
+        typeof(ReaderReadAttribute),
+        typeof(ReaderReadAsyncAttribute),
+        typeof(ReaderCloseAttribute),
+        typeof(ReaderGetStringAttribute),
+        typeof(ReaderGetValueAttribute),
     })]

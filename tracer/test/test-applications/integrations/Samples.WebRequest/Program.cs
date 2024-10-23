@@ -40,8 +40,12 @@ namespace Samples.WebRequest
 
                 // send http requests using WebClient
                 Console.WriteLine();
-                Console.WriteLine("Sending request with WebClient.");
+                Console.WriteLine("Sending requests with WebClient.");
                 await RequestHelpers.SendWebClientRequests(_tracingDisabled, url, RequestContent);
+
+                // send http requests using WebRequest
+                Console.WriteLine();
+                Console.WriteLine("Sending requests with WebRequest.");
                 await RequestHelpers.SendWebRequestRequests(_tracingDisabled, url, RequestContent);
 
                 Console.WriteLine();
@@ -54,6 +58,20 @@ namespace Samples.WebRequest
         private static void HandleHttpRequests(HttpListenerContext context)
         {
             Console.WriteLine("[HttpListener] received request");
+
+            // read request content and headers.
+            // output the headers to the console first _before_ asserting their presence.
+            using (var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding))
+            {
+                string requestContent = reader.ReadToEnd();
+                Console.WriteLine($"[HttpListener] request content: {requestContent}");
+
+                foreach (string headerName in context.Request.Headers)
+                {
+                    string headerValue = context.Request.Headers[headerName];
+                    Console.WriteLine($"[HttpListener] request header: {headerName}={headerValue}");
+                }
+            }
 
             // Check Datadog headers
             if (!_ignoreAsync || context.Request.Url.Query.IndexOf("Async", StringComparison.OrdinalIgnoreCase) == -1)
@@ -81,23 +99,19 @@ namespace Samples.WebRequest
                 }
             }
 
-            // read request content and headers
-            using (var reader = new StreamReader(context.Request.InputStream, context.Request.ContentEncoding))
-            {
-                string requestContent = reader.ReadToEnd();
-                Console.WriteLine($"[HttpListener] request content: {requestContent}");
-
-                foreach (string headerName in context.Request.Headers)
-                {
-                    string headerValue = context.Request.Headers[headerName];
-                    Console.WriteLine($"[HttpListener] request header: {headerName}={headerValue}");
-                }
-            }
-
             // write response content
             byte[] responseBytes = Utf8.GetBytes(ResponseContent);
             context.Response.ContentEncoding = Utf8;
             context.Response.ContentLength64 = responseBytes.Length;
+            if (context.Request.RawUrl.Contains("NotFound"))
+            {
+                context.Response.StatusCode = 404;
+            }
+            else if (context.Request.RawUrl.Contains("Teapot"))
+            {
+                context.Response.StatusCode = 418;
+            }
+
             context.Response.OutputStream.Write(responseBytes, 0, responseBytes.Length);
 
             // we must close the response

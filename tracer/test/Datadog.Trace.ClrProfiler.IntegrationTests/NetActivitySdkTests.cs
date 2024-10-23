@@ -5,6 +5,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Datadog.Trace.Configuration;
 using Datadog.Trace.TestHelpers;
@@ -19,36 +20,39 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
     [UsesVerify]
     public class NetActivitySdkTests : TracingIntegrationTest
     {
+        private static readonly HashSet<string> Resources = new HashSet<string>
+        {
+            "service.instance.id",
+            "service.name",
+            "service.version",
+        };
+
+        private static readonly HashSet<string> ExcludeTags = new HashSet<string>
+        {
+            "attribute-string",
+            "attribute-int",
+            "attribute-bool",
+            "attribute-double",
+            "attribute-stringArray",
+            "attribute-stringArrayEmpty",
+            "attribute-intArray",
+            "attribute-intArrayEmpty",
+            "attribute-boolArray",
+            "attribute-boolArrayEmpty",
+            "attribute-doubleArray",
+            "attribute-doubleArrayEmpty",
+            "set-string",
+        };
+
+        private readonly Regex _timeUnixNanoRegex = new(@"time_unix_nano"":([0-9]{10}[0-9]+)");
+
         public NetActivitySdkTests(ITestOutputHelper output)
             : base("NetActivitySdk", output)
         {
             SetServiceVersion("1.0.0");
         }
 
-        public override Result ValidateIntegrationSpan(MockSpan span) =>
-            span.IsOpenTelemetry(
-                resources: new HashSet<string>
-                {
-                    "service.instance.id",
-                    "service.name",
-                    "service.version"
-                },
-                excludeTags: new HashSet<string>
-                {
-                    "attribute-string",
-                    "attribute-int",
-                    "attribute-bool",
-                    "attribute-double",
-                    "attribute-stringArray",
-                    "attribute-stringArrayEmpty",
-                    "attribute-intArray",
-                    "attribute-intArrayEmpty",
-                    "attribute-boolArray",
-                    "attribute-boolArrayEmpty",
-                    "attribute-doubleArray",
-                    "attribute-doubleArrayEmpty",
-                    "set-string"
-                });
+        public override Result ValidateIntegrationSpan(MockSpan span, string metadataSchemaVersion) => span.IsOpenTelemetry(metadataSchemaVersion, Resources, ExcludeTags);
 
         [SkippableFact]
         [Trait("Category", "EndToEnd")]
@@ -59,9 +63,9 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
 
             using (var telemetry = this.ConfigureTelemetry())
             using (var agent = EnvironmentHelper.GetMockAgent())
-            using (RunSampleAndWaitForExit(agent))
+            using (await RunSampleAndWaitForExit(agent))
             {
-                const int expectedSpanCount = 25;
+                const int expectedSpanCount = 53;
                 var spans = agent.WaitForSpans(expectedSpanCount);
 
                 using var s = new AssertionScope();
@@ -69,9 +73,15 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
 
                 var myServiceNameSpans = spans.Where(s => s.Service == "MyServiceName");
 
-                ValidateIntegrationSpans(myServiceNameSpans, expectedServiceName: "MyServiceName");
-
+                ValidateIntegrationSpans(myServiceNameSpans, metadataSchemaVersion: "v0", expectedServiceName: "MyServiceName", isExternalSpan: false);
                 var settings = VerifyHelper.GetSpanVerifierSettings();
+                var traceStatePRegex = new Regex("p:[0-9a-fA-F]+");
+                var traceIdRegexHigh = new Regex("TraceIdLow: [0-9]+");
+                var traceIdRegexLow = new Regex("TraceIdHigh: [0-9]+");
+                settings.AddRegexScrubber(traceStatePRegex, "p:TsParentId");
+                settings.AddRegexScrubber(traceIdRegexHigh, "TraceIdHigh: LinkIdHigh");
+                settings.AddRegexScrubber(traceIdRegexLow, "TraceIdLow: LinkIdLow");
+                settings.AddRegexScrubber(_timeUnixNanoRegex, @"time_unix_nano"":<DateTimeOffset.Now>");
                 await VerifyHelper.VerifySpans(spans, settings)
                                   .UseFileName(nameof(NetActivitySdkTests));
 

@@ -4,57 +4,100 @@
 // </copyright>
 
 using System;
+using System.Collections.Generic;
+using System.CommandLine;
+using System.CommandLine.Invocation;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using Datadog.InstrumentedAssemblyGenerator;
 using Datadog.InstrumentedAssemblyVerification;
-using Datadog.Trace.Tools.Runner.Checks;
+using Datadog.Trace.Configuration.Telemetry;
 using Spectre.Console;
-using Spectre.Console.Cli;
 
 namespace Datadog.Trace.Tools.Runner;
 
-internal class AnalyzeInstrumentationErrorsCommand : Command<AnalyzeInstrumentationErrorsSettings>
+internal class AnalyzeInstrumentationErrorsCommand : CommandWithExamples
 {
-    public override int Execute(CommandContext context, AnalyzeInstrumentationErrorsSettings settings)
+    private readonly Option<string> _processNameOption = new("--process-name", "Sets the process name.");
+    private readonly Option<int?> _pidOption = new("--pid", "Sets the process ID.");
+    private readonly Option<string> _logDirectoryOption = new("--log-path", "Sets the instrumentation log folder path.");
+    private readonly Option<string> _originalAssembliesOption = new("--original-assemblies", "Sets if the original assemblies has copied during the app running.");
+    private readonly Option<string> _assembliesToVerifyOption = new("--assemblies-to-verify", "Specify assembly names to verify separated by ';'.");
+
+    public AnalyzeInstrumentationErrorsCommand()
+        : base("analyze-instrumentation", "Analyze instrumentation errors")
     {
-        var process = $"'{settings.ProcessName ?? "na"}'";
-        if (settings.Pid != null)
+        AddOption(_processNameOption);
+        AddOption(_pidOption);
+        AddOption(_logDirectoryOption);
+        AddOption(_originalAssembliesOption);
+        AddOption(_assembliesToVerifyOption);
+
+        AddExample("dd-trace analyze-instrumentation --process-name dotnet");
+        AddExample("dd-trace analyze-instrumentation --pid 12345");
+        AddExample(@"dd-trace analyze-instrumentation --log-path ""C:\ProgramData\Datadog .NET Tracer\logs\""");
+
+        this.SetHandler(Execute);
+    }
+
+    private void Execute(InvocationContext context)
+    {
+        var processName = _processNameOption.GetValue(context);
+        var pid = _pidOption.GetValue(context);
+        var logDirectory = _logDirectoryOption.GetValue(context);
+
+        var process = $"'{processName ?? "na"}'";
+        if (pid != null)
         {
-            process += ", pid: " + settings.Pid;
+            process += ", pid: " + pid;
         }
 
-        if (!string.IsNullOrEmpty(settings.LogDirectory))
+        if (!string.IsNullOrEmpty(logDirectory))
         {
-            process += ", provided log path is: " + settings.LogDirectory;
+            process += ", provided log path is: " + logDirectory;
         }
 
         AnsiConsole.WriteLine("Running instrumentation error analysis on process: " + process);
 
-        var tracerLogDirectory = !string.IsNullOrEmpty(settings.LogDirectory) ? settings.LogDirectory : GetLogDirectory(settings.Pid);
+        var tracerLogDirectory = !string.IsNullOrEmpty(logDirectory) ? logDirectory : GetLogDirectory(pid);
         AnsiConsole.WriteLine($"Tracer log directory is: \"{tracerLogDirectory ?? "null"}\"");
         if (!Directory.Exists(tracerLogDirectory))
         {
             Utils.WriteError("Tracer log directory does not exist.");
-            return -1;
+            context.ExitCode = -1;
+            return;
         }
 
-        var processLogDir = GetProcessInstrumentationVerificationLogDirectory(tracerLogDirectory, settings);
+        var processLogDir = GetProcessInstrumentationVerificationLogDirectory(tracerLogDirectory, processName, pid);
         AnsiConsole.WriteLine($"Instrumentation verification output directory is: \"{processLogDir ?? "null"}\"");
         if (!Directory.Exists(processLogDir))
         {
             Utils.WriteError("Instrumentation verification output directory does not exist.");
-            if (settings.Pid == null && string.IsNullOrEmpty(settings.ProcessName) && string.IsNullOrEmpty(settings.LogDirectory))
+            if (pid == null && string.IsNullOrEmpty(processName) && string.IsNullOrEmpty(logDirectory))
             {
                 Utils.WriteError("Please provide either process name, process ID or instrumentation verification logs directory path");
             }
 
-            return -1;
+            context.ExitCode = -1;
+            return;
         }
 
-        var generatorArgs = new AssemblyGeneratorArgs(processLogDir, modulesToVerify: null);
+        bool hasOriginalAssemblies = false;
+        var originalAssemblies = _originalAssembliesOption.GetValue(context);
+        if (!string.IsNullOrEmpty(originalAssemblies))
+        {
+            hasOriginalAssemblies = bool.TryParse(originalAssemblies, out hasOriginalAssemblies);
+        }
+
+        string[] modulesToVerify = null;
+        var assembliesToVerify = _assembliesToVerifyOption.GetValue(context);
+        if (!string.IsNullOrEmpty(assembliesToVerify))
+        {
+            modulesToVerify = assembliesToVerify.Split(';', StringSplitOptions.RemoveEmptyEntries);
+        }
+
+        var generatorArgs = new AssemblyGeneratorArgs(processLogDir, copyOriginalModulesToDisk: hasOriginalAssemblies, modulesToVerify: modulesToVerify);
 
         var exportedModulesPathsAndMethods = InstrumentedAssemblyGeneration.Generate(generatorArgs);
 
@@ -86,15 +129,18 @@ internal class AnalyzeInstrumentationErrorsCommand : Command<AnalyzeInstrumentat
         catch (Exception e)
         {
             AnsiConsole.WriteLine($"Error while generating the instrumentation analysis report: {e}");
-            return -1;
+            context.ExitCode = -1;
+            return;
         }
 
-        return allVerificationsPassed ? 0 : -1;
+        context.ExitCode = allVerificationsPassed ? 0 : -1;
     }
 
     /// <param name="tracerLogDir">Tracer logs directory</param>
+    /// <param name="processName">Process name if exist</param>
+    /// <param name="pid">process id if exist</param>
     /// <returns>e.g. C:\ProgramData\Datadog .NET Tracer\logs\InstrumentationVerification\dotnet_12345_dd-mm-yyyy_hh-mm-ss or C:\ProgramData\Datadog-APM\logs\DotNet\dotnet_12345_dd-mm-yyyy_hh-mm-ss</returns>
-    private string GetProcessInstrumentationVerificationLogDirectory(string tracerLogDir, AnalyzeInstrumentationErrorsSettings settings)
+    private string GetProcessInstrumentationVerificationLogDirectory(string tracerLogDir, string processName, int? pid)
     {
         var instrumentationVerificationLogs = Path.Combine(tracerLogDir, InstrumentedAssemblyGeneratorConsts.InstrumentedAssemblyGeneratorLogsFolder);
         if (!Directory.Exists(instrumentationVerificationLogs))
@@ -102,19 +148,19 @@ internal class AnalyzeInstrumentationErrorsCommand : Command<AnalyzeInstrumentat
             return null;
         }
 
-        var dirs = Directory.EnumerateDirectories(instrumentationVerificationLogs).Select(d => new DirectoryInfo(d)).ToList();
+        List<DirectoryInfo> dirs = Directory.EnumerateDirectories(instrumentationVerificationLogs).Select(d => new DirectoryInfo(d)).ToList();
         if (dirs.Count == 0)
         {
             return null;
         }
 
-        if (string.IsNullOrEmpty(settings.ProcessName) && settings.Pid == null)
+        if (string.IsNullOrEmpty(processName) && pid == null)
         {
             DirectoryInfo dir = null;
             if (dirs.Count > 1)
             {
                 AnsiConsole.WriteLine($"There is more than one directory in {instrumentationVerificationLogs}, taking the last modified one");
-                dir = dirs.OrderByDescending(dir => dir.LastWriteTime).First();
+                dir = dirs.OrderByDescending(di => di.LastWriteTime).First();
             }
             else
             {
@@ -124,9 +170,9 @@ internal class AnalyzeInstrumentationErrorsCommand : Command<AnalyzeInstrumentat
             return dir?.FullName;
         }
 
-        var processName = string.IsNullOrEmpty(settings.ProcessName) ? "[A-Za-z0-9.]*" : $"({settings.ProcessName})";
-        var pid = settings.Pid == null ? "\\d+" : settings.Pid.ToString();
-        var pattern = $"^{processName}(_){pid}(_)[0-9-_]+$";
+        var processNamePattern = string.IsNullOrEmpty(processName) ? "[A-Za-z0-9.]*" : $"({processName})";
+        var pidPattern = pid == null ? "\\d+" : pid.ToString();
+        var pattern = $"^{processNamePattern}(_){pidPattern}(_)[0-9-_]+$";
         var candidates = dirs.Where(d => Regex.IsMatch(d.Name, pattern)).ToList();
         if (candidates.Count == 1)
         {
@@ -135,7 +181,7 @@ internal class AnalyzeInstrumentationErrorsCommand : Command<AnalyzeInstrumentat
 
         if (candidates.Count == 0)
         {
-            AnsiConsole.WriteLine($"No directory was found matching pattern {pattern}, make sure {settings.Pid} is right");
+            AnsiConsole.WriteLine($"No directory was found matching pattern {pattern}, make sure {pid} is right");
             return null;
         }
 
@@ -148,10 +194,9 @@ internal class AnalyzeInstrumentationErrorsCommand : Command<AnalyzeInstrumentat
         string logDirectory = null;
         if (pid != null)
         {
-            var process = ProcessInfo.GetProcessInfo(pid.Value);
-            logDirectory = process?.GetProcessLogDirectory();
+            logDirectory = ProcessConfiguration.GetProcessLogDirectory(pid.Value);
         }
 
-        return logDirectory ?? Logging.DatadogLoggingFactory.GetLogDirectory();
+        return logDirectory ?? Logging.DatadogLoggingFactory.GetLogDirectory(NullConfigurationTelemetry.Instance);
     }
 }

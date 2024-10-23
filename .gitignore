@@ -64,6 +64,7 @@ bld/
 [Bb]in/
 [Oo]bj/
 [Ll]og/
+.nuke/temp/
 
 # Visual Studio 2015 cache/options directory
 .vs/
@@ -354,12 +355,15 @@ shared/src/Datadog.Trace.ClrProfiler.Native/CMakeCache.txt
 shared/src/Datadog.Trace.ClrProfiler.Native/cmake_install.cmake
 shared/src/Datadog.Trace.ClrProfiler.Native/cmake-build-debug/
 !shared/src/Datadog.Trace.ClrProfiler.Native/lib/**
+cmake-build-debug/*
 
 #profiler build files
 profiler/_build/
 
 # global build folder
 obj/*
+obj_arm64/*
+obj_x86_64/*
 
 # cmake build files
 .ionide/
@@ -370,3 +374,11 @@ CMakeFiles/
 lib/
 libdatadog-*/
 *-prefix/
+cmake-build-debug/
+.cmake/
+
+#jetbrains cache folder
+.cache/jb
+
+#datadog coverage
+datadog-coverage-*

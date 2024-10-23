@@ -227,7 +227,7 @@ namespace Datadog.Trace.IntegrationTests
             await tracer.TracerManager.ShutdownAsync(); // Flushes and closes both traces and stats
 
             var statsPayload = agent.WaitForStats(1);
-            var spans = agent.WaitForSpans(13);
+            var spans = agent.WaitForSpans(6);
 
             statsPayload.Should().HaveCount(1);
             statsPayload[0].Stats.Should().HaveCount(1);
@@ -336,10 +336,10 @@ namespace Datadog.Trace.IntegrationTests
             agent.RequestReceived += (sender, args) =>
             {
                 var context = args.Value;
-                if (context.Request.RawUrl.EndsWith("/traces"))
+                if (context.PathAndQuery.EndsWith("/traces"))
                 {
-                    droppedP0TracesHeaderValues.Add(context.Request.Headers.Get("Datadog-Client-Dropped-P0-Traces"));
-                    droppedP0SpansHeaderValues.Add(context.Request.Headers.Get("Datadog-Client-Dropped-P0-Spans"));
+                    droppedP0TracesHeaderValues.Add(context.Headers.TryGetValue("Datadog-Client-Dropped-P0-Traces", out var droppedP0Traces) ? droppedP0Traces : null);
+                    droppedP0SpansHeaderValues.Add(context.Headers.TryGetValue("Datadog-Client-Dropped-P0-Spans", out var droppedP0Spans) ? droppedP0Spans : null);
                 }
             };
 
@@ -353,19 +353,18 @@ namespace Datadog.Trace.IntegrationTests
                 tracesWaitEvent.Set();
             };
 
-            var settings = new TracerSettings
-            {
-                GlobalSamplingRate = globalSamplingRate,
-                StatsComputationEnabled = statsComputationEnabled,
-                StatsComputationInterval = StatsComputationIntervalSeconds,
-                IsRareSamplerEnabled = statsComputationEnabled,
-                ServiceVersion = "V",
-                Environment = "Test",
-                Exporter = new ExporterSettings
-                {
-                    AgentUri = new Uri($"http://localhost:{agent.Port}"),
-                }
-            };
+            var settings = new TracerSettings(
+                new NameValueConfigurationSource(
+                    new()
+                    {
+                        { ConfigurationKeys.GlobalSamplingRate, globalSamplingRate.ToString() },
+                        { ConfigurationKeys.StatsComputationEnabled, statsComputationEnabled.ToString() },
+                        { ConfigurationKeys.StatsComputationInterval, StatsComputationIntervalSeconds.ToString() },
+                        { ConfigurationKeys.RareSamplerEnabled, statsComputationEnabled.ToString() },
+                        { ConfigurationKeys.ServiceVersion, "V" },
+                        { ConfigurationKeys.Environment, "Test" },
+                        { ConfigurationKeys.AgentUri, $"http://localhost:{agent.Port}" },
+                    }));
 
             var immutableSettings = settings.Build();
 

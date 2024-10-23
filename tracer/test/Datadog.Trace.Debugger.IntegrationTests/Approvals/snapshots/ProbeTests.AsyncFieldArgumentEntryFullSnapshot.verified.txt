@@ -3,7 +3,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -74,7 +73,8 @@
           "location": {
             "method": "Method",
             "type": "Samples.Probes.TestRuns.ExpressionTests.AsyncFieldArgumentEntryFullSnapshot"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"

@@ -5,9 +5,15 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using Datadog.Trace.Ci.Tagging;
 using Datadog.Trace.Ci.Tags;
+using Datadog.Trace.Ci.Telemetry;
+using Datadog.Trace.SourceGenerators;
+using Datadog.Trace.Telemetry;
+using Datadog.Trace.Telemetry.Metrics;
 
 namespace Datadog.Trace.Ci;
 
@@ -17,6 +23,8 @@ namespace Datadog.Trace.Ci;
 public sealed class TestSuite
 {
     private static readonly AsyncLocal<TestSuite?> CurrentSuite = new();
+    private static readonly HashSet<TestSuite> OpenedTestSuites = new();
+
     private readonly Span _span;
     private int _finished;
 
@@ -30,16 +38,22 @@ public sealed class TestSuite
             string.IsNullOrEmpty(module.Framework) ? "test_suite" : $"{module.Framework!.ToLowerInvariant()}.test_suite",
             tags: tags,
             startTime: startDate);
+        TelemetryFactory.Metrics.RecordCountSpanCreated(MetricTags.IntegrationName.CiAppManual);
 
         span.Type = SpanTypes.TestSuite;
         span.ResourceName = name;
-        span.Context.TraceContext.SetSamplingPriority((int)SamplingPriority.AutoKeep);
+        span.Context.TraceContext.SetSamplingPriority(SamplingPriorityValues.AutoKeep);
         span.Context.TraceContext.Origin = TestTags.CIAppTestOriginName;
 
         tags.SuiteId = span.SpanId;
 
         _span = span;
         Current = this;
+        lock (OpenedTestSuites)
+        {
+            OpenedTestSuites.Add(this);
+        }
+
         CIVisibility.Log.Debug("###### New Test Suite Created: {Name} ({Module})", Name, Module.Name);
 
         if (startDate is null)
@@ -47,6 +61,9 @@ public sealed class TestSuite
             // If a module doesn't have a fixed start time we reset it before running code
             span.ResetStartTime();
         }
+
+        // Record EventCreate telemetry metric
+        TelemetryFactory.Metrics.RecordCountCIVisibilityEventCreated(TelemetryHelper.GetTelemetryTestingFrameworkEnum(module.Framework), MetricTags.CIVisibilityTestingEventTypeWithCodeOwnerAndSupportedCiAndBenchmark.Suite);
     }
 
     /// <summary>
@@ -71,6 +88,20 @@ public sealed class TestSuite
     {
         get => CurrentSuite.Value;
         set => CurrentSuite.Value = value;
+    }
+
+    /// <summary>
+    /// Gets the active test suites
+    /// </summary>
+    internal static IReadOnlyCollection<TestSuite> ActiveTestSuites
+    {
+        get
+        {
+            lock (OpenedTestSuites)
+            {
+                return OpenedTestSuites.Count == 0 ? [] : OpenedTestSuites.ToArray();
+            }
+        }
     }
 
     internal TestSuiteSpanTags Tags => (TestSuiteSpanTags)_span.Tags;
@@ -144,7 +175,7 @@ public sealed class TestSuite
         var span = _span;
 
         // Calculate duration beforehand
-        duration ??= span.Context.TraceContext.ElapsedSince(span.StartTime);
+        duration ??= span.Context.TraceContext.Clock.ElapsedSince(span.StartTime);
 
         // Update status
         if (Tags.Status is { } status)
@@ -159,9 +190,22 @@ public sealed class TestSuite
             Tags.Status = TestTags.StatusPass;
         }
 
+        if (Tags.IntelligentTestRunnerSkippingCount is { } itrSkippingCount)
+        {
+            Module.Tags.AddIntelligentTestRunnerSkippingCount((int)itrSkippingCount);
+        }
+
         span.Finish(duration.Value);
 
+        // Record EventFinished telemetry metric
+        TelemetryFactory.Metrics.RecordCountCIVisibilityEventFinished(TelemetryHelper.GetTelemetryTestingFrameworkEnum(Tags.Framework), MetricTags.CIVisibilityTestingEventTypeWithCodeOwnerAndSupportedCiAndBenchmarkAndEarlyFlakeDetectionAndRum.Suite);
+
         Current = null;
+        lock (OpenedTestSuites)
+        {
+            OpenedTestSuites.Remove(this);
+        }
+
         Module.RemoveSuite(Name);
         CIVisibility.Log.Debug("###### Test Suite Closed: {Name} ({Module}) | {Status}", Name, Module.Name, Tags.Status);
     }
@@ -171,7 +215,19 @@ public sealed class TestSuite
     /// </summary>
     /// <param name="name">Name of the test</param>
     /// <returns>Test instance</returns>
+    [PublicApi]
     public Test CreateTest(string name)
+    {
+        TelemetryFactory.Metrics.RecordCountCIVisibilityManualApiEvent(MetricTags.CIVisibilityTestingEventType.Test);
+        return InternalCreateTest(name);
+    }
+
+    /// <summary>
+    /// Create a new test for this suite
+    /// </summary>
+    /// <param name="name">Name of the test</param>
+    /// <returns>Test instance</returns>
+    internal Test InternalCreateTest(string name)
     {
         return new Test(this, name, null);
     }
@@ -182,8 +238,34 @@ public sealed class TestSuite
     /// <param name="name">Name of the test</param>
     /// <param name="startDate">Test start date</param>
     /// <returns>Test instance</returns>
+    [PublicApi]
     public Test CreateTest(string name, DateTimeOffset startDate)
     {
+        TelemetryFactory.Metrics.RecordCountCIVisibilityManualApiEvent(MetricTags.CIVisibilityTestingEventType.Test);
+        return InternalCreateTest(name, startDate);
+    }
+
+    /// <summary>
+    /// Create a new test for this suite
+    /// </summary>
+    /// <param name="name">Name of the test</param>
+    /// <param name="startDate">Test start date</param>
+    /// <returns>Test instance</returns>
+    internal Test InternalCreateTest(string name, DateTimeOffset startDate)
+    {
         return new Test(this, name, startDate);
+    }
+
+    /// <summary>
+    /// Create a new test for this suite with ids info
+    /// </summary>
+    /// <param name="name">Name of the test</param>
+    /// <param name="startDate">Test start date</param>
+    /// <param name="traceId">Trace Id</param>
+    /// <param name="spanId">Span Id</param>
+    /// <returns>Test instance</returns>
+    internal Test InternalCreateTest(string name, DateTimeOffset? startDate, TraceId traceId, ulong spanId)
+    {
+        return new Test(this, name, startDate, traceId, spanId);
     }
 }

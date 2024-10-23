@@ -4,10 +4,13 @@
 #include <iostream>
 #include <unknwn.h>
 
+#include "Configuration.h"
 #include "CorProfilerCallback.h"
 #include "CorProfilerCallbackFactory.h"
 #include "EnvironmentVariables.h"
 #include "Log.h"
+
+#include "dd_profiler_version.h"
 
 HINSTANCE DllHandle;
 
@@ -29,6 +32,7 @@ extern "C" BOOL STDMETHODCALLTYPE DllMain(HINSTANCE hInstDll, DWORD reason, PVOI
     {
         case DLL_PROCESS_ATTACH:
             Log::Info("Profiler DLL loaded.");
+            Log::Info("Profiler version = ", PROFILER_VERSION);
             Log::Info("Pointer size: ", 8 * sizeof(void*), " bits.");
             break;
 
@@ -42,48 +46,61 @@ extern "C" BOOL STDMETHODCALLTYPE DllMain(HINSTANCE hInstDll, DWORD reason, PVOI
     return TRUE;
 }
 
-bool CheckProfilingEnabledEnvironmentVariable()
+bool IsProfilingEnabled(Configuration const& configuration)
 {
     // If we are in this function, then the user has already configured profiling by setting CORECLR_ENABLE_PROFILING to 1
     // and by correctly pointing the CORECLR_PROFILER_XXX variables.
-    // However, we still want to respect the DD_PROFILING_ENABLED variable for:
-    //  - consistency with other profiling products;
-    //  - supporting scenarios where CORECLR_PROFILER_XXX point to the shared native loader, where some of the suit's products
-    //    are enabled, but profiling is explicitly disabled;
-    //  - supporting a scenario where CORECLR_PROFILER_XXX is set machine-wide and DD_PROFILING_ENABLED is set per service.
-    const bool IsProfilingEnabledDefault = false;
-    shared::WSTRING isProfilingEnabledConfigStr = shared::GetEnvironmentValue(EnvironmentVariables::ProfilingEnabled);
+    // With Single Step Instrumentation deployment, it is possible that the profiler needs to be loaded (to emit telemetry metrics)
+    // but not started (i.e. no profiling) so this function will return true in that case.
+    //
+    auto enablementStatus = configuration.GetEnablementStatus();
+    auto deploymentMode = configuration.GetDeploymentMode();
 
-    // no environment variable set
-    if (isProfilingEnabledConfigStr.empty())
+    Log::Info(".NET Profiler deployment mode: ", to_string(deploymentMode));
+
+    if (enablementStatus == EnablementStatus::ManuallyEnabled)
     {
-        Log::Info("No \"", EnvironmentVariables::ProfilingEnabled, "\" environment variable has been found.",
-                  " Using default (", IsProfilingEnabledDefault, ").");
-
-        return IsProfilingEnabledDefault;
+        Log::Info(".NET Profiler is explictly enabled.");
+        return true;
     }
-    else
+
+    if (enablementStatus == EnablementStatus::ManuallyDisabled)
     {
-        bool isProfilingEnabled;
-        if (!shared::TryParseBooleanEnvironmentValue(isProfilingEnabledConfigStr, isProfilingEnabled))
-        {
-            // invalid value for environment variable
-            Log::Info("Invalid value \"", isProfilingEnabledConfigStr, "\" for \"",
-                      EnvironmentVariables::ProfilingEnabled, "\" environment variable.",
-                      " Using default (", IsProfilingEnabledDefault, ").");
-
-            return IsProfilingEnabledDefault;
-        }
-        else
-        {
-            // take environment variable into account
-            Log::Info("Value \"", isProfilingEnabledConfigStr, "\" for \"",
-                      EnvironmentVariables::ProfilingEnabled, "\" environment variable.",
-                      " Enable = ", isProfilingEnabled);
-
-            return isProfilingEnabled;
-        }
+        Log::Info(".NET Profiler is explictly disabled.");
+        return false;
     }
+
+    if (enablementStatus == EnablementStatus::SsiEnabled)
+    {
+        Log::Info(".NET Profiler is enabled via Single Step Instrumentation. It will start later.");
+
+        // delay start with SSI is now supported
+        return true;
+    }
+
+    if (enablementStatus == EnablementStatus::Auto)
+    {
+        Log::Info(".NET Profiler is installed via Single Step Instrumentation and automatically enabled. It will start later.");
+
+        // delay start with SSI is now supported
+        return true;
+    }
+
+    if (enablementStatus == EnablementStatus::NotSet)
+    {
+        // in that case, when deployed with SSI, we accept the profiler to be loaded just for the telemetry metrics
+        if (deploymentMode == DeploymentMode::SingleStepInstrumentation)
+        {
+            Log::Info(".NET Profiler is loaded via Single Step Instrumentation but not enabled.");
+            return true;
+        }
+
+        Log::Info(".NET Profiler environment variable '", EnvironmentVariables::ProfilerEnabled, "' was not set. The .NET profiler will be disabled.");
+        return false;
+    }
+
+    Log::Warn(".NET Profiler is disabled for an unknown reason.");
+    return false;
 }
 
 //class __declspec(uuid("BD1A650D-AC5D-4896-B64F-D6FA25D6B26A")) CorProfilerCallback;
@@ -98,21 +115,24 @@ extern "C" HRESULT STDMETHODCALLTYPE DllGetClassObject(REFCLSID rclsid, REFIID r
 
     if (ppv == nullptr)
     {
-        Log::Info("DllGetClassObject(): Cannot return an instance of CorProfilerCallbackFactory because the specified out-param 'ppv' is null.");
+        Log::Info("DllGetClassObject(): the specified out-param 'ppv' is null.");
         return E_FAIL;
     }
 
     if (rclsid != CLSID_CorProfiler)
     {
-        Log::Info("DllGetClassObject(): Cannot return an instance of factory because the specified 'rclsid' is not known.");
+        Log::Info(
+            "DllGetClassObject(): the specified 'rclsid' ",
+            riid.Data1, "-", riid.Data2, "-", riid.Data3, "-", riid.Data4,
+            " is not CLSID_CorProfiler.");
         return CLASS_E_CLASSNOTAVAILABLE;
     }
 
-    bool isProfilingEnabled = CheckProfilingEnabledEnvironmentVariable();
-    if (!isProfilingEnabled)
+    auto configuration = std::make_shared<Configuration>();
+
+    if (!IsProfilingEnabled(*configuration))
     {
-        Log::Info("DllGetClassObject(): Will not return an instance of CorProfilerCallbackFactory because Profiling has been"
-                  " disabled via an environment variable.");
+        Log::Info("DllGetClassObject(): Profiling is not enabled.");
 
         return CORPROF_E_PROFILER_CANCEL_ACTIVATION;
     }
@@ -122,22 +142,28 @@ extern "C" HRESULT STDMETHODCALLTYPE DllGetClassObject(REFCLSID rclsid, REFIID r
     return CORPROF_E_PROFILER_CANCEL_ACTIVATION;
 #endif
 
-    CorProfilerCallbackFactory* factory = new CorProfilerCallbackFactory();
+    CorProfilerCallbackFactory* factory = new CorProfilerCallbackFactory(std::move(configuration));
     if (factory == nullptr)
     {
-        Log::Info("DllGetClassObject(): Cannot return an instance of CorProfilerCallbackFactory because the instantiation failed.");
+        Log::Error("DllGetClassObject(): Fail to create CorProfilerCallbackFactory.");
         return E_FAIL;
     }
 
     HRESULT hr = factory->QueryInterface(riid, ppv);
-
-    Log::Info("DllGetClassObject(): Returning an instance of CorProfilerCallbackFactory (hr=0x", std::hex, hr, std::dec, ")");
+    if (FAILED(hr))
+    {
+        Log::Error("DllGetClassObject(): Fail to query interface from CorProfilerCallbackFactory (hr=0x", std::hex, hr, std::dec, ")");
+    }
+    else
+    {
+        Log::Info("DllGetClassObject(): Returning an instance of CorProfilerCallbackFactory (hr=0x", std::hex, hr, std::dec, ")");
+    }
     return hr;
 }
 
 extern "C" HRESULT STDMETHODCALLTYPE DllCanUnloadNow()
 {
-    Log::Debug("DllCanUnloadNow() invoked.");
+    Log::Info("DllCanUnloadNow() invoked.");
 
     return S_OK;
 }

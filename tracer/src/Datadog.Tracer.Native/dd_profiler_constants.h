@@ -51,12 +51,29 @@ const shared::WSTRING skip_assembly_prefixes[]{
     WStr("System.Text"),
     WStr("System.Threading"),
     WStr("System.Xml"),
+    WStr("System.Numerics"),
 };
 
 const shared::WSTRING include_assemblies[]{
     WStr("Microsoft.Extensions.Logging"),
     WStr("Microsoft.Extensions.Logging.Abstractions"),
+    WStr("Microsoft.Extensions.Telemetry"),
     WStr("System.Diagnostics.Process"),
+    WStr("Microsoft.Extensions.Identity.Core"),
+    WStr("System.Runtime.Remoting"),
+};
+
+// Note that this list should be kept in sync with the values in shared/src/Datadog.Trace.ClrProfiler.Native/util.h
+const shared::WSTRING default_exclude_assemblies[]{
+    WStr("dd-trace"),
+    WStr("dd-trace.exe"),
+    WStr("aspnet_state.exe"),
+    WStr("MsDtsSrvr.exe"),
+    WStr("sqlagent.exe"),
+    WStr("sqlbrowser.exe"),
+    WStr("sqlservr.exe"),
+    WStr("vsdbg"),
+    WStr("vsdbg.exe"),
 };
 
 const shared::WSTRING skip_traceattribute_assembly_prefixes[]{
@@ -76,9 +93,10 @@ const shared::WSTRING system_private_corelib_assemblyName = WStr("System.Private
 const shared::WSTRING datadog_trace_clrprofiler_managed_loader_assemblyName = WStr("Datadog.Trace.ClrProfiler.Managed.Loader");
 
 const shared::WSTRING managed_profiler_full_assembly_version =
-    WStr("Datadog.Trace, Version=2.27.0.0, Culture=neutral, PublicKeyToken=def86d061d0d2eeb");
+    WStr("Datadog.Trace, Version=3.3.1.0, Culture=neutral, PublicKeyToken=def86d061d0d2eeb");
 
 const shared::WSTRING managed_profiler_name = WStr("Datadog.Trace");
+const shared::WSTRING manual_instrumentation_name = WStr("Datadog.Trace.Manual");
 
 const shared::WSTRING nonwindows_nativemethods_type = WStr("Datadog.Trace.ClrProfiler.NativeMethods+NonWindows");
 const shared::WSTRING windows_nativemethods_type = WStr("Datadog.Trace.ClrProfiler.NativeMethods+Windows");
@@ -91,10 +109,14 @@ const shared::WSTRING native_loader_nativemethods_type = WStr("Datadog.Trace.Nat
 const shared::WSTRING debugger_nonwindows_nativemethods_type = WStr("Datadog.Trace.Debugger.PInvoke.DebuggerNativeMethods+NonWindows");
 const shared::WSTRING debugger_windows_nativemethods_type = WStr("Datadog.Trace.Debugger.PInvoke.DebuggerNativeMethods+Windows");
 
+const shared::WSTRING fault_tolerant_nonwindows_nativemethods_type = WStr("Datadog.Trace.FaultTolerant.FaultTolerantNativeMethods+NonWindows");
+const shared::WSTRING fault_tolerant_windows_nativemethods_type = WStr("Datadog.Trace.FaultTolerant.FaultTolerantNativeMethods+Windows");
+
 const shared::WSTRING calltarget_modification_action = WStr("CallTargetModification");
 
 const shared::WSTRING distributed_tracer_type_name = WStr("Datadog.Trace.ClrProfiler.DistributedTracer");
 const shared::WSTRING calltargetbubbleexception_tracer_type_name = WStr("Datadog.Trace.ClrProfiler.CallTarget.CallTargetBubbleUpException");
+const shared::WSTRING calltargetbubbleexception_tracer_function_name = WStr("IsCallTargetBubbleUpException");
 const shared::WSTRING distributed_tracer_interface_name = WStr("Datadog.Trace.ClrProfiler.IDistributedTracer");
 const shared::WSTRING distributed_tracer_target_method_name = WStr("__GetInstanceForProfiler__");
 
@@ -119,7 +141,7 @@ const AssemblyProperty managed_profiler_assembly_property = AssemblyProperty(
                   49,  105, 236, 40,  21,  176, 12, 238, 238, 204, 141, 90,  27,  244, 61,  182, 125, 41,  97,  163,
                   233, 190, 161, 57,  127, 4,   62, 192, 116, 145, 112, 150, 73,  37,  47,  85,  101, 183, 86,  197},
     160, 32772, 1)
-        .WithVersion(2, 27, 0, 0);
+        .WithVersion(3, 3, 1, 0);
 
 } // namespace trace
 

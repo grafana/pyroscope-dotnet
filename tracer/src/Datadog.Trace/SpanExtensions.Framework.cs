@@ -24,16 +24,16 @@ namespace Datadog.Trace
         {
             var security = Security.Instance;
 
-            if (security.Settings.Enabled)
+            if (security.Enabled)
             {
-                var securityCoordinator = new SecurityCoordinator(Security.Instance, HttpContext.Current, span);
+                var securityCoordinator = new SecurityCoordinator(Security.Instance, span);
 
-                var wafArgs = new Dictionary<string, object>()
+                var wafArgs = new Dictionary<string, object>
                 {
                     { AddressesConstants.UserId, userId },
                 };
 
-                securityCoordinator.CheckAndBlock(wafArgs);
+                securityCoordinator.BlockAndReport(wafArgs);
             }
         }
     }

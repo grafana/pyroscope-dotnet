@@ -18,7 +18,6 @@
 
   <ItemGroup Condition=" !$(TargetFramework.StartsWith('net4')) ">
     <PackageReference Include="System.Net.Http" Version="4.3.4" />
-    <ProjectReference Include="..\test-applications\integrations\Samples.AspNetCoreRazorPages\Samples.AspNetCoreRazorPages.csproj" />
   </ItemGroup>
 
   <ItemGroup Condition=" $(TargetFramework.StartsWith('netcoreapp2')) ">
@@ -46,5 +45,10 @@
   <ItemGroup Condition=" $(TargetFramework.StartsWith('net7')) ">
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="7.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" $(TargetFramework.StartsWith('net8')) ">
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="8.0.0" />
   </ItemGroup>
 </Project>

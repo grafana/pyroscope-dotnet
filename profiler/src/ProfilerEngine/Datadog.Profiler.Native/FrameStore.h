@@ -4,8 +4,10 @@
 #pragma once
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <unordered_map>
 #include <string>
+#include <vector>
 #include "IFrameStore.h"
 #include "IDebugInfoStore.h"
 
@@ -27,6 +29,7 @@ private:
         std::string Assembly;
         std::string Namespace;
         std::string Type;
+        std::string Parameters;
     };
 
 public:
@@ -39,6 +42,8 @@ public :
 
 
 private:
+    std::optional<std::pair<HRESULT, FunctionID>> GetFunctionFromIP(uintptr_t instructionPointer);
+
     bool GetFunctionInfo(
         FunctionID functionId,
         mdToken& mdTokenFunc,
@@ -48,7 +53,8 @@ private:
         std::unique_ptr<ClassID[]>& genericParameters
         );
     bool GetMetadataApi(ModuleID moduleId, FunctionID functionId, ComPtr<IMetaDataImport2>& pMetadataImport);
-    std::pair<std::string, mdTypeDef> GetMethodName(
+    std::tuple<std::string, std::string, mdTypeDef> GetMethodName(
+        FunctionID functionId,
         IMetaDataImport2* pMetadataImport,
         mdMethodDef mdTokenFunc,
         ULONG32 genericParametersCount,
@@ -61,11 +67,9 @@ private:
         mdTypeDef mdTokenType,
         TypeDesc& typeDesc,
         bool isArray,
-        const char* arraySuffix,
-        bool isEncoded
-        );
-    bool GetTypeDesc(ClassID classId, TypeDesc*& typeDesc, bool isEncoded);
-    bool GetCachedTypeDesc(ClassID classId, TypeDesc*& typeDesc, bool isEncoded);
+        const char* arraySuffix);
+    bool GetTypeDesc(ClassID classId, TypeDesc*& typeDesc);
+    bool GetCachedTypeDesc(ClassID classId, TypeDesc*& typeDesc);
     FrameInfoView GetManagedFrame(FunctionID functionId);
     std::pair <std::string_view, std::string_view> GetNativeFrame(uintptr_t instructionPointer);
 
@@ -77,32 +81,41 @@ private:  // global helpers
     static std::string GetTypeNameFromMetadata(IMetaDataImport2* pMetadata, mdTypeDef mdTokenType);
     static std::pair<std::string, std::string> GetTypeWithNamespace(
         IMetaDataImport2* pMetadata,
-        mdTypeDef mdTokenType,
-        bool isArray,
-        const char* arraySuffix
-        );
-    static std::string FormatGenericTypeParameters(IMetaDataImport2* pMetadata, mdTypeDef mdTokenType, bool isEncoded);
+        mdTypeDef mdTokenType);
+    static std::string FormatGenericTypeParameters(IMetaDataImport2* pMetadata, mdTypeDef mdTokenType);
     static std::string FormatGenericParameters(
         ICorProfilerInfo4* pInfo,
         ULONG32 numGenericTypeArgs,
-        ClassID* genericTypeArgs,
-        bool isEncoded);
-    static std::pair<std::string, std::string> GetManagedTypeName(
+        ClassID* genericTypeArgs);
+    static std::tuple<std::string, std::string, std::string> GetManagedTypeName(
         ICorProfilerInfo4* pInfo,
         IMetaDataImport2* pMetadata,
         ModuleID moduleId,
         ClassID classId,
         mdTypeDef mdTokenType,
         bool isArray,
-        const char* arraySuffix,
-        bool isEncoded
+        const char* arraySuffix);
+    std::string GetMethodSignature(
+        ICorProfilerInfo4* pInfo,
+        IMetaDataImport2* pMetadataImport,
+        mdTypeDef mdTokenType,
+        FunctionID functionId,
+        mdMethodDef mdTokenFunc
         );
+    PCCOR_SIGNATURE ParseElementType(
+        IMetaDataImport* pMDImport,
+        PCCOR_SIGNATURE signature,
+        std::vector<std::string>& classTypeArgs,
+        ClassID* methodTypeArgs,
+        ULONG* elementType,
+        std::stringstream& builder,
+        mdToken* typeToken);
     static std::pair<std::string, mdTypeDef> GetMethodNameFromMetadata(
         IMetaDataImport2* pMetadataImport,
         mdMethodDef mdTokenFunc
         );
     static std::pair<std::string, std::string> GetManagedTypeName(ICorProfilerInfo4* pInfo, ClassID classId);
-    static void ConcatUnknownGenericType(std::stringstream& builder, bool isEncoded);
+    static void ConcatUnknownGenericType(std::stringstream& builder);
 
 private:
     struct FrameInfo
@@ -125,13 +138,15 @@ private:
     std::mutex _methodsLock;
     std::mutex _nativeLock;
 
-    // caches functions
+    // frame relate caches functions
     std::unordered_map<FunctionID, FrameInfo> _methods;
     std::mutex _typesLock;
-    std::unordered_map<ClassID, TypeDesc> _types;  // for allocations/exceptions
-    std::mutex _encodedTypesLock;
-    std::unordered_map<ClassID, TypeDesc> _encodedTypes;  // for frames
+    std::unordered_map<ClassID, TypeDesc> _types;
     std::unordered_map<std::string, std::string> _framePerNativeModule;
+
+    // for allocation recorder
+    std::mutex _fullTypeNamesLock;
+    std::unordered_map<ClassID, std::string> _fullTypeNames;
 
     bool _resolveNativeFrames;
     // TODO: dump stats about caches size at the end of the application

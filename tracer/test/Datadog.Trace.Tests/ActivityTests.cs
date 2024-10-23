@@ -30,11 +30,15 @@ namespace Datadog.Trace.Tests
             _fixture = fixture;
         }
 
-        [Fact]
+        [SkippableFact]
         public void SimpleActivitiesAndSpansTest()
         {
+            // macos 12 is crazy flaky around timings
+            // We should unskip this once we have resolved the issues around Hierarchical IDs
+            SkipOn.Platform(SkipOn.PlatformValue.MacOs);
+
             var settings = new TracerSettings();
-            var tracer = TracerHelper.Create(settings);
+            var tracer = TracerHelper.CreateWithFakeAgent(settings);
             Tracer.UnsafeSetTracerInstance(tracer);
 
             Tracer.Instance.ActiveScope.Should().BeNull();
@@ -134,7 +138,7 @@ namespace Datadog.Trace.Tests
         public void SimpleSpansAndActivitiesTest()
         {
             var settings = new TracerSettings();
-            var tracer = TracerHelper.Create(settings);
+            var tracer = TracerHelper.CreateWithFakeAgent(settings);
             Tracer.UnsafeSetTracerInstance(tracer);
 
             Tracer.Instance.ActiveScope.Should().BeNull();
@@ -150,6 +154,8 @@ namespace Datadog.Trace.Tests
                 var hexTraceId = traceId.ToString("x32");
                 var hexSpanId = spanId.ToString("x16");
 
+                var traceId128 = (scope.Span as Span)?.TraceId128.ToString();
+
                 // Create a new child activity as child of span
                 SD.Activity childActivity = null;
                 try
@@ -161,7 +167,7 @@ namespace Datadog.Trace.Tests
                     Tracer.Instance.ActiveScope.Should().NotBe(scope);
 
                     // Assert trace id and parent span id
-                    childActivity.TraceId.ToString().Should().Be(hexTraceId);
+                    childActivity.TraceId.ToString().Should().Be(traceId128);
                     childActivity.ParentSpanId.ToString().Should().Be(hexSpanId);
                     HexString.TryParseUInt64(childActivity.SpanId.ToString(), out var spanIdInULong);
 
@@ -169,7 +175,7 @@ namespace Datadog.Trace.Tests
                     var scopeFromChildActivity = Tracer.Instance.ActiveScope;
                     scopeFromChildActivity.Span.TraceId.Should().Be(traceId);
                     scopeFromChildActivity.Span.SpanId.Should().Be(spanIdInULong);
-                    ((Span)scopeFromChildActivity.Span).Context.RawTraceId.Should().Be(hexTraceId);
+                    ((Span)scopeFromChildActivity.Span).Context.RawTraceId.Should().Be(traceId128);
                     scopeFromChildActivity.Span.OperationName.Should().Be("Child activity");
 
                     // Create datadog span as a child
@@ -178,7 +184,7 @@ namespace Datadog.Trace.Tests
                         // Assert TraceId and parent span id
                         childScope.Span.TraceId.Should().Be(traceId);
                         ((Span)childScope.Span).Context.ParentId.Should().Be(spanIdInULong);
-                        ((Span)childScope.Span).Context.RawTraceId.Should().Be(hexTraceId);
+                        ((Span)childScope.Span).Context.RawTraceId.Should().Be(traceId128);
                     }
                 }
                 finally

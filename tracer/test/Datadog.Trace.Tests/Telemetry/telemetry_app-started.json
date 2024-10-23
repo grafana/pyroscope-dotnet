@@ -1,5 +1,6 @@
 ﻿{
-  "api_version": "v1",
+  "api_version": "v2",
+  "naming_schema_version": "1",
   "request_type": "app-started",
   "tracer_time": 1628099086,
   "runtime_id": "20338dfd-f700-4e5c-b3f6-0d470f054ae8",
@@ -10,52 +11,68 @@
     "tracer_version": "0.33.1",
     "language_name": "node.js",
     "service_version": "1.2.3",
-    "language_version": "14.16.1"
+    "language_version": "14.16.1",
+    "runtime_name": "dotnet",
+    "runtime_version": "7.0.3",
+    "commit_sha": "testCommitSha",
+    "repository_url": "testRepositoryUrl"
   },
   "host": {
     "hostname": "i-09ecf74c319c49be8",
-    "container_id": "d39b145254d1f9c337fdd2be132f6650c6f5bc274bfa28aaa204a908a1134096",
     "os": "GNU/Linux",
     "os_version": "ubuntu 18.04.5 LTS (Bionic Beaver)",
     "kernel_name": "Linux",
     "kernel_release": "5.4.0-1037-gcp",
-    "kernel_version": "#40~18.04.1-Ubuntu SMP Fri Feb 5 15:41:35 UTC 2021"
+    "kernel_version": "#40~18.04.1-Ubuntu SMP Fri Feb 5 15:41:35 UTC 2021",
+    "architecture": "x86_64"
   },
   "payload": {
-    "integrations": [
-      {
-        "name": "express",
+    "products": {
+      "appsec": {
+        "enabled": false
+      },
+      "profiler": {
         "enabled": true,
-        "auto_enabled": true
+        "error": {
+          "code": 1,
+          "message": "Some error"
+        }
+      }
+    },
+    "configuration": [
+      {
+        "name": "DD_TRACE_AGENT_URL",
+        "origin": "env_var",
+        "value": "http://localhost:9126",
+        "seq_id": 1
       },
       {
-        "name": "pg",
-        "compatible": false,
-        "enabled": false,
-        "auto_enabled": false
+        "name": "DD_TRACE_DEBUG",
+        "origin": "env_var",
+        "value": "true",
+        "seq_id": 2
+      },
+      {
+        "name": "DD_TRACE_ENABLED",
+        "origin": "env_var",
+        "value": true,
+        "seq_id": 3
+      },
+      {
+        "name": "DD_API_KEY",
+        "origin": "env_var",
+        "value": "<redacted>",
+        "seq_id": 4,
+        "error": {
+          "code": 4,
+          "message": "Invalid value"
+        }
       }
     ],
-    "dependencies": [
-      {
-        "name": "pg",
-        "version": "8.6.0"
-      },
-      {
-        "name": "express",
-        "version": "4.17.1"
-      },
-      {
-        "name": "body-parser",
-        "version": "1.19.0",
-        "hash": "646DF3C3-959F-4011-8673-EE58BD9291E2"
-      }
-    ],
-    "configuration": [],
-    "additional_payload": [
-      {
-        "name": "to_be",
-        "value": "determined"
-      }
-    ]
+    "install_signature": {
+      "install_id": "68e75c48-57ca-4a12-adfc-575c4b05fcbe",
+      "install_type": "k8s_single_step",
+      "install_time": "1703188212"
+    }
   }
 }

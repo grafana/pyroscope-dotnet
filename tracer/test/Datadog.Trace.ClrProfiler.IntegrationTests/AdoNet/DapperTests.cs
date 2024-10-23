@@ -3,6 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
+using System.Threading.Tasks;
 using Datadog.Trace.TestHelpers;
 using Xunit;
 using Xunit.Abstractions;
@@ -19,41 +20,32 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.AdoNet
         }
 
         // Assert Npgsql because the Dapper application uses Postgres for the actual client
-        public override Result ValidateIntegrationSpan(MockSpan span) => span.IsNpgsql();
+        public override Result ValidateIntegrationSpan(MockSpan span, string metadataSchemaVersion) => span.IsNpgsql(metadataSchemaVersion);
 
         [SkippableFact]
         [Trait("Category", "EndToEnd")]
-        public void SubmitsTraces()
+        public Task SubmitsTracesV0() => RunTest("v0");
+
+        [SkippableFact]
+        [Trait("Category", "EndToEnd")]
+        public Task SubmitsTracesV1() => RunTest("v1");
+
+        private async Task RunTest(string metadataSchemaVersion)
         {
             const int expectedSpanCount = 17;
             const string dbType = "postgres";
             const string expectedOperationName = dbType + ".query";
-            const string expectedServiceName = "Samples.Dapper-" + dbType;
+
+            SetEnvironmentVariable("DD_TRACE_SPAN_ATTRIBUTE_SCHEMA", metadataSchemaVersion);
+            var isExternalSpan = metadataSchemaVersion == "v0";
+            var clientSpanServiceName = isExternalSpan ? $"{EnvironmentHelper.FullSampleName}-{dbType}" : EnvironmentHelper.FullSampleName;
 
             using (var agent = EnvironmentHelper.GetMockAgent())
-            using (RunSampleAndWaitForExit(agent))
+            using (await RunSampleAndWaitForExit(agent))
             {
                 var spans = agent.WaitForSpans(expectedSpanCount, operationName: expectedOperationName);
                 Assert.Equal(expectedSpanCount, spans.Count);
-                ValidateIntegrationSpans(spans, expectedServiceName: expectedServiceName);
-            }
-        }
-
-        [SkippableFact]
-        [Trait("Category", "EndToEnd")]
-        public void SubmitsTracesWithNetStandard()
-        {
-            const int expectedSpanCount = 17;
-            const string dbType = "postgres";
-            const string expectedOperationName = dbType + ".query";
-            const string expectedServiceName = "Samples.Dapper-" + dbType;
-
-            using (var agent = EnvironmentHelper.GetMockAgent())
-            using (RunSampleAndWaitForExit(agent))
-            {
-                var spans = agent.WaitForSpans(expectedSpanCount, operationName: expectedOperationName);
-                Assert.Equal(expectedSpanCount, spans.Count);
-                ValidateIntegrationSpans(spans, expectedServiceName: expectedServiceName);
+                ValidateIntegrationSpans(spans, metadataSchemaVersion, expectedServiceName: clientSpanServiceName, isExternalSpan);
             }
         }
     }

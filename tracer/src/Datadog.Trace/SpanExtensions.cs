@@ -9,7 +9,10 @@ using System.Text;
 using Datadog.Trace.AppSec;
 using Datadog.Trace.AppSec.Coordinator;
 using Datadog.Trace.Logging;
+using Datadog.Trace.SourceGenerators;
 using Datadog.Trace.Tagging;
+using Datadog.Trace.Telemetry;
+using Datadog.Trace.Telemetry.Metrics;
 using Datadog.Trace.Util;
 
 namespace Datadog.Trace
@@ -24,7 +27,14 @@ namespace Datadog.Trace
         /// </summary>
         /// <param name="span">The span to be tagged</param>
         /// <param name="userDetails">The details of the current logged on user</param>
+        [PublicApi]
         public static void SetUser(this ISpan span, UserDetails userDetails)
+        {
+            TelemetryFactory.Metrics.Record(PublicApiUsage.SpanExtensions_SetUser);
+            SetUserInternal(span, userDetails);
+        }
+
+        internal static void SetUserInternal(this ISpan span, UserDetails userDetails)
         {
             if (span is null)
             {
@@ -78,5 +88,39 @@ namespace Datadog.Trace
                 RunBlockingCheck(spanClass, userDetails.Id);
             }
         }
+
+        /// <summary>
+        /// Add the specified tag to this span.
+        /// </summary>
+        /// <param name="span">The span to be tagged</param>
+        /// <param name="key">The tag's key.</param>
+        /// <param name="value">The tag's value.</param>
+        /// <returns>This span to allow method chaining.</returns>
+        [PublicApi]
+        public static ISpan SetTag(this ISpan span, string key, double? value)
+        {
+            TelemetryFactory.Metrics.Record(PublicApiUsage.SpanExtensions_SetTag);
+            return span.SetTagInternal(key, value);
+        }
+
+        internal static ISpan SetTagInternal(this ISpan span, string key, double? value)
+        {
+            if (span is null)
+            {
+                ThrowHelper.ThrowArgumentNullException(nameof(span));
+            }
+
+            if (span is Span internalSpan)
+            {
+                return internalSpan.SetMetric(key, value);
+            }
+
+            // If is not an internal span, we add the numeric value as string as a fallback only
+            // so it can be converted automatically by the backend (only if a measurement facet is created for this tag)
+            return span.SetTag(key, value?.ToString());
+        }
+
+        internal static bool IsCiVisibilitySpan(this ISpan span)
+            => span.Type is SpanTypes.TestSession or SpanTypes.TestModule or SpanTypes.TestSuite or SpanTypes.Test or SpanTypes.Browser;
     }
 }

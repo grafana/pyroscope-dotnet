@@ -32,7 +32,6 @@ PyroscopePprofSink::PyroscopePprofSink(
     _client.set_read_timeout(10);
 
     _workerThread = std::thread(&PyroscopePprofSink::work, this);
-    OpSysTools::SetNativeThreadName(&_workerThread, WStr("Pyroscope.Pprof.Uploader"));
 }
 
 PyroscopePprofSink::~PyroscopePprofSink()
@@ -79,6 +78,7 @@ void PyroscopePprofSink::SetBasicAuth(std::string user, std::string password)
 
 void PyroscopePprofSink::work()
 {
+    OpSysTools::SetNativeThreadName(WStr("Pyroscope.Pprof.Uploader"));
     while (_running.load())
     {
         PyroscopeRequest req = {};

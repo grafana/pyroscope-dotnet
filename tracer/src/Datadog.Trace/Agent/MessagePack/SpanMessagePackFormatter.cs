@@ -6,10 +6,9 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-using Datadog.Trace.Configuration;
 using Datadog.Trace.ExtensionMethods;
-using Datadog.Trace.PlatformHelpers;
 using Datadog.Trace.Processors;
+using Datadog.Trace.Propagators;
 using Datadog.Trace.Tagging;
 using Datadog.Trace.Util;
 using Datadog.Trace.Vendors.MessagePack;
@@ -30,6 +29,7 @@ namespace Datadog.Trace.Agent.MessagePack
 
         // top-level span fields
         private readonly byte[] _traceIdBytes = StringEncoding.UTF8.GetBytes("trace_id");
+        private readonly byte[] _traceIdHighBytes = StringEncoding.UTF8.GetBytes("trace_id_high");
         private readonly byte[] _spanIdBytes = StringEncoding.UTF8.GetBytes("span_id");
         private readonly byte[] _nameBytes = StringEncoding.UTF8.GetBytes("name");
         private readonly byte[] _resourceBytes = StringEncoding.UTF8.GetBytes("resource");
@@ -39,6 +39,13 @@ namespace Datadog.Trace.Agent.MessagePack
         private readonly byte[] _durationBytes = StringEncoding.UTF8.GetBytes("duration");
         private readonly byte[] _parentIdBytes = StringEncoding.UTF8.GetBytes("parent_id");
         private readonly byte[] _errorBytes = StringEncoding.UTF8.GetBytes("error");
+        private readonly byte[] _metaStructBytes = StringEncoding.UTF8.GetBytes("meta_struct");
+
+        // span links metadata
+        private readonly byte[] _spanLinkBytes = StringEncoding.UTF8.GetBytes("span_links");
+        private readonly byte[] _traceStateBytes = StringEncoding.UTF8.GetBytes("tracestate");
+        private readonly byte[] _traceFlagBytes = StringEncoding.UTF8.GetBytes("flags");
+        private readonly byte[] _attributesBytes = StringEncoding.UTF8.GetBytes("attributes");
 
         // string tags
         private readonly byte[] _metaBytes = StringEncoding.UTF8.GetBytes("meta");
@@ -57,6 +64,7 @@ namespace Datadog.Trace.Agent.MessagePack
         private readonly byte[] _versionNameBytes = StringEncoding.UTF8.GetBytes(Trace.Tags.Version);
 
         private readonly byte[] _originNameBytes = StringEncoding.UTF8.GetBytes(Trace.Tags.Origin);
+        private readonly byte[] _lastParentIdBytes = StringEncoding.UTF8.GetBytes(Trace.Tags.LastParentId);
 
         // numeric tags
         private readonly byte[] _metricsBytes = StringEncoding.UTF8.GetBytes("metrics");
@@ -64,6 +72,8 @@ namespace Datadog.Trace.Agent.MessagePack
         private readonly byte[] _samplingPriorityNameBytes = StringEncoding.UTF8.GetBytes(Metrics.SamplingPriority);
 
         private readonly byte[] _processIdNameBytes = StringEncoding.UTF8.GetBytes(Metrics.ProcessId);
+
+        private readonly byte[] _apmEnabledBytes = StringEncoding.UTF8.GetBytes(Metrics.ApmEnabled);
 
         // Azure App Service tag names and values
         private byte[] _aasSiteNameTagNameBytes;
@@ -90,10 +100,17 @@ namespace Datadog.Trace.Agent.MessagePack
         // overload of IMessagePackFormatter<TraceChunkModel>.Serialize() with `in` modifier on `TraceChunkModel` parameter
         public int Serialize(ref byte[] bytes, int offset, in TraceChunkModel traceChunk, IFormatterResolver formatterResolver, int? maxSize = null)
         {
+            if (traceChunk.SpanCount > 0)
+            {
+                var spanModel = traceChunk.GetSpanModel(0);
+                traceChunk.Tags?.FixTraceIdTag(spanModel.Span.TraceId128);
+            }
+
             int originalOffset = offset;
 
             // start writing span[]
             offset += MessagePackBinary.WriteArrayHeader(ref bytes, offset, traceChunk.SpanCount);
+
             // serialize each span
             for (var i = 0; i < traceChunk.SpanCount; i++)
             {
@@ -122,12 +139,24 @@ namespace Datadog.Trace.Agent.MessagePack
             // It should be the number of members of the object to be serialized.
             var len = 8;
 
-            if (span.Context.ParentId > 0)
+            if (span.Context.ParentIdInternal > 0)
             {
                 len++;
             }
 
             if (span.Error)
+            {
+                len++;
+            }
+
+            var hasMetaStruct = span.Tags.HasMetaStruct();
+            if (hasMetaStruct)
+            {
+                len++;
+            }
+
+            var hasSpanLinks = span.SpanLinks is { Count: > 0 };
+            if (hasSpanLinks)
             {
                 len++;
             }
@@ -138,8 +167,9 @@ namespace Datadog.Trace.Agent.MessagePack
 
             offset += MessagePackBinary.WriteMapHeader(ref bytes, offset, len);
 
+            // trace_id field is 64-bits, truncate by using TraceId128.Lower
             offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _traceIdBytes);
-            offset += MessagePackBinary.WriteUInt64(ref bytes, offset, span.Context.TraceId);
+            offset += MessagePackBinary.WriteUInt64(ref bytes, offset, span.Context.TraceId128.Lower);
 
             offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _spanIdBytes);
             offset += MessagePackBinary.WriteUInt64(ref bytes, offset, span.Context.SpanId);
@@ -162,10 +192,10 @@ namespace Datadog.Trace.Agent.MessagePack
             offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _durationBytes);
             offset += MessagePackBinary.WriteInt64(ref bytes, offset, span.Duration.ToNanoseconds());
 
-            if (span.Context.ParentId > 0)
+            if (span.Context.ParentIdInternal > 0)
             {
                 offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _parentIdBytes);
-                offset += MessagePackBinary.WriteUInt64(ref bytes, offset, (ulong)span.Context.ParentId);
+                offset += MessagePackBinary.WriteUInt64(ref bytes, offset, (ulong)span.Context.ParentIdInternal);
             }
 
             if (span.Error)
@@ -183,7 +213,121 @@ namespace Datadog.Trace.Agent.MessagePack
             offset += WriteTags(ref bytes, offset, in spanModel, tagProcessors);
             offset += WriteMetrics(ref bytes, offset, in spanModel, tagProcessors);
 
+            if (hasMetaStruct)
+            {
+                offset += WriteMetaStruct(ref bytes, offset, in spanModel);
+            }
+
+            if (hasSpanLinks)
+            {
+                offset += WriteSpanLink(ref bytes, offset, in spanModel);
+            }
+
             return offset - originalOffset;
+        }
+
+        private int WriteSpanLink(ref byte[] bytes, int offset, in SpanModel spanModel)
+        {
+            int originalOffset = offset;
+
+            offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _spanLinkBytes);
+            offset += MessagePackBinary.WriteArrayHeader(ref bytes, offset, spanModel.Span.SpanLinks.Count);
+
+            foreach (var spanLink in spanModel.Span.SpanLinks)
+            {
+                var context = spanLink.Context;
+                var samplingPriority = context.TraceContext?.SamplingPriority ?? context.SamplingPriority;
+
+                var traceFlags = samplingPriority switch
+                {
+                    null => 0u,             // not set
+                    > 0 => 1u + (1u << 31), // keep
+                    <= 0 => 1u << 31,       // drop
+                };
+
+                var len = 3;
+
+                // check to serialize tracestate
+                if (context.IsRemote)
+                {
+                    len++;
+                }
+
+                if (traceFlags > 0)
+                {
+                    len++;
+                }
+
+                var hasAttributes = spanLink.Attributes is { Count: > 0 };
+                if (hasAttributes)
+                {
+                    len++;
+                }
+
+                offset += MessagePackBinary.WriteMapHeader(ref bytes, offset, len);
+                // individual key-value pairs - traceid - lower
+                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _traceIdBytes);
+                offset += MessagePackBinary.WriteUInt64(ref bytes, offset, context.TraceId128.Lower);
+                // individual key-value pairs - traceid - higher
+                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _traceIdHighBytes);
+                offset += MessagePackBinary.WriteUInt64(ref bytes, offset, context.TraceId128.Upper);
+                // spanid
+                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _spanIdBytes);
+                offset += MessagePackBinary.WriteUInt64(ref bytes, offset, context.SpanId);
+                // optional serialization
+                if (hasAttributes)
+                {
+                    offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _attributesBytes);
+                    offset += MessagePackBinary.WriteMapHeader(ref bytes, offset, spanLink.Attributes.Count);
+                    foreach (var attribute in spanLink.Attributes)
+                    {
+                        offset += MessagePackBinary.WriteString(ref bytes, offset, attribute.Key);
+                        offset += MessagePackBinary.WriteString(ref bytes, offset, attribute.Value);
+                    }
+                }
+
+                // CreateTraceStateHeader will never return null or empty
+                if (context.IsRemote)
+                {
+                    var traceState = W3CTraceContextPropagator.CreateTraceStateHeader(context);
+                    offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _traceStateBytes);
+                    offset += MessagePackBinary.WriteString(ref bytes, offset, traceState);
+                }
+
+                if (traceFlags > 0)
+                {
+                    offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _traceFlagBytes);
+                    offset += MessagePackBinary.WriteUInt32(ref bytes, offset, traceFlags);
+                }
+            }
+
+            return offset - originalOffset;
+        }
+
+        private int WriteMetaStruct(ref byte[] bytes, int offset, in SpanModel model)
+        {
+            int originalOffset = offset;
+            offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _metaStructBytes);
+
+            // We don't know the final count yet, depending on it, a different amount of bytes will be used for the header
+            // of the dictionary, so we need a temporary buffer
+
+            var temporaryBytes = new byte[256];
+            var tagWriter = new TagWriter(this, null, temporaryBytes, 0);
+            model.Span.Tags.EnumerateMetaStruct(ref tagWriter);
+            temporaryBytes = tagWriter.Bytes;
+            Array.Resize(ref temporaryBytes, tagWriter.Offset);
+
+            offset += MessagePackBinary.WriteMapHeader(ref bytes, offset, tagWriter.Count);
+            offset += MessagePackBinary.WriteRaw(ref bytes, offset, temporaryBytes);
+
+            return offset - originalOffset;
+        }
+
+        private void WriteMetaStruct(ref byte[] bytes, ref int offset, string key, byte[] value)
+        {
+            offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, StringEncoding.UTF8.GetBytes(key));
+            offset += MessagePackBinary.WriteBytes(ref bytes, offset, value);
         }
 
         // TAGS
@@ -209,16 +353,29 @@ namespace Datadog.Trace.Agent.MessagePack
             offset = tagWriter.Offset;
             count += tagWriter.Count;
 
-            // TODO: for each trace tag, determine if it should be added to the local root,
-            // to the first span in the chunk, or to all orphan spans.
-            // For now, we add them to the local root which is correct in most cases.
-            if (model.IsLocalRoot && model.TraceChunk.Tags is { Count: > 0 } traceTags)
+            // Write trace tags
+            if (model is { TraceChunk.Tags: { Count: > 0 } traceTags })
             {
-                var traceTagWriter = new TraceTagWriter(this, tagProcessors, bytes, offset);
+                var traceTagWriter = new TraceTagWriter(
+                    this,
+                    tagProcessors,
+                    isLocalRoot: model.IsLocalRoot,
+                    isChunkOrphan: model.IsChunkOrphan,
+                    isFirstSpanInChunk: model.IsFirstSpanInChunk,
+                    bytes,
+                    offset);
+
                 traceTags.Enumerate(ref traceTagWriter);
                 bytes = traceTagWriter.Bytes;
                 offset = traceTagWriter.Offset;
                 count += traceTagWriter.Count;
+            }
+
+            if (!string.IsNullOrEmpty(span.Context.LastParentId))
+            {
+                count++;
+                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _lastParentIdBytes);
+                offset += MessagePackBinary.WriteString(ref bytes, offset, span.Context.LastParentId);
             }
 
             // add "runtime-id" tag to service-entry (aka top-level) spans
@@ -249,33 +406,13 @@ namespace Datadog.Trace.Agent.MessagePack
                 offset += MessagePackBinary.WriteRaw(ref bytes, offset, envRawBytes);
             }
 
-            var gitCommitShaRawBytes = MessagePackStringCache.GetGitCommitShaBytes(model.TraceChunk.GitCommitSha);
-            if (gitCommitShaRawBytes is not null)
-            {
-                count++;
-                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _gitCommitShaNameBytes);
-                offset += MessagePackBinary.WriteRaw(ref bytes, offset, gitCommitShaRawBytes);
-            }
-
-            var gitRepositoryUrlRawBytes = MessagePackStringCache.GetGitRepositoryUrlBytes(model.TraceChunk.GitRepositoryUrl);
-            if (gitRepositoryUrlRawBytes is not null)
-            {
-                count++;
-                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _gitRepositoryUrlNameBytes);
-                offset += MessagePackBinary.WriteRaw(ref bytes, offset, gitRepositoryUrlRawBytes);
-            }
-
-            // add "language=dotnet" tag to all spans, except those that
-            // represents a downstream service or external dependency
-            if (span.Tags is not InstrumentationTags { SpanKind: SpanKinds.Client or SpanKinds.Producer })
-            {
-                count++;
-                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _languageNameBytes);
-                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _languageValueBytes);
-            }
+            // add "language=dotnet" tag to all spans
+            count++;
+            offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _languageNameBytes);
+            offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _languageValueBytes);
 
             // add "version" tags to all spans whose service name is the default service name
-            if (string.Equals(span.Context.ServiceName, model.TraceChunk.DefaultServiceName, StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(span.Context.ServiceNameInternal, model.TraceChunk.DefaultServiceName, StringComparison.OrdinalIgnoreCase))
             {
                 var versionRawBytes = MessagePackStringCache.GetVersionBytes(model.TraceChunk.ServiceVersion);
 
@@ -284,6 +421,26 @@ namespace Datadog.Trace.Agent.MessagePack
                     count++;
                     offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _versionNameBytes);
                     offset += MessagePackBinary.WriteRaw(ref bytes, offset, versionRawBytes);
+                }
+            }
+
+            // SCI tags will be sent only once per trace chunk
+            if (model.IsFirstSpanInChunk)
+            {
+                var gitCommitShaRawBytes = MessagePackStringCache.GetGitCommitShaBytes(model.TraceChunk.GitCommitSha);
+                if (gitCommitShaRawBytes is not null)
+                {
+                    count++;
+                    offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _gitCommitShaNameBytes);
+                    offset += MessagePackBinary.WriteRaw(ref bytes, offset, gitCommitShaRawBytes);
+                }
+
+                var gitRepositoryUrlRawBytes = MessagePackStringCache.GetGitRepositoryUrlBytes(model.TraceChunk.GitRepositoryUrl);
+                if (gitRepositoryUrlRawBytes is not null)
+                {
+                    count++;
+                    offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _gitRepositoryUrlNameBytes);
+                    offset += MessagePackBinary.WriteRaw(ref bytes, offset, gitRepositoryUrlRawBytes);
                 }
             }
 
@@ -414,7 +571,7 @@ namespace Datadog.Trace.Agent.MessagePack
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void WriteTag(ref byte[] bytes, ref int offset, byte[] keyBytes, string value, ITagProcessor[] tagProcessors)
+        private void WriteTag(ref byte[] bytes, ref int offset, ReadOnlySpan<byte> keyBytes, string value, ITagProcessor[] tagProcessors)
         {
             if (tagProcessors is not null)
             {
@@ -425,7 +582,8 @@ namespace Datadog.Trace.Agent.MessagePack
                 }
             }
 
-            offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, keyBytes);
+            MessagePackBinary.EnsureCapacity(ref bytes, offset, keyBytes.Length + StringEncoding.UTF8.GetMaxByteCount(value.Length) + 5);
+            offset += MessagePackBinary.WriteRaw(ref bytes, offset, keyBytes);
             offset += MessagePackBinary.WriteString(ref bytes, offset, value);
         }
 
@@ -460,6 +618,15 @@ namespace Datadog.Trace.Agent.MessagePack
                 count++;
                 offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _processIdNameBytes);
                 offset += MessagePackBinary.WriteDouble(ref bytes, offset, processId);
+            }
+
+            // add the "apm.enabled" tag with a value of 0
+            // to the first span in the chunk when APM is disabled
+            if (!model.TraceChunk.IsApmEnabled && model.IsLocalRoot)
+            {
+                count++;
+                offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, _apmEnabledBytes);
+                offset += MessagePackBinary.WriteDouble(ref bytes, offset, 0);
             }
 
             // add "_sampling_priority_v1" tag to all "chunk orphans"
@@ -504,7 +671,7 @@ namespace Datadog.Trace.Agent.MessagePack
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void WriteMetric(ref byte[] bytes, ref int offset, byte[] keyBytes, double value, ITagProcessor[] tagProcessors)
+        private void WriteMetric(ref byte[] bytes, ref int offset, ReadOnlySpan<byte> keyBytes, double value, ITagProcessor[] tagProcessors)
         {
             if (tagProcessors is not null)
             {
@@ -515,7 +682,8 @@ namespace Datadog.Trace.Agent.MessagePack
                 }
             }
 
-            offset += MessagePackBinary.WriteStringBytes(ref bytes, offset, keyBytes);
+            MessagePackBinary.EnsureCapacity(ref bytes, offset, keyBytes.Length + 9);
+            offset += MessagePackBinary.WriteRaw(ref bytes, offset, keyBytes);
             offset += MessagePackBinary.WriteDouble(ref bytes, offset, value);
         }
 
@@ -543,7 +711,7 @@ namespace Datadog.Trace.Agent.MessagePack
             }
         }
 
-        internal struct TagWriter : IItemProcessor<string>, IItemProcessor<double>
+        internal struct TagWriter : IItemProcessor<string>, IItemProcessor<double>, IItemProcessor<byte[]>
         {
             private readonly SpanMessagePackFormatter _formatter;
             private readonly ITagProcessor[] _tagProcessors;
@@ -565,13 +733,13 @@ namespace Datadog.Trace.Agent.MessagePack
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Process(TagItem<string> item)
             {
-                if (item.KeyUtf8 is null)
+                if (item.SerializedKey.IsEmpty)
                 {
                     _formatter.WriteTag(ref Bytes, ref Offset, item.Key, item.Value, _tagProcessors);
                 }
                 else
                 {
-                    _formatter.WriteTag(ref Bytes, ref Offset, item.KeyUtf8, item.Value, _tagProcessors);
+                    _formatter.WriteTag(ref Bytes, ref Offset, item.SerializedKey, item.Value, _tagProcessors);
                 }
 
                 Count++;
@@ -580,15 +748,22 @@ namespace Datadog.Trace.Agent.MessagePack
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Process(TagItem<double> item)
             {
-                if (item.KeyUtf8 is null)
+                if (item.SerializedKey.IsEmpty)
                 {
                     _formatter.WriteMetric(ref Bytes, ref Offset, item.Key, item.Value, _tagProcessors);
                 }
                 else
                 {
-                    _formatter.WriteMetric(ref Bytes, ref Offset, item.KeyUtf8, item.Value, _tagProcessors);
+                    _formatter.WriteMetric(ref Bytes, ref Offset, item.SerializedKey, item.Value, _tagProcessors);
                 }
 
+                Count++;
+            }
+
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public void Process(TagItem<byte[]> item)
+            {
+                _formatter.WriteMetaStruct(ref Bytes, ref Offset, item.Key, item.Value);
                 Count++;
             }
         }
@@ -597,16 +772,29 @@ namespace Datadog.Trace.Agent.MessagePack
         {
             private readonly SpanMessagePackFormatter _formatter;
             private readonly ITagProcessor[] _tagProcessors;
+            private readonly bool _isLocalRoot;
+            private readonly bool _isChunkOrphan;
+            private readonly bool _isFirstSpanInChunk;
 
             public byte[] Bytes;
             public int Offset;
             public int Count;
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            internal TraceTagWriter(SpanMessagePackFormatter formatter, ITagProcessor[] tagProcessors, byte[] bytes, int offset)
+            internal TraceTagWriter(
+                SpanMessagePackFormatter formatter,
+                ITagProcessor[] tagProcessors,
+                bool isLocalRoot,
+                bool isChunkOrphan,
+                bool isFirstSpanInChunk,
+                byte[] bytes,
+                int offset)
             {
                 _formatter = formatter;
                 _tagProcessors = tagProcessors;
+                _isLocalRoot = isLocalRoot;
+                _isChunkOrphan = isChunkOrphan;
+                _isFirstSpanInChunk = isFirstSpanInChunk;
                 Bytes = bytes;
                 Offset = offset;
                 Count = 0;
@@ -615,8 +803,15 @@ namespace Datadog.Trace.Agent.MessagePack
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public void Next(KeyValuePair<string, string> item)
             {
-                _formatter.WriteTag(ref Bytes, ref Offset, item.Key, item.Value, _tagProcessors);
-                Count++;
+                var isPropagatedTag = item.Key.StartsWith(TagPropagation.PropagatedTagPrefix, StringComparison.Ordinal);
+
+                // add propagated trace tags to the first span in every chunk,
+                // add non-propagated trace tags to the root span
+                if ((isPropagatedTag && _isFirstSpanInChunk) || (!isPropagatedTag && _isLocalRoot))
+                {
+                    _formatter.WriteTag(ref Bytes, ref Offset, item.Key, item.Value, _tagProcessors);
+                    Count++;
+                }
             }
         }
     }

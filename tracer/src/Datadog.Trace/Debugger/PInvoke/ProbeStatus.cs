@@ -14,9 +14,11 @@ namespace Datadog.Trace.Debugger.PInvoke
         public ProbeStatus(string probeId, Status status, string errorMessage = null)
         {
             ProbeId = probeId;
-            ErrorMessage = errorMessage;
+            ErrorMessage = errorMessage ?? string.Empty;
             Status = status;
         }
+
+        public static ProbeStatus Default { get; } = new(string.Empty, Sink.Models.Status.BLOCKED, string.Empty);
 
         public string ProbeId { get; }
 

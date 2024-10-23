@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using System.Runtime.CompilerServices;
 using System.ServiceProcess;
 using System.Threading.Tasks;
@@ -40,6 +41,20 @@ namespace Samples.Computer01
         private MeasureAllocations _measureAllocations;
         private InnerMethods _innerMethods;
         private LineNumber _lineNumber;
+        private NullThreadNameBugCheck _nullThreadNameBugCheck;
+        private MethodsSignature _methodsSignature;
+        private SigSegvHandlerExecution _sigsegvHandler;
+#if NETCOREAPP3_0_OR_GREATER
+        private LinuxDlIteratePhdrDeadlock _linuxDlIteratePhdrDeadlock;
+#endif
+
+#if NET5_0_OR_GREATER
+        private OpenLdapCrash _openldapCrash;
+        private SocketTimeout _socketTest;
+#endif
+        private Obfuscation _obfuscation;
+        private ThreadSpikes _threadSpikes;
+        private StringConcat _stringConcat;
 
         public void StartService(Scenario scenario, int nbThreads, int parameter)
         {
@@ -61,6 +76,7 @@ namespace Samples.Computer01
                     StartGenericsAllocation(nbThreads);
                     StartContentionGenerator(nbThreads, parameter);
                     StartLineNumber();
+                    StartMethodsSignature();
                     break;
 
                 case Scenario.Computer:
@@ -136,6 +152,44 @@ namespace Samples.Computer01
                     StartLineNumber();
                     break;
 
+                case Scenario.NullThreadNameBug:
+                    StartNullThreadNameBugCheck();
+                    break;
+
+                case Scenario.MethodSignature:
+                    StartMethodsSignature();
+                    break;
+
+#if NET5_0_OR_GREATER
+                case Scenario.OpenLdapCrash:
+                    StartOpenLdapCrash();
+                    break;
+                case Scenario.SocketTimeout:
+                    StartSocketTimeout();
+                    break;
+#endif
+                case Scenario.Obfuscation:
+                    StartObfuscation();
+                    break;
+
+                case Scenario.ForceSigSegvHandler:
+                    StartForceSigSegvHandler();
+                    break;
+
+                case Scenario.ThreadSpikes:
+                    StartThreadSpikes(nbThreads, parameter);
+                    break;
+
+                case Scenario.StringConcat:
+                    StartStringConcat(parameter);
+                    break;
+
+#if NETCOREAPP3_0_OR_GREATER
+                case Scenario.LinuxDlIteratePhdrDeadlock:
+                    StartLinuxDlIteratePhdrDeadlock();
+                    break;
+#endif
+
                 default:
                     throw new ArgumentOutOfRangeException(nameof(scenario), $"Unsupported scenario #{_scenario}");
             }
@@ -157,6 +211,7 @@ namespace Samples.Computer01
                     StopGenericsAllocation();
                     StopContentionGenerator();
                     StopLineNumber();
+                    StopMethodsSignature();
                     break;
 
                 case Scenario.Computer:
@@ -232,6 +287,45 @@ namespace Samples.Computer01
                 case Scenario.LineNumber:
                     StopLineNumber();
                     break;
+
+                case Scenario.NullThreadNameBug:
+                    StopNullThreadNameBugCheck();
+                    break;
+
+                case Scenario.MethodSignature:
+                    StopMethodsSignature();
+                    break;
+
+#if NET5_0_OR_GREATER
+                case Scenario.OpenLdapCrash:
+                    StopOpenLdapCrash();
+                    break;
+                case Scenario.SocketTimeout:
+                    StopSocketTimeout();
+                    break;
+#endif
+
+                case Scenario.Obfuscation:
+                    StopObfuscation();
+                    break;
+
+                case Scenario.ForceSigSegvHandler:
+                    StopForceSigSegvHandler();
+                    break;
+
+                case Scenario.ThreadSpikes:
+                    StopThreadSpikes();
+                    break;
+
+                case Scenario.StringConcat:
+                    StopStringConcat();
+                    break;
+
+#if NETCOREAPP3_0_OR_GREATER
+                case Scenario.LinuxDlIteratePhdrDeadlock:
+                    StopLinuxDlIteratePhdrDeadlock();
+                    break;
+#endif
             }
         }
 
@@ -259,6 +353,7 @@ namespace Samples.Computer01
                         RunGenericsAllocation(nbThreads);
                         RunContentionGenerator(nbThreads, parameter);
                         RunLineNumber();
+                        RunMethodsSignature();
                         break;
 
                     case Scenario.Computer:
@@ -332,6 +427,38 @@ namespace Samples.Computer01
 
                     case Scenario.LineNumber:
                         RunLineNumber();
+                        break;
+
+                    case Scenario.NullThreadNameBug:
+                        RunNullThreadNameBugCheck();
+                        break;
+
+                    case Scenario.MethodSignature:
+                        RunMethodsSignature();
+                        break;
+
+#if NET5_0_OR_GREATER
+                    case Scenario.OpenLdapCrash:
+                        RunOpenLdapCrash();
+                        break;
+                    case Scenario.SocketTimeout:
+                        RunSocketTimeout();
+                        break;
+#endif
+                    case Scenario.ForceSigSegvHandler:
+                        RunForceSigSegvHandler();
+                        break;
+
+                    case Scenario.Obfuscation:
+                        RunObfuscation();
+                        break;
+
+                    case Scenario.ThreadSpikes:
+                        RunThreadSpikes(nbThreads, parameter);
+                        break;
+
+                    case Scenario.StringConcat:
+                        RunStringConcat(parameter);
                         break;
 
                     default:
@@ -463,6 +590,14 @@ namespace Samples.Computer01
             _linuxMallockDeadlock.Start();
         }
 
+#if NETCOREAPP3_0_OR_GREATER
+        private void StartLinuxDlIteratePhdrDeadlock()
+        {
+            _linuxDlIteratePhdrDeadlock = new LinuxDlIteratePhdrDeadlock();
+            _linuxDlIteratePhdrDeadlock.Start();
+        }
+#endif
+
         private void StartMeasureAllocations()
         {
             _measureAllocations = new MeasureAllocations();
@@ -479,6 +614,61 @@ namespace Samples.Computer01
         {
             _lineNumber = new LineNumber();
             _lineNumber.Start();
+        }
+
+        private void StartNullThreadNameBugCheck()
+        {
+            _nullThreadNameBugCheck = new NullThreadNameBugCheck();
+            _nullThreadNameBugCheck.Start();
+        }
+
+        private void StartMethodsSignature()
+        {
+            _methodsSignature = new MethodsSignature();
+            _methodsSignature.Start();
+        }
+
+#if NET5_0_OR_GREATER
+        private void StartOpenLdapCrash()
+        {
+            _openldapCrash = new OpenLdapCrash();
+            _openldapCrash.Start();
+        }
+
+        private void StartSocketTimeout()
+        {
+            _socketTest = new SocketTimeout();
+            _socketTest.Start();
+        }
+#endif
+
+        private void StartObfuscation()
+        {
+            _obfuscation = new Obfuscation();
+            _obfuscation.Start();
+        }
+
+        private void StopForceSigSegvHandler()
+        {
+            _sigsegvHandler.Stop();
+        }
+
+        private void StartForceSigSegvHandler()
+        {
+            _sigsegvHandler = new SigSegvHandlerExecution();
+            _sigsegvHandler.Start();
+        }
+
+        private void StartThreadSpikes(int threadCount, int duration)
+        {
+            _threadSpikes = new ThreadSpikes(threadCount, duration);
+            _threadSpikes.Start();
+        }
+
+        private void StartStringConcat(int count)
+        {
+            _stringConcat = new StringConcat(count);
+            _stringConcat.Start();
         }
 
         private void StopComputer()
@@ -550,7 +740,17 @@ namespace Samples.Computer01
         {
             _linuxSignalHandler.Stop();
         }
+
+        private void StopSocketTimeout()
+        {
+            _socketTest.Stop();
+        }
 #endif
+
+        private void StopObfuscation()
+        {
+            _obfuscation.Stop();
+        }
 
         private void StopGarbageCollections()
         {
@@ -572,6 +772,13 @@ namespace Samples.Computer01
             _linuxMallockDeadlock.Stop();
         }
 
+#if NETCOREAPP3_0_OR_GREATER
+        private void StopLinuxDlIteratePhdrDeadlock()
+        {
+            _linuxDlIteratePhdrDeadlock.Stop();
+        }
+#endif
+
         private void StopMeasureAllocations()
         {
             _measureAllocations.Stop();
@@ -585,6 +792,33 @@ namespace Samples.Computer01
         private void StopLineNumber()
         {
             _lineNumber.Stop();
+        }
+
+        private void StopNullThreadNameBugCheck()
+        {
+            _nullThreadNameBugCheck.Stop();
+        }
+
+        private void StopMethodsSignature()
+        {
+            _methodsSignature.Stop();
+        }
+
+#if NET5_0_OR_GREATER
+        private void StopOpenLdapCrash()
+        {
+            _openldapCrash.Stop();
+        }
+#endif
+
+        private void StopThreadSpikes()
+        {
+            _threadSpikes.Stop();
+        }
+
+        private void StopStringConcat()
+        {
+            _stringConcat.Stop();
         }
 
         private void RunComputer()
@@ -715,6 +949,56 @@ namespace Samples.Computer01
         {
             var lineNumber = new LineNumber();
             lineNumber.Run();
+        }
+
+        private void RunNullThreadNameBugCheck()
+        {
+            var nullThreadNameBugCheck = new NullThreadNameBugCheck();
+            nullThreadNameBugCheck.Run();
+        }
+
+        private void RunMethodsSignature()
+        {
+            var methodsSignature = new MethodsSignature();
+            methodsSignature.Run();
+        }
+
+#if NET5_0_OR_GREATER
+        private void RunOpenLdapCrash()
+        {
+            var openldapCrash = new OpenLdapCrash();
+            openldapCrash.Run();
+        }
+
+        private void RunSocketTimeout()
+        {
+            var socketTest = new SocketTimeout();
+            socketTest.Run();
+        }
+#endif
+
+        private void RunForceSigSegvHandler()
+        {
+            var test = new SigSegvHandlerExecution();
+            test.Run();
+        }
+
+        private void RunObfuscation()
+        {
+            var test = new Obfuscation();
+            test.Run();
+        }
+
+        private void RunThreadSpikes(int threadCount, int duration)
+        {
+            var test = new ThreadSpikes(threadCount, duration);
+            test.Run();
+        }
+
+        private void RunStringConcat(int count)
+        {
+            var test = new StringConcat(count);
+            test.Run();
         }
 
         public class MySpecialClassA

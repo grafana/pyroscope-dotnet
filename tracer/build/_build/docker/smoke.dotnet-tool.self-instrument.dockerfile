@@ -2,7 +2,7 @@
 ARG RUNTIME_IMAGE
 
 # Build the ASP.NET Core app using the latest SDK
-FROM mcr.microsoft.com/dotnet/sdk:$DOTNETSDK_VERSION-bullseye-slim as builder
+FROM mcr.microsoft.com/dotnet/sdk:$DOTNETSDK_VERSION as builder
 
 # Build the smoke test app
 WORKDIR /src
@@ -45,6 +45,16 @@ ENV SUPER_SECRET_CANARY=MySuperSecretCanary
 
 # see https://github.com/DataDog/dd-trace-dotnet/pull/3579
 ENV DD_INTERNAL_WORKAROUND_77973_ENABLED=1
+
+# Capture dumps
+ENV COMPlus_DbgEnableMiniDump=1
+ENV COMPlus_DbgMiniDumpType=4
+ENV DOTNET_DbgMiniDumpName=/dumps/coredump.%t.%p
+
+## SSI variables
+ENV DD_INJECTION_ENABLED=tracer
+ENV DD_INJECT_FORCE=1
+ENV DD_TELEMETRY_FORWARDER_PATH=/bin/true
 
 # Copy the app across
 COPY --from=builder /src/publish /app/.

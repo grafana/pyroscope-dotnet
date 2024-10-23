@@ -13,6 +13,7 @@
 #include "corprof.h"
 // end
 
+#include "CallstackProvider.h"
 #include "CounterMetric.h"
 #include "ICollector.h"
 #include "IMetricsSender.h"
@@ -24,6 +25,9 @@
 #include "RawCpuSample.h"
 #include "RawWallTimeSample.h"
 #include "StackSamplerLoop.h"
+#include "MetricsRegistry.h"
+#include "CounterMetric.h"
+#include "ServiceBase.h"
 
 // forward declaration
 class IClrLifetime;
@@ -66,7 +70,10 @@ constexpr bool LogDuringStackSampling_Unsafe = false;
 ///   The LogDuringStackSampling_Unsafe allows turning on such unsafe logging during investigations.
 ///   Don't be surprised if the application deadlock while using that flag!
 /// </summary>
-class StackSamplerLoopManager : public IStackSamplerLoopManager
+class StackSamplerLoopManager
+    :
+    public IStackSamplerLoopManager,
+    public ServiceBase
 {
 public:
     StackSamplerLoopManager(
@@ -79,14 +86,13 @@ public:
         IManagedThreadList* pCodeHotspotThreadList,
         ICollector<RawWallTimeSample>* pWallTimeCollector,
         ICollector<RawCpuSample>* pCpuTimeCollector,
-        MetricsRegistry& metricsRegistry);
+        MetricsRegistry& metricsRegistry,
+        CallstackProvider callstackProvider);
 
     ~StackSamplerLoopManager() override;
 
 public:
     const char* GetName() override;
-    bool Start() override;
-    bool Stop() override;
     bool AllowStackWalk(std::shared_ptr<ManagedThreadInfo> pThreadInfo) override;
     void NotifyThreadState(bool isSuspended) override;
     void NotifyCollectionStart() override;
@@ -100,7 +106,6 @@ private:
     static inline bool ShouldCollectThread(std::uint64_t threadAggPeriodDeadlockCount, std::uint64_t globalAggPeriodDeadlockCount) ;
 
     void RunStackSampling();
-    void GracefulShutdownStackSampling();
 
     void RunWatcher();
     void ShutdownWatcher();
@@ -118,6 +123,9 @@ private:
                                         const std::chrono::nanoseconds& periodDurationNs);
 
     static double ToMillis(const std::chrono::nanoseconds& nanosecs);
+
+    bool StartImpl() override;
+    bool StopImpl() override;
 
 private:
     static const std::chrono::nanoseconds StatisticAggregationPeriodNs;
@@ -201,11 +209,11 @@ private:
     ICollector<RawWallTimeSample>* _pWallTimeCollector = nullptr;
     ICollector<RawCpuSample>* _pCpuTimeCollector = nullptr;
 
+    std::unique_ptr<StackSamplerLoop> _pStackSamplerLoop;
     std::unique_ptr<StackFramesCollectorBase> _pStackFramesCollector;
-    StackSamplerLoop* _pStackSamplerLoop;
     std::uint8_t _deadlockInterventionInProgress;
 
-    std::thread* _pWatcherThread;
+    std::unique_ptr<std::thread> _pWatcherThread;
     bool _isWatcherShutdownRequested;
 
     std::mutex _watcherActivityLock;
@@ -231,8 +239,12 @@ private:
     std::int64_t _threadSuspensionStart;
     std::unique_ptr<Statistics> _statisticsReadyToSend;
     std::unique_ptr<Statistics> _currentStatistics;
+    MetricsRegistry& _metricsRegistry;
+    std::shared_ptr<CounterMetric> _deadlockCountMetric;
 
-    IClrLifetime const* _pClrLifetime;
+    CallstackProvider _callstackProvider;
+
+
     bool _isStarted = false;
     std::mutex _startStopLock;
 };

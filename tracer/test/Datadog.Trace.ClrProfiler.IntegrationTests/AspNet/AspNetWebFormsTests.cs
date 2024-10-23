@@ -17,7 +17,7 @@ using Xunit.Abstractions;
 namespace Datadog.Trace.ClrProfiler.IntegrationTests
 {
     [Collection("IisTests")]
-    public class AspNetWebFormsTests : TracingIntegrationTest, IClassFixture<IisFixture>
+    public class AspNetWebFormsTests : TracingIntegrationTest, IClassFixture<IisFixture>, IAsyncLifetime
     {
         private readonly IisFixture _iisFixture;
 
@@ -30,14 +30,13 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
 
             _iisFixture = iisFixture;
             _iisFixture.ShutdownPath = "/account/login?shutdown=1";
-            _iisFixture.TryStartIis(this, IisAppType.AspNetIntegrated);
         }
 
-        public override Result ValidateIntegrationSpan(MockSpan span) =>
+        public override Result ValidateIntegrationSpan(MockSpan span, string metadataSchemaVersion) =>
             span.Name switch
             {
-                "aspnet.request" => span.IsAspNet(),
-                "aspnet-mvc.request" => span.IsAspNetMvc(),
+                "aspnet.request" => span.IsAspNet(metadataSchemaVersion),
+                "aspnet-mvc.request" => span.IsAspNetMvc(metadataSchemaVersion),
                 _ => Result.DefaultSuccess,
             };
 
@@ -64,10 +63,11 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
                 "1.0.0");
         }
 
-        [Fact(Skip = "This test requires Elasticsearch to be running on the host, which is not currently enabled in CI.")]
+        [Fact]
         [Trait("Category", "EndToEnd")]
         [Trait("RunOnWindows", "True")]
         [Trait("LoadFromGAC", "True")]
+        [Trait("SkipInCI", "True")] // This test requires Elasticsearch to be running on the host, which is not currently enabled in CI.
         public async Task NestedAsyncElasticCallSubmitsTrace()
         {
             var testStart = DateTime.UtcNow;
@@ -87,7 +87,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
                                    .ToList();
 
             Assert.True(allSpans.Count > 0, "Expected there to be spans.");
-            ValidateIntegrationSpans(allSpans, expectedServiceName: "sample", isExternalSpan: false);
+            ValidateIntegrationSpans(allSpans, metadataSchemaVersion: "v0", expectedServiceName: "sample", isExternalSpan: false);
 
             var elasticSpans = allSpans
                              .Where(s => s.Type == "elasticsearch")
@@ -102,6 +102,10 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
                 Assert.Equal("elasticsearch", span.Type);
             }
         }
+
+        public Task InitializeAsync() => _iisFixture.TryStartIis(this, IisAppType.AspNetIntegrated);
+
+        public Task DisposeAsync() => Task.CompletedTask;
     }
 }
 

@@ -1,13 +1,13 @@
-﻿// <copyright file="LogFormatter.cs" company="Datadog">
+// <copyright file="LogFormatter.cs" company="Datadog">
 // Unless explicitly stated otherwise all files in this repository are licensed under the Apache 2 License.
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 using System.Text;
 using Datadog.Trace.Ci.Tags;
 using Datadog.Trace.Configuration;
@@ -18,6 +18,8 @@ namespace Datadog.Trace.Logging.DirectSubmission.Formatting
 {
     internal class LogFormatter
     {
+        private const string KeyValueTagSeparator = ":";
+        private const string TagSeparator = ",";
         private const string SourcePropertyName = "ddsource";
         private const string ServicePropertyName = "service";
         private const string HostPropertyName = "host";
@@ -31,28 +33,66 @@ namespace Datadog.Trace.Logging.DirectSubmission.Formatting
         private readonly string? _env;
         private readonly string? _version;
         private readonly IGitMetadataTagsProvider _gitMetadataTagsProvider;
-        private string? _tags;
         private bool _gitMetadataAdded;
 
         private string? _ciVisibilityDdTags;
 
         public LogFormatter(
-            ImmutableDirectLogSubmissionSettings settings,
+            ImmutableTracerSettings settings,
+            ImmutableDirectLogSubmissionSettings directLogSettings,
+            ImmutableAzureAppServiceSettings? aasSettings,
             string serviceName,
             string env,
             string version,
             IGitMetadataTagsProvider gitMetadataTagsProvider)
         {
             _gitMetadataTagsProvider = gitMetadataTagsProvider;
-            _source = string.IsNullOrEmpty(settings.Source) ? null : settings.Source;
+            _source = string.IsNullOrEmpty(directLogSettings.Source) ? null : directLogSettings.Source;
             _service = string.IsNullOrEmpty(serviceName) ? null : serviceName;
-            _host = string.IsNullOrEmpty(settings.Host) ? null : settings.Host;
-            _tags = string.IsNullOrEmpty(settings.GlobalTags) ? null : settings.GlobalTags;
+            _host = string.IsNullOrEmpty(directLogSettings.Host) ? null : directLogSettings.Host;
+
+            var globalTags = directLogSettings.GlobalTags is { Count: > 0 } ? directLogSettings.GlobalTags : settings.GlobalTagsInternal;
+
+            Tags = EnrichTagsWithAasMetadata(StringifyGlobalTags(globalTags), aasSettings);
             _env = string.IsNullOrEmpty(env) ? null : env;
             _version = string.IsNullOrEmpty(version) ? null : version;
         }
 
         internal delegate LogPropertyRenderingDetails FormatDelegate<T>(JsonTextWriter writer, in T state);
+
+        internal string? Tags { get; private set; }
+
+        private static string StringifyGlobalTags(IReadOnlyDictionary<string, string> globalTags)
+        {
+            if (globalTags.Count == 0)
+            {
+                return string.Empty;
+            }
+
+            var sb = new StringBuilder();
+            foreach (var tagPair in globalTags)
+            {
+                sb.Append(tagPair.Key)
+                  .Append(':')
+                  .Append(tagPair.Value)
+                  .Append(',');
+            }
+
+            // remove final joiner
+            return sb.ToString(startIndex: 0, length: sb.Length - 1);
+        }
+
+        private string? EnrichTagsWithAasMetadata(string globalTags, ImmutableAzureAppServiceSettings? aasSettings)
+        {
+            if (aasSettings is null)
+            {
+                return string.IsNullOrEmpty(globalTags) ? null : globalTags;
+            }
+
+            var aasTags = $"{Trace.Tags.AzureAppServicesResourceId}{KeyValueTagSeparator}{aasSettings.ResourceId}";
+
+            return string.IsNullOrEmpty(globalTags) ? aasTags : aasTags + TagSeparator + globalTags;
+        }
 
         private void EnrichTagsStringWithGitMetadata()
         {
@@ -69,8 +109,8 @@ namespace Datadog.Trace.Logging.DirectSubmission.Formatting
 
             if (gitMetadata != GitMetadata.Empty)
             {
-                var gitMetadataTags = $"{CommonTags.GitCommit}:{gitMetadata.CommitSha},{CommonTags.GitRepository}:{RemoveScheme(gitMetadata.RepositoryUrl)}";
-                _tags = string.IsNullOrEmpty(_tags) ? gitMetadataTags : $"{_tags},{gitMetadataTags}";
+                var gitMetadataTags = $"{CommonTags.GitCommit}{KeyValueTagSeparator}{gitMetadata.CommitSha},{CommonTags.GitRepository}{KeyValueTagSeparator}{RemoveScheme(gitMetadata.RepositoryUrl)}";
+                Tags = string.IsNullOrEmpty(Tags) ? gitMetadataTags : $"{Tags}{TagSeparator}{gitMetadataTags}";
             }
 
             _gitMetadataAdded = true;
@@ -78,7 +118,8 @@ namespace Datadog.Trace.Logging.DirectSubmission.Formatting
 
         private string? RemoveScheme(string url)
         {
-            return url switch {
+            return url switch
+            {
                 { } when url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) => url.Substring("https://".Length),
                 { } when url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) => url.Substring("http://".Length),
                 _ => url
@@ -272,10 +313,10 @@ namespace Datadog.Trace.Logging.DirectSubmission.Formatting
 
             EnrichTagsStringWithGitMetadata();
 
-            if (_tags is not null && !renderingDetails.HasRenderedTags)
+            if (Tags is not null && !renderingDetails.HasRenderedTags)
             {
                 writer.WritePropertyName(TagsPropertyName, escape: false);
-                writer.WriteValue(_tags);
+                writer.WriteValue(Tags);
             }
 
             writer.WriteEndObject();
@@ -322,7 +363,7 @@ namespace Datadog.Trace.Logging.DirectSubmission.Formatting
             var service = _service;
             if (span is not null)
             {
-                if (span.GetTag(Tags.Env) is { } spanEnv && spanEnv != env)
+                if (span.GetTag(Trace.Tags.Env) is { } spanEnv && spanEnv != env)
                 {
                     ddTags = GetCIVisiblityDDTagsString(spanEnv);
                 }
@@ -332,11 +373,14 @@ namespace Datadog.Trace.Logging.DirectSubmission.Formatting
                     service = span.ServiceName;
                 }
 
+                // encode all 128 bits of the trace id as a hex string, or
+                // encode only the lower 64 bits of the trace ids as decimal (not hex)
                 writer.WritePropertyName("dd.trace_id", escape: false);
-                writer.WriteValue($"{span.TraceId}");
+                writer.WriteValue(span.GetTraceIdStringForLogs());
 
+                // 64-bit span ids are always encoded as decimal (not hex)
                 writer.WritePropertyName("dd.span_id", escape: false);
-                writer.WriteValue($"{span.SpanId}");
+                writer.WriteValue(span.SpanId.ToString(CultureInfo.InvariantCulture));
 
                 if (span.GetTag(TestTags.Suite) is { } suite)
                 {
@@ -373,7 +417,7 @@ namespace Datadog.Trace.Logging.DirectSubmission.Formatting
             environment = environment.Replace(":", string.Empty);
 
             var ddtags = $"env:{environment},datadog.product:citest";
-            if (_tags is { Length: > 0 } globalTags)
+            if (Tags is { Length: > 0 } globalTags)
             {
                 ddtags += "," + globalTags;
             }

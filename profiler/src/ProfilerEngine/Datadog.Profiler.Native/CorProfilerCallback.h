@@ -10,7 +10,7 @@
 
 #include "AllocationsProvider.h"
 #include "ApplicationStore.h"
-#include "ClrEventsParser.h"
+#include "EventPipeEventsManager.h"
 #include "ExceptionsProvider.h"
 #include "IAppDomainStore.h"
 #include "IClrLifetime.h"
@@ -19,6 +19,8 @@
 #include "IExporter.h"
 #include "IFrameStore.h"
 #include "IMetricsSender.h"
+#include "ISamplesProvider.h"
+#include "ISsiManager.h"
 #include "WallTimeProvider.h"
 #include "CpuTimeProvider.h"
 #include "SamplesCollector.h"
@@ -27,12 +29,20 @@
 #include "LiveObjectsProvider.h"
 #include "IRuntimeInfo.h"
 #include "IEnabledProfilers.h"
+#include "MemoryResourceManager.h"
 #include "MetricsRegistry.h"
 #include "ProxyMetric.h"
 #include "IAllocationsRecorder.h"
+#include "IMetadataProvider.h"
+#include "ThreadLifetimeProvider.h"
 #include "PyroscopePprofSink.h"
 
 #include "shared/src/native-src/string.h"
+#include "IEtwEventsManager.h"
+#include "ISsiLifetime.h"
+#include "ISsiManager.h"
+
+#include "shared/src/native-src/dd_memory_resource.hpp"
 
 #include <atomic>
 #include <memory>
@@ -42,24 +52,25 @@ class ContentionProvider;
 class IService;
 class IThreadsCpuManager;
 class IManagedThreadList;
-class IStackSamplerLoopManager;
+class StackSamplerLoopManager;
 class IConfiguration;
 class IExporter;
+class RuntimeIdStore;
+class TimerCreateCpuProfiler;
+
+#ifdef LINUX
+class SystemCallsShield;
+#endif
 
 namespace shared {
 class Loader;
 }
 
-class __declspec(uuid("BD1A650D-AC5D-4896-B64F-D6FA25D6B26A")) CorProfilerCallback : public ICorProfilerCallback10
-{
-private:
-    static const std::vector<shared::WSTRING> ManagedAssembliesToLoad_AppDomainDefault_ProcNonIIS;
-    static const std::vector<shared::WSTRING> ManagedAssembliesToLoad_AppDomainNonDefault_ProcNonIIS;
-    static const std::vector<shared::WSTRING> ManagedAssembliesToLoad_AppDomainDefault_ProcIIS;
-    static const std::vector<shared::WSTRING> ManagedAssembliesToLoad_AppDomainNonDefault_ProcIIS;
 
+class CorProfilerCallback : public ICorProfilerCallback10, public ISsiLifetime
+{
 public:
-    CorProfilerCallback();
+    CorProfilerCallback(std::shared_ptr<IConfiguration> pConfiguration);
     virtual ~CorProfilerCallback();
 
     // use STDMETHODCALLTYPE macro to match the CLR declaration.
@@ -181,7 +192,17 @@ public:
         return _this;
     }
 
+    std::string const& GetRuntimeDescription()
+    {
+        return _runtimeDescription;
+    }
+
     IClrLifetime* GetClrLifetime() const;
+
+    // ISsiLifetime implementation
+    // for SSI, the services need to be started after the runtime is initialized
+    void OnStartDelayedProfiling() override;
+
 
 // Access to global services
 // All services are allocated/started and stopped/deleted by the CorProfilerCallback (no need to use unique_ptr/shared_ptr)
@@ -190,9 +211,13 @@ public:
     IThreadsCpuManager* GetThreadsCpuManager() { return _pThreadsCpuManager; }
     IManagedThreadList* GetManagedThreadList() { return _pManagedThreadList; }
     IManagedThreadList* GetCodeHotspotThreadList() { return _pCodeHotspotsThreadList; }
-    IStackSamplerLoopManager* GetStackSamplerLoopManager() { return _pStackSamplerLoopManager; }
+    //IStackSamplerLoopManager* GetStackSamplerLoopManager() { return _pStackSamplerLoopManager; }
     IApplicationStore* GetApplicationStore() { return _pApplicationStore; }
     IExporter* GetExporter() { return _pExporter.get(); }
+    SamplesCollector* GetSamplesCollector() { return _pSamplesCollector; }
+    void TraceContextHasBeenSet() { _pSsiManager->OnSpanCreated(); }
+
+
     void SetStackSamplerEnabled(bool enabled);
     void SetAllocationTrackingEnabled(bool enabled);
     void SetContentionTrackingEnabled(bool enabled);
@@ -201,6 +226,7 @@ public:
 
 private :
     static CorProfilerCallback* _this;
+    std::string _runtimeDescription;
     std::unique_ptr<IClrLifetime> _pClrLifetime = nullptr;
 
     std::atomic<ULONG> _refCount{0};
@@ -208,7 +234,7 @@ private :
     ICorProfilerInfo12* _pCorProfilerInfoEvents = nullptr;
     ICorProfilerInfo13* _pCorProfilerInfoLiveHeap = nullptr;
 
-    std::unique_ptr<ClrEventsParser> _pClrEventsParser = nullptr;
+    std::unique_ptr<EventPipeEventsManager> _pEventPipeEventsManager = nullptr;
     EVENTPIPE_SESSION _session{0};
     inline static bool _isNet46OrGreater = false;
     std::shared_ptr<IMetricsSender> _metricsSender;
@@ -217,7 +243,7 @@ private :
     // The pointer here are observable pointer which means that they are used only to access the data.
     // Their lifetime is managed by the _services vector.
     IThreadsCpuManager* _pThreadsCpuManager = nullptr;
-    IStackSamplerLoopManager* _pStackSamplerLoopManager = nullptr;
+    StackSamplerLoopManager* _pStackSamplerLoopManager = nullptr;
     IManagedThreadList* _pManagedThreadList = nullptr;
     IManagedThreadList* _pCodeHotspotsThreadList = nullptr;
     IApplicationStore* _pApplicationStore = nullptr;
@@ -231,12 +257,18 @@ private :
     StopTheWorldGCProvider* _pStopTheWorldProvider = nullptr;
     GarbageCollectionProvider* _pGarbageCollectionProvider = nullptr;
     LiveObjectsProvider* _pLiveObjectsProvider = nullptr;
+    ThreadLifetimeProvider* _pThreadLifetimeProvider = nullptr;
+    RuntimeIdStore* _pRuntimeIdStore = nullptr;
+#ifdef LINUX
+    SystemCallsShield* _systemCallsShield = nullptr;
+    TimerCreateCpuProfiler* _pCpuProfiler = nullptr;
+#endif
 
     std::vector<std::unique_ptr<IService>> _services;
 
     std::shared_ptr<PyroscopePprofSink> _pyroscopePprofSink = nullptr;
     std::unique_ptr<IExporter> _pExporter = nullptr;
-    std::unique_ptr<IConfiguration> _pConfiguration = nullptr;
+    std::shared_ptr<IConfiguration> _pConfiguration = nullptr;
     std::unique_ptr<IAppDomainStore> _pAppDomainStore = nullptr;
     std::unique_ptr<IFrameStore> _pFrameStore = nullptr;
     std::unique_ptr<IRuntimeInfo> _pRuntimeInfo = nullptr;
@@ -248,20 +280,28 @@ private :
     std::shared_ptr<ProxyMetric> _managedThreadsMetric;
     std::shared_ptr<ProxyMetric> _managedThreadsWithContextMetric;
 
+    std::unique_ptr<ISamplesProvider> _gcThreadsCpuProvider = nullptr;
+    std::unique_ptr<IMetadataProvider> _pMetadataProvider = nullptr;
+    std::unique_ptr<IEtwEventsManager> _pEtwEventsManager = nullptr;
+    bool _isETWStarted = false;
+    MemoryResourceManager _memoryResourceManager;
+
+    std::unique_ptr<ISsiManager> _pSsiManager = nullptr;
+
 private:
     static void ConfigureDebugLog();
     static void InspectRuntimeCompatibility(IUnknown* corProfilerInfoUnk, uint16_t& runtimeMajor, uint16_t& runtimeMinor);
     static void InspectProcessorInfo();
-    static void InspectRuntimeVersion(ICorProfilerInfo5* pCorProfilerInfo, USHORT& major, USHORT& minor, COR_PRF_RUNTIME_TYPE& runtimeType);
     static const char* SysInfoProcessorArchitectureToStr(WORD wProcArch);
     static void PrintEnvironmentVariables();
 
+    void InspectRuntimeVersion(ICorProfilerInfo5* pCorProfilerInfo, USHORT& major, USHORT& minor, COR_PRF_RUNTIME_TYPE& runtimeType);
     void DisposeInternal();
-    bool InitializeServices();
+    void InitializeServices();
     bool DisposeServices();
     bool StartServices();
     bool StopServices();
-
+    void StartEtwCommunication();
 
     template <class T, typename... ArgTypes>
     T* RegisterService(ArgTypes&&... args)

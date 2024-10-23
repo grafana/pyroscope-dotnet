@@ -7,6 +7,7 @@ using System;
 using System.IO;
 using Datadog.Trace.Configuration;
 using Datadog.Trace.Logging;
+using Datadog.Trace.Telemetry;
 using Datadog.Trace.Util;
 using Datadog.Trace.Vendors.Serilog;
 using Microsoft.VisualStudio.TestPlatform.ObjectModel.DataCollection;
@@ -25,9 +26,9 @@ namespace Datadog.Trace.Coverage.Collector
         {
             _logger = logger;
             _collectionContext = collectionContext;
-            _isDebugEnabled = GlobalSettings.Instance.DebugEnabled;
+            _isDebugEnabled = GlobalSettings.Instance.DebugEnabledInternal;
 
-            if (DatadogLoggingFactory.GetConfiguration(GlobalConfigurationSource.Instance).File is { } fileConfig)
+            if (DatadogLoggingFactory.GetConfiguration(GlobalConfigurationSource.Instance, TelemetryFactory.Config).File is { } fileConfig)
             {
                 var loggerConfiguration = new LoggerConfiguration().Enrich.FromLogContext().MinimumLevel.Debug();
 
@@ -41,9 +42,11 @@ namespace Datadog.Trace.Coverage.Collector
                         fileSizeLimitBytes: fileConfig.MaxLogFileSizeBytes,
                         shared: true);
 
-                _datadogLogger = new DatadogSerilogLogger(loggerConfiguration.CreateLogger(), new NullLogRateLimiter());
+                _datadogLogger = new DatadogSerilogLogger(loggerConfiguration.CreateLogger(), new NullLogRateLimiter(), fileConfig.LogDirectory);
             }
         }
+
+        public bool IsDebugEnabled => _isDebugEnabled;
 
         public void Error(string? text)
         {

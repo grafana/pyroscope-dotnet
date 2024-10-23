@@ -14,9 +14,11 @@ using Datadog.Trace.AppSec;
 using Datadog.Trace.AppSec.Coordinator;
 using Datadog.Trace.Configuration;
 using Datadog.Trace.ExtensionMethods;
+using Datadog.Trace.Headers;
 using Datadog.Trace.Iast;
 using Datadog.Trace.Logging;
 using Datadog.Trace.Propagators;
+using Datadog.Trace.Sampling;
 using Datadog.Trace.Tagging;
 using Datadog.Trace.Util;
 using Datadog.Trace.Util.Http;
@@ -75,13 +77,16 @@ namespace Datadog.Trace.AspNet
         {
         }
 
-        internal static void AddHeaderTagsFromHttpResponse(System.Web.HttpContext httpContext, Scope scope)
+        internal static void AddHeaderTagsFromHttpResponse(HttpContext httpContext, Scope scope)
         {
-            if (httpContext != null && HttpRuntime.UsingIntegratedPipeline && _canReadHttpResponseHeaders && !Tracer.Instance.Settings.HeaderTags.IsNullOrEmpty())
+            if (!Tracer.Instance.Settings.HeaderTagsInternal.IsNullOrEmpty() &&
+                httpContext != null &&
+                HttpRuntime.UsingIntegratedPipeline &&
+                _canReadHttpResponseHeaders)
             {
                 try
                 {
-                    scope.Span.SetHeaderTags(httpContext.Response.Headers.Wrap(), Tracer.Instance.Settings.HeaderTags, defaultTagPrefix: SpanContextPropagator.HttpResponseHeadersTagPrefix);
+                    scope.Span.SetHeaderTags(httpContext.Response.Headers.Wrap(), Tracer.Instance.Settings.HeaderTagsInternal, defaultTagPrefix: SpanContextPropagator.HttpResponseHeadersTagPrefix);
                 }
                 catch (PlatformNotSupportedException ex)
                 {
@@ -125,17 +130,16 @@ namespace Datadog.Trace.AspNet
                 }
 
                 HttpRequest httpRequest = httpContext.Request;
+                var requestHeaders = RequestDataHelper.GetHeaders(httpRequest) ?? new System.Collections.Specialized.NameValueCollection();
+                NameValueHeadersCollection? headers = null;
                 SpanContext propagatedContext = null;
-                var tagsFromHeaders = Enumerable.Empty<KeyValuePair<string, string>>();
-
                 if (tracer.InternalActiveScope == null)
                 {
                     try
                     {
                         // extract propagated http headers
-                        var headers = httpRequest.Headers.Wrap();
-                        propagatedContext = SpanContextPropagator.Instance.Extract(headers);
-                        tagsFromHeaders = SpanContextPropagator.Instance.ExtractHeaderTags(headers, tracer.Settings.HeaderTags, defaultTagPrefix: SpanContextPropagator.HttpRequestHeadersTagPrefix);
+                        headers = requestHeaders.Wrap();
+                        propagatedContext = SpanContextPropagator.Instance.Extract(headers.Value);
                     }
                     catch (Exception ex)
                     {
@@ -143,17 +147,22 @@ namespace Datadog.Trace.AspNet
                     }
                 }
 
-                string host = httpRequest.Headers.Get("Host");
-                var userAgent = httpRequest.Headers.Get(HttpHeaderNames.UserAgent);
+                string host = requestHeaders.Get("Host");
+                var userAgent = requestHeaders.Get(HttpHeaderNames.UserAgent);
                 string httpMethod = httpRequest.HttpMethod.ToUpperInvariant();
-                string url = httpContext.Request.GetUrl(tracer.TracerManager.QueryStringManager);
+                string url = httpContext.Request.GetUrlForSpan(tracer.TracerManager.QueryStringManager);
                 var tags = new WebTags();
                 scope = tracer.StartActiveInternal(_requestOperationName, propagatedContext, tags: tags);
                 // Leave resourceName blank for now - we'll update it in OnEndRequest
-                scope.Span.DecorateWebServerSpan(resourceName: null, httpMethod, host, url, userAgent, tags, tagsFromHeaders);
-                if (tracer.Settings.IpHeaderEnabled || Security.Instance.Settings.Enabled)
+                scope.Span.DecorateWebServerSpan(resourceName: null, httpMethod, host, url, userAgent, tags);
+                if (headers is not null)
                 {
-                    Headers.Ip.RequestIpExtractor.AddIpToTags(httpRequest.UserHostAddress, httpRequest.IsSecureConnection, key => httpRequest.Headers[key], tracer.Settings.IpHeader, tags);
+                    SpanContextPropagator.Instance.AddHeadersToSpanAsTags(scope.Span, headers.Value, tracer.Settings.HeaderTagsInternal, defaultTagPrefix: SpanContextPropagator.HttpRequestHeadersTagPrefix);
+                }
+
+                if (tracer.Settings.IpHeaderEnabled || Security.Instance.Enabled)
+                {
+                    Headers.Ip.RequestIpExtractor.AddIpToTags(httpRequest.UserHostAddress, httpRequest.IsSecureConnection, key => requestHeaders[key], tracer.Settings.IpHeader, tags);
                 }
 
                 tags.SetAnalyticsSampleRate(IntegrationId, tracer.Settings, enabledWithGlobalSetting: true);
@@ -163,7 +172,7 @@ namespace Datadog.Trace.AspNet
                 // (e.g. WCF being hosted in IIS)
                 if (HttpRuntime.UsingIntegratedPipeline)
                 {
-                    SpanContextPropagator.Instance.Inject(scope.Span.Context, httpRequest.Headers.Wrap());
+                    SpanContextPropagator.Instance.Inject(scope.Span.Context, requestHeaders.Wrap());
                 }
 
                 httpContext.Items[_httpContextScopeKey] = scope;
@@ -172,10 +181,10 @@ namespace Datadog.Trace.AspNet
                 tracer.TracerManager.Telemetry.IntegrationGeneratedSpan(IntegrationId);
 
                 var security = Security.Instance;
-                if (security.Settings.Enabled)
+                if (security.Enabled)
                 {
                     SecurityCoordinator.ReportWafInitInfoOnce(security, scope.Span);
-                    var securityCoordinator = new SecurityCoordinator(security, httpContext, scope.Span);
+                    var securityCoordinator = new SecurityCoordinator(security, scope.Span);
 
                     // request args
                     var args = securityCoordinator.GetBasicRequestArgsForWaf();
@@ -187,12 +196,13 @@ namespace Datadog.Trace.AspNet
                         args.Add(AddressesConstants.RequestBody, bodyArgs);
                     }
 
-                    securityCoordinator.CheckAndBlock(args);
+                    securityCoordinator.BlockAndReport(args);
                 }
 
-                if (Iast.Iast.Instance.Settings.Enabled && OverheadController.Instance.AcquireRequest())
+                var iastInstance = Iast.Iast.Instance;
+                if (iastInstance.Settings.Enabled && iastInstance.OverheadController.AcquireRequest())
                 {
-                    var traceContext = scope?.Span?.Context?.TraceContext;
+                    var traceContext = scope.Span?.Context?.TraceContext;
                     traceContext?.EnableIastInRequest();
                     traceContext?.IastRequestContext?.AddRequestData(httpRequest);
                 }
@@ -227,6 +237,72 @@ namespace Datadog.Trace.AspNet
                 {
                     try
                     {
+                        var rootScope = scope.Root;
+                        var rootSpan = rootScope.Span;
+
+                        // the security needs to come before collecting the response code,
+                        // since blocking will change the response code
+                        var security = Security.Instance;
+                        if (security.Enabled)
+                        {
+                            var securityCoordinator = new SecurityCoordinator(security, rootSpan);
+                            var args = securityCoordinator.GetBasicRequestArgsForWaf();
+                            args.Add(AddressesConstants.RequestPathParams, securityCoordinator.GetPathParams());
+
+                            if (HttpRuntime.UsingIntegratedPipeline && _canReadHttpResponseHeaders)
+                            {
+                                // path params here for webforms cause there's no other hookpoint for path params, but for mvc/webapi, there's better hookpoint which only gives route params (and not {controller} and {actions} ones) so don't take precedence
+                                try
+                                {
+                                    args.Add(AddressesConstants.ResponseHeaderNoCookies, securityCoordinator.GetResponseHeadersForWaf());
+                                }
+                                catch (PlatformNotSupportedException ex)
+                                {
+                                    // Despite the HttpRuntime.UsingIntegratedPipeline check, we can still fail to access response headers, for example when using Sitefinity: "This operation requires IIS integrated pipeline mode"
+                                    Log.Error(ex, "Unable to access response headers when creating header tags. Disabling for the rest of the application lifetime.");
+                                    _canReadHttpResponseHeaders = false;
+                                }
+                                catch (Exception ex)
+                                {
+                                    Log.Error(ex, "Error extracting HTTP headers to create header tags.");
+                                }
+                            }
+
+                            securityCoordinator.BlockAndReport(args, true);
+
+                            securityCoordinator.AddResponseHeadersToSpanAndCleanup();
+                            securityContextCleaned = true;
+                        }
+
+                        if (Iast.Iast.Instance.Settings.Enabled && IastModule.AddRequestVulnerabilitiesAllowed())
+                        {
+                            if (rootSpan is not null && HttpRuntime.UsingIntegratedPipeline && _canReadHttpResponseHeaders)
+                            {
+                                try
+                                {
+                                    var requestUrl = RequestDataHelper.GetUrl(app.Context.Request);
+                                    ReturnedHeadersAnalyzer.Analyze(app.Context.Response.Headers, IntegrationId, rootSpan.ServiceName, app.Context.Response.StatusCode, requestUrl?.Scheme);
+                                    var headers = RequestDataHelper.GetHeaders(app.Context.Request);
+                                    if (headers is not null)
+                                    {
+                                        InsecureAuthAnalyzer.AnalyzeInsecureAuth(headers, IntegrationId, app.Context.Response.StatusCode);
+                                    }
+                                }
+                                catch (PlatformNotSupportedException ex)
+                                {
+                                    // Despite the HttpRuntime.UsingIntegratedPipeline check, we can still fail to access response headers, for example when using Sitefinity: "This operation requires IIS integrated pipeline mode"
+                                    Log.Error(ex, "Unable to access response headers when analyzing headers. Disabling for the rest of the application lifetime.");
+                                    _canReadHttpResponseHeaders = false;
+                                }
+                                catch (Exception ex)
+                                {
+                                    Log.Error(ex, "Error analyzing HTTP response headers");
+                                }
+                            }
+
+                            CookieAnalyzer.AnalyzeCookies(app.Context.Response.Cookies, IntegrationId);
+                        }
+
                         // HttpServerUtility.TransferRequest presents an issue: The IIS request pipeline is run a second time
                         // from the same incoming HTTP request, but the HttpContext and HttpRequest objects from the two pipeline
                         // requests are completely isolated. Fortunately, the second request (somehow) maintains the original
@@ -239,9 +315,6 @@ namespace Datadog.Trace.AspNet
                         //
                         // Note: HttpServerUtility.TransferRequest cannot be invoked more than once, so we'll have at most two nested (in-process)
                         // aspnet.request spans at any given time: https://referencesource.microsoft.com/#System.Web/Hosting/IIS7WorkerRequest.cs,2400
-                        var rootScope = scope.Root;
-                        var rootSpan = rootScope.Span;
-
                         if (!rootSpan.HasHttpStatusCode())
                         {
                             var response = app.Context.Response;
@@ -269,24 +342,16 @@ namespace Datadog.Trace.AspNet
                         }
                         else
                         {
-                            string path = UriHelpers.GetCleanUriPath(app.Request.Url, app.Request.ApplicationPath);
-                            scope.Span.ResourceName = $"{app.Request.HttpMethod.ToUpperInvariant()} {path.ToLowerInvariant()}";
-                        }
-
-                        var security = Security.Instance;
-                        if (security.Settings.Enabled)
-                        {
-                            var securityCoordinator = new SecurityCoordinator(security, app.Context, rootSpan);
-                            if (!securityCoordinator.IsBlocked)
+                            var url = RequestDataHelper.GetUrl(app.Request);
+                            if (url is not null)
                             {
-                                // path params here for webforms cause there's no other hookpoint for path params, but for mvc/webapi, there's better hookpoint which only gives route params (and not {controller} and {actions} ones) so don't take precedence
-                                var args = securityCoordinator.GetBasicRequestArgsForWaf();
-                                args.Add(AddressesConstants.RequestPathParams, securityCoordinator.GetPathParams());
-                                securityCoordinator.CheckAndBlock(args);
+                                string path = UriHelpers.GetCleanUriPath(url, app.Request.ApplicationPath);
+                                scope.Span.ResourceName = $"{app.Request.HttpMethod.ToUpperInvariant()} {path.ToLowerInvariant()}";
                             }
-
-                            securityCoordinator.AddResponseHeadersToSpanAndCleanup();
-                            securityContextCleaned = true;
+                            else
+                            {
+                                scope.Span.ResourceName = $"{app.Request.HttpMethod.ToUpperInvariant()}";
+                            }
                         }
                     }
                     finally
@@ -336,7 +401,7 @@ namespace Datadog.Trace.AspNet
                 {
                     AddHeaderTagsFromHttpResponse(httpContext, scope);
 
-                    if (exception != null && !is404)
+                    if (exception != null && !is404 && exception is not AppSec.BlockException)
                     {
                         scope.Span.SetException(exception);
                         if (!HttpRuntime.UsingIntegratedPipeline)

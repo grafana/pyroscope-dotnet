@@ -3,9 +3,11 @@
 
 #pragma once
 
+#include "CallstackProvider.h"
 #include "CollectorBase.h"
 #include "IFrameStore.h"
 #include "IManagedThreadList.h"
+#include "IUpscaleProvider.h"
 #include "RawExceptionSample.h"
 #include "cor.h"
 #include "corprof.h"
@@ -14,18 +16,22 @@
 #include "StackSnapshotResultBuffer.h"
 #include "MetricsRegistry.h"
 #include "CounterMetric.h"
+#include "IUpscaleProvider.h"
+
+#include "shared/src/native-src/dd_memory_resource.hpp"
+
+#include <memory>
 
 class IConfiguration;
+class SampleValueTypeProvider;
 
-class ExceptionsProvider
-    : public CollectorBase<RawExceptionSample>
+class ExceptionsProvider :
+    public CollectorBase<RawExceptionSample>,
+    public IUpscaleProvider
 {
 public:
-    static std::vector<SampleValueType> SampleTypeDefinitions;
-
-public:
     ExceptionsProvider(
-        uint32_t valueOffset,
+        SampleValueTypeProvider& valueTypeProvider,
         ICorProfilerInfo4* pCorProfilerInfo,
         IManagedThreadList* pManagedThreadList,
         IFrameStore* pFrameStore,
@@ -33,16 +39,30 @@ public:
         IThreadsCpuManager* pThreadsCpuManager,
         IAppDomainStore* pAppDomainStore,
         IRuntimeIdStore* pRuntimeIdStore,
-        MetricsRegistry& metricsRegistry);
+        MetricsRegistry& metricsRegistry,
+        CallstackProvider pool,
+        shared::pmr::memory_resource* memoryResource);
 
     bool OnModuleLoaded(ModuleID moduleId);
     bool OnExceptionThrown(ObjectID thrownObjectId);
+
+    UpscalingInfo GetInfo() override;
+
+private:
+    struct ExceptionBucket
+    {
+        std::string Name;
+        uint64_t Count;
+    };
 
 private:
     bool LoadExceptionMetadata();
     bool GetExceptionType(ClassID classId, std::string& exceptionType);
 
+
 private:
+    static std::vector<SampleValueType> SampleTypeDefinitions;
+
     ICorProfilerInfo4* _pCorProfilerInfo;
     IManagedThreadList* _pManagedThreadList;
     IFrameStore* _pFrameStore;
@@ -58,4 +78,5 @@ private:
     IConfiguration const* const _pConfiguration;
     std::shared_ptr<CounterMetric> _exceptionsCountMetric;
     std::shared_ptr<CounterMetric> _sampledExceptionsCountMetric;
+    CallstackProvider _callstackProvider;
 };

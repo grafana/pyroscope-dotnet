@@ -3,11 +3,14 @@
 
 #pragma once
 
+#include "shared/src/native-src/string.h"
+
 #include <string>
 #include <thread>
 
 #ifdef _WINDOWS
 #include <atlbase.h>
+#include "ScopedHandle.h"
 #else
 #include "pal.h"
 #include "pal_mstypes.h"
@@ -35,8 +38,13 @@ public:
     static inline bool QueryThreadCycleTime(HANDLE handle, PULONG64 cycleTime);
     static inline HANDLE GetCurrentProcess();
 
-    static bool SetNativeThreadName(std::thread* pNativeThread, const WCHAR* description);
-    static bool GetNativeThreadName(HANDLE windowsThreadHandle, WCHAR* pThreadDescrBuff, std::uint32_t threadDescrBuffSize);
+    static bool SetNativeThreadName(const WCHAR* description);
+#ifdef _WINDOWS
+    static shared::WSTRING GetNativeThreadName(HANDLE threadHandle);
+    static ScopedHandle GetThreadHandle(DWORD threadId);
+#else
+    static shared::WSTRING GetNativeThreadName(pid_t tid);
+#endif
 
     static bool GetModuleHandleFromInstructionPointer(void* nativeIP, std::uint64_t* pModuleHandle);
     static std::string GetModuleName(void* nativeIP);
@@ -97,10 +105,23 @@ public:
         }
         return nbElement == 3;
     }
+
+    ///
+    /// This function get the current timestamp in a signal-safe manner
+    ///
+    static inline std::uint64_t GetTimestampSafe()
+    {
+        struct timespec ts;
+        // TODO error handling ?
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        return (std::uint64_t)ts.tv_sec * 1000000000 + ts.tv_nsec;
+    }
+
 #endif
 
-    static bool IsSafeToStartProfiler(double coresThreshold);
+    static bool IsSafeToStartProfiler(double coresThreshold, double& cpuLimit);
     static std::int64_t GetHighPrecisionTimestamp();
+    static std::int64_t ConvertTicks(uint64_t ticks);
 
     static void Sleep(std::chrono::nanoseconds duration);
 
@@ -109,6 +130,7 @@ private:
 
     static std::int64_t s_nanosecondsPerHighPrecisionTimerTick;
     static std::int64_t s_highPrecisionTimerTicksPerNanosecond;
+    static uint64_t s_ticksPerSecond;
 
     static std::int64_t GetHighPrecisionNanosecondsFallback();
 
@@ -162,6 +184,23 @@ inline std::int64_t OpSysTools::GetHighPrecisionNanoseconds()
 #else
     // Need to implement this for Linux!
     return OpSysTools::GetHighPrecisionNanosecondsFallback();
+#endif
+}
+
+// TODO: remove if not needed
+inline std::int64_t OpSysTools::ConvertTicks(uint64_t ticks)
+{
+#ifdef _WINDOWS
+    if (s_ticksPerSecond != 0)
+    {
+        uint64_t microsecs = ticks * 1000000 / s_ticksPerSecond; // microseconds
+        return microsecs * 1000;                                 // nanoseconds
+    }
+
+    return 0;
+#else
+    // only used for ETW (Windows only)
+    return 0;
 #endif
 }
 

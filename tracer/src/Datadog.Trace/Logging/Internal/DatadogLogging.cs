@@ -3,10 +3,13 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
+#nullable enable
+
 using System;
 using System.IO;
 using System.Threading.Tasks;
 using Datadog.Trace.Configuration;
+using Datadog.Trace.Telemetry;
 using Datadog.Trace.Util;
 using Datadog.Trace.Vendors.Serilog.Core;
 using Datadog.Trace.Vendors.Serilog.Events;
@@ -27,12 +30,12 @@ namespace Datadog.Trace.Logging
 
             try
             {
-                if (GlobalSettings.Instance.DebugEnabled)
+                if (GlobalSettings.Instance.DebugEnabledInternal)
                 {
                     LoggingLevelSwitch.MinimumLevel = LogEventLevel.Debug;
                 }
 
-                var config = DatadogLoggingFactory.GetConfiguration(GlobalConfigurationSource.Instance);
+                var config = DatadogLoggingFactory.GetConfiguration(GlobalConfigurationSource.Instance, TelemetryFactory.Config);
 
                 if (config.File is { LogFileRetentionDays: > 0 } fileConfig)
                 {

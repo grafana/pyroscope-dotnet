@@ -16,7 +16,7 @@
       http.request.headers.host: localhost:00000,
       http.status_code: 200,
       http.url: http://localhost:00000/health,
-      http.useragent: Mistake Not... acunetix-product,
+      http.useragent: Mistake Not... (sql power injector),
       language: dotnet,
       span.kind: server
     }
@@ -35,15 +35,13 @@
       http.route: {controller}/{action}/{id},
       http.status_code: 200,
       http.url: http://localhost:00000/health,
-      http.useragent: Mistake Not... acunetix-product,
+      http.useragent: Mistake Not... (sql power injector),
       language: dotnet,
       runtime-id: Guid_1,
-      span.kind: server,
-      _dd.p.dm: -0
+      span.kind: server
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
       _sampling_priority_v1: 1.0
@@ -66,7 +64,7 @@
       http.request.headers.host: localhost:00000,
       http.status_code: 200,
       http.url: http://localhost:00000/health,
-      http.useragent: Mistake Not... acunetix-product,
+      http.useragent: Mistake Not... (sql power injector),
       language: dotnet,
       span.kind: server
     }
@@ -85,15 +83,13 @@
       http.route: {controller}/{action}/{id},
       http.status_code: 200,
       http.url: http://localhost:00000/health,
-      http.useragent: Mistake Not... acunetix-product,
+      http.useragent: Mistake Not... (sql power injector),
       language: dotnet,
       runtime-id: Guid_1,
-      span.kind: server,
-      _dd.p.dm: -0
+      span.kind: server
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
       _sampling_priority_v1: 1.0
@@ -116,7 +112,7 @@
       http.request.headers.host: localhost:00000,
       http.status_code: 200,
       http.url: http://localhost:00000/health,
-      http.useragent: Mistake Not... acunetix-product,
+      http.useragent: Mistake Not... (sql power injector),
       language: dotnet,
       span.kind: server
     }
@@ -135,15 +131,13 @@
       http.route: {controller}/{action}/{id},
       http.status_code: 200,
       http.url: http://localhost:00000/health,
-      http.useragent: Mistake Not... acunetix-product,
+      http.useragent: Mistake Not... (sql power injector),
       language: dotnet,
       runtime-id: Guid_1,
-      span.kind: server,
-      _dd.p.dm: -0
+      span.kind: server
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
       _sampling_priority_v1: 1.0

@@ -2,18 +2,14 @@
 // Unless explicitly stated otherwise all files in this repository are licensed under the Apache 2 License.
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
-
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net;
-
-using Datadog.Trace.ClrProfiler.ServerlessInstrumentation.AWS;
+#if NET6_0_OR_GREATER
+using System.Threading.Tasks;
+using Datadog.Trace.ClrProfiler.AutoInstrumentation.AWS.Lambda;
 using Datadog.Trace.TestHelpers;
 
 using FluentAssertions;
-using Moq;
 using Xunit;
+using LambdaCommon = Datadog.Trace.ClrProfiler.AutoInstrumentation.AWS.Lambda.LambdaCommon;
 
 namespace Datadog.Trace.Tests
 {
@@ -21,12 +17,13 @@ namespace Datadog.Trace.Tests
     public class LambdaRequestBuilderTests
     {
         [Fact]
-        public void TestGetEndInvocationRequestWithError()
+        public async Task TestGetEndInvocationRequestWithError()
         {
-            var tracer = TracerHelper.Create();
-            var scope = LambdaCommon.CreatePlaceholderScope(tracer, null, null);
+            await using var tracer = TracerHelper.CreateWithFakeAgent();
+            var scope = LambdaCommon.CreatePlaceholderScope(tracer, traceId: null, samplingPriority: null);
+
             ILambdaExtensionRequest requestBuilder = new LambdaRequestBuilder();
-            var request = requestBuilder.GetEndInvocationRequest(scope, true);
+            var request = requestBuilder.GetEndInvocationRequest(scope, isError: true);
             request.Headers.Get("x-datadog-invocation-error").Should().Be("true");
             request.Headers.Get("x-datadog-tracing-enabled").Should().Be("false");
             request.Headers.Get("x-datadog-sampling-priority").Should().Be("1");
@@ -35,12 +32,13 @@ namespace Datadog.Trace.Tests
         }
 
         [Fact]
-        public void TestGetEndInvocationRequestWithoutError()
+        public async Task TestGetEndInvocationRequestWithoutError()
         {
-            var tracer = TracerHelper.Create();
-            var scope = LambdaCommon.CreatePlaceholderScope(tracer, null, null);
+            await using var tracer = TracerHelper.CreateWithFakeAgent();
+            var scope = LambdaCommon.CreatePlaceholderScope(tracer, traceId: null, samplingPriority: null);
+
             ILambdaExtensionRequest requestBuilder = new LambdaRequestBuilder();
-            var request = requestBuilder.GetEndInvocationRequest(scope, false);
+            var request = requestBuilder.GetEndInvocationRequest(scope, isError: false);
             request.Headers.Get("x-datadog-invocation-error").Should().BeNull();
             request.Headers.Get("x-datadog-tracing-enabled").Should().Be("false");
             request.Headers.Get("x-datadog-sampling-priority").Should().Be("1");
@@ -49,12 +47,13 @@ namespace Datadog.Trace.Tests
         }
 
         [Fact]
-        public void TestGetEndInvocationRequestWithScope()
+        public async Task TestGetEndInvocationRequestWithScope()
         {
-            var tracer = TracerHelper.Create();
-            var scope = LambdaCommon.CreatePlaceholderScope(tracer, "1234", "-1");
+            await using var tracer = TracerHelper.CreateWithFakeAgent();
+            var scope = LambdaCommon.CreatePlaceholderScope(tracer, traceId: "1234", samplingPriority: "-1");
+
             ILambdaExtensionRequest requestBuilder = new LambdaRequestBuilder();
-            var request = requestBuilder.GetEndInvocationRequest(scope, false);
+            var request = requestBuilder.GetEndInvocationRequest(scope, isError: false);
             request.Headers.Get("x-datadog-invocation-error").Should().BeNull();
             request.Headers.Get("x-datadog-tracing-enabled").Should().Be("false");
             request.Headers.Get("x-datadog-sampling-priority").Should().Be("-1");
@@ -66,12 +65,52 @@ namespace Datadog.Trace.Tests
         public void TestGetEndInvocationRequestWithoutScope()
         {
             ILambdaExtensionRequest requestBuilder = new LambdaRequestBuilder();
-            var request = requestBuilder.GetEndInvocationRequest(null, false);
+            var request = requestBuilder.GetEndInvocationRequest(scope: null, isError: false);
             request.Headers.Get("x-datadog-invocation-error").Should().BeNull();
             request.Headers.Get("x-datadog-tracing-enabled").Should().Be("false");
             request.Headers.Get("x-datadog-sampling-priority").Should().BeNull();
             request.Headers.Get("x-datadog-trace-id").Should().BeNull();
             request.Headers.Get("x-datadog-span-id").Should().BeNull();
         }
+
+        [Fact]
+        public async Task TestGetEndInvocationRequestWithErrorTags()
+        {
+            await using var tracer = TracerHelper.CreateWithFakeAgent();
+            var scope = LambdaCommon.CreatePlaceholderScope(tracer, traceId: null, samplingPriority: null);
+            scope.Span.SetTag("error.msg", "Exception");
+            scope.Span.SetTag("error.type", "Exception");
+            scope.Span.SetTag("error.stack", "everything is " + System.Environment.NewLine + "fine");
+
+            ILambdaExtensionRequest requestBuilder = new LambdaRequestBuilder();
+            var request = requestBuilder.GetEndInvocationRequest(scope, true);
+            request.Headers.Get("x-datadog-invocation-error").Should().NotBeNull();
+            request.Headers.Get("x-datadog-invocation-error-msg").Should().Be("Exception");
+            request.Headers.Get("x-datadog-invocation-error-type").Should().Be("Exception");
+            request.Headers.Get("x-datadog-invocation-error-stack").Should().NotBeNull();
+            request.Headers.Get("x-datadog-tracing-enabled").Should().Be("false");
+            request.Headers.Get("x-datadog-sampling-priority").Should().Be("1");
+            request.Headers.Get("x-datadog-trace-id").Should().NotBeNull();
+            request.Headers.Get("x-datadog-span-id").Should().NotBeNull();
+        }
+
+        [Fact]
+        public async Task TestGetEndInvocationRequestWithoutErrorTags()
+        {
+            await using var tracer = TracerHelper.CreateWithFakeAgent();
+            var scope = LambdaCommon.CreatePlaceholderScope(tracer, null, null);
+
+            ILambdaExtensionRequest requestBuilder = new LambdaRequestBuilder();
+            var request = requestBuilder.GetEndInvocationRequest(scope, true);
+            request.Headers.Get("x-datadog-invocation-error").Should().NotBeNull();
+            request.Headers.Get("x-datadog-invocation-error-msg").Should().BeNull();
+            request.Headers.Get("x-datadog-invocation-error-type").Should().BeNull();
+            request.Headers.Get("x-datadog-invocation-error-stack").Should().BeNull();
+            request.Headers.Get("x-datadog-tracing-enabled").Should().Be("false");
+            request.Headers.Get("x-datadog-sampling-priority").Should().Be("1");
+            request.Headers.Get("x-datadog-trace-id").Should().NotBeNull();
+            request.Headers.Get("x-datadog-span-id").Should().NotBeNull();
+        }
     }
 }
+#endif

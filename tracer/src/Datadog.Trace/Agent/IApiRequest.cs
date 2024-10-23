@@ -4,7 +4,9 @@
 // </copyright>
 
 using System;
+using System.IO;
 using System.Threading.Tasks;
+using Datadog.Trace.Agent.Transports;
 
 namespace Datadog.Trace.Agent
 {
@@ -17,5 +19,9 @@ namespace Datadog.Trace.Agent
         Task<IApiResponse> PostAsync(ArraySegment<byte> bytes, string contentType);
 
         Task<IApiResponse> PostAsync(ArraySegment<byte> bytes, string contentType, string contentEncoding);
+
+        Task<IApiResponse> PostAsync(Func<Stream, Task> writeToRequestStream, string contentType, string contentEncoding, string multipartBoundary);
+
+        Task<IApiResponse> PostAsync(MultipartFormItem[] items, MultipartCompression multipartCompression = MultipartCompression.None);
     }
 }

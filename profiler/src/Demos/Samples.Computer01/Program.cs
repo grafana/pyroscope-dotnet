@@ -31,7 +31,16 @@ namespace Samples.Computer01
         LinuxMallocDeadlock,
         MeasureAllocations,
         InnerMethods,
-        LineNumber
+        LineNumber,
+        NullThreadNameBug,
+        MethodSignature,
+        OpenLdapCrash,
+        SocketTimeout,
+        ForceSigSegvHandler,
+        Obfuscation,
+        ThreadSpikes,
+        StringConcat, // parameter = number of strings to concatenate
+        LinuxDlIteratePhdrDeadlock,
     }
 
     public class Program
@@ -60,6 +69,15 @@ namespace Samples.Computer01
             // 16: count sized allocations
             // 17: generate frames with named and anonymous methods
             // 18: call stack on functions to check line number(s)
+            // 19: set thread names to null and empty (validate bug fix)
+            // 20: trigger exceptions with different method signatures in the callstack
+            // 21: validate fix for OpenLDAP
+            // 22: check socket timeout (linux)
+            // 23: sigsegv handling validation
+            // 24: use an obfuscated library
+            // 25: create thread spikes
+            // 26: string concatenation
+            // 27: custom dl_iterate_phdr deadlock
             //
             Console.WriteLine($"{Environment.NewLine}Usage:{Environment.NewLine} > {Process.GetCurrentProcess().ProcessName} " +
             $"[--service] [--iterations <number of iterations to execute>] " +
@@ -72,6 +90,7 @@ namespace Samples.Computer01
 
             ParseCommandLine(args, out TimeSpan timeout, out bool runAsService, out Scenario scenario, out int iterations, out int nbThreads, out int parameter);
 
+            Console.WriteLine("Running Scenario " + scenario.ToString());
             // This application is used for several purposes:
             //  - execute a processing for a given duration (for smoke test)
             //  - execute a processing several times (for runtime test)

@@ -3,6 +3,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using Datadog.Trace.TestHelpers;
 using VerifyTests;
@@ -11,18 +12,39 @@ namespace Datadog.Trace.Security.IntegrationTests.IAST
 {
     public static class IastVerifyScrubberExtensions
     {
-        private static readonly Regex LocationMsgRegex = new(@"(\S)*""location"": {(\r|\n){1,2}(.*(\r|\n){1,2}){0,3}(\s)*},");
-        private static readonly Regex ClientIp = new(@"["" ""]*http.client_ip: .*,(\r|\n){1,2}");
-        private static readonly Regex NetworkClientIp = new(@"["" ""]*network.client.ip: .*,(\r|\n){1,2}");
-        private static readonly Regex HashRegex = new(@"(\S)*""hash"": (-){0,1}([0-9]){1,12},(\r|\n){1,2}      ");
+        private static readonly (Regex RegexPattern, string Replacement) ClientIp = (new Regex(@"["" ""]*http.client_ip: .*,(\r|\n){1,2}"), string.Empty);
+        private static readonly (Regex RegexPattern, string Replacement) NetworkClientIp = (new Regex(@"["" ""]*network.client.ip: .*,(\r|\n){1,2}"), string.Empty);
+        private static readonly (Regex RegexPattern, string Replacement) RequestTaintedRegex = (new Regex(@"_dd.iast.telemetry.request.tainted:(\s)*([1-9])(\d*).?(\d*),"), "_dd.iast.telemetry.request.tainted:,");
+        private static readonly (Regex RegexPattern, string Replacement) TelemetryExecutedSinks = (new Regex(@"_dd\.iast\.telemetry\.executed\.sink\.weak_.+: .{3},"), string.Empty);
+
+        private static readonly (Regex RegexPattern, string Replacement) SpanIdRegex = (new Regex("\"spanId\": \\d+"), "\"spanId\": XXX");
+        private static readonly (Regex RegexPattern, string Replacement) LineRegex = (new Regex("\"line\": \\d+"), "\"line\": XXX");
 
         public static VerifySettings AddIastScrubbing(this VerifySettings settings)
         {
-            settings.AddRegexScrubber(LocationMsgRegex, string.Empty);
-            settings.AddRegexScrubber(ClientIp, string.Empty);
-            settings.AddRegexScrubber(NetworkClientIp, string.Empty);
-            settings.AddRegexScrubber(HashRegex, string.Empty);
+            var scrubbers = new List<(Regex RegexPattern, string Replacement)>();
+            return AddIastScrubbing(settings, scrubbers);
+        }
 
+        public static VerifySettings AddIastScrubbing(this VerifySettings settings, IEnumerable<(Regex RegexPattern, string Replacement)> extraScrubbers)
+        {
+            settings.AddRegexScrubber(ClientIp);
+            settings.AddRegexScrubber(NetworkClientIp);
+            settings.AddRegexScrubber(RequestTaintedRegex);
+            settings.AddRegexScrubber(TelemetryExecutedSinks);
+
+            settings.AddRegexScrubber(SpanIdRegex);
+            settings.AddRegexScrubber(LineRegex);
+
+            if (extraScrubbers != null)
+            {
+                foreach (var scrubber in extraScrubbers)
+                {
+                    settings.AddRegexScrubber(scrubber.RegexPattern, scrubber.Replacement);
+                }
+            }
+
+            settings.ScrubEmptyLines();
             return settings;
         }
     }

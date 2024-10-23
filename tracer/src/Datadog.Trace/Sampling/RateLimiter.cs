@@ -28,11 +28,10 @@ namespace Datadog.Trace.Sampling
         private int _previousWindowChecks = 0;
         private int _previousWindowAllowed = 0;
 
-        public RateLimiter(int? maxTracesPerInterval)
+        protected RateLimiter(int? maxTracesPerInterval, int? intervalMilliseconds = null)
         {
             _maxTracesPerInterval = maxTracesPerInterval ?? 100;
-
-            _intervalMilliseconds = 1_000;
+            _intervalMilliseconds = intervalMilliseconds ?? 1_000;
             _interval = TimeSpan.FromMilliseconds(_intervalMilliseconds);
             _windowBegin = Clock.UtcNow;
         }
@@ -79,6 +78,10 @@ namespace Datadog.Trace.Sampling
         }
 
         public abstract void OnDisallowed(Span span, int count, int intervalMs, int maxTracesPerInterval);
+
+        public virtual void OnRefresh(int intervalMs, int checksInLastInterval, int allowedInLastInterval)
+        {
+        }
 
         public abstract void OnFinally(Span span);
 
@@ -134,6 +137,7 @@ namespace Datadog.Trace.Sampling
                     _windowAllowed = 0;
                     _windowChecks = 0;
                     _windowBegin = now;
+                    OnRefresh(_intervalMilliseconds, _previousWindowChecks, _previousWindowAllowed);
                 }
 
                 while (_intervalQueue.TryPeek(out var time) && now.Subtract(time) > _interval)

@@ -172,7 +172,7 @@
 
     <!-- StyleCop -->
     <ItemGroup Condition=" '$(MSBuildProjectExtension)' == '.csproj' And '$(MSBuildProjectName)' != 'Website-AspNet' ">
-        <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.*" PrivateAssets="all" />
+        <PackageReference Include="StyleCop.Analyzers" Version="1.2.0-beta.556" PrivateAssets="all" />
         <AdditionalFiles Include="$(MSBuildThisFileDirectory)stylecop.json" Link="stylecop.json" />
         <Compile Include="$(MSBuildThisFileDirectory)\src\GlobalSuppressions.cs" Link="GlobalSuppressions.solution.cs" />
     </ItemGroup>
@@ -188,12 +188,16 @@
       <DOTNET-TRACER-REPO-ROOT-PATH>$([System.IO.Path]::GetFullPath( $(EnlistmentRoot)/ ))</DOTNET-TRACER-REPO-ROOT-PATH>
       <SHARED-LIB-PATH>$(DOTNET-TRACER-REPO-ROOT-PATH)shared\src\native-lib\</SHARED-LIB-PATH>
       <CORECLR-PATH>$(SHARED-LIB-PATH)coreclr\src</CORECLR-PATH>
-      <SHARED-LIB-PLATFORM Condition="'$(Platform)'=='x64'">x64</SHARED-LIB-PLATFORM>
-      <SHARED-LIB-PLATFORM Condition="'$(Platform)'=='Win32' OR '$(Platform)'=='x86'">x86</SHARED-LIB-PLATFORM>
-      <SHARED-LIB-INCLUDES>$(SHARED-LIB-PATH)fmt_$(SHARED-LIB-PLATFORM)-windows-static\include;$(SHARED-LIB-PATH)spdlog\include</SHARED-LIB-INCLUDES>
-      <SHARED-LIB-BINARIES Condition="'$(Configuration)'=='Release'">$(SHARED-LIB-PATH)fmt_$(SHARED-LIB-PLATFORM)-windows-static\lib\fmt.lib</SHARED-LIB-BINARIES>
-      <SHARED-LIB-BINARIES Condition="'$(Configuration)'=='Debug'">$(SHARED-LIB-PATH)fmt_$(SHARED-LIB-PLATFORM)-windows-static\debug\lib\fmtd.lib</SHARED-LIB-BINARIES>
+      <SHARED-LIB-INCLUDES>$(SHARED-LIB-PATH)fmt\include;$(SHARED-LIB-PATH)spdlog\include</SHARED-LIB-INCLUDES>
     </PropertyGroup>
+
+    <ItemDefinitionGroup Condition=" '$(MSBuildProjectExtension)' == '.vcxproj' ">
+      <ClCompile>
+        <PreprocessorDefinitions>%(PreprocessorDefinitions);MICROSOFT_WINDOWS_WINBASE_H_DEFINE_INTERLOCKED_CPLUSPLUS_OVERLOADS=1</PreprocessorDefinitions>
+	<BuildStlModules>false</BuildStlModules>
+	<EnableModules>false</EnableModules>
+      </ClCompile>
+    </ItemDefinitionGroup>
 
 
     <PropertyGroup>

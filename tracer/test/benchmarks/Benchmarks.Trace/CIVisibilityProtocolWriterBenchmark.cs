@@ -10,6 +10,7 @@ namespace Benchmarks.Trace
 {
     [MemoryDiagnoser]
     [BenchmarkAgent1]
+    [BenchmarkCategory(Constants.TracerCategory)]
     public class CIVisibilityProtocolWriterBenchmark
     {
         private const int SpanCount = 1000;
@@ -29,7 +30,7 @@ namespace Benchmarks.Trace
             var now = DateTimeOffset.UtcNow;
             for (var i = 0; i < SpanCount; i++)
             {
-                enrichedSpans[i] = new Span(new SpanContext((ulong)i, (ulong)i, SamplingPriorityValues.UserReject, "Benchmark", null), now);
+                enrichedSpans[i] = new Span(new SpanContext((TraceId)i, (ulong)i, SamplingPriorityValues.UserReject, serviceName: "Benchmark", origin: null), now);
                 enrichedSpans[i].SetTag(Tags.Env, "Benchmark");
                 enrichedSpans[i].SetMetric(Metrics.SamplingRuleDecision, 1.0);
             }

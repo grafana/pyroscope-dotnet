@@ -5,6 +5,7 @@
 
 #nullable enable
 
+using System.Collections;
 using System.Collections.Generic;
 
 namespace Datadog.Trace.Activity.DuckTypes
@@ -20,6 +21,14 @@ namespace Datadog.Trace.Activity.DuckTypes
         IEnumerable<KeyValuePair<string, object>> TagObjects { get; }
 
         ActivitySource Source { get; }
+
+        IEnumerable Events { get; }
+
+        /// <summary>
+        /// Gets the list of all <see cref="IActivityLink" /> objects attached to this Activity object.
+        /// If there is no any <see cref="IActivityLink" /> object attached to the Activity object, Links will return empty list.
+        /// </summary>
+        IEnumerable Links { get; }
 
         object AddTag(string key, object value);
     }

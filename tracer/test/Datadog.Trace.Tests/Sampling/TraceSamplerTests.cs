@@ -5,8 +5,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Datadog.Trace.Configuration;
 using Datadog.Trace.Sampling;
+using Datadog.Trace.TestHelpers;
 using FluentAssertions;
 using Xunit;
 
@@ -19,14 +21,16 @@ namespace Datadog.Trace.Tests.Sampling
         private const string ServiceName = "my-service-name";
         private const string Env = "my-test-env";
         private const string OperationName = "test";
+        private const string ResourceName = "test-resource-name";
 
+        private static readonly TimeSpan Timeout = TimeSpan.FromSeconds(10);
         private static readonly Dictionary<string, float> MockAgentRates = new() { { $"service:{ServiceName},env:{Env}", FallbackRate } };
 
         [Fact]
-        public void RateLimiter_Never_Applied_For_DefaultRule()
+        public async Task RateLimiter_Never_Applied_For_DefaultRule()
         {
             var sampler = new TraceSampler(new DenyAll());
-            RunSamplerTest(
+            await RunSamplerTest(
                 sampler,
                 iterations: 500,
                 expectedAutoKeepRate: 1,
@@ -35,11 +39,21 @@ namespace Datadog.Trace.Tests.Sampling
         }
 
         [Fact]
-        public void RateLimiter_Denies_All_Traces()
+        public async Task RateLimiter_Denies_All_Traces()
         {
             var sampler = new TraceSampler(new DenyAll());
-            sampler.RegisterRule(new CustomSamplingRule(1, "Allow_all", ".*", ".*"));
-            RunSamplerTest(
+
+            sampler.RegisterRule(
+                new LocalCustomSamplingRule(
+                    rate: 1,
+                    patternFormat: SamplingRulesFormat.Regex,
+                    serviceNamePattern: ".*",
+                    operationNamePattern: ".*",
+                    resourceNamePattern: ".*",
+                    tagPatterns: null,
+                    timeout: Timeout));
+
+            await RunSamplerTest(
                 sampler,
                 iterations: 500,
                 expectedAutoKeepRate: 0,
@@ -48,11 +62,21 @@ namespace Datadog.Trace.Tests.Sampling
         }
 
         [Fact]
-        public void Keep_Everything_Rule()
+        public async Task Keep_Everything_Rule()
         {
             var sampler = new TraceSampler(new NoLimits());
-            sampler.RegisterRule(new CustomSamplingRule(1, "Allow_all", ".*", ".*"));
-            RunSamplerTest(
+
+            sampler.RegisterRule(
+                new LocalCustomSamplingRule(
+                    rate: 1,
+                    patternFormat: SamplingRulesFormat.Regex,
+                    serviceNamePattern: ".*",
+                    operationNamePattern: ".*",
+                    resourceNamePattern: ".*",
+                    tagPatterns: null,
+                    timeout: Timeout));
+
+            await RunSamplerTest(
                 sampler,
                 iterations: 500,
                 expectedAutoKeepRate: 0,
@@ -61,11 +85,21 @@ namespace Datadog.Trace.Tests.Sampling
         }
 
         [Fact]
-        public void Keep_Nothing_Rule()
+        public async Task Keep_Nothing_Rule()
         {
             var sampler = new TraceSampler(new NoLimits());
-            sampler.RegisterRule(new CustomSamplingRule(0, "Allow_nothing", ".*", ".*"));
-            RunSamplerTest(
+
+            sampler.RegisterRule(
+                new LocalCustomSamplingRule(
+                    rate: 0,
+                    patternFormat: SamplingRulesFormat.Regex,
+                    serviceNamePattern: ".*",
+                    operationNamePattern: ".*",
+                    resourceNamePattern: ".*",
+                    tagPatterns: null,
+                    timeout: Timeout));
+
+            await RunSamplerTest(
                 sampler,
                 iterations: 500,
                 expectedAutoKeepRate: 0,
@@ -74,11 +108,21 @@ namespace Datadog.Trace.Tests.Sampling
         }
 
         [Fact]
-        public void Keep_Half_Rule()
+        public async Task Keep_Half_Rule()
         {
             var sampler = new TraceSampler(new NoLimits());
-            sampler.RegisterRule(new CustomSamplingRule(0.5f, "Allow_half", ".*", ".*"));
-            RunSamplerTest(
+
+            sampler.RegisterRule(
+                new LocalCustomSamplingRule(
+                    rate: 0.5f,
+                    patternFormat: SamplingRulesFormat.Regex,
+                    serviceNamePattern: ".*",
+                    operationNamePattern: ".*",
+                    resourceNamePattern: ".*",
+                    tagPatterns: null,
+                    timeout: Timeout));
+
+            await RunSamplerTest(
                 sampler,
                 iterations: 50_000, // Higher number for lower variance
                 expectedAutoKeepRate: 0,
@@ -87,12 +131,13 @@ namespace Datadog.Trace.Tests.Sampling
         }
 
         [Fact]
-        public void No_Registered_Rules_Uses_Legacy_Rates()
+        public async Task No_Registered_Rules_Uses_Legacy_Rates()
         {
             var sampler = new TraceSampler(new NoLimits());
+            sampler.RegisterAgentSamplingRule(new AgentSamplingRule());
             sampler.SetDefaultSampleRates(MockAgentRates);
 
-            RunSamplerTest(
+            await RunSamplerTest(
                 sampler,
                 iterations: 50_000, // Higher number for lower variance
                 expectedAutoKeepRate: FallbackRate,
@@ -101,16 +146,17 @@ namespace Datadog.Trace.Tests.Sampling
         }
 
         [Fact]
-        public void Choose_Between_Sampling_Mechanisms()
+        public async Task Choose_Between_Sampling_Mechanisms()
         {
             var settings = new TracerSettings { ServiceName = ServiceName };
-            var tracer = new Tracer(settings, agentWriter: null, sampler: null, scopeManager: null, statsd: null);
+            await using var tracer = TracerHelper.CreateWithFakeAgent(settings);
 
             using var scope = (Scope)tracer.StartActive(OperationName);
             scope.Span.Context.TraceContext.Environment = Env;
 
             var span = scope.Span;
             var sampler = new TraceSampler(new NoLimits());
+            sampler.RegisterAgentSamplingRule(new AgentSamplingRule());
 
             // if there are no other rules, and before we have agent rates, mechanism is "Default"
             var (_, mechanism1) = sampler.MakeSamplingDecision(span);
@@ -124,7 +170,7 @@ namespace Datadog.Trace.Tests.Sampling
             mechanism2.Should().Be(SamplingMechanism.AgentRate);
         }
 
-        private void RunSamplerTest(
+        private async Task RunSamplerTest(
             ITraceSampler sampler,
             int iterations,
             float expectedAutoKeepRate,
@@ -136,12 +182,13 @@ namespace Datadog.Trace.Tests.Sampling
             var userKeeps = 0;
 
             var settings = new TracerSettings { ServiceName = ServiceName };
-            var tracer = new Tracer(settings, agentWriter: null, sampler: null, scopeManager: null, statsd: null);
+            await using var tracer = TracerHelper.CreateWithFakeAgent(settings);
 
             while (sampleSize-- > 0)
             {
                 using var scope = (Scope)tracer.StartActive(OperationName);
                 scope.Span.Context.TraceContext.Environment = Env;
+                scope.Span.ResourceName = ResourceName;
 
                 var decision = sampler.MakeSamplingDecision(scope.Span);
 

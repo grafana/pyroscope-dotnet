@@ -3,58 +3,105 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
-using System;
+#nullable enable
 using System.Collections.Generic;
-using System.Runtime.InteropServices;
 using Datadog.Trace.AppSec.Waf.NativeBindings;
 
 namespace Datadog.Trace.AppSec.Waf
 {
     internal class Result : IResult
     {
-        private readonly DDWAF_RET_CODE returnCode;
-
-        public Result(DdwafResultStruct returnStruct, DDWAF_RET_CODE returnCode, ulong aggregatedTotalRuntime, ulong aggregatedTotalRuntimeWithBindings)
+        public Result(DdwafResultStruct returnStruct, WafReturnCode returnCode, ulong aggregatedTotalRuntime, ulong aggregatedTotalRuntimeWithBindings, bool isRasp = false)
         {
-            this.returnCode = returnCode;
-            Actions = new((int)returnStruct.ActionsSize);
-            ReadActions(returnStruct);
-            ShouldBlock = Actions.Contains("block");
-            ShouldBeReported = returnCode >= DDWAF_RET_CODE.DDWAF_MATCH;
-            AggregatedTotalRuntime = aggregatedTotalRuntime;
-            AggregatedTotalRuntimeWithBindings = aggregatedTotalRuntimeWithBindings;
-            Data = ShouldBeReported ? Marshal.PtrToStringAnsi(returnStruct.Data) : string.Empty;
+            ReturnCode = returnCode;
+            Actions = returnStruct.Actions.DecodeMap();
+            ShouldReportSecurityResult = returnCode >= WafReturnCode.Match;
+            Derivatives = returnStruct.Derivatives.DecodeMap();
+            ShouldReportSchema = Derivatives is { Count: > 0 };
+            if (ShouldReportSecurityResult)
+            {
+                Data = returnStruct.Events.DecodeObjectArray();
+            }
+
+            if (Actions is { Count: > 0 })
+            {
+                if (Actions.TryGetValue(BlockingAction.BlockRequestType, out var value))
+                {
+                    BlockInfo = value as Dictionary<string, object?>;
+                    ShouldBlock = true;
+                }
+
+                if (Actions.TryGetValue(BlockingAction.RedirectRequestType, out value))
+                {
+                    RedirectInfo = value as Dictionary<string, object?>;
+                    ShouldBlock = true;
+                }
+
+                if (Actions.TryGetValue(BlockingAction.GenerateStackType, out value))
+                {
+                    SendStackInfo = value as Dictionary<string, object?>;
+                }
+            }
+
+            if (isRasp)
+            {
+                AggregatedTotalRuntimeRasp = aggregatedTotalRuntime;
+                AggregatedTotalRuntimeWithBindingsRasp = aggregatedTotalRuntimeWithBindings;
+            }
+            else
+            {
+                AggregatedTotalRuntime = aggregatedTotalRuntime;
+                AggregatedTotalRuntimeWithBindings = aggregatedTotalRuntimeWithBindings;
+            }
+
+            Timeout = returnStruct.Timeout > 0;
         }
 
-        public ReturnCode ReturnCode => Encoder.DecodeReturnCode(returnCode);
+        public WafReturnCode ReturnCode { get; }
 
-        public string Data { get; }
+        public bool ShouldReportSchema { get; }
 
-        public List<string> Actions { get; }
+        public IReadOnlyCollection<object>? Data { get; }
+
+        public Dictionary<string, object?>? Actions { get; }
+
+        public Dictionary<string, object?> Derivatives { get; }
 
         /// <summary>
-        /// Gets the total runtime in microseconds
+        /// Gets the total runtime in nanoseconds
         /// </summary>
         public ulong AggregatedTotalRuntime { get; }
 
         /// <summary>
-        /// Gets the total runtime in microseconds with parameter passing to the waf
+        /// Gets the total runtime in nanoseconds with parameter passing to the waf
         /// </summary>
         public ulong AggregatedTotalRuntimeWithBindings { get; }
 
+        /// <summary>
+        /// Gets the total runtime in nanoseconds for RASP calls
+        /// </summary>
+        public ulong AggregatedTotalRuntimeRasp { get; }
+
+        /// <summary>
+        /// Gets the total runtime in nanoseconds with parameter passing to the waf for RASP calls
+        /// </summary>
+        public ulong AggregatedTotalRuntimeWithBindingsRasp { get; }
+
+        /// <summary>
+        /// Gets the number of times that a rule type is evaluated in RASP
+        /// </summary>
+        public uint RaspRuleEvaluations { get; }
+
         public bool ShouldBlock { get; }
 
-        public bool ShouldBeReported { get; }
+        public Dictionary<string, object?>? BlockInfo { get; }
 
-        private void ReadActions(DdwafResultStruct returnStruct)
-        {
-            var pointer = returnStruct.ActionsArray;
-            for (var i = 0; i < returnStruct.ActionsSize; i++)
-            {
-                var pointerString = Marshal.ReadIntPtr(pointer, IntPtr.Size * i);
-                var action = Marshal.PtrToStringAnsi(pointerString);
-                Actions.Add(action);
-            }
-        }
+        public Dictionary<string, object?>? RedirectInfo { get; }
+
+        public Dictionary<string, object?>? SendStackInfo { get; }
+
+        public bool ShouldReportSecurityResult { get; }
+
+        public bool Timeout { get; }
     }
 }
