@@ -26,7 +26,15 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
         public static readonly bool IsAllMinorPackageVersions = false;
 #endif
 
+        public static IEnumerable<object[]> AwsDynamoDb => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.AwsDynamoDb : PackageVersionsLatestSpecific.AwsDynamoDb;
+
+        public static IEnumerable<object[]> AwsKinesis => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.AwsKinesis : PackageVersionsLatestSpecific.AwsKinesis;
+
+        public static IEnumerable<object[]> AwsLambda => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.AwsLambda : PackageVersionsLatestSpecific.AwsLambda;
+
         public static IEnumerable<object[]> AwsSqs => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.AwsSqs : PackageVersionsLatestSpecific.AwsSqs;
+
+        public static IEnumerable<object[]> AwsSns => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.AwsSns : PackageVersionsLatestSpecific.AwsSns;
 
         public static IEnumerable<object[]> MongoDB => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.MongoDB : PackageVersionsLatestSpecific.MongoDB;
 
@@ -45,6 +53,8 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
         public static IEnumerable<object[]> Npgsql => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.Npgsql : PackageVersionsLatestSpecific.Npgsql;
 
         public static IEnumerable<object[]> RabbitMQ => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.RabbitMQ : PackageVersionsLatestSpecific.RabbitMQ;
+
+        public static IEnumerable<object[]> DataStreamsRabbitMQ => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.DataStreamsRabbitMQ : PackageVersionsLatestSpecific.DataStreamsRabbitMQ;
 
         public static IEnumerable<object[]> SystemDataSqlClient => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.SystemDataSqlClient : PackageVersionsLatestSpecific.SystemDataSqlClient;
 
@@ -66,6 +76,8 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
 
         public static IEnumerable<object[]> MSTest => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.MSTest : PackageVersionsLatestSpecific.MSTest;
 
+        public static IEnumerable<object[]> MSTest2 => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.MSTest2 : PackageVersionsLatestSpecific.MSTest2;
+
         public static IEnumerable<object[]> Kafka => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.Kafka : PackageVersionsLatestSpecific.Kafka;
 
         public static IEnumerable<object[]> CosmosDb => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.CosmosDb : PackageVersionsLatestSpecific.CosmosDb;
@@ -75,6 +87,8 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
         public static IEnumerable<object[]> NLog => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.NLog : PackageVersionsLatestSpecific.NLog;
 
         public static IEnumerable<object[]> log4net => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.log4net : PackageVersionsLatestSpecific.log4net;
+
+        public static IEnumerable<object[]> ILogger => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.ILogger : PackageVersionsLatestSpecific.ILogger;
 
         public static IEnumerable<object[]> Aerospike => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.Aerospike : PackageVersionsLatestSpecific.Aerospike;
 
@@ -87,5 +101,11 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests
         public static IEnumerable<object[]> GrpcLegacy => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.GrpcLegacy : PackageVersionsLatestSpecific.GrpcLegacy;
 
         public static IEnumerable<object[]> OpenTelemetry => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.OpenTelemetry : PackageVersionsLatestSpecific.OpenTelemetry;
+
+        public static IEnumerable<object[]> Yarp => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.Yarp : PackageVersionsLatestSpecific.Yarp;
+
+        public static IEnumerable<object[]> AzureServiceBus => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.AzureServiceBus : PackageVersionsLatestSpecific.AzureServiceBus;
+
+        public static IEnumerable<object[]> Selenium => IsAllMinorPackageVersions ? PackageVersionsLatestMinors.Selenium : PackageVersionsLatestSpecific.Selenium;
     }
 }

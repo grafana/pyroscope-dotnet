@@ -1,15 +1,19 @@
+#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 #include "clr_helpers.h"
 
 #include <cstring>
 
 #include "dd_profiler_constants.h"
 #include "environment_variables.h"
+#include "environment_variables_util.h"
 #include "logger.h"
 #include "macros.h"
 #include <set>
 #include <stack>
 
 #include "../../../shared/src/native-src/pal.h"
+
+#include <codecvt>
 
 namespace trace
 {
@@ -211,7 +215,7 @@ ModuleInfo GetModuleInfo(ICorProfilerInfo4* info, const ModuleID& module_id)
     return {module_id, shared::WSTRING(module_path), GetAssemblyInfo(info, assembly_id), module_flags};
 }
 
-TypeInfo GetTypeInfo(const ComPtr<IMetaDataImport2>& metadata_import, const mdToken& token)
+TypeInfo GetTypeInfo(const ComPtr<IMetaDataImport2>& metadata_import, const mdToken& token_)
 {
     mdToken parent_token = mdTokenNil;
     std::shared_ptr<TypeInfo> parentTypeInfo = nullptr;
@@ -227,83 +231,97 @@ TypeInfo GetTypeInfo(const ComPtr<IMetaDataImport2>& metadata_import, const mdTo
     bool type_isSealed = false;
 
     HRESULT hr = E_FAIL;
-    const auto token_type = TypeFromToken(token);
 
-    switch (token_type)
+    auto token = token_;
+    auto typeSpec = mdTypeSpecNil;
+    std::set<mdToken> processed;
+
+    while (token != mdTokenNil)
     {
-        case mdtTypeDef:
-            hr = metadata_import->GetTypeDefProps(token, type_name, kNameMaxSize, &type_name_len, &type_flags,
-                                                  &type_extends);
-
-            metadata_import->GetNestedClassProps(token, &parent_type_token);
-            if (parent_type_token != mdTokenNil)
-            {
-                parentTypeInfo = std::make_shared<TypeInfo>(GetTypeInfo(metadata_import, parent_type_token));
-            }
-
-            if (type_extends != mdTokenNil)
-            {
-                extendsInfo = std::make_shared<TypeInfo>(GetTypeInfo(metadata_import, type_extends));
-                type_valueType =
-                    extendsInfo->name == WStr("System.ValueType") || extendsInfo->name == WStr("System.Enum");
-            }
-
-            type_isAbstract = IsTdAbstract(type_flags);
-            type_isSealed = IsTdSealed(type_flags);
-
-            break;
-        case mdtTypeRef:
-            hr = metadata_import->GetTypeRefProps(token, &parent_token, type_name, kNameMaxSize, &type_name_len);
-            break;
-        case mdtTypeSpec:
+        const auto token_type = TypeFromToken(token);
+        switch (token_type)
         {
-            PCCOR_SIGNATURE signature{};
-            ULONG signature_length{};
+            case mdtTypeDef:
+                hr = metadata_import->GetTypeDefProps(token, type_name, kNameMaxSize, &type_name_len, &type_flags,
+                                                      &type_extends);
 
-            hr = metadata_import->GetTypeSpecFromToken(token, &signature, &signature_length);
+                metadata_import->GetNestedClassProps(token, &parent_type_token);
+                if (parent_type_token != mdTokenNil)
+                {
+                    parentTypeInfo = std::make_shared<TypeInfo>(GetTypeInfo(metadata_import, parent_type_token));
+                }
 
-            if (FAILED(hr) || signature_length < 3)
+                if (type_extends != mdTokenNil)
+                {
+                    extendsInfo = std::make_shared<TypeInfo>(GetTypeInfo(metadata_import, type_extends));
+                    type_valueType =
+                        extendsInfo->name == WStr("System.ValueType") || extendsInfo->name == WStr("System.Enum");
+                }
+
+                type_isAbstract = IsTdAbstract(type_flags);
+                type_isSealed = IsTdSealed(type_flags);
+
+                break;
+            case mdtTypeRef:
+                hr = metadata_import->GetTypeRefProps(token, &parent_token, type_name, kNameMaxSize, &type_name_len);
+                break;
+            case mdtTypeSpec:
             {
-                return {};
-            }
+                PCCOR_SIGNATURE signature{};
+                ULONG signature_length{};
 
-            if (signature[0] & ELEMENT_TYPE_GENERICINST)
-            {
-                mdToken type_token;
-                CorSigUncompressToken(&signature[2], &type_token);
-                const auto baseType = GetTypeInfo(metadata_import, type_token);
-                return {baseType.id,        baseType.name,        token,
-                        token_type,         baseType.extend_from, baseType.valueType,
-                        baseType.isGeneric, baseType.isAbstract, baseType.isSealed,
-                        baseType.parent_type, baseType.scopeToken};
+                hr = metadata_import->GetTypeSpecFromToken(token, &signature, &signature_length);
+
+                if (FAILED(hr) || signature_length < 3)
+                {
+                    return {};
+                }
+
+                if (signature[0] & ELEMENT_TYPE_GENERICINST)
+                {
+                    if (std::find(processed.begin(), processed.end(), token) != processed.end())
+                    {
+                        return {}; // Break circular reference
+                    }
+                    processed.insert(token);
+
+                    mdToken type_token;
+                    CorSigUncompressToken(&signature[2], &type_token);
+                    typeSpec = token;
+                    token = type_token;
+                    continue;
+                }
             }
+            break;
+            case mdtModuleRef:
+                metadata_import->GetModuleRefProps(token, type_name, kNameMaxSize, &type_name_len);
+                break;
+            case mdtMemberRef:
+                return GetFunctionInfo(metadata_import, token).type;
+                break;
+            case mdtMethodDef:
+                return GetFunctionInfo(metadata_import, token).type;
+                break;
         }
-        break;
-        case mdtModuleRef:
-            metadata_import->GetModuleRefProps(token, type_name, kNameMaxSize, &type_name_len);
-            break;
-        case mdtMemberRef:
-            return GetFunctionInfo(metadata_import, token).type;
-            break;
-        case mdtMethodDef:
-            return GetFunctionInfo(metadata_import, token).type;
-            break;
-    }
-    if (FAILED(hr) || type_name_len == 0)
-    {
-        return {};
-    }
 
-    const auto type_name_string = shared::WSTRING(type_name);
-    const auto generic_token_index = type_name_string.rfind(WStr("`"));
-    if (generic_token_index != std::string::npos)
-    {
-        const auto idxFromRight = type_name_string.length() - generic_token_index - 1;
-        type_isGeneric = idxFromRight == 1 || idxFromRight == 2;
-    }
+        if (FAILED(hr) || type_name_len == 0)
+        {
+            return {};
+        }
 
-    return {token,       type_name_string, mdTypeSpecNil,  token_type,
-            extendsInfo, type_valueType,   type_isGeneric, type_isAbstract, type_isSealed, parentTypeInfo, parent_token};
+        const auto type_name_string = shared::WSTRING(type_name);
+        const auto generic_token_index = type_name_string.rfind(WStr("`"));
+        if (generic_token_index != std::string::npos)
+        {
+            const auto idxFromRight = type_name_string.length() - generic_token_index - 1;
+            type_isGeneric = idxFromRight == 1 || idxFromRight == 2;
+        }
+
+        return {token,         type_name_string, typeSpec,       typeSpec != mdTypeSpecNil ? mdtTypeSpec : token_type,
+                extendsInfo,   type_valueType,   type_isGeneric, type_isAbstract,
+                type_isSealed, parentTypeInfo,   parent_token};
+    }
+    return {};
 }
 
 // Searches for an AssemblyRef whose name and version match exactly.
@@ -362,6 +380,18 @@ std::tuple<unsigned, int> TypeSignature::GetElementTypeAndFlags() const
 
     PCCOR_SIGNATURE pbCur = &pbBase[offset];
 
+    if (*pbCur == ELEMENT_TYPE_PTR)
+    {
+        pbCur++;
+        typeFlags |= TypeFlagByRef;
+    }
+
+    if (*pbCur == ELEMENT_TYPE_PINNED)
+    {
+        pbCur++;
+        typeFlags |= TypeFlagPinnedType;
+    }
+
     if (*pbCur == ELEMENT_TYPE_VOID)
     {
         typeFlags |= TypeFlagVoid;
@@ -410,11 +440,16 @@ std::tuple<unsigned, int> TypeSignature::GetElementTypeAndFlags() const
     return {elementType, typeFlags};
 }
 
-mdToken TypeSignature::GetTypeTok(ComPtr<IMetaDataEmit2>& pEmit, mdAssemblyRef corLibRef) const
+mdToken TypeSignature::GetTypeTok(const ComPtr<IMetaDataEmit2>& pEmit, mdAssemblyRef corLibRef) const
 {
     mdToken token = mdTokenNil;
     PCCOR_SIGNATURE pbCur = &pbBase[offset];
     const PCCOR_SIGNATURE pStart = pbCur;
+
+    if (*pbCur == ELEMENT_TYPE_PTR || *pbCur == ELEMENT_TYPE_PINNED)
+    {
+        pbCur++;
+    }
 
     if (*pbCur == ELEMENT_TYPE_BYREF)
     {
@@ -499,6 +534,13 @@ shared::WSTRING GetSigTypeTokName(PCCOR_SIGNATURE& pbCur, const ComPtr<IMetaData
     {
         pbCur++;
         ref_flag = true;
+    }
+
+    bool pointer_flag = false;
+    if (*pbCur == ELEMENT_TYPE_PTR)
+    {
+        pbCur++;
+        pointer_flag = true;
     }
 
     switch (*pbCur)
@@ -623,6 +665,10 @@ shared::WSTRING GetSigTypeTokName(PCCOR_SIGNATURE& pbCur, const ComPtr<IMetaData
     if (ref_flag)
     {
         tokenName += WStr("&");
+    }
+    if (pointer_flag)
+    {
+        tokenName += WStr("*");
     }
     return tokenName;
 }
@@ -848,6 +894,8 @@ bool ParseParamOrLocal(PCCOR_SIGNATURE& pbCur, PCCOR_SIGNATURE pbEnd)
 
     if (*pbCur == ELEMENT_TYPE_BYREF) pbCur++;
 
+    if (*pbCur == ELEMENT_TYPE_PTR) pbCur++;
+
     return ParseType(pbCur, pbEnd);
 }
 
@@ -931,43 +979,24 @@ bool FindTypeDefByName(const shared::WSTRING& instrumentationTargetMethodTypeNam
                        const ComPtr<IMetaDataImport2>& metadata_import, mdTypeDef& typeDef)
 {
     mdTypeDef parentTypeDef = mdTypeDefNil;
-    auto nameParts = shared::Split(instrumentationTargetMethodTypeName, '+');
-    auto instrumentedMethodTypeName = instrumentationTargetMethodTypeName;
+    const auto nameParts = shared::Split(instrumentationTargetMethodTypeName, '+');
 
-    if (nameParts.size() == 2)
+    for (const auto& namePart : nameParts)
     {
-        // We're instrumenting a nested class, find the parent first
-        auto hr = metadata_import->FindTypeDefByName(nameParts[0].c_str(), mdTokenNil, &parentTypeDef);
+        auto hr = metadata_import->FindTypeDefByName(namePart.c_str(), parentTypeDef, &parentTypeDef);
 
         if (FAILED(hr))
         {
             // This can happen between .NET framework and .NET core, not all apis are
             // available in both. Eg: WinHttpHandler, CurlHandler, and some methods in
             // System.Data
-            Logger::Debug("Can't load the parent TypeDef: ", nameParts[0],
-                  " for nested class: ", instrumentationTargetMethodTypeName, ", Module: ", assemblyName);
+            Logger::Debug("Can't load the TypeDef for: ", instrumentationTargetMethodTypeName,
+                          ", Module: ", assemblyName);
             return false;
         }
-        instrumentedMethodTypeName = nameParts[1];
-    }
-    else if (nameParts.size() > 2)
-    {
-        Logger::Warn("Invalid TypeDef-only one layer of nested classes are supported: ", instrumentationTargetMethodTypeName,
-             ", Module: ", assemblyName);
-        return false;
     }
 
-    // Find the type we're instrumenting
-    auto hr = metadata_import->FindTypeDefByName(instrumentedMethodTypeName.c_str(), parentTypeDef, &typeDef);
-    if (FAILED(hr))
-    {
-        // This can happen between .NET framework and .NET core, not all apis are
-        // available in both. Eg: WinHttpHandler, CurlHandler, and some methods in
-        // System.Data
-        Logger::Debug("Can't load the TypeDef for: ", instrumentedMethodTypeName, ", Module: ", assemblyName);
-        return false;
-    }
-
+    typeDef = parentTypeDef;
     return true;
 }
 
@@ -1010,13 +1039,34 @@ HRESULT FunctionLocalSignature::TryParse(PCCOR_SIGNATURE pbBase, unsigned len, s
     return S_OK;
 }
 
+shared::WSTRING GetStringValueFromBlob(PCCOR_SIGNATURE& signature)
+{
+    // If it's null
+    if (*signature == UINT8_MAX)
+    {
+        signature += 1;
+        return shared::WSTRING();
+    }
+
+    // Read size and advance
+    ULONG size{CorSigUncompressData(signature)};
+    shared::WSTRING wstr;
+    wstr.reserve(size);
+
+    std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+    std::wstring temp =
+        converter.from_bytes(reinterpret_cast<const char*>(signature), reinterpret_cast<const char*>(signature) + size);
+    wstr.assign(temp.begin(), temp.end());
+    signature += size;
+    return wstr;
+}
+
 HRESULT HasAsyncStateMachineAttribute(const ComPtr<IMetaDataImport2>& metadataImport, const mdMethodDef methodDefToken, bool& hasAsyncAttribute)
 {
     const void* ppData = nullptr;
     ULONG pcbData = 0;
     auto hr = metadataImport->GetCustomAttributeByName(
         methodDefToken, WStr("System.Runtime.CompilerServices.AsyncStateMachineAttribute"), &ppData, &pcbData);
-
     IfFailRet(hr);
     hasAsyncAttribute = pcbData > 0;
     return hr;
@@ -1055,7 +1105,7 @@ HRESULT ResolveTypeInternal(ICorProfilerInfo4* info,
         if (moduleId == 0) continue;
 
         ComPtr<IUnknown> metadata_interfaces;
-        auto hr = info->GetModuleMetaData(moduleId, ofRead | ofWrite, IID_IMetaDataImport2,
+        auto hr = info->GetModuleMetaData(moduleId, ofRead, IID_IMetaDataImport2,
                                                             metadata_interfaces.GetAddressOf());
         if (FAILED(hr))
         {
@@ -1199,7 +1249,7 @@ HRESULT ResolveType(ICorProfilerInfo4* info,
     auto hr = metadata_import->GetTypeRefProps(typeRefToken, &resolutionScope, refTypeName.data(), kNameMaxSize, &nameSize);
     if (FAILED(hr) || resolutionScope == mdTokenNil)
     {
-        Logger::Error("[ResolveType] GetTypeRefProps [1] has failed. typeRefToken: ", typeRefToken);
+        Logger::Info("[ResolveType] GetTypeRefProps [1] has failed. typeRefToken: ", typeRefToken);
         return E_FAIL;
     }
 
@@ -1414,37 +1464,102 @@ HRESULT GenericTypeProps::TryParse()
 
 void LogManagedProfilerAssemblyDetails()
 {
-    Logger::Info("pcbPublicKey: ", managed_profiler_assembly_property.pcbPublicKey);
-    Logger::Info("ppbPublicKey: ", shared::HexStr(managed_profiler_assembly_property.ppbPublicKey,
-                                                  managed_profiler_assembly_property.pcbPublicKey));
-    Logger::Info("pcbPublicKey: ");
-    const auto ppbPublicKey = (BYTE*) managed_profiler_assembly_property.ppbPublicKey;
-    for (ULONG i = 0; i < managed_profiler_assembly_property.pcbPublicKey; i++)
+    if (!IsDebugEnabled())
     {
-        Logger::Info(" -> ", (int) ppbPublicKey[i]);
+        return;
     }
-    Logger::Info("szName: ", managed_profiler_assembly_property.szName);
 
-    Logger::Info("Metadata.cbLocale: ", managed_profiler_assembly_property.pMetaData.cbLocale);
-    Logger::Info("Metadata.szLocale: ", managed_profiler_assembly_property.pMetaData.szLocale);
+    Logger::Debug("pcbPublicKey: ", managed_profiler_assembly_property.pcbPublicKey);
+    Logger::Debug("ppbPublicKey: ", shared::HexStr(managed_profiler_assembly_property.ppbPublicKey,
+                                                  managed_profiler_assembly_property.pcbPublicKey));
+    Logger::Debug("szName: ", managed_profiler_assembly_property.szName);
+
+    Logger::Debug("Metadata.cbLocale: ", managed_profiler_assembly_property.pMetaData.cbLocale);
+    Logger::Debug("Metadata.szLocale: ", managed_profiler_assembly_property.pMetaData.szLocale);
 
     if (managed_profiler_assembly_property.pMetaData.rOS != nullptr)
     {
-        Logger::Info("Metadata.rOS.dwOSMajorVersion: ",
+        Logger::Debug("Metadata.rOS.dwOSMajorVersion: ",
                      managed_profiler_assembly_property.pMetaData.rOS->dwOSMajorVersion);
-        Logger::Info("Metadata.rOS.dwOSMinorVersion: ",
+        Logger::Debug("Metadata.rOS.dwOSMinorVersion: ",
                      managed_profiler_assembly_property.pMetaData.rOS->dwOSMinorVersion);
-        Logger::Info("Metadata.rOS.dwOSPlatformId: ",
+        Logger::Debug("Metadata.rOS.dwOSPlatformId: ",
                      managed_profiler_assembly_property.pMetaData.rOS->dwOSPlatformId);
     }
 
-    Logger::Info("Metadata.usBuildNumber: ", managed_profiler_assembly_property.pMetaData.usBuildNumber);
-    Logger::Info("Metadata.usMajorVersion: ", managed_profiler_assembly_property.pMetaData.usMajorVersion);
-    Logger::Info("Metadata.usMinorVersion: ", managed_profiler_assembly_property.pMetaData.usMinorVersion);
-    Logger::Info("Metadata.usRevisionNumber: ", managed_profiler_assembly_property.pMetaData.usRevisionNumber);
+    Logger::Debug("Metadata.usBuildNumber: ", managed_profiler_assembly_property.pMetaData.usBuildNumber);
+    Logger::Debug("Metadata.usMajorVersion: ", managed_profiler_assembly_property.pMetaData.usMajorVersion);
+    Logger::Debug("Metadata.usMinorVersion: ", managed_profiler_assembly_property.pMetaData.usMinorVersion);
+    Logger::Debug("Metadata.usRevisionNumber: ", managed_profiler_assembly_property.pMetaData.usRevisionNumber);
 
-    Logger::Info("pulHashAlgId: ", managed_profiler_assembly_property.pulHashAlgId);
-    Logger::Info("sizeof(pulHashAlgId): ", sizeof(managed_profiler_assembly_property.pulHashAlgId));
-    Logger::Info("assemblyFlags: ", managed_profiler_assembly_property.assemblyFlags);
+    Logger::Debug("pulHashAlgId: ", managed_profiler_assembly_property.pulHashAlgId);
+    Logger::Debug("sizeof(pulHashAlgId): ", sizeof(managed_profiler_assembly_property.pulHashAlgId));
+    Logger::Debug("assemblyFlags: ", managed_profiler_assembly_property.assemblyFlags);
 }
+
+HRESULT IsTypeByRefLike(ICorProfilerInfo4* corProfilerInfo4, const ModuleMetadataBase& module_metadata, const TypeSignature& typeSig,
+                                        const mdAssemblyRef& corLibAssemblyRef, bool& isTypeIsByRefLike) {
+    auto metaDataImportOfTypeDef = module_metadata.metadata_import;
+    auto metaDataEmitOfTypeDef = module_metadata.metadata_emit;
+    auto typeDefOrRefOrSpecToken = typeSig.GetTypeTok(metaDataEmitOfTypeDef, corLibAssemblyRef);
+
+    // Get open type from type spec
+    if (TypeFromToken(typeDefOrRefOrSpecToken) == mdtTypeSpec)
+    {
+        PCCOR_SIGNATURE sig;
+        const ULONG sigLength = typeSig.GetSignature(sig);
+        GenericTypeProps genericProps {sig, sigLength};
+        const auto hr = genericProps.TryParse();
+
+        if (hr == S_OK && genericProps.OpenTypeToken != mdTokenNil)
+        {
+            typeDefOrRefOrSpecToken = genericProps.OpenTypeToken;
+        }
+        else if (genericProps.SpecElementType == ELEMENT_TYPE_VAR || genericProps.SpecElementType == ELEMENT_TYPE_MVAR)
+        {
+            isTypeIsByRefLike = false;
+            return S_OK;
+        }
+        else
+        {
+            Logger::Warn("[IsTypeByRefLike] Failed to get open type token for generic type. Assuming no byref-like.");
+            isTypeIsByRefLike = false;
+            return S_OK;
+        }
+    }
+
+    return IsTypeTokenByRefLike(corProfilerInfo4, module_metadata, typeDefOrRefOrSpecToken, isTypeIsByRefLike);
+}
+
+HRESULT IsTypeTokenByRefLike(ICorProfilerInfo4* corProfilerInfo4, const ModuleMetadataBase& module_metadata, mdToken typeDefOrRefOrSpecToken,
+                                             bool& isTypeIsByRefLike) {
+    auto metaDataImportOfTypeDef = module_metadata.metadata_import;
+
+    // Get open type from type spec
+    if (TypeFromToken(typeDefOrRefOrSpecToken) == mdtTypeSpec)
+    {
+        Logger::Warn("IsTypeTokenByRefLike is not resolving type specs. Use IsTypeByRefLike instead.");
+        isTypeIsByRefLike = false;
+        return S_OK;
+    }
+
+    if (TypeFromToken(typeDefOrRefOrSpecToken) == mdtTypeRef)
+    {
+        const auto& metadata_import = module_metadata.metadata_import;
+        const auto& assembly_import = module_metadata.assembly_import;
+
+        auto hr = ResolveType(corProfilerInfo4, metadata_import, assembly_import, typeDefOrRefOrSpecToken,
+                              typeDefOrRefOrSpecToken, metaDataImportOfTypeDef);
+
+        if (FAILED(hr))
+        {
+            // For now we ignore issues with resolving types.
+            isTypeIsByRefLike = false;
+            return S_OK;
+        }
+    }
+
+    return IsByRefLike(metaDataImportOfTypeDef, typeDefOrRefOrSpecToken, isTypeIsByRefLike);
+}
+
 } // namespace trace

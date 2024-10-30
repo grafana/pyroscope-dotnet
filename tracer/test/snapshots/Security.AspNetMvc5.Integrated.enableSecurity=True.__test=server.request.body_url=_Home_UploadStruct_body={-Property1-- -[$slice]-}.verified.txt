@@ -12,12 +12,14 @@
       aspnet.controller: home,
       aspnet.route: {controller}/{action}/{id},
       env: integration_tests,
+      http.client_ip: 127.0.0.1,
       http.method: POST,
       http.request.headers.host: localhost:00000,
       http.status_code: 200,
       http.url: http://localhost:00000/Home/UploadStruct,
       http.useragent: Mistake Not...,
       language: dotnet,
+      network.client.ip: ::1,
       span.kind: server,
       _dd.origin: appsec
     }
@@ -51,18 +53,19 @@
       span.kind: server,
       _dd.appsec.json: {"triggers":[{"rule":{"id":"crs-942-290","name":"Finds basic MongoDB SQL injection attempts","tags":{"category":"attack_attempt","type":"nosql_injection"}},"rule_matches":[{"operator":"match_regex","operator_value":"(?i:(?:\\[\\$(?:ne|eq|lte?|gte?|n?in|mod|all|size|exists|type|slice|x?or|div|like|between|and)\\]))","parameters":[{"address":"server.request.body","highlight":["[$slice]"],"key_path":["miscModel","Property1"],"value":"[$slice]"}]}]}]},
       _dd.origin: appsec,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.appsec.waf.duration: 0.0,
       _dd.appsec.waf.duration_ext: 0.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
       _sampling_priority_v1: 2.0
+    },
+    MetaStruct: {
+      appsec: 
     }
   },
   {
@@ -78,12 +81,14 @@
       aspnet.controller: home,
       aspnet.route: {controller}/{action}/{id},
       env: integration_tests,
+      http.client_ip: 127.0.0.1,
       http.method: POST,
       http.request.headers.host: localhost:00000,
       http.status_code: 200,
       http.url: http://localhost:00000/Home/UploadStruct,
       http.useragent: Mistake Not...,
       language: dotnet,
+      network.client.ip: ::1,
       span.kind: server,
       _dd.origin: appsec
     }
@@ -117,18 +122,19 @@
       span.kind: server,
       _dd.appsec.json: {"triggers":[{"rule":{"id":"crs-942-290","name":"Finds basic MongoDB SQL injection attempts","tags":{"category":"attack_attempt","type":"nosql_injection"}},"rule_matches":[{"operator":"match_regex","operator_value":"(?i:(?:\\[\\$(?:ne|eq|lte?|gte?|n?in|mod|all|size|exists|type|slice|x?or|div|like|between|and)\\]))","parameters":[{"address":"server.request.body","highlight":["[$slice]"],"key_path":["miscModel","Property1"],"value":"[$slice]"}]}]}]},
       _dd.origin: appsec,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.appsec.waf.duration: 0.0,
       _dd.appsec.waf.duration_ext: 0.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
       _sampling_priority_v1: 2.0
+    },
+    MetaStruct: {
+      appsec: 
     }
   },
   {
@@ -144,12 +150,14 @@
       aspnet.controller: home,
       aspnet.route: {controller}/{action}/{id},
       env: integration_tests,
+      http.client_ip: 127.0.0.1,
       http.method: POST,
       http.request.headers.host: localhost:00000,
       http.status_code: 200,
       http.url: http://localhost:00000/Home/UploadStruct,
       http.useragent: Mistake Not...,
       language: dotnet,
+      network.client.ip: ::1,
       span.kind: server,
       _dd.origin: appsec
     }
@@ -183,18 +191,19 @@
       span.kind: server,
       _dd.appsec.json: {"triggers":[{"rule":{"id":"crs-942-290","name":"Finds basic MongoDB SQL injection attempts","tags":{"category":"attack_attempt","type":"nosql_injection"}},"rule_matches":[{"operator":"match_regex","operator_value":"(?i:(?:\\[\\$(?:ne|eq|lte?|gte?|n?in|mod|all|size|exists|type|slice|x?or|div|like|between|and)\\]))","parameters":[{"address":"server.request.body","highlight":["[$slice]"],"key_path":["miscModel","Property1"],"value":"[$slice]"}]}]}]},
       _dd.origin: appsec,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.appsec.waf.duration: 0.0,
       _dd.appsec.waf.duration_ext: 0.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
       _sampling_priority_v1: 2.0
+    },
+    MetaStruct: {
+      appsec: 
     }
   },
   {
@@ -210,12 +219,14 @@
       aspnet.controller: home,
       aspnet.route: {controller}/{action}/{id},
       env: integration_tests,
+      http.client_ip: 127.0.0.1,
       http.method: POST,
       http.request.headers.host: localhost:00000,
       http.status_code: 200,
       http.url: http://localhost:00000/Home/UploadStruct,
       http.useragent: Mistake Not...,
       language: dotnet,
+      network.client.ip: ::1,
       span.kind: server,
       _dd.origin: appsec
     }
@@ -249,18 +260,19 @@
       span.kind: server,
       _dd.appsec.json: {"triggers":[{"rule":{"id":"crs-942-290","name":"Finds basic MongoDB SQL injection attempts","tags":{"category":"attack_attempt","type":"nosql_injection"}},"rule_matches":[{"operator":"match_regex","operator_value":"(?i:(?:\\[\\$(?:ne|eq|lte?|gte?|n?in|mod|all|size|exists|type|slice|x?or|div|like|between|and)\\]))","parameters":[{"address":"server.request.body","highlight":["[$slice]"],"key_path":["miscModel","Property1"],"value":"[$slice]"}]}]}]},
       _dd.origin: appsec,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.appsec.waf.duration: 0.0,
       _dd.appsec.waf.duration_ext: 0.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
       _sampling_priority_v1: 2.0
+    },
+    MetaStruct: {
+      appsec: 
     }
   },
   {
@@ -276,12 +288,14 @@
       aspnet.controller: home,
       aspnet.route: {controller}/{action}/{id},
       env: integration_tests,
+      http.client_ip: 127.0.0.1,
       http.method: POST,
       http.request.headers.host: localhost:00000,
       http.status_code: 200,
       http.url: http://localhost:00000/Home/UploadStruct,
       http.useragent: Mistake Not...,
       language: dotnet,
+      network.client.ip: ::1,
       span.kind: server,
       _dd.origin: appsec
     }
@@ -315,18 +329,19 @@
       span.kind: server,
       _dd.appsec.json: {"triggers":[{"rule":{"id":"crs-942-290","name":"Finds basic MongoDB SQL injection attempts","tags":{"category":"attack_attempt","type":"nosql_injection"}},"rule_matches":[{"operator":"match_regex","operator_value":"(?i:(?:\\[\\$(?:ne|eq|lte?|gte?|n?in|mod|all|size|exists|type|slice|x?or|div|like|between|and)\\]))","parameters":[{"address":"server.request.body","highlight":["[$slice]"],"key_path":["miscModel","Property1"],"value":"[$slice]"}]}]}]},
       _dd.origin: appsec,
-      _dd.p.dm: -0,
       _dd.runtime_family: dotnet
     },
     Metrics: {
       process_id: 0,
-      _dd.agent_psr: 1.0,
       _dd.appsec.enabled: 1.0,
       _dd.appsec.waf.duration: 0.0,
       _dd.appsec.waf.duration_ext: 0.0,
       _dd.top_level: 1.0,
       _dd.tracer_kr: 1.0,
       _sampling_priority_v1: 2.0
+    },
+    MetaStruct: {
+      appsec: 
     }
   }
 ]

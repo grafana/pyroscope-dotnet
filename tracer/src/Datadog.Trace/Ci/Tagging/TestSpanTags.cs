@@ -33,7 +33,6 @@ internal partial class TestSpanTags : TestSuiteSpanTags
         RuntimeName = suiteTags.RuntimeName;
         RuntimeVersion = suiteTags.RuntimeVersion;
         StageName = suiteTags.StageName;
-        TestsSkipped = suiteTags.TestsSkipped;
         BuildSourceRoot = suiteTags.BuildSourceRoot;
         CiEnvVars = suiteTags.CiEnvVars;
         CIProvider = suiteTags.CIProvider;
@@ -83,4 +82,34 @@ internal partial class TestSpanTags : TestSuiteSpanTags
 
     [Tag(TestTags.SkipReason)]
     public string SkipReason { get; set; }
+
+    [Tag(IntelligentTestRunnerTags.SkippedBy)]
+    public string SkippedByIntelligentTestRunner { get; set; }
+
+    [Tag(IntelligentTestRunnerTags.UnskippableTag)]
+    public string Unskippable { get; set; }
+
+    [Tag(IntelligentTestRunnerTags.ForcedRunTag)]
+    public string ForcedRun { get; set; }
+
+    [Tag(EarlyFlakeDetectionTags.TestIsNew)]
+    public string EarlyFlakeDetectionTestIsNew { get; set; }
+
+    [Tag(EarlyFlakeDetectionTags.TestIsRetry)]
+    public string EarlyFlakeDetectionTestIsRetry { get; set; }
+
+    [Tag(BrowserTags.BrowserDriver)]
+    public string BrowserDriver { get; set; }
+
+    [Tag(BrowserTags.BrowserDriverVersion)]
+    public string BrowserDriverVersion { get; set; }
+
+    [Tag(BrowserTags.BrowserName)]
+    public string BrowserName { get; set; }
+
+    [Tag(BrowserTags.BrowserVersion)]
+    public string BrowserVersion { get; set; }
+
+    [Tag(BrowserTags.IsRumActive)]
+    public string IsRumActive { get; set; }
 }

@@ -4,11 +4,9 @@
 // </copyright>
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
-using System.IO;
 using System.Linq;
+using FluentAssertions;
 
 namespace Datadog.Profiler.IntegrationTests.Helpers
 {
@@ -39,10 +37,7 @@ namespace Datadog.Profiler.IntegrationTests.Helpers
 
             for (int i = 0; i < other._stackFrames.Count; i++)
             {
-                if (!_stackFrames[i].Equals(other._stackFrames[i]))
-                {
-                    return false;
-                }
+                _stackFrames[i].ToString().Should().Be(other._stackFrames[i].ToString());
             }
 
             return true;

@@ -7,7 +7,7 @@ namespace Samples.Probes.TestRuns.ExpressionTests
     internal class TemplateExceptionValue : IRun
     {
         private const string Json = @"{
-        ""ref"": ""@exceptions""
+        ""ref"": ""@exception""
 }";
 
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -18,7 +18,7 @@ namespace Samples.Probes.TestRuns.ExpressionTests
 
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        [MethodProbeTestData(
+        [LogMethodProbeTestData(
             templateJson: Json,
             captureSnapshot: false,
             evaluateAt: Const.Exit,

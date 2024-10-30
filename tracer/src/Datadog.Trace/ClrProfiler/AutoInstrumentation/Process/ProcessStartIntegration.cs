@@ -5,7 +5,10 @@
 
 using System;
 using System.ComponentModel;
+using Datadog.Trace.AppSec;
 using Datadog.Trace.ClrProfiler.CallTarget;
+using Datadog.Trace.Iast;
+using Datadog.Trace.Util;
 
 namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Process
 {
@@ -18,7 +21,7 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Process
        MethodName = "Start",
        ReturnTypeName = ClrNames.Process,
        MinimumVersion = "1.0.0",
-       MaximumVersion = "7.*.*",
+       MaximumVersion = "8.*.*",
        IntegrationName = nameof(Configuration.IntegrationId.Process))]
     [Browsable(false)]
     [EditorBrowsable(EditorBrowsableState.Never)]
@@ -32,8 +35,11 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Process
         /// <returns>Calltarget state value</returns>
         internal static CallTargetState OnMethodBegin<TTarget>(TTarget instance)
         {
-            if (instance is System.Diagnostics.Process process && process.StartInfo is var startInfo)
+            // Make sure we're not starting a "do not trace" process
+            if (instance is System.Diagnostics.Process { StartInfo: var startInfo }
+                && ProcessHelpers.ShouldTraceProcessStart())
             {
+                VulnerabilitiesModule.OnCommandInjection(startInfo);
                 return new CallTargetState(scope: ProcessStartCommon.CreateScope(startInfo));
             }
 
@@ -46,7 +52,7 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Process
         /// <typeparam name="TTarget">Type of the target</typeparam>
         /// <typeparam name="TReturn">Type of the return value</typeparam>
         /// <param name="instance">Instance value, aka `this` of the instrumented method.</param>
-        /// <param name="returnValue">the return value processce</param>
+        /// <param name="returnValue">the return value</param>
         /// <param name="exception">Exception instance in case the original code threw an exception.</param>
         /// <param name="state">Calltarget state value</param>
         /// <returns>CallTargetReturn</returns>

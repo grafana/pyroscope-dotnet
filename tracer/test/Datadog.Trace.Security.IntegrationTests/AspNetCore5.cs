@@ -38,7 +38,7 @@ namespace Datadog.Trace.Security.IntegrationTests
         public AspNetCore5TestsWithoutExternalRulesFile(AspNetCoreTestFixture fixture, ITestOutputHelper outputHelper, bool enableSecurity, string testName)
             : base("AspNetCore5", fixture, outputHelper, "/shutdown", enableSecurity: enableSecurity, testName: testName)
         {
-            SetEnvironmentVariable(Configuration.ConfigurationKeys.DebugEnabled, "true");
+            SetEnvironmentVariable(Configuration.ConfigurationKeys.DebugEnabled, "false");
         }
 
         [SkippableTheory]
@@ -62,6 +62,20 @@ namespace Datadog.Trace.Security.IntegrationTests
 #endif
             await TestAppSecRequestWithVerifyAsync(agent, url, null, 5, 1, settings);
         }
+
+        [SkippableFact]
+        [Trait("RunOnWindows", "True")]
+        public async Task TestNullAction()
+        {
+            await TryStartApp();
+            var agent = Fixture.Agent;
+            var url = "/null-action/test/test";
+            var dateTime = DateTime.UtcNow;
+            await SubmitRequest(url, null, null);
+            var spans = agent.WaitForSpans(1, minDateTime: dateTime);
+            var settings = VerifyHelper.GetSpanVerifierSettings();
+            await VerifyHelper.VerifySpans(spans, settings).UseFileName($"{GetTestName()}.test-null-action");
+        }
     }
 
     public class AspNetCore5TestsSecurityDisabledWithDefaultExternalRulesFile : AspNetCoreSecurityDisabledWithExternalRulesFile
@@ -76,6 +90,30 @@ namespace Datadog.Trace.Security.IntegrationTests
     {
         public AspNetCore5TestsSecurityEnabledWithDefaultExternalRulesFile(AspNetCoreTestFixture fixture, ITestOutputHelper outputHelper)
             : base("AspNetCore5", fixture, outputHelper, "/shutdown", ruleFile: DefaultRuleFile, testName: "AspNetCore5.SecurityEnabled")
+        {
+        }
+
+        [Trait("RunOnWindows", "True")]
+        [SkippableFact]
+        public async Task TestAppsecMetaStruct()
+        {
+            await TryStartApp();
+            var agent = Fixture.Agent;
+            var url = "/health?q=fun";
+
+            var sanitisedUrl = VerifyHelper.SanitisePathsForVerify(url);
+            var settings = VerifyHelper.GetSpanVerifierSettings(sanitisedUrl);
+            var spans = await SendRequestsAsync(agent, url, null, 1, 1, string.Empty);
+            await VerifySpans(spans, settings, testName: "AspNetCore5.SecurityEnabled.MetaStruct", forceMetaStruct: true);
+        }
+    }
+
+    [Collection("IisTests")]
+    [Trait("Category", "LinuxUnsupported")]
+    public class AspNetCore5TestsSecurityEnabledWithDefaultExternalRulesFileIIS : AspNetCoreSecurityEnabledWithExternalRulesFileIIS
+    {
+        public AspNetCore5TestsSecurityEnabledWithDefaultExternalRulesFileIIS(IisFixture fixture, ITestOutputHelper outputHelper)
+            : base("AspNetCore5", fixture, outputHelper, "/shutdown", IisAppType.AspNetCoreInProcess, ruleFile: AppDomain.CurrentDomain.BaseDirectory + DefaultRuleFile, testName: "AspNetCore5.SecurityEnabledIIS")
         {
         }
     }

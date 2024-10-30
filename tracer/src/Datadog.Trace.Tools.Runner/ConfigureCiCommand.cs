@@ -5,73 +5,87 @@
 
 using System;
 using System.Collections.Generic;
+using System.CommandLine;
+using System.CommandLine.Invocation;
+using System.Threading.Tasks;
 using Spectre.Console;
-using Spectre.Console.Cli;
 
 namespace Datadog.Trace.Tools.Runner
 {
-    internal class ConfigureCiCommand : Command<ConfigureCiSettings>
+    internal class ConfigureCiCommand : CommandWithExamples
     {
         private static readonly IReadOnlyDictionary<string, CIName> CiNamesMapping
             = new Dictionary<string, CIName>(StringComparer.OrdinalIgnoreCase)
-        {
-            ["azp"] = CIName.AzurePipelines
-        };
+            {
+                ["azp"] = CIName.AzurePipelines,
+                ["jenkins"] = CIName.Jenkins,
+                ["github"] = CIName.GithubActions,
+            };
+
+        private readonly ApplicationContext _applicationContext;
+        private readonly CommonTracerSettings _commonTracerSettings;
+        private readonly Argument<string> _nameArgument = new("ci-name") { Arity = ArgumentArity.ZeroOrOne };
 
         public ConfigureCiCommand(ApplicationContext applicationContext)
+            : base("configure", "Set the environment variables for the CI")
         {
-            ApplicationContext = applicationContext;
+            _applicationContext = applicationContext;
+            AddArgument(_nameArgument);
+
+            _commonTracerSettings = new(this);
+
+            AddExample("dd-trace ci configure azp");
+            AddExample("dd-trace ci configure jenkins");
+            AddExample("dd-trace ci configure github");
+
+            this.SetHandler(ExecuteAsync);
         }
 
-        protected ApplicationContext ApplicationContext { get; }
-
-        public override int Execute(CommandContext context, ConfigureCiSettings settings)
-        {
-            var profilerEnvironmentVariables = Utils.GetProfilerEnvironmentVariables(
-                ApplicationContext.RunnerFolder,
-                ApplicationContext.Platform,
-                settings);
-
-            if (profilerEnvironmentVariables == null)
-            {
-                return 1;
-            }
-
-            // Enable CI Visibility mode
-            profilerEnvironmentVariables[Configuration.ConfigurationKeys.CIVisibility.Enabled] = "1";
-
-            if (!TryExtractCiName(settings, out var ciName))
-            {
-                return 1;
-            }
-
-            AnsiConsole.WriteLine("Setting up the environment variables.");
-
-            if (!CIConfiguration.SetupCIEnvironmentVariables(profilerEnvironmentVariables, ciName))
-            {
-                return 1;
-            }
-
-            return 0;
-        }
-
-        private static bool TryExtractCiName(ConfigureCiSettings settings, out CIName? ciName)
+        private static bool TryExtractCiName(string name, out CIName? ciName)
         {
             ciName = null;
 
-            if (string.IsNullOrEmpty(settings.CiName))
+            if (string.IsNullOrEmpty(name))
             {
                 return true;
             }
 
-            if (CiNamesMapping.TryGetValue(settings.CiName, out var mappedCiName))
+            if (CiNamesMapping.TryGetValue(name, out var mappedCiName))
             {
                 ciName = mappedCiName;
                 return true;
             }
 
-            Utils.WriteError($"Unsupported CI name: {settings.CiName}. The supported values are: {string.Join(", ", CiNamesMapping.Keys)}.");
+            Utils.WriteError($"Unsupported CI name: {name}. The supported values are: {string.Join(", ", CiNamesMapping.Keys)}.");
             return false;
+        }
+
+        private async Task ExecuteAsync(InvocationContext context)
+        {
+            var name = _nameArgument.GetValue(context);
+
+            // Initialize and configure CI Visibility for this command
+            var initResults = await CiUtils.InitializeCiCommandsAsync(_applicationContext, context, _commonTracerSettings, null, string.Empty, [], true).ConfigureAwait(false);
+            if (!initResults.Success)
+            {
+                return;
+            }
+
+            if (!TryExtractCiName(name, out var ciName))
+            {
+                context.ExitCode = 1;
+                return;
+            }
+
+            AnsiConsole.WriteLine("Setting up the environment variables.");
+
+            if (!CIConfiguration.SetupCIEnvironmentVariables(initResults.ProfilerEnvironmentVariables, ciName))
+            {
+                context.ExitCode = 1;
+                return;
+            }
+
+            context.ExitCode = 0;
         }
     }
 }

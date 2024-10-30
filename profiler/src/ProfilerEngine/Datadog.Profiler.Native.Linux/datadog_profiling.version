@@ -1,0 +1,4 @@
+{
+  global: CreateCrashReport; GetNativeProfilerIsReadyPtr; GetPointerToNativeTraceContext; Profiler_Version; SetApplicationInfoForAppDomain; SetEndpointForTrace; SetGitMetadataForApplication; ThreadsCpuManager_Map; DllGetClassObject; DllCanUnloadNow; FlushProfile; SetDynamicTag; ClearDynamicTags; SetCPUTrackingEnabled; SetAllocationTrackingEnabled; SetContentionTrackingEnabled; SetExceptionTrackingEnabled; SetPyroscopeAuthToken; SetPyroscopeBasicAuth;
+  local: *;
+};

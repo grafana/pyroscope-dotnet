@@ -9,6 +9,7 @@
 #include "IThreadsCpuManager.h"
 #include "RawWallTimeSample.h"
 
+class SampleValueTypeProvider;
 
 std::vector<SampleValueType> WallTimeProvider::SampleTypeDefinitions(
     {
@@ -17,14 +18,15 @@ std::vector<SampleValueType> WallTimeProvider::SampleTypeDefinitions(
     );
 
 WallTimeProvider::WallTimeProvider(
-    uint32_t valueOffset,
+    SampleValueTypeProvider& sampleValueTypeProvider,
     IThreadsCpuManager* pThreadsCpuManager,
     IFrameStore* pFrameStore,
     IAppDomainStore* pAppDomainStore,
     IRuntimeIdStore* pRuntimeIdStore,
-    IConfiguration* pConfiguration
+    IConfiguration* pConfiguration,
+    shared::pmr::memory_resource* memoryResource
     )
     :
-    CollectorBase<RawWallTimeSample>("WallTimeProvider", valueOffset, pThreadsCpuManager, pFrameStore, pAppDomainStore, pRuntimeIdStore, pConfiguration)
+    CollectorBase<RawWallTimeSample>("WallTimeProvider", sampleValueTypeProvider.GetOrRegister(SampleTypeDefinitions), pThreadsCpuManager, pFrameStore, pAppDomainStore, pRuntimeIdStore, memoryResource)
 {
 }

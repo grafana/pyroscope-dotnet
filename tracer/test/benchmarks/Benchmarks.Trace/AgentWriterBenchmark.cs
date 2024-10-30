@@ -14,6 +14,8 @@ namespace Benchmarks.Trace
 {
     [MemoryDiagnoser]
     [BenchmarkAgent1]
+    [BenchmarkCategory(Constants.TracerCategory)]
+
     public class AgentWriterBenchmark
     {
         private const int SpanCount = 1000;
@@ -29,14 +31,14 @@ namespace Benchmarks.Trace
 
             var api = new Api(new FakeApiRequestFactory(settings.Exporter.AgentUri), statsd: null, updateSampleRates: null, partialFlushEnabled: false);
 
-            AgentWriter = new AgentWriter(api, statsAggregator: null, statsd: null, spanSampler: null, automaticFlush: false);
+            AgentWriter = new AgentWriter(api, statsAggregator: null, statsd: null, automaticFlush: false);
 
             var enrichedSpans = new Span[SpanCount];
             var now = DateTimeOffset.UtcNow;
 
             for (int i = 0; i < SpanCount; i++)
             {
-                enrichedSpans[i] = new Span(new SpanContext((ulong)i, (ulong)i, SamplingPriorityValues.UserReject, "Benchmark", null), now);
+                enrichedSpans[i] = new Span(new SpanContext((TraceId)i, (ulong)i, SamplingPriorityValues.UserReject, serviceName: "Benchmark", origin: null), now);
                 enrichedSpans[i].SetTag(Tags.Env, "Benchmark");
                 enrichedSpans[i].SetMetric(Metrics.SamplingRuleDecision, 1.0);
             }
@@ -123,6 +125,20 @@ namespace Benchmarks.Trace
                 return new FakeApiResponse();
             }
 
+            public async Task<IApiResponse> PostAsync(Func<Stream, Task> writeToRequestStream, string contentType, string contentEncoding, string multipartBoundary)
+            {
+                using (var requestStream = Stream.Null)
+                {
+                    await writeToRequestStream(requestStream).ConfigureAwait(false);
+                }
+
+                return new FakeApiResponse();
+            }
+
+            public Task<IApiResponse> PostAsync(MultipartFormItem[] items, MultipartCompression multipartCompression = MultipartCompression.None)
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private class FakeApiResponse : IApiResponse
@@ -131,9 +147,15 @@ namespace Benchmarks.Trace
 
             public long ContentLength => 0;
 
-            public Encoding ContentEncoding => Encoding.UTF8;
+            public string ContentTypeHeader => "application/json";
+
+            public string ContentEncodingHeader => null;
 
             public string GetHeader(string headerName) => string.Empty;
+
+            public Encoding GetCharsetEncoding() => ApiResponseExtensions.GetCharsetEncoding(ContentTypeHeader);
+
+            public ContentEncodingType GetContentEncodingType() => ApiResponseExtensions.GetContentEncodingType(ContentEncodingHeader);
 
             public Task<Stream> GetStreamAsync()
             {

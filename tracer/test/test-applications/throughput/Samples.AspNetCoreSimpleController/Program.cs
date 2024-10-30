@@ -50,7 +50,7 @@ namespace Samples.AspNetCoreSimpleController
                 Console.WriteLine(" * Running without profiler.");
             }
 
-#if MANUAL_INSTRUMENTATION
+#if MANUAL_INSTRUMENTATION && !MANUAL_ONLY_INSTRUMENTATION
             managedTracerVersion = SampleHelpers.GetManagedTracerVersion();
             if(managedTracerVersion == "None")
             {
@@ -59,6 +59,9 @@ namespace Samples.AspNetCoreSimpleController
                 return;
             }
 #endif
+
+            Console.WriteLine(" * DD_TELEMETRY_METRICS_ENABLED: '{0}'",
+                              Environment.GetEnvironmentVariable("DD_TELEMETRY_METRICS_ENABLED"));
 
             Console.WriteLine(" * Using managed tracer version '{0}' and native tracer version '{1}'",
                               managedTracerVersion, nativeTracerVersion);

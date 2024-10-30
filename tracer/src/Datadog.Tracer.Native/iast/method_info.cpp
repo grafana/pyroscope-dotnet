@@ -32,7 +32,7 @@ namespace iast
     {
         return _id;
     }
-    WSTRING TypeInfo::GetName()
+    WSTRING& TypeInfo::GetName()
     {
         if (_name.size() == 0)
         {
@@ -71,7 +71,7 @@ namespace iast
 
     TypeInfo* MemberRefInfo::GetTypeInfo()
     {
-        if (!_typeInfo) 
+        if (!_typeInfo)
         {
             _typeInfo = _module->GetTypeInfo(_typeDef);
         }
@@ -86,42 +86,40 @@ namespace iast
     {
         return _module;
     }
-    WSTRING MemberRefInfo::GetName()
+    WSTRING& MemberRefInfo::GetName()
     {
         return _name;
     }
-    WSTRING MemberRefInfo::GetMemberName()
-    {
-        if (_memberName.size() == 0)
-        {
-            auto pos = _name.find(WStr("("));
-            if (pos != WSTRING::npos)
-            {
-                _memberName = _name.substr(0, pos);
-            }
-            else
-            {
-                _memberName = _name;
-            }
-        }
-        return _memberName;
-    }
 
-    WSTRING MemberRefInfo::GetFullName(bool includeReturnType)
+    WSTRING& MemberRefInfo::GetFullName()
     {
         if (_fullName.size() == 0)
         {
-            _fullName = GetTypeName() + WStr("::") + _name;
-            auto signature = GetSignature();
-            if (signature != nullptr)
+            CSGuard lock(&_module->_cs);
+            if (_fullName.size() == 0)
             {
-                _fullNameWithReturnType = signature->CharacterizeMember(_fullName, true);
-                _fullName = signature->CharacterizeMember(_fullName, false);
+                auto fullName = GetTypeName() + WStr("::") + _name;
+                auto signature = GetSignature();
+                if (signature != nullptr)
+                {
+                    fullName = signature->CharacterizeMember(fullName);
+                }
+                _fullName = fullName;
             }
         }
-        return includeReturnType ? _fullNameWithReturnType : _fullName;
+        return _fullName;
     }
-    WSTRING MemberRefInfo::GetTypeName()
+    WSTRING MemberRefInfo::GetFullNameWithReturnType()
+    {
+        auto res = GetFullName();
+        auto signature = GetSignature();
+        if (signature != nullptr)
+        {
+            res = signature->GetReturnTypeString() + WStr(" ") + res;
+        }
+        return res;
+    }
+    WSTRING& MemberRefInfo::GetTypeName()
     {
         auto type = GetTypeInfo();
         if (type) { return type->GetName(); }
@@ -155,6 +153,11 @@ namespace iast
         return ELEMENT_TYPE_VOID;
     }
 
+    std::vector<WSTRING> MemberRefInfo::GetCustomAttributes()
+    {
+        return _module->GetCustomAttributes(_id);
+    }
+
     //----------------------------
 
     FieldInfo::FieldInfo(ModuleInfo* pModuleInfo, mdFieldDef fieldDef) :
@@ -174,6 +177,21 @@ namespace iast
 
     //----------------------------
 
+    PropertyInfo::PropertyInfo(ModuleInfo* pModuleInfo, mdProperty propId) :
+        MemberRefInfo(pModuleInfo, propId)
+    {
+        WCHAR methodName[1024];
+        ULONG methodNameLength;
+
+        HRESULT hr = pModuleInfo->_metadataImport->GetPropertyProps(
+            propId, &_typeDef, methodName, 1024, &methodNameLength, &_methodAttributes, &_pSig, &_nSig, nullptr,
+            nullptr, nullptr, &_setter, &_getter, nullptr, 0, nullptr);
+
+        _name = methodName;
+    }
+
+    //----------------------------
+
     MethodSpec::MethodSpec(ModuleInfo* pModuleInfo, mdMethodSpec methodSpec) :
         MemberRefInfo(pModuleInfo, methodSpec)
     {
@@ -187,6 +205,10 @@ namespace iast
     mdMethodSpec MethodSpec::GetMethodSpecId()
     {
         return _id;
+    }
+    SignatureInfo* MethodSpec::GetMethodSpecSignature()
+    {
+        return MemberRefInfo::GetSignature();
     }
     SignatureInfo* MethodSpec::GetSignature()
     {
@@ -210,6 +232,19 @@ namespace iast
             _name = methodName;
         }
         _allowRestoreOnSecondJit = GetRestoreOnSecondJitConfigValue();
+
+        _isExcluded = _module->_dataflow->IsMethodExcluded(GetFullName());
+        if (!_isExcluded && _module->_dataflow->HasMethodAttributeExclusions())
+        {
+            for (auto methodAttribute : GetCustomAttributes())
+            {
+                if (_module->_dataflow->IsMethodAttributeExcluded(methodAttribute))
+                {
+                    _isExcluded = true;
+                    break;
+                }
+            }
+        }
     }
     MethodInfo::~MethodInfo()
     {
@@ -221,16 +256,12 @@ namespace iast
     {
         return _id;
     }
-    WSTRING MethodInfo::GetMethodName()
-    {
-        return GetMemberName();
-    }
 
 
     WSTRING MethodInfo::GetKey(FunctionID functionId)
     {
         std::stringstream methodKeyBuilder;
-        methodKeyBuilder << shared::ToString(GetFullName(true)) << " " << shared::ToString(_module->GetModuleFullName()) << " (" << Hex(_id) << ") ";
+        methodKeyBuilder << shared::ToString(GetFullName()) << " " << shared::ToString(_module->GetModuleFullName()) << " (" << Hex(_id) << ") ";
         if (functionId > 0)
         {
             methodKeyBuilder << " Fid( " << Hex((ULONG)functionId) << " ) ";
@@ -239,7 +270,7 @@ namespace iast
         {
             methodKeyBuilder << " Processed ";
         }
-        if (HasChanged())
+        if (HasChanges())
         {
             methodKeyBuilder << " Changed ";
         }
@@ -252,10 +283,6 @@ namespace iast
 
     bool MethodInfo::IsExcluded()
     {
-        if (_isExcluded < 0)
-        {
-            _isExcluded = _module->_dataflow->IsMethodExcluded(GetFullName());
-        }
         return _isExcluded;
     }
     bool MethodInfo::IsProcessed()
@@ -266,7 +293,15 @@ namespace iast
     {
         _isProcessed = true;
     }
-    bool MethodInfo::HasChanged()
+    void MethodInfo::SetInstrumented(bool instrumented)
+    {
+        _isInstrumented = instrumented;
+    }
+    bool MethodInfo::IsInstrumented()
+    {
+        return _isInstrumented;
+    }
+    bool MethodInfo::HasChanges()
     {
         return _pMethodIL;
     }
@@ -280,21 +315,33 @@ namespace iast
     }
     bool MethodInfo::IsInlineEnabled()
     {
-        return _module->IsInlineEnabled() && !_disableInlining && !HasChanged();
+        return _module->IsInlineEnabled() && !_disableInlining && !IsInstrumented();
     }
     void MethodInfo::DisableInlining()
     {
         _disableInlining = true;
     }
 
-    HRESULT MethodInfo::GetILRewriter(ILRewriter** pRewriter)
+    HRESULT MethodInfo::GetILRewriter(ILRewriter** pRewriter, ICorProfilerInfo* pCorProfilerInfo)
     {
         HRESULT hr = S_FALSE;
         if (_rewriter == nullptr)
         {
             hr = S_OK;
             _rewriter = new ILRewriter(this);
-            hr = _rewriter->Import();
+            if (!pCorProfilerInfo)
+            {
+                hr = _rewriter->Import();
+            }
+            else
+            {
+                LPCBYTE pMethodIL = nullptr;
+                hr = pCorProfilerInfo->GetILFunctionBody(_module->_id, _id, &pMethodIL, nullptr);
+                if (SUCCEEDED(hr))
+                {
+                    hr = _rewriter->Import(pMethodIL);
+                }
+            }
             if (FAILED(hr))
             {
                 DEL(_rewriter);
@@ -303,12 +350,12 @@ namespace iast
         *pRewriter = _rewriter;
         return hr;
     }
-    HRESULT MethodInfo::CommitILRewriter(const std::string& applyMessage)
+    HRESULT MethodInfo::CommitILRewriter(bool abort)
     {
         HRESULT hr = S_FALSE;
-        if (_rewriter != nullptr)
+        if (_rewriter != nullptr && !abort)
         {
-            hr = _rewriter->Export(applyMessage);
+            hr = _rewriter->Export();
         }
         DEL(_rewriter);
         return hr;
@@ -335,29 +382,6 @@ namespace iast
         return hr;
     }
 
-    void MethodInfo::DumpIL(const std::string message, ULONG pnMethodIL, LPCBYTE pMethodIL)
-    {
-        if (!pMethodIL)
-        {
-            GetMethodIL(&pMethodIL, &pnMethodIL);
-        }
-        ILRewriter ilRewriter(this);
-        if (FAILED(ilRewriter.Import(pMethodIL)))
-        {
-            trace::Logger::Info("Dumping IL ", message, " : ", GetFullName(), " IL Verification FAILED ( Error on ILImport ) !!!");
-            return;
-        }
-
-        ILAnalysis analysis(&ilRewriter);
-        auto correct = analysis.IsStackValid();
-        auto verificationFail = analysis.GetError();
-        analysis.Dump(message);
-        if (!correct)
-        {
-            trace::Logger::Info("Dumping IL ", message, " : ", GetFullName(), " IL Verification FAILED ( ", verificationFail, " ) !!!");
-        }
-    }
-
     HRESULT MethodInfo::SetMethodIL(ULONG nSize, LPCBYTE pMethodIL, ICorProfilerFunctionControl* pFunctionControl)
     {
         bool isRejit = pFunctionControl != nullptr;
@@ -371,48 +395,40 @@ namespace iast
             return S_FALSE;
         }
 
-        if (!isRejit && _module->ExcludeInChaining())
-        {
-            DEL_ARR(pMethodIL);
-            return S_OK;
-        }
-
         bool correct = true;
         std::string verificationFail = "";
+        bool dump = trace::Logger::IsDebugEnabled();
 
-        //auto Profiler = module->Profiler;
-        bool verify = true; // Profiler->VerifyIL();
-        bool dump = true; // Profiler->DumpIL();
-        if (verify || dump)
+        if (!_rewriter)
         {
-            if (!_rewriter) 
+            trace::Logger::Debug("MethodInfo::SetMethodIL -> No rewritter present. Creating one to verify new IL...");
+                
+            _rewriter = new ILRewriter(this);
+            if (FAILED(_rewriter->Import(pMethodIL)))
             {
-                trace::Logger::Debug("MethodInfo::SetMethodIL -> No rewritter present. Creating one to verify new IL...");
-                _rewriter = new ILRewriter(this);
-                if (FAILED(_rewriter->Import(pMethodIL)))
-                {
-                    DEL(_rewriter);
-                    verificationFail = "ILImport failed on new buffer";
-                    correct = false;
-                }
-            }
-            else 
-            {
-                trace::Logger::Debug("MethodInfo::SetMethodIL -> Rewritter present. Verify new IL...");
-            }
-
-            if (_rewriter)
-            {
-                ILAnalysis analysis(_rewriter);
-                correct = analysis.IsStackValid();
-                verificationFail = analysis.GetError();
-                if (!correct || dump)
-                {
-                    analysis.Dump(isRejit ? "ReJit " : "  Jit ");
-                }
+                DEL(_rewriter);
+                verificationFail = "ILImport failed on new buffer";
+                correct = false;
             }
         }
+        else
+        {
+            trace::Logger::Debug("MethodInfo::SetMethodIL -> Rewritter present. Verify new IL...");
+        }
+
+        if (_rewriter)
+        {
+            ILAnalysis analysis(_rewriter);
+            correct = analysis.IsStackValid();
+            verificationFail = analysis.GetError();
+            if (!correct || dump)
+            {
+                analysis.Dump(isRejit ? "ReJit " : "  Jit ");
+            }
+        }
+
         DEL(_rewriter);
+
         if (correct)
         {
             _nMethodIL = nSize;
@@ -429,12 +445,12 @@ namespace iast
 
             if (pFunctionControl)
             {
-                trace::Logger::Debug("MethodInfo::SetMethodIL -> ReJIT : Setting IL for ", GetFullName().c_str());
+                trace::Logger::Debug("MethodInfo::SetMethodIL -> ReJIT : Setting IL for ", GetFullName());
                 ApplyFinalInstrumentation(pFunctionControl);
             }
             else
             {
-                trace::Logger::Debug("MethodInfo::SetMethodIL ->   JIT : Setting IL for ", GetFullName().c_str());
+                trace::Logger::Debug("MethodInfo::SetMethodIL ->   JIT : Setting IL for ", GetFullName());
             }
         }
         else
@@ -450,8 +466,16 @@ namespace iast
         HRESULT hr = S_OK;
         if (pFunctionControl)
         {
-            hr = pFunctionControl->SetILFunctionBody(_nMethodIL, _pMethodIL);
-            trace::Logger::Debug("MethodInfo::ApplyFinalInstrumentation ReJIT from ", _nOriginalMehodIL, " to ", _nMethodIL, " on ", GetKey(), " hr=", Hex(hr));
+            if (HasChanges())
+            {
+                hr = pFunctionControl->SetILFunctionBody(_nMethodIL, _pMethodIL);
+                trace::Logger::Debug("MethodInfo::ApplyFinalInstrumentation ReJIT from ", _nOriginalMehodIL, " to ",
+                                     _nMethodIL, " on ", GetKey(), " hr=", Hex(hr));
+            }
+            else
+            {
+                trace::Logger::Debug("MethodInfo::ApplyFinalInstrumentation ReJIT SKIPPED (method did not change)");
+            }
         }
         else
         {
@@ -463,11 +487,7 @@ namespace iast
                 }
                 return hr;
             }
-            if (_module->ExcludeInChaining())
-            {
-                return S_FALSE;
-            }
-            if (!HasChanged())
+            if (!HasChanges())
             {
                 trace::Logger::Error("ERROR: MethodInfo::ApplyFinalInstrumentation should only be called if a method body has been set for this function");
                 return E_FAIL;
@@ -496,11 +516,6 @@ namespace iast
         }
 
         FreeBuffer(); //To save memory
-
-        if (_applyMessage.size() > 0)
-        {
-            trace::Logger::Info(" --> ", _applyMessage, " <-- ");
-        }
         return hr;
     }
 
@@ -519,9 +534,35 @@ namespace iast
         FreeBuffer();
     }
 
-    void MethodInfo::FreeBuffer() 
+    void MethodInfo::FreeBuffer()
     {
         _nMethodIL = 0;
         DEL_ARR(_pMethodIL);
     }
+
+    bool MethodInfo::IsPropertyAccessor()
+    {
+        auto name = shared::ToString(_name);
+        return StartsWith(name, "get_") || StartsWith(name, "set_");
+    }
+
+    std::vector<WSTRING> MethodInfo::GetCustomAttributes()
+    {
+        auto res = MemberRefInfo::GetCustomAttributes();
+        if (IsPropertyAccessor())
+        {
+            // Retrieve property Attributes
+            auto properties = _module->GetProperties(_typeDef);
+            for (auto property : properties)
+            {
+                if (property->GetGetterId() != _id && property->GetSetterId() != _id)
+                {
+                    continue;
+                }
+                AddRange(res, _module->GetCustomAttributes(property->GetPropertyId()));
+            }
+        }
+        return res;
+    }
+
 }

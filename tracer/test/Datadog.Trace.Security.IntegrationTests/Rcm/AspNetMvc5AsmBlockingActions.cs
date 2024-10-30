@@ -11,11 +11,12 @@ using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Datadog.Trace.AppSec;
-using Datadog.Trace.AppSec.RcmModels.Asm;
+using Datadog.Trace.AppSec.Rcm.Models.Asm;
 using Datadog.Trace.Configuration;
 using Datadog.Trace.TestHelpers;
 using Xunit;
 using Xunit.Abstractions;
+using Action = Datadog.Trace.AppSec.Rcm.Models.Asm.Action;
 
 #pragma warning disable SA1402 // File may only contain a single class
 #pragma warning disable SA1649 // File name must match first type name
@@ -58,10 +59,10 @@ public class AspNetMvc5AsmBlockingActionsClassicWithoutSecurity : AspNetMvc5AsmB
     }
 }
 
-public abstract class AspNetMvc5AsmBlockingActions : RcmBaseFramework, IClassFixture<IisFixture>
+public abstract class AspNetMvc5AsmBlockingActions : RcmBaseFramework, IClassFixture<IisFixture>, IAsyncLifetime
 {
     private readonly IisFixture _iisFixture;
-    private readonly string _testName;
+    private readonly bool _classicMode;
 
     public AspNetMvc5AsmBlockingActions(IisFixture iisFixture, ITestOutputHelper output, bool classicMode, bool enableSecurity)
         : base("AspNetMvc5", output, "/home/shutdown", @"test\test-applications\security\aspnet")
@@ -69,19 +70,18 @@ public abstract class AspNetMvc5AsmBlockingActions : RcmBaseFramework, IClassFix
         SetSecurity(enableSecurity);
         SetEnvironmentVariable(ConfigurationKeys.AppSec.Rules, DefaultRuleFile);
 
+        _classicMode = classicMode;
         _iisFixture = iisFixture;
-        _iisFixture.TryStartIis(this, classicMode ? IisAppType.AspNetClassic : IisAppType.AspNetIntegrated);
         _testName = "Security." + nameof(AspNetMvc5AsmBlockingActions)
                                 + (classicMode ? ".Classic" : ".Integrated")
                                 + ".enableSecurity=" + enableSecurity;
-        SetHttpPort(iisFixture.HttpPort);
     }
 
     [SkippableTheory]
     [Trait("Category", "EndToEnd")]
     [Trait("LoadFromGAC", "True")]
-    [InlineData("block_request", 200)]
-    [InlineData("redirect_request", 302)]
+    [InlineData(BlockingAction.BlockRequestType, 200)]
+    [InlineData(BlockingAction.RedirectRequestType, 302)]
     [Trait("RunOnWindows", "True")]
     public async Task TestBlockingAction(string type, int statusCode)
     {
@@ -89,20 +89,28 @@ public abstract class AspNetMvc5AsmBlockingActions : RcmBaseFramework, IClassFix
         var url = $"/health?arg=dummy_rule";
         var agent = _iisFixture.Agent;
         var settings = VerifyHelper.GetSpanVerifierSettings(type, statusCode);
-        var acknowledgedId = nameof(TestBlockingAction) + Guid.NewGuid();
+        var fileId = nameof(TestBlockingAction) + Guid.NewGuid();
         // need to reset if the process is going to be reused
-        await agent.SetupRcmAndWait(Output, new[] { ((object)new Payload { Actions = Array.Empty<AppSec.RcmModels.Asm.Action>() }, acknowledgedId) }, asmProduct, appliedServiceNames: new[] { acknowledgedId });
+        await agent.SetupRcmAndWait(Output, new[] { ((object)new Payload { Actions = Array.Empty<Action>() }, asmProduct, fileId) });
         var spans1 = await SendRequestsAsync(agent, url);
-        acknowledgedId = nameof(TestBlockingAction) + Guid.NewGuid();
-        await agent.SetupRcmAndWait(Output, new[] { ((object)new Payload { Actions = new[] { new AppSec.RcmModels.Asm.Action { Id = "block", Type = type, Parameters = new Parameter { StatusCode = statusCode, Type = "html", Location = "/redirect" } } } }, acknowledgedId) }, asmProduct, appliedServiceNames: new[] { acknowledgedId });
+        fileId = nameof(TestBlockingAction) + Guid.NewGuid();
+        await agent.SetupRcmAndWait(Output, new[] { ((object)new Payload { Actions = new[] { new Action { Id = "block", Type = type, Parameters = new Parameter { StatusCode = statusCode, Type = "html", Location = "/redirect" } } } }, asmProduct, fileId) });
 
         var spans2 = await SendRequestsAsync(agent, url);
         var spans = new List<MockSpan>();
         spans.AddRange(spans1);
         spans.AddRange(spans2);
         await VerifySpans(spans.ToImmutableList(), settings);
-        await agent.SetupRcmAndWait(Output, new[] { ((object)new Payload { Actions = Array.Empty<AppSec.RcmModels.Asm.Action>() }, acknowledgedId) }, asmProduct, appliedServiceNames: new[] { acknowledgedId });
+        await agent.SetupRcmAndWait(Output, new[] { ((object)new Payload { Actions = Array.Empty<Action>() }, asmProduct, fileId) });
     }
+
+    public async Task InitializeAsync()
+    {
+        await _iisFixture.TryStartIis(this, _classicMode ? IisAppType.AspNetClassic : IisAppType.AspNetIntegrated);
+        SetHttpPort(_iisFixture.HttpPort);
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
 
     protected override string GetTestName() => _testName;
 }

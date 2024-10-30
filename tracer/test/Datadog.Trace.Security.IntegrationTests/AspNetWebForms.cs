@@ -52,25 +52,23 @@ namespace Datadog.Trace.Security.IntegrationTests
         }
     }
 
-    public abstract class AspNetWebForms : AspNetBase, IClassFixture<IisFixture>
+    public abstract class AspNetWebForms : AspNetBase, IClassFixture<IisFixture>, IAsyncLifetime
     {
         private readonly IisFixture _iisFixture;
-        private readonly bool _enableSecurity;
-        private readonly string _testName;
+        private readonly bool _classicMode;
 
         public AspNetWebForms(IisFixture iisFixture, ITestOutputHelper output, bool classicMode, bool enableSecurity)
             : base("WebForms", output, "/home/shutdown", @"test\test-applications\security\aspnet")
         {
             SetSecurity(enableSecurity);
             SetEnvironmentVariable(Configuration.ConfigurationKeys.AppSec.Rules, DefaultRuleFile);
+            SetEnvironmentVariable(Configuration.ConfigurationKeys.AppSec.StackTraceEnabled, "false");
 
             _iisFixture = iisFixture;
-            _enableSecurity = enableSecurity;
-            _iisFixture.TryStartIis(this, classicMode ? IisAppType.AspNetClassic : IisAppType.AspNetIntegrated);
+            _classicMode = classicMode;
             _testName = "Security." + nameof(AspNetWebForms)
                      + (classicMode ? ".Classic" : ".Integrated")
                      + ".enableSecurity=" + enableSecurity;
-            SetHttpPort(iisFixture.HttpPort);
         }
 
         [Trait("Category", "EndToEnd")]
@@ -101,8 +99,16 @@ namespace Datadog.Trace.Security.IntegrationTests
             var url = "/Health";
 
             var settings = VerifyHelper.GetSpanVerifierSettings(test);
-            await TestAppSecRequestWithVerifyAsync(_iisFixture.Agent, url, null, 5, SecurityEnabled ? 1 : 2, settings, userAgent: "Hello/V");
+            await TestAppSecRequestWithVerifyAsync(_iisFixture.Agent, url, null, 5, 1, settings, userAgent: "Hello/V");
         }
+
+        public async Task InitializeAsync()
+        {
+            await _iisFixture.TryStartIis(this, _classicMode ? IisAppType.AspNetClassic : IisAppType.AspNetIntegrated);
+            SetHttpPort(_iisFixture.HttpPort);
+        }
+
+        public Task DisposeAsync() => Task.CompletedTask;
 
         protected override string GetTestName() => _testName;
     }

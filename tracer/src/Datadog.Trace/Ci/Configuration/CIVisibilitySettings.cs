@@ -5,8 +5,13 @@
 #nullable enable
 
 using System;
+using System.Collections.Specialized;
 using System.Threading;
 using Datadog.Trace.Configuration;
+using Datadog.Trace.Configuration.ConfigurationSources.Telemetry;
+using Datadog.Trace.Configuration.Telemetry;
+using Datadog.Trace.Telemetry;
+using Datadog.Trace.Util;
 
 namespace Datadog.Trace.Ci.Configuration
 {
@@ -14,46 +19,56 @@ namespace Datadog.Trace.Ci.Configuration
     {
         private TracerSettings? _tracerSettings;
 
-        public CIVisibilitySettings(IConfigurationSource source)
+        public CIVisibilitySettings(IConfigurationSource source, IConfigurationTelemetry telemetry)
         {
-            Enabled = source?.GetBool(ConfigurationKeys.CIVisibility.Enabled) ?? false;
-            Agentless = source?.GetBool(ConfigurationKeys.CIVisibility.AgentlessEnabled) ?? false;
-            Logs = source?.GetBool(ConfigurationKeys.CIVisibility.Logs) ?? false;
-            ApiKey = source?.GetString(ConfigurationKeys.ApiKey);
-            ApplicationKey = source?.GetString(ConfigurationKeys.ApplicationKey);
-            Site = source?.GetString(ConfigurationKeys.Site) ?? "datadoghq.com";
-            AgentlessUrl = source?.GetString(ConfigurationKeys.CIVisibility.AgentlessUrl);
+            var config = new ConfigurationBuilder(source, telemetry);
+            Enabled = config.WithKeys(ConfigurationKeys.CIVisibility.Enabled).AsBool();
+            Agentless = config.WithKeys(ConfigurationKeys.CIVisibility.AgentlessEnabled).AsBool(false);
+            Logs = config.WithKeys(ConfigurationKeys.CIVisibility.Logs).AsBool(false);
+            ApiKey = config.WithKeys(ConfigurationKeys.ApiKey).AsRedactedString();
+            Site = config.WithKeys(ConfigurationKeys.Site).AsString("datadoghq.com");
+            AgentlessUrl = config.WithKeys(ConfigurationKeys.CIVisibility.AgentlessUrl).AsString();
 
             // By default intake payloads has a 5MB limit
             MaximumAgentlessPayloadSize = 5 * 1024 * 1024;
 
-            ProxyHttps = source?.GetString(ConfigurationKeys.Proxy.ProxyHttps);
-            var proxyNoProxy = source?.GetString(ConfigurationKeys.Proxy.ProxyNoProxy) ?? string.Empty;
+            ProxyHttps = config.WithKeys(ConfigurationKeys.Proxy.ProxyHttps).AsString();
+            var proxyNoProxy = config.WithKeys(ConfigurationKeys.Proxy.ProxyNoProxy).AsString() ?? string.Empty;
             ProxyNoProxy = proxyNoProxy.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
 
             // Intelligent Test Runner
-            IntelligentTestRunnerEnabled = source?.GetBool(ConfigurationKeys.CIVisibility.IntelligentTestRunnerEnabled) ?? true;
+            IntelligentTestRunnerEnabled = config.WithKeys(ConfigurationKeys.CIVisibility.IntelligentTestRunnerEnabled).AsBool(true);
 
             // Tests skipping
-            TestsSkippingEnabled = source?.GetBool(ConfigurationKeys.CIVisibility.TestsSkippingEnabled);
+            TestsSkippingEnabled = config.WithKeys(ConfigurationKeys.CIVisibility.TestsSkippingEnabled).AsBool();
 
             // Code coverage
-            CodeCoverageEnabled = source?.GetBool(ConfigurationKeys.CIVisibility.CodeCoverage);
-            CodeCoverageSnkFilePath = source?.GetString(ConfigurationKeys.CIVisibility.CodeCoverageSnkFile);
-            CodeCoveragePath = source?.GetString(ConfigurationKeys.CIVisibility.CodeCoveragePath);
-            CodeCoverageEnableJitOptimizations = source?.GetBool(ConfigurationKeys.CIVisibility.CodeCoverageEnableJitOptimizations) ?? true;
+            CodeCoverageEnabled = config.WithKeys(ConfigurationKeys.CIVisibility.CodeCoverage).AsBool();
+            CodeCoverageSnkFilePath = config.WithKeys(ConfigurationKeys.CIVisibility.CodeCoverageSnkFile).AsString();
+            CodeCoveragePath = config.WithKeys(ConfigurationKeys.CIVisibility.CodeCoveragePath).AsString();
+            CodeCoverageEnableJitOptimizations = config.WithKeys(ConfigurationKeys.CIVisibility.CodeCoverageEnableJitOptimizations).AsBool(true);
+            CodeCoverageMode = config.WithKeys(ConfigurationKeys.CIVisibility.CodeCoverageMode).AsString();
 
             // Git upload
-            GitUploadEnabled = source?.GetBool(ConfigurationKeys.CIVisibility.GitUploadEnabled);
+            GitUploadEnabled = config.WithKeys(ConfigurationKeys.CIVisibility.GitUploadEnabled).AsBool();
 
             // Force evp proxy
-            ForceAgentsEvpProxy = source?.GetBool(ConfigurationKeys.CIVisibility.ForceAgentsEvpProxy) ?? false;
+            ForceAgentsEvpProxy = config.WithKeys(ConfigurationKeys.CIVisibility.ForceAgentsEvpProxy).AsString();
+
+            // Check if Datadog.Trace should be installed in the GAC
+            InstallDatadogTraceInGac = config.WithKeys(ConfigurationKeys.CIVisibility.InstallDatadogTraceInGac).AsBool(true);
+
+            // Early flake detection
+            EarlyFlakeDetectionEnabled = config.WithKeys(ConfigurationKeys.CIVisibility.EarlyFlakeDetectionEnabled).AsBool();
+
+            // RUM flush milliseconds
+            RumFlushWaitMillis = config.WithKeys(ConfigurationKeys.CIVisibility.RumFlushWaitMillis).AsInt32(500);
         }
 
         /// <summary>
-        /// Gets a value indicating whether the CI Visibility mode was enabled by configuration
+        /// Gets a value indicating whether the CI Visibility mode was explicitly enabled by configuration
         /// </summary>
-        public bool Enabled { get; }
+        public bool? Enabled { get; }
 
         /// <summary>
         /// Gets a value indicating whether the Agentless writer is going to be used.
@@ -69,11 +84,6 @@ namespace Datadog.Trace.Ci.Configuration
         /// Gets the Api Key to use in Agentless mode
         /// </summary>
         public string? ApiKey { get; private set; }
-
-        /// <summary>
-        /// Gets the Application Key to use in ITR
-        /// </summary>
-        public string? ApplicationKey { get; private set; }
 
         /// <summary>
         /// Gets the Datadog site
@@ -121,6 +131,11 @@ namespace Datadog.Trace.Ci.Configuration
         public bool CodeCoverageEnableJitOptimizations { get; }
 
         /// <summary>
+        /// Gets the code coverage mode
+        /// </summary>
+        public string? CodeCoverageMode { get; private set; }
+
+        /// <summary>
         /// Gets a value indicating whether the Git Upload metadata is going to be used.
         /// </summary>
         public bool? GitUploadEnabled { get; private set; }
@@ -138,7 +153,22 @@ namespace Datadog.Trace.Ci.Configuration
         /// <summary>
         /// Gets a value indicating whether EVP Proxy must be used.
         /// </summary>
-        public bool ForceAgentsEvpProxy { get; }
+        public string? ForceAgentsEvpProxy { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether we ensure Datadog.Trace GAC installation.
+        /// </summary>
+        public bool InstallDatadogTraceInGac { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether the Early flake detection feature is enabled.
+        /// </summary>
+        public bool? EarlyFlakeDetectionEnabled { get; private set; }
+
+        /// <summary>
+        /// Gets a value indicating the number of milliseconds to wait after flushing RUM data.
+        /// </summary>
+        public int RumFlushWaitMillis { get; }
 
         /// <summary>
         /// Gets the tracer settings
@@ -147,7 +177,7 @@ namespace Datadog.Trace.Ci.Configuration
 
         public static CIVisibilitySettings FromDefaultSources()
         {
-            return new CIVisibilitySettings(GlobalConfigurationSource.Instance);
+            return new CIVisibilitySettings(GlobalConfigurationSource.Instance, TelemetryFactory.Config);
         }
 
         internal void SetCodeCoverageEnabled(bool value)
@@ -160,12 +190,21 @@ namespace Datadog.Trace.Ci.Configuration
             TestsSkippingEnabled = value;
         }
 
-        internal void SetAgentlessConfiguration(bool enabled, string? apiKey, string? applicationKey, string? agentlessUrl)
+        internal void SetEarlyFlakeDetectionEnabled(bool value)
+        {
+            EarlyFlakeDetectionEnabled = value;
+        }
+
+        internal void SetAgentlessConfiguration(bool enabled, string? apiKey, string? agentlessUrl)
         {
             Agentless = enabled;
             ApiKey = apiKey;
-            ApplicationKey = applicationKey;
             AgentlessUrl = agentlessUrl;
+        }
+
+        internal void SetCodeCoverageMode(string? coverageMode)
+        {
+            CodeCoverageMode = coverageMode;
         }
 
         internal void SetDefaultManualInstrumentationSettings()
@@ -178,7 +217,22 @@ namespace Datadog.Trace.Ci.Configuration
 
         private TracerSettings InitializeTracerSettings()
         {
-            var tracerSettings = new TracerSettings(GlobalConfigurationSource.Instance);
+            var source = GlobalConfigurationSource.CreateDefaultConfigurationSource();
+            var defaultExcludedUrlSubstrings = string.Empty;
+            var configResult = ((ITelemeteredConfigurationSource)source).GetString(ConfigurationKeys.HttpClientExcludedUrlSubstrings, NullConfigurationTelemetry.Instance, validator: null, recordValue: false);
+            if (configResult is { IsValid: true, Result: { } substrings } && !string.IsNullOrWhiteSpace(substrings))
+            {
+                defaultExcludedUrlSubstrings = substrings + ", ";
+            }
+
+            source.InsertInternal(0, new NameValueConfigurationSource(
+                                      new NameValueCollection
+                                      {
+                                          [ConfigurationKeys.HttpClientExcludedUrlSubstrings] = defaultExcludedUrlSubstrings + "/session/FakeSessionIdForPollingPurposes",
+                                      },
+                                      ConfigurationOrigins.Calculated));
+
+            var tracerSettings = new TracerSettings(source, new ConfigurationTelemetry(), new OverrideErrorLog());
 
             if (Logs)
             {

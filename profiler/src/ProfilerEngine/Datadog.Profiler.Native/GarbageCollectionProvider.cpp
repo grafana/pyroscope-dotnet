@@ -3,22 +3,20 @@
 
 #include "GarbageCollectionProvider.h"
 
-
-std::vector<SampleValueType> GarbageCollectionProvider::SampleTypeDefinitions(
-    {
-        {"timeline", "nanoseconds"}
-    });
+#include "SampleValueTypeProvider.h"
+#include "TimelineSampleType.h"
 
 GarbageCollectionProvider::GarbageCollectionProvider(
-    uint32_t valueOffset,
+    SampleValueTypeProvider& valueTypeProvider,
     IFrameStore* pFrameStore,
     IThreadsCpuManager* pThreadsCpuManager,
     IAppDomainStore* pAppDomainStore,
     IRuntimeIdStore* pRuntimeIdStore,
     IConfiguration* pConfiguration,
-    MetricsRegistry& metricsRegistry)
+    MetricsRegistry& metricsRegistry,
+    shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawGarbageCollectionSample>("GarbageCollectorProvider", valueOffset, pThreadsCpuManager, pFrameStore, pAppDomainStore, pRuntimeIdStore, pConfiguration)
+    CollectorBase<RawGarbageCollectionSample>("GarbageCollectorProvider", valueTypeProvider.GetOrRegister(TimelineSampleType::Definitions), pThreadsCpuManager, pFrameStore, pAppDomainStore, pRuntimeIdStore, memoryResource)
 {
     _gen0CountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_gc_gen0");
     _gen1CountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_gc_gen1");
@@ -27,6 +25,22 @@ GarbageCollectionProvider::GarbageCollectionProvider(
     _inducedCountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_gc_induced");
     _compactingGen2CountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_gc_compacting_gen2");
     _memoryPressureCountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_gc_memory_pressure");
+
+    _gen2Size = 0;
+    _lohSize = 0;
+    _pohSize = 0;
+    _gen2SizeMetric = metricsRegistry.GetOrRegister<ProxyMetric>("dotnet_gc_gen2_size", [this]() {
+        return _gen2Size;
+    });
+    _lohSizeMetric = metricsRegistry.GetOrRegister<ProxyMetric>("dotnet_gc_loh_size", [this]() {
+        return _lohSize;
+    });
+
+    // TODO: see if we need to "hide" this metrics for versions of .NET before POH was introduced
+    //       or if we can just ignore the metric if the value is 0
+    _pohSizeMetric = metricsRegistry.GetOrRegister<ProxyMetric>("dotnet_gc_poh_size", [this]() {
+        return _pohSize;
+    });
 }
 
 void GarbageCollectionProvider::OnGarbageCollectionEnd(
@@ -37,8 +51,10 @@ void GarbageCollectionProvider::OnGarbageCollectionEnd(
     bool isCompacting,
     uint64_t pauseDuration,
     uint64_t totalDuration, // from start to end (includes pauses)
-    uint64_t endTimestamp   // end of GC
-)
+    uint64_t endTimestamp,  // end of GC
+    uint64_t gen2Size,
+    uint64_t lohSize,
+    uint64_t pohSize)
 {
     _suspensionDurationMetric->Add((double_t)pauseDuration);
     if (generation == 0)
@@ -74,13 +90,21 @@ void GarbageCollectionProvider::OnGarbageCollectionEnd(
         _memoryPressureCountMetric->Incr();
     }
 
+    if ((generation == 2) && (isCompacting))
+    {
+        _compactingGen2CountMetric->Incr();
+    }
+
+    _gen2Size = gen2Size;
+    _lohSize = lohSize;
+    _pohSize = pohSize;
+
     RawGarbageCollectionSample rawSample;
     rawSample.Timestamp = endTimestamp;
     rawSample.LocalRootSpanId = 0;
     rawSample.SpanId = 0;
     rawSample.AppDomainId = (AppDomainID) nullptr;
     rawSample.ThreadInfo = nullptr;
-    rawSample.Stack.clear();
 
     rawSample.Number = number;
     rawSample.Generation = generation;
@@ -94,6 +118,7 @@ void GarbageCollectionProvider::OnGarbageCollectionEnd(
 }
 
 void GarbageCollectionProvider::OnGarbageCollectionStart(
+    uint64_t timestamp,
     int32_t number,
     uint32_t generation,
     GCReason reason,

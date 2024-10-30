@@ -8,7 +8,7 @@ add_library(PPDB STATIC
   ${DOTNET_TRACER_REPO_ROOT_PATH}/shared/src/native-lib/PPDB/Reader/Tables.cpp)
 
 # Sets compiler options
-target_compile_options(PPDB PRIVATE -std=c++17 -fPIC -fms-extensions)
+target_compile_options(PPDB PRIVATE -std=c++20 -fPIC -fms-extensions)
 target_compile_options(PPDB PUBLIC -DPAL_STDCPP_COMPAT -DPLATFORM_UNIX -DUNICODE)
 target_compile_options(PPDB PRIVATE -Wno-invalid-noreturn -Wno-macro-redefined)
 

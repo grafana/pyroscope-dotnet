@@ -31,7 +31,7 @@ void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, 
 {
 }
 
-bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime)
+bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool lastCall)
 {
     std::vector<std::string> pprofs;
     {
@@ -63,3 +63,8 @@ PprofBuilder& PprofExporter::GetPprofBuilder(std::string_view runtimeId)
     auto res = _perAppBuilder.emplace(runtimeId, std::move(instance));
     return *res.first->second;
 }
+
+
+void PprofExporter::RegisterUpscaleProvider(IUpscaleProvider* provider) {};
+void PprofExporter::RegisterProcessSamplesProvider(ISamplesProvider* provider) {};
+void PprofExporter::RegisterApplication(std::string_view runtimeId) {};

@@ -5,10 +5,8 @@
 
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.IO;
 using System.IO.Pipes;
-using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
@@ -25,10 +23,11 @@ namespace Datadog.Profiler.IntegrationTests
 
         public event EventHandler<EventArgs<HttpListenerContext>> ProfilerRequestReceived;
         public event EventHandler<EventArgs<HttpListenerContext>> TracerRequestReceived;
+        public event EventHandler<EventArgs<HttpListenerContext>> TelemetryMetricsRequestReceived;
 
         public int NbCallsOnProfilingEndpoint { get; private set; }
 
-        public bool IsReady => _readinessNotifier.Wait(TimeSpan.FromSeconds(5)); // wait for 5 sec to declare it as not ready
+        public bool IsReady => _readinessNotifier.Wait(TimeSpan.FromSeconds(30)); // wait for Agent being ready
 
         protected ITestOutputHelper Output { get; set; }
 
@@ -52,10 +51,16 @@ namespace Datadog.Profiler.IntegrationTests
             TracerRequestReceived?.Invoke(this, new EventArgs<HttpListenerContext>(ctx));
         }
 
+        private void OnTelemetryMetricsReceived(HttpListenerContext ctx)
+        {
+            TelemetryMetricsRequestReceived?.Invoke(this, new EventArgs<HttpListenerContext>(ctx));
+        }
+
         public class HttpAgent : MockDatadogAgent
         {
             private const string ProfilesEndpoint = "/profiling/v1/input";
             private const string TracesEndpoint = "/v0.4/traces";
+            private const string TelemetryMetricsEndpoint = "/telemetry/proxy/api/v2/apmtelemetry";
 
             private readonly Thread _listenerThread;
             private HttpListener _listener;
@@ -128,6 +133,11 @@ namespace Datadog.Profiler.IntegrationTests
                         if (ctx.Request.RawUrl == TracesEndpoint)
                         {
                             OnTracesRequestReceived(ctx);
+                        }
+
+                        if (ctx.Request.RawUrl == TelemetryMetricsEndpoint)
+                        {
+                            OnTelemetryMetricsReceived(ctx);
                         }
 
                         // NOTE: HttpStreamRequest doesn't support Transfer-Encoding: Chunked
@@ -218,7 +228,7 @@ namespace Datadog.Profiler.IntegrationTests
                     x => Output.WriteLine(x),
                     _readinessNotifier);
 
-                _profilesListenerTask = Task.Run(_namedPipeServer.Start);
+                _profilesListenerTask = _namedPipeServer.Start();
             }
 
             public string ProfilesPipeName { get; }
@@ -234,11 +244,12 @@ namespace Datadog.Profiler.IntegrationTests
             {
                 Interlocked.Increment(ref _nbTime);
 
-                var buffer = new byte[1 << 32];
-
-                await ss.ReadAsync(buffer, cancellationToken);
-                await ss.WriteAsync(_responseBytes, cancellationToken);
-                NbCallsOnProfilingEndpoint++;
+                while (ss.IsConnected)
+                {
+                    _ = MockHttpParser.ReadRequest(ss);
+                    await ss.WriteAsync(_responseBytes, cancellationToken);
+                    NbCallsOnProfilingEndpoint++;
+                }
             }
         }
 

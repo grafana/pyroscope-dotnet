@@ -3,7 +3,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -34,8 +33,8 @@
                 "value": "AsyncStaticMethod.RunAsync.Method"
               },
               "output": {
-                "isNull": "true",
-                "type": "String"
+                "type": "String",
+                "value": "AsyncStaticMethod.RunAsync."
               }
             },
             "staticFields": {
@@ -54,7 +53,8 @@
           "location": {
             "method": "Method",
             "type": "Samples.Probes.TestRuns.SmokeTests.AsyncStaticMethod"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"

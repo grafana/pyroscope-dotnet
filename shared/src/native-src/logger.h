@@ -3,6 +3,7 @@
 #include <memory>
 #include <regex>
 #include <sstream>
+#include <type_traits>
 #include <iostream>
 
 #include <spdlog/sinks/null_sink.h>
@@ -41,7 +42,7 @@ public:
 
     inline void Flush();
 
-    inline void EnableDebug();
+    inline void EnableDebug(bool enable);
     inline bool IsDebugEnabled() const;
 
 
@@ -66,7 +67,7 @@ private:
     static inline std::string BuildLogFileSuffix();
 
     template <class LoggerPolicy>
-    static std::string GetLogPath(const std::string& file_name_suffix);
+    static std::string GetLogPath(const std::string& file_name_suffix, std::shared_ptr<spdlog::logger> &stderr_logger);
 
     template <class LoggerPolicy>
     static std::shared_ptr<spdlog::logger> CreateInternalLogger();
@@ -104,7 +105,7 @@ std::shared_ptr<spdlog::logger> Logger::CreateInternalLogger()
         // By writing into the stderr was changing the behavior in a CI scenario.
         // There's not a good way to report errors when trying to create the log file.
         // But we never should be changing the normal behavior of an app.
-         std::cerr << "LoggerImpl Handler: " << msg << std::endl;
+         // std::cerr << "LoggerImpl Handler: " << msg << std::endl;
     });
 
     spdlog::flush_every(std::chrono::seconds(3));
@@ -112,15 +113,25 @@ std::shared_ptr<spdlog::logger> Logger::CreateInternalLogger()
     static auto file_name_suffix = Logger::BuildLogFileSuffix();
 
     std::shared_ptr<spdlog::logger> logger;
+    std::shared_ptr<spdlog::logger> stderr_logger;
 
+    bool stderr_log_enabled = ::shared::StderrLogEnabled();
+    if (stderr_log_enabled)
+    {
+        stderr_logger = std::make_shared<spdlog::logger>(LoggerPolicy::file_name, std::make_shared<spdlog::sinks::ansicolor_stderr_sink_mt>());
+    }
+    else
+    {
+        stderr_logger = spdlog::null_logger_mt("LoggerImpl");
+    }
     try
     {
         std::vector<spdlog::sink_ptr> sinks;
-        if (::shared::StderrLogEnabled())
+        if (stderr_log_enabled)
         {
             sinks.push_back(std::make_shared<spdlog::sinks::ansicolor_stderr_sink_mt>());
         }
-        sinks.push_back(std::make_shared<spdlog::sinks::rotating_file_sink_mt>(Logger::GetLogPath<LoggerPolicy>(file_name_suffix), 1048576 * 5, 10));
+        sinks.push_back(std::make_shared<spdlog::sinks::rotating_file_sink_mt>(Logger::GetLogPath<LoggerPolicy>(file_name_suffix, stderr_logger), 1048576 * 5, 10));
         logger = std::make_shared<spdlog::logger>(LoggerPolicy::file_name, begin(sinks), end(sinks));
     }
     catch (...)
@@ -128,8 +139,8 @@ std::shared_ptr<spdlog::logger> Logger::CreateInternalLogger()
         // By writing into the stderr was changing the behavior in a CI scenario.
         // There's not a good way to report errors when trying to create the log file.
         // But we never should be changing the normal behavior of an app.
-        std::cerr << "LoggerImpl Handler: Error creating native log file." << std::endl;
-        logger = spdlog::null_logger_mt("LoggerImpl");
+        logger = stderr_logger;
+        logger->error("LoggerImpl Handler: Error creating native log file.");
     }
 
     logger->set_level(spdlog::level::debug);
@@ -142,11 +153,9 @@ std::shared_ptr<spdlog::logger> Logger::CreateInternalLogger()
 }
 
 template <class TLoggerPolicy>
-std::string Logger::GetLogPath(const std::string& file_name_suffix)
+std::string Logger::GetLogPath(const std::string& file_name_suffix, std::shared_ptr<spdlog::logger> &stderr_logger)
 {
-    auto path = ::shared::ToString(::shared::GetDatadogLogFilePath<TLoggerPolicy>(file_name_suffix));
-
-    const auto log_path = fs::path(path);
+    const auto log_path = fs::path(::shared::GetDatadogLogFilePath<TLoggerPolicy>(file_name_suffix));
 
     if (log_path.has_parent_path())
     {
@@ -158,25 +167,74 @@ std::string Logger::GetLogPath(const std::string& file_name_suffix)
 
                 fs::create_directories(parent_path);
             } catch (std::exception &e) {
-                std::cerr << "Logger::GetLogPath failed to create a parent directory: " << parent_path <<  std::endl;
+                stderr_logger->error("Logger::GetLogPath failed to create a parent directory: {0}",  parent_path.string());
             }
         }
     }
 
-    return path;
+    return log_path.string();
+}
+
+
+// On Debian buster, we only have libstdc++ 8 which does not have a definition for the std::same_as concept
+// and std::remove_cvref_t struct.
+// In that case, when running on Windows or using a libstdc++ >= 10, we just alias the std::same_as and std::remove_cvref_t symbols,
+// Otherwise, we just implement them.
+#if defined(_WINDOWS) || (defined(_GLIBCXX_RELEASE) && _GLIBCXX_RELEASE >= 10 )
+
+template <class T, class U>
+concept same_as = std::same_as<T, U>;
+
+template <class T>
+using remove_cvref_t = typename std::remove_cvref_t<T>;
+
+#else
+
+template<class T>
+struct remove_cvref
+{
+    typedef std::remove_cv_t<std::remove_reference_t<T>> type;
+};
+
+template< class T >
+using remove_cvref_t = typename remove_cvref<T>::type;
+
+namespace detail
+{
+    template< class T, class U >
+    concept SameHelper = std::is_same_v<T, U>;
+}
+
+template< class T, class U >
+concept same_as = detail::SameHelper<T, U> && detail::SameHelper<U, T>;
+
+#endif
+
+template <class T>
+concept IsWstring = same_as<T, ::shared::WSTRING> ||
+                    // check if it's WCHAR[N] or WCHAR*
+                    same_as<remove_cvref_t<std::remove_pointer_t<std::decay_t<T>>>, WCHAR>;
+template <IsWstring T>
+void WriteToStream(std::ostringstream& oss, T const& x)
+{
+    if constexpr (std::is_same_v<T, ::shared::WSTRING>)
+    {
+        oss << ::shared::ToString(x);
+    }
+    else if constexpr (std::is_array_v<T>)
+    {
+        oss << ::shared::ToString(x, std::extent_v<T>);
+    }
+    else
+    {
+        oss << ::shared::ToString(x);
+    }
 }
 
 template <class T>
 void WriteToStream(std::ostringstream& oss, T const& x)
 {
-    if constexpr (std::is_same<T, ::shared::WSTRING>::value)
-    {
-        oss << ::shared::ToString(x);
-    }
-    else
-    {
-        oss << x;
-    }
+    oss << x;
 }
 
 template <typename... Args>
@@ -226,9 +284,9 @@ inline void Logger::Flush()
     _internalLogger->flush();
 }
 
-inline void Logger::EnableDebug()
+inline void Logger::EnableDebug(bool enable)
 {
-    m_debug_logging_enabled = true;
+    m_debug_logging_enabled = enable;
 }
 
 inline bool Logger::IsDebugEnabled() const

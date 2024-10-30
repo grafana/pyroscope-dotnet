@@ -3,7 +3,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -38,6 +37,35 @@
                 "value": "OverloadAndSimpleNameTest"
               }
             },
+            "locals": {
+              "@exception": {
+                "fields": {
+                  "HelpLink": {
+                    "isNull": "true",
+                    "type": "String"
+                  },
+                  "HResult": {
+                    "type": "Int32",
+                    "value": "-2147467263"
+                  },
+                  "InnerException": {
+                    "isNull": "true",
+                    "type": "Exception"
+                  },
+                  "Message": {
+                    "type": "String",
+                    "value": "The method or operation is not implemented."
+                  },
+                  "Source": {
+                    "type": "String",
+                    "value": "Samples.Probes.TestRuns"
+                  },
+                  "StackTrace": "ScrubbedValue"
+                },
+                "type": "NotImplementedException",
+                "value": "NotImplementedException"
+              }
+            },
             "throwable": {
               "message": "The method or operation is not implemented.",
               "stacktrace": [
@@ -51,12 +79,6 @@
           }
         },
         "duration": "ScrubbedValue",
-        "errors": [
-          {
-            "expression": "\"1\")",
-            "message": "ScrubbedValue"
-          }
-        ],
         "id": "ScrubbedValue",
         "language": "dotnet",
         "probe": {
@@ -64,7 +86,8 @@
           "location": {
             "method": "Method",
             "type": "Samples.Probes.TestRuns.SmokeTests.OverloadAndSimpleNameTest"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -84,7 +107,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -111,6 +133,35 @@
                 "value": "OverloadAndSimpleNameTest"
               }
             },
+            "locals": {
+              "@exception": {
+                "fields": {
+                  "HelpLink": {
+                    "isNull": "true",
+                    "type": "String"
+                  },
+                  "HResult": {
+                    "type": "Int32",
+                    "value": "-2147467263"
+                  },
+                  "InnerException": {
+                    "isNull": "true",
+                    "type": "Exception"
+                  },
+                  "Message": {
+                    "type": "String",
+                    "value": "The method or operation is not implemented."
+                  },
+                  "Source": {
+                    "type": "String",
+                    "value": "Samples.Probes.TestRuns"
+                  },
+                  "StackTrace": "ScrubbedValue"
+                },
+                "type": "NotImplementedException",
+                "value": "NotImplementedException"
+              }
+            },
             "throwable": {
               "message": "The method or operation is not implemented.",
               "stacktrace": [
@@ -124,12 +175,6 @@
           }
         },
         "duration": "ScrubbedValue",
-        "errors": [
-          {
-            "expression": "\"1\")",
-            "message": "ScrubbedValue"
-          }
-        ],
         "id": "ScrubbedValue",
         "language": "dotnet",
         "probe": {
@@ -137,7 +182,8 @@
           "location": {
             "method": "Method",
             "type": "Samples.Probes.TestRuns.SmokeTests.OverloadAndSimpleNameTest"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -157,7 +203,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -169,7 +214,7 @@
                     "type": "Int32",
                     "value": "44"
                   },
-                  "Address": {
+                  "Adrs": {
                     "fields": {
                       "City": {
                         "fields": {
@@ -227,7 +272,7 @@
                     "type": "Int32",
                     "value": "58"
                   },
-                  "Address": {
+                  "Adrs": {
                     "fields": {
                       "City": {
                         "fields": {
@@ -293,7 +338,7 @@
                     "type": "Int32",
                     "value": "44"
                   },
-                  "Address": {
+                  "Adrs": {
                     "fields": {
                       "City": {
                         "fields": {
@@ -351,7 +396,7 @@
                     "type": "Int32",
                     "value": "58"
                   },
-                  "Address": {
+                  "Adrs": {
                     "fields": {
                       "City": {
                         "fields": {
@@ -415,7 +460,7 @@
                     "type": "Int32",
                     "value": "50"
                   },
-                  "Address": {
+                  "Adrs": {
                     "fields": {
                       "City": {
                         "fields": {
@@ -475,12 +520,6 @@
           }
         },
         "duration": "ScrubbedValue",
-        "errors": [
-          {
-            "expression": "\"1\")",
-            "message": "ScrubbedValue"
-          }
-        ],
         "id": "ScrubbedValue",
         "language": "dotnet",
         "probe": {
@@ -488,7 +527,8 @@
           "location": {
             "method": "Method",
             "type": "OuterType+OverloadAndSimpleNameTest"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -508,7 +548,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -544,12 +583,6 @@
           }
         },
         "duration": "ScrubbedValue",
-        "errors": [
-          {
-            "expression": "\"1\")",
-            "message": "ScrubbedValue"
-          }
-        ],
         "id": "ScrubbedValue",
         "language": "dotnet",
         "probe": {
@@ -557,7 +590,8 @@
           "location": {
             "method": "Method",
             "type": "OuterType+OverloadAndSimpleNameTest"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -577,7 +611,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -697,12 +730,6 @@
           }
         },
         "duration": "ScrubbedValue",
-        "errors": [
-          {
-            "expression": "\"1\")",
-            "message": "ScrubbedValue"
-          }
-        ],
         "id": "ScrubbedValue",
         "language": "dotnet",
         "probe": {
@@ -710,7 +737,8 @@
           "location": {
             "method": "Method",
             "type": "Spicing.Things.Up.OverloadAndSimpleNameTest"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -730,7 +758,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -766,12 +793,6 @@
           }
         },
         "duration": "ScrubbedValue",
-        "errors": [
-          {
-            "expression": "\"1\")",
-            "message": "ScrubbedValue"
-          }
-        ],
         "id": "ScrubbedValue",
         "language": "dotnet",
         "probe": {
@@ -779,7 +800,8 @@
           "location": {
             "method": "Method",
             "type": "Spicing.Things.Down.OuterType+OverloadAndSimpleNameTest"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -799,7 +821,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -835,12 +856,6 @@
           }
         },
         "duration": "ScrubbedValue",
-        "errors": [
-          {
-            "expression": "\"1\")",
-            "message": "ScrubbedValue"
-          }
-        ],
         "id": "ScrubbedValue",
         "language": "dotnet",
         "probe": {
@@ -848,7 +863,8 @@
           "location": {
             "method": "Method",
             "type": "Spicing.Things.Up.OverloadAndSimpleNameTest"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -868,7 +884,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -896,6 +911,33 @@
               }
             },
             "locals": {
+              "@exception": {
+                "fields": {
+                  "HelpLink": {
+                    "isNull": "true",
+                    "type": "String"
+                  },
+                  "HResult": {
+                    "type": "Int32",
+                    "value": "-2147467263"
+                  },
+                  "InnerException": {
+                    "isNull": "true",
+                    "type": "Exception"
+                  },
+                  "Message": {
+                    "type": "String",
+                    "value": "The method or operation is not implemented."
+                  },
+                  "Source": {
+                    "type": "String",
+                    "value": "Samples.Probes.TestRuns"
+                  },
+                  "StackTrace": "ScrubbedValue"
+                },
+                "type": "NotImplementedException",
+                "value": "NotImplementedException"
+              },
               "local": {
                 "type": "String",
                 "value": "Method@"
@@ -914,12 +956,6 @@
           }
         },
         "duration": "ScrubbedValue",
-        "errors": [
-          {
-            "expression": "\"1\")",
-            "message": "ScrubbedValue"
-          }
-        ],
         "id": "ScrubbedValue",
         "language": "dotnet",
         "probe": {
@@ -927,7 +963,8 @@
           "location": {
             "method": "Method",
             "type": "Samples.Probes.TestRuns.SmokeTests.OverloadAndSimpleNameTest"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -947,7 +984,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -990,7 +1026,8 @@
           "location": {
             "method": "Method",
             "type": "Samples.Probes.TestRuns.SmokeTests.OverloadAndSimpleNameTest"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"

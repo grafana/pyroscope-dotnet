@@ -3,79 +3,62 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
-using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Text.RegularExpressions;
-using Datadog.Trace.Agent.DiscoveryService;
-using Datadog.Trace.Ci;
-using Datadog.Trace.Ci.Tags;
+using System.CommandLine.Invocation;
 using Datadog.Trace.Logging;
 using Datadog.Trace.Util;
-using Spectre.Console;
-using Spectre.Console.Cli;
 
 namespace Datadog.Trace.Tools.Runner
 {
     internal static class RunHelper
     {
-        public static IReadOnlyList<string> GetArguments(CommandContext context, RunSettings settings)
+        private static readonly IDatadogLogger Log = DatadogLogging.GetLoggerFor(typeof(RunHelper));
+
+        public static bool TryGetEnvironmentVariables(ApplicationContext applicationContext, InvocationContext invocationContext, CommonTracerSettings settings, out Dictionary<string, string> profilerEnvironmentVariables)
         {
-            return settings.Command ?? context.Remaining.Raw;
+            return TryGetEnvironmentVariables(applicationContext, invocationContext, settings, Utils.CIVisibilityOptions.None, out profilerEnvironmentVariables);
         }
 
-        public static bool TryGetEnvironmentVariables(ApplicationContext applicationContext, RunSettings settings, out Dictionary<string, string> profilerEnvironmentVariables)
+        public static bool TryGetEnvironmentVariables(ApplicationContext applicationContext, InvocationContext invocationContext, CommonTracerSettings settings, Utils.CIVisibilityOptions ciVisibilityOptions, out Dictionary<string, string> profilerEnvironmentVariables)
         {
             profilerEnvironmentVariables = Utils.GetProfilerEnvironmentVariables(
+                invocationContext,
                 applicationContext.RunnerFolder,
                 applicationContext.Platform,
-                settings);
+                settings,
+                ciVisibilityOptions: ciVisibilityOptions);
 
             if (profilerEnvironmentVariables is null)
             {
                 return false;
             }
 
-            if (settings.AdditionalEnvironmentVariables != null)
+            if (settings is RunSettings runSettings)
             {
-                foreach (var env in settings.AdditionalEnvironmentVariables)
-                {
-                    var (key, value) = ParseEnvironmentVariable(env);
+                var additionalEnvironmentVariables = invocationContext.ParseResult.GetValueForOption(runSettings.AdditionalEnvironmentVariables);
 
-                    profilerEnvironmentVariables[key] = value;
+                if (additionalEnvironmentVariables != null)
+                {
+                    foreach (var env in additionalEnvironmentVariables)
+                    {
+                        var (key, value) = ParseEnvironmentVariable(env);
+
+                        profilerEnvironmentVariables[key] = value;
+                        if (Program.CallbackForTests is null)
+                        {
+                            Log.Debug("Setting: {Key}={Value}", key, value);
+                            EnvironmentHelpers.SetEnvironmentVariable(key, value);
+                        }
+                    }
                 }
             }
 
             if (Program.CallbackForTests is null)
             {
-                Utils.SetCommonTracerSettingsToCurrentProcess(settings);
+                Utils.SetCommonTracerSettingsToCurrentProcess(invocationContext, settings);
             }
 
             return true;
-        }
-
-        public static ValidationResult Validate(CommandContext context, RunSettings settings)
-        {
-            var args = GetArguments(context, settings);
-            if (args.Count == 0)
-            {
-                return ValidationResult.Error("Missing command");
-            }
-
-            if (settings.AdditionalEnvironmentVariables != null)
-            {
-                foreach (var env in settings.AdditionalEnvironmentVariables)
-                {
-                    if (!env.Contains('='))
-                    {
-                        return ValidationResult.Error($"Badly formatted environment variable: {env}");
-                    }
-                }
-            }
-
-            return ValidationResult.Success();
         }
 
         private static (string Key, string Value) ParseEnvironmentVariable(string env)

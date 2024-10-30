@@ -77,7 +77,7 @@ namespace AllocSimulator
         private void ReadStringTable(FileStream fileStream, ref int pos)
         {
             int currentString = 0;
-            byte[] stringBuffer = new byte[1024];  // expect type names less than 1024 characters long
+            byte[] stringBuffer = new byte[2048];  // expect type names less than 2048 characters long
             int currentChar = 0;  // = length of the string after \0 is read
             byte[] buffer = new byte[1];
 
@@ -122,6 +122,7 @@ namespace AllocSimulator
             // string id followed by size
             using (var reader = new BinaryReader(fileStream))
             {
+                UInt64 current = 0; // for debugging
                 while (pos < fileStream.Length)
                 {
                     var id = reader.ReadInt32();
@@ -135,11 +136,10 @@ namespace AllocSimulator
                     };
 
                     _allocations.Add(allocInfo);
-
+                    current++;
                     pos += 8;  // skip the read 2 x 4 bytes
                 }
             }
-
         }
     }
 }

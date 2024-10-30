@@ -5,7 +5,7 @@
 
 using System;
 using System.Globalization;
-using Datadog.Trace.AppSec.Waf.ReturnTypes.Managed;
+using Datadog.Trace.Ci.CiEnvironment;
 using Datadog.Trace.Ci.Tags;
 using Datadog.Trace.SourceGenerators;
 
@@ -101,8 +101,17 @@ internal partial class TestSessionSpanTags : Trace.Tagging.CommonTags
     [Tag(CommonTags.CiEnvVars)]
     public string CiEnvVars { get; set; }
 
-    [Tag(CommonTags.TestsSkipped)]
+    [Tag(IntelligentTestRunnerTags.TestsSkipped)]
     public string TestsSkipped { get; set; }
+
+    [Tag(IntelligentTestRunnerTags.SkippingType)]
+    public string IntelligentTestRunnerSkippingType { get; set; }
+
+    [Tag(EarlyFlakeDetectionTags.Enabled)]
+    public string EarlyFlakeDetectionTestEnabled { get; set; }
+
+    [Tag(EarlyFlakeDetectionTags.AbortReason)]
+    public string EarlyFlakeDetectionTestAbortReason { get; set; }
 
     public void SetCIEnvironmentValues(CIEnvironmentValues environmentValues)
     {

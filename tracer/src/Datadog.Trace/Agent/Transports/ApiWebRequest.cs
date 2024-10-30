@@ -4,19 +4,21 @@
 // </copyright>
 
 using System;
+using System.IO;
+using System.IO.Compression;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using Datadog.Trace.Logging;
 using Datadog.Trace.Util;
+using static Datadog.Trace.HttpOverStreams.DatadogHttpValues;
 
 namespace Datadog.Trace.Agent.Transports
 {
-    internal class ApiWebRequest : IApiRequest, IMultipartApiRequest
+    internal class ApiWebRequest : IApiRequest
     {
-        private const string Boundary = "faa0a896-8bc8-48f3-b46d-016f2b15a884";
-        private const string BoundarySeparator = "\r\n--" + Boundary + "\r\n";
-        private const string BoundaryTrailer = "\r\n--" + Boundary + "--\r\n";
+        private const string BoundarySeparator = $"{CrLf}--{Boundary}{CrLf}";
+        private const string BoundaryTrailer = $"{CrLf}--{Boundary}--{CrLf}";
 
         private static readonly IDatadogLogger Log = DatadogLogging.GetLoggerFor<ApiWebRequest>();
         private readonly HttpWebRequest _request;
@@ -34,21 +36,11 @@ namespace Datadog.Trace.Agent.Transports
             _request.Headers.Add(name, value);
         }
 
-        public async Task<IApiResponse> GetAsync()
+        public Task<IApiResponse> GetAsync()
         {
             ResetRequest(method: "GET", contentType: null, contentEncoding: null);
 
-            try
-            {
-                var httpWebResponse = (HttpWebResponse)await _request.GetResponseAsync().ConfigureAwait(false);
-                return new ApiWebResponse(httpWebResponse);
-            }
-            catch (WebException exception)
-                when (exception.Status == WebExceptionStatus.ProtocolError && exception.Response != null)
-            {
-                // If the exception is caused by an error status code, swallow the exception and let the caller handle the result
-                return new ApiWebResponse((HttpWebResponse)exception.Response);
-            }
+            return FinishAndGetResponse();
         }
 
         public Task<IApiResponse> PostAsync(ArraySegment<byte> bytes, string contentType)
@@ -63,17 +55,19 @@ namespace Datadog.Trace.Agent.Transports
                 await requestStream.WriteAsync(bytes.Array, bytes.Offset, bytes.Count).ConfigureAwait(false);
             }
 
-            try
+            return await FinishAndGetResponse().ConfigureAwait(false);
+        }
+
+        public async Task<IApiResponse> PostAsync(Func<Stream, Task> writeToRequestStream, string contentType, string contentEncoding, string multipartBoundary)
+        {
+            ResetRequest(method: "POST", ContentTypeHelper.GetContentType(contentType, multipartBoundary), contentEncoding);
+
+            using (var requestStream = await _request.GetRequestStreamAsync().ConfigureAwait(false))
             {
-                var httpWebResponse = (HttpWebResponse)await _request.GetResponseAsync().ConfigureAwait(false);
-                return new ApiWebResponse(httpWebResponse);
+                await writeToRequestStream(requestStream).ConfigureAwait(false);
             }
-            catch (WebException exception)
-                when (exception.Status == WebExceptionStatus.ProtocolError && exception.Response != null)
-            {
-                // If the exception is caused by an error status code, ignore it and let the caller handle the result
-                return new ApiWebResponse((HttpWebResponse)exception.Response);
-            }
+
+            return await FinishAndGetResponse().ConfigureAwait(false);
         }
 
         /// <summary>
@@ -81,8 +75,9 @@ namespace Datadog.Trace.Agent.Transports
         /// WARNING: Name and FileName of each MultipartFormItem instance must be ASCII encoding compatible.
         /// </summary>
         /// <param name="items">Multipart form data items</param>
+        /// <param name="multipartCompression">Multipart compression</param>
         /// <returns>Task with the response</returns>
-        public async Task<IApiResponse> PostAsync(params MultipartFormItem[] items)
+        public async Task<IApiResponse> PostAsync(MultipartFormItem[] items, MultipartCompression multipartCompression = MultipartCompression.None)
         {
             if (items is null)
             {
@@ -91,9 +86,26 @@ namespace Datadog.Trace.Agent.Transports
 
             Log.Debug<int>("Sending multipart form request with {Count} items.", items.Length);
 
-            ResetRequest(method: "POST", contentType: "multipart/form-data; boundary=" + Boundary, contentEncoding: null);
+            ResetRequest(method: "POST", contentType: "multipart/form-data; boundary=" + Boundary, contentEncoding: multipartCompression == MultipartCompression.GZip ? "gzip" : null);
+            using (var reqStream = await _request.GetRequestStreamAsync().ConfigureAwait(false))
+            {
+                if (multipartCompression == MultipartCompression.GZip)
+                {
+                    Log.Debug("Using MultipartCompression.GZip");
+                    using var gzip = new GZipStream(reqStream, CompressionMode.Compress, leaveOpen: true);
+                    await WriteToStreamAsync(items, gzip).ConfigureAwait(false);
+                    await gzip.FlushAsync().ConfigureAwait(false);
+                    Log.Debug("Compressing multipart payload...");
+                }
+                else
+                {
+                    await WriteToStreamAsync(items, reqStream).ConfigureAwait(false);
+                }
+            }
 
-            using (var requestStream = await _request.GetRequestStreamAsync().ConfigureAwait(false))
+            return await FinishAndGetResponse().ConfigureAwait(false);
+
+            async Task WriteToStreamAsync(MultipartFormItem[] multipartItems, Stream requestStream)
             {
                 // Write form request using the boundary
                 var boundaryBytes = _boundarySeparatorInBytes ??= Encoding.ASCII.GetBytes(BoundarySeparator);
@@ -101,40 +113,17 @@ namespace Datadog.Trace.Agent.Transports
 
                 // Write each MultipartFormItem
                 var itemsWritten = 0;
-                foreach (var item in items)
+                foreach (var item in multipartItems)
                 {
-                    byte[] headerBytes = null;
-
-                    // Check name is not null (required)
-                    if (item.Name is null)
+                    if (!item.IsValid(Log))
                     {
-                        Log.Warning("Error encoding multipart form item name is null. Ignoring item");
                         continue;
                     }
 
-                    // Ignore the item if the name contains ' or "
-                    if (item.Name.IndexOf("\"", StringComparison.Ordinal) != -1 || item.Name.IndexOf("'", StringComparison.Ordinal) != -1)
-                    {
-                        Log.Warning("Error encoding multipart form item name: {Name}. Ignoring item.", item.Name);
-                        continue;
-                    }
-
-                    // Do the same checks for FileName if not null
-                    if (item.FileName is not null)
-                    {
-                        // Ignore the item if the name contains ' or "
-                        if (item.FileName.IndexOf("\"", StringComparison.Ordinal) != -1 || item.FileName.IndexOf("'", StringComparison.Ordinal) != -1)
-                        {
-                            Log.Warning("Error encoding multipart form item filename: {FileName}. Ignoring item.", item.FileName);
-                            continue;
-                        }
-
-                        headerBytes = Encoding.ASCII.GetBytes(
-                            $"Content-Type: {item.ContentType}\r\nContent-Disposition: form-data; name=\"{item.Name}\"; filename=\"{item.FileName}\"\r\n\r\n");
-                    }
-
-                    headerBytes ??= Encoding.ASCII.GetBytes(
-                        $"Content-Type: {item.ContentType}\r\nContent-Disposition: form-data; name=\"{item.Name}\"\r\n\r\n");
+                    var headerBytes = Encoding.ASCII.GetBytes(
+                        item.FileName is not null
+                            ? $"Content-Type: {item.ContentType}\r\nContent-Disposition: form-data; name=\"{item.Name}\"; filename=\"{item.FileName}\"\r\n\r\n"
+                            : $"Content-Type: {item.ContentType}\r\nContent-Disposition: form-data; name=\"{item.Name}\"\r\n\r\n");
 
                     if (itemsWritten == 0)
                     {
@@ -161,22 +150,12 @@ namespace Datadog.Trace.Agent.Transports
                     itemsWritten++;
                 }
 
-                if (itemsWritten > 0)
+                if (itemsWritten == 0)
                 {
-                    await requestStream.WriteAsync(trailerBytes, 0, trailerBytes.Length).ConfigureAwait(false);
+                    await requestStream.WriteAsync(boundaryBytes, 2, boundaryBytes.Length - 2).ConfigureAwait(false);
                 }
-            }
 
-            try
-            {
-                var httpWebResponse = (HttpWebResponse)await _request.GetResponseAsync().ConfigureAwait(false);
-                return new ApiWebResponse(httpWebResponse);
-            }
-            catch (WebException exception)
-                when (exception.Status == WebExceptionStatus.ProtocolError && exception.Response != null)
-            {
-                // If the exception is caused by an error status code, ignore it and let the caller handle the result
-                return new ApiWebResponse((HttpWebResponse)exception.Response);
+                await requestStream.WriteAsync(trailerBytes, 0, trailerBytes.Length).ConfigureAwait(false);
             }
         }
 
@@ -191,6 +170,21 @@ namespace Datadog.Trace.Agent.Transports
             else
             {
                 _request.Headers.Set(HttpRequestHeader.ContentEncoding, contentEncoding);
+            }
+        }
+
+        private async Task<IApiResponse> FinishAndGetResponse()
+        {
+            try
+            {
+                var httpWebResponse = (HttpWebResponse)await _request.GetResponseAsync().ConfigureAwait(false);
+                return new ApiWebResponse(httpWebResponse);
+            }
+            catch (WebException exception)
+                when (exception.Status == WebExceptionStatus.ProtocolError && exception.Response != null)
+            {
+                // If the exception is caused by an error status code, ignore it and let the caller handle the result
+                return new ApiWebResponse((HttpWebResponse)exception.Response);
             }
         }
     }

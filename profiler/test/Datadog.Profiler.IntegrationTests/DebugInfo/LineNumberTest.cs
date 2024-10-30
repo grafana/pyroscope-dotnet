@@ -36,9 +36,9 @@ namespace Datadog.Profiler.IntegrationTests.DebugInfo
 
             runner.Run(agent);
             var expectedStack = new StackTrace(
-                    new StackFrame("|lm:Samples.Computer01 |ns:Samples.Computer01 |ct:LineNumber |fn:CallThirdMethod"),
-                    new StackFrame("|lm:Samples.Computer01 |ns:Samples.Computer01 |ct:LineNumber |fn:CallSecondMethod"),
-                    new StackFrame("|lm:Samples.Computer01 |ns:Samples.Computer01 |ct:LineNumber |fn:CallFirstMethod"));
+                    new StackFrame("|lm:Samples.Computer01 |ns:Samples.Computer01 |ct:LineNumber |cg: |fn:CallThirdMethod |fg: |sg:()"),
+                    new StackFrame("|lm:Samples.Computer01 |ns:Samples.Computer01 |ct:LineNumber |cg: |fn:CallSecondMethod |fg: |sg:()"),
+                    new StackFrame("|lm:Samples.Computer01 |ns:Samples.Computer01 |ct:LineNumber |cg: |fn:CallFirstMethod |fg: |sg:()"));
 
             var samples = ExtractCallStackMatching(runner.Environment.PprofDir, expectedStack).ToArray();
 
@@ -70,15 +70,18 @@ namespace Datadog.Profiler.IntegrationTests.DebugInfo
 
                 // forced line info
                 first.Filename.Should().EndWith("LineNumber.cs");
-                first.StartLine.Should().Equals(103);
+                first.StartLine.Should().Be(103);
+                first.Line.Should().Be(103);
 
                 // "normal" line info
                 second.Filename.Should().EndWith("LineNumber.cs");
-                second.StartLine.Should().Equals(42);
+                second.StartLine.Should().Be(41);
+                second.Line.Should().Be(41);
 
                 // hidden debug info
                 third.Filename.Should().BeEmpty();
-                third.StartLine.Should().Equals(0);
+                third.StartLine.Should().Be(0);
+                third.Line.Should().Be(0);
             }
         }
 
@@ -100,7 +103,7 @@ namespace Datadog.Profiler.IntegrationTests.DebugInfo
                     for (var i = 0; i < stackTrace.FramesCount; i++)
                     {
                         stackTrace[i].Filename.Should().BeEmpty();
-                        stackTrace[i].StartLine.Should().Equals(0);
+                        stackTrace[i].StartLine.Should().Be(0);
                     }
                 }
             }
@@ -123,7 +126,7 @@ namespace Datadog.Profiler.IntegrationTests.DebugInfo
                     for (var i = 0; i < stackTrace.FramesCount; i++)
                     {
                         stackTrace[i].Filename.Should().BeEmpty();
-                        stackTrace[i].StartLine.Should().Equals(0);
+                        stackTrace[i].StartLine.Should().Be(0);
                     }
                 }
             }

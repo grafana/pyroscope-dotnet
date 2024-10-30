@@ -6,10 +6,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using Datadog.Profiler.IntegrationTests.Xunit;
 
 namespace Datadog.Profiler.IntegrationTests.Helpers
 {
@@ -17,14 +17,14 @@ namespace Datadog.Profiler.IntegrationTests.Helpers
     {
         private static string _solutionDirectory = null;
         private readonly string _framework;
-        private readonly string _appName;
-        private readonly string _testId;
+        private readonly string _testOutputPath;
+        private readonly bool _enableProfiler;
 
-        public EnvironmentHelper(string appName, string framework, bool enableTracer)
+        public EnvironmentHelper(string framework, bool enableTracer, bool enableProfiler)
         {
             _framework = framework;
-            _appName = appName;
-            _testId = Guid.NewGuid().ToString("n").Substring(0, 8);
+            _testOutputPath = BuildTestOutputPath(framework);
+            _enableProfiler = enableProfiler;
 
             if (enableTracer)
             {
@@ -76,6 +76,10 @@ namespace Datadog.Profiler.IntegrationTests.Helpers
             return Environment.Is64BitProcess ? "x64" : "x86";
         }
 
+        public static bool IsRunningInCi() =>
+            // This environment variable is set in the CI (Github / AzDo)
+            !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MonitoringHomeDirectory"));
+
         internal static string GetConfiguration()
         {
 #if DEBUG
@@ -83,6 +87,15 @@ namespace Datadog.Profiler.IntegrationTests.Helpers
 #else
             return "Release";
 #endif
+        }
+
+        internal static void DisableDefaultProfilers(TestApplicationRunner runner)
+        {
+            runner.Environment.SetVariable(EnvironmentVariables.WallTimeProfilerEnabled, "0");
+            runner.Environment.SetVariable(EnvironmentVariables.CpuProfilerEnabled, "0");
+            runner.Environment.SetVariable(EnvironmentVariables.GarbageCollectionProfilerEnabled, "0");
+            runner.Environment.SetVariable(EnvironmentVariables.ExceptionProfilerEnabled, "0");
+            runner.Environment.SetVariable(EnvironmentVariables.ContentionProfilerEnabled, "0");
         }
 
         internal void EnableTracer()
@@ -129,9 +142,8 @@ namespace Datadog.Profiler.IntegrationTests.Helpers
             var loaderConfigFilePath = Path.GetTempFileName();
             using var sw = new StreamWriter(loaderConfigFilePath);
 
-            // loader conf doesn't support musl, so we have to force IsAlpine to false
-            sw.WriteLine($"PROFILER;{{BD1A650D-AC5D-4896-B64F-D6FA25D6B26A}};{GetArchitectureSubfolder(isAlpine: false)};{profilerPath}");
-            sw.WriteLine($"TRACER;{{50DA5EED-F1ED-B00B-1055-5AFE55A1ADE5}};{GetArchitectureSubfolder(isAlpine: false)};{tracerPath}");
+            sw.WriteLine($"PROFILER;{{BD1A650D-AC5D-4896-B64F-D6FA25D6B26A}};{GetArchitectureSubfolder(IsAlpine)};{profilerPath}");
+            sw.WriteLine($"TRACER;{{50DA5EED-F1ED-B00B-1055-5AFE55A1ADE5}};{GetArchitectureSubfolder(IsAlpine)};{tracerPath}");
             return loaderConfigFilePath;
         }
 
@@ -161,7 +173,11 @@ namespace Datadog.Profiler.IntegrationTests.Helpers
                 environmentVariables["COR_PROFILER_PATH"] = profilerPath;
             }
 
-            environmentVariables["DD_PROFILING_ENABLED"] = "1";
+            if (_enableProfiler)
+            {
+                environmentVariables["DD_PROFILING_ENABLED"] = "1";
+            }
+
             environmentVariables["DD_TRACE_ENABLED"] = "0";
 
             environmentVariables["DD_PROFILING_UPLOAD_PERIOD"] = profilingExportIntervalInSeconds.ToString();
@@ -181,7 +197,10 @@ namespace Datadog.Profiler.IntegrationTests.Helpers
                 }
             }
 
-            ConfigureTransportVariables(environmentVariables, agent);
+            if (agent != null)
+            {
+                ConfigureTransportVariables(environmentVariables, agent);
+            }
 
             foreach (var key in CustomEnvironmentVariables.Keys)
             {
@@ -191,9 +210,24 @@ namespace Datadog.Profiler.IntegrationTests.Helpers
 
         internal string GetTestOutputPath()
         {
+            return _testOutputPath;
+        }
+
+        private static string BuildTestOutputPath(string framework)
+        {
             // DD_TESTING_OUPUT_DIR is set by the CI
-            var baseTestOutputDir = Environment.GetEnvironmentVariable("DD_TESTING_OUPUT_DIR") ?? Path.GetTempPath();
-            var testOutputPath = Path.Combine(baseTestOutputDir, $"TestApplication_{_appName}{_testId}_{Process.GetCurrentProcess().Id}", _framework);
+            var baseTestOutputDir = Environment.GetEnvironmentVariable("DD_TESTING_OUPUT_DIR") ?? Path.Combine(Path.GetTempPath(), "ProfilerTest");
+
+            var testName = TestContext.Current.TestName ?? "UnknownTestClass.UnknownTestMethod";
+            var testOutputPath = Path.Combine(testName.Split('.'));
+
+            testOutputPath = Path.Combine(baseTestOutputDir, testOutputPath, framework);
+
+            // needed only for local test to ensure that we do not have artifacts from previous runs
+            if (Directory.Exists(testOutputPath))
+            {
+                Directory.Delete(testOutputPath, recursive: true);
+            }
 
             return testOutputPath;
         }
@@ -234,10 +268,6 @@ namespace Datadog.Profiler.IntegrationTests.Helpers
         {
             return Path.Combine(GetSolutionDirectory(), "profiler", "_build");
         }
-
-        private static bool IsRunningInCi() =>
-            // This environment variable is set in the CI (Github / AzDo)
-            !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MonitoringHomeDirectory"));
 
         /// <summary>
         /// Find the solution directory from anywhere in the hierarchy.
@@ -302,7 +332,8 @@ namespace Datadog.Profiler.IntegrationTests.Helpers
                 ("win", "x86", _) => "win-x86",
                 ("linux", "x64", false) => "linux-x64",
                 ("linux", "x64", true) => "linux-musl-x64",
-                ("linux", "Arm64", _) => "linux-arm64",
+                ("linux", "Arm64", false) => "linux-arm64",
+                ("linux", "Arm64", true) => "linux-musl-arm64",
                 ("osx", _, _) => "osx-x64",
                 _ => throw new PlatformNotSupportedException()
             };

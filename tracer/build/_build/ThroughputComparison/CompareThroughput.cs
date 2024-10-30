@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.Json.Nodes;
 using Nuke.Common;
 using Nuke.Common.IO;
+using Logger = Serilog.Log;
 
 namespace ThroughputComparison;
 
@@ -15,22 +16,22 @@ public class CompareThroughput
 
     public static string GetMarkdown(List<CrankResultSource> sources)
     {
-        Logger.Info("Reading crank results");
+        Logger.Information("Reading crank results");
         var crankResults = sources.SelectMany(ReadJsonResults).ToList();
 
         // Group crankResults by test suite (result type), then 
-        Logger.Info($"Found {crankResults.Count} results: building markdown");
+        Logger.Information($"Found {crankResults.Count} results: building markdown");
         var charts = crankResults
                     .GroupBy(x => x.TestSuite)
                     .Select(group =>
-                     {
+                    {
 
-                         var scenarios = group
-                                        .Select(x => x)
-                                        .OrderBy(x => x.Scenario)
-                                        .GroupBy(x => x.Scenario)
-                                        .Select(scenarioResults => GetMermaidSection(scenarioResults.Key, scenarioResults));
-                         return $"""
+                        var scenarios = group
+                                       .Select(x => x)
+                                       .OrderBy(x => x.Scenario)
+                                       .GroupBy(x => x.Scenario)
+                                       .Select(scenarioResults => GetMermaidSection(scenarioResults.Key, scenarioResults));
+                        return $"""
                         ```mermaid
                         gantt
                             title Throughput {GetName(group.Key)} (Total requests) 
@@ -39,7 +40,7 @@ public class CompareThroughput
                         {string.Join(Environment.NewLine, scenarios)}
                         ```
                         """;
-                     });
+                    });
 
         return GetCommentMarkdown(sources, charts);
     }
@@ -77,7 +78,7 @@ public class CompareThroughput
     private static string GetCommentMarkdown(List<CrankResultSource> sources, IEnumerable<string> charts)
     {
         return $"""
-            ## Throughput/Crank Report:zap:
+            ## Throughput/Crank Report :zap:
 
             Throughput results for AspNetCoreSimpleController comparing the following branches/commits:
             {string.Join('\n', GetSourceMarkdown(sources))}
@@ -108,11 +109,15 @@ public class CompareThroughput
         CrankScenario.AutomaticInstrumentation => "Automatic",
         CrankScenario.ManualInstrumentation => "Manual",
         CrankScenario.ManualAndAutomaticInstrumentation => "Manual + Automatic",
-        CrankScenario.VersionConflict => "Version Conflict",
+        CrankScenario.DdTraceEnabledFalse => "DD_TRACE_ENABLED=0",
         CrankScenario.TraceStats => "Trace stats",
         CrankScenario.NoAttack => "No attack",
         CrankScenario.AttackNoBlocking => "Attack",
         CrankScenario.AttackBlocking => "Blocking",
+        CrankScenario.IastDefault => "IAST default",
+        CrankScenario.IastFull => "IAST full",
+        CrankScenario.IastVulnerabilityDisabled => "Base vuln",
+        CrankScenario.IastVulnerabilityEnabled => "IAST vuln",
         _ => throw new NotImplementedException(),
     };
 
@@ -125,7 +130,7 @@ public class CompareThroughput
                 ("trace_stats_linux.json", CrankScenario.TraceStats),
                 ("manual_only_linux.json", CrankScenario.ManualInstrumentation),
                 ("manual_and_automatic_linux.json", CrankScenario.ManualAndAutomaticInstrumentation),
-                ("version_conflict_linux.json", CrankScenario.VersionConflict),
+                ("ddtraceenabled_false_linux.json", CrankScenario.DdTraceEnabledFalse),
             }
         ),
         ("crank_linux_arm64_1", CrankTestSuite.LinuxArm64, new[]
@@ -135,7 +140,7 @@ public class CompareThroughput
                 ("trace_stats_linux_arm64.json", CrankScenario.TraceStats),
                 ("manual_only_linux_arm64.json", CrankScenario.ManualInstrumentation),
                 ("manual_and_automatic_linux_arm64.json", CrankScenario.ManualAndAutomaticInstrumentation),
-                ("version_conflict_linux_arm64.json", CrankScenario.VersionConflict),
+                ("ddtraceenabled_false_linux_arm64.json", CrankScenario.DdTraceEnabledFalse),
             }
         ),
         ("crank_windows_x64_1", CrankTestSuite.WindowsX64, new[]
@@ -145,7 +150,7 @@ public class CompareThroughput
                 ("trace_stats_windows.json", CrankScenario.TraceStats),
                 ("manual_only_windows.json", CrankScenario.ManualInstrumentation),
                 ("manual_and_automatic_windows.json", CrankScenario.ManualAndAutomaticInstrumentation),
-                ("version_conflict_windows.json", CrankScenario.VersionConflict),
+                ("ddtraceenabled_false_windows.json", CrankScenario.DdTraceEnabledFalse),
             }
         ),
         ("crank_linux_x64_asm_1", CrankTestSuite.ASMLinuxX64, new[]
@@ -154,6 +159,10 @@ public class CompareThroughput
                 ("appsec_noattack.json", CrankScenario.NoAttack),
                 ("appsec_attack_noblocking.json", CrankScenario.AttackNoBlocking),
                 ("appsec_attack_blocking.json", CrankScenario.AttackBlocking),
+                ("appsec_iast_enabled_default.json", CrankScenario.IastDefault),
+                ("appsec_iast_enabled_full.json", CrankScenario.IastFull),
+                ("appsec_iast_disabled_vulnerability.json", CrankScenario.IastVulnerabilityDisabled),
+                ("appsec_iast_enabled_vulnerability.json", CrankScenario.IastVulnerabilityEnabled),
             }
         ),
     };
@@ -162,21 +171,21 @@ public class CompareThroughput
     {
         var results = new List<CrankResult>();
         foreach (var (path, type, scenarios) in ExpectedScenarios)
-        foreach (var (filename, scenario) in scenarios)
-        {
-            var fileName = source.Path / path / filename;
-            try
+            foreach (var (filename, scenario) in scenarios)
             {
-                using var file = File.OpenRead(fileName);
-                var node = JsonNode.Parse(file)!;
-                var requests = (double)node["jobResults"]!["jobs"]!["load"]!["results"]!["bombardier/requests"];
-                results.Add(new(source, type, scenario, (long)requests));
+                var fileName = source.Path / path / filename;
+                try
+                {
+                    using var file = File.OpenRead(fileName);
+                    var node = JsonNode.Parse(file)!;
+                    var requests = (double)node["jobResults"]!["jobs"]!["load"]!["results"]!["bombardier/requests"];
+                    results.Add(new(source, type, scenario, (long)requests));
+                }
+                catch (Exception ex)
+                {
+                    Logger.Information($"Error reading {fileName}: {ex.Message}. Skipping");
+                }
             }
-            catch (Exception ex)
-            {
-                Logger.Info($"Error reading {fileName}: {ex.Message}. Skipping");
-            }
-        }
 
         return results;
     }
@@ -198,10 +207,14 @@ public class CompareThroughput
         TraceStats,
         ManualInstrumentation,
         ManualAndAutomaticInstrumentation,
-        VersionConflict,
+        DdTraceEnabledFalse,
         NoAttack,
         AttackNoBlocking,
         AttackBlocking,
+        IastDefault,
+        IastFull,
+        IastVulnerabilityDisabled,
+        IastVulnerabilityEnabled,
     }
 }
 

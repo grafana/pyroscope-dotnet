@@ -3,7 +3,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -15,7 +14,7 @@
                     "type": "Int32",
                     "value": "99"
                   },
-                  "Address": {
+                  "Adrs": {
                     "fields": {
                       "City": {
                         "fields": {
@@ -59,7 +58,7 @@
                             "type": "Int32",
                             "value": "31"
                           },
-                          "Address": {
+                          "Adrs": {
                             "fields": {
                               "City": {
                                 "notCapturedReason": "depth",
@@ -103,8 +102,8 @@
                         "value": "Person"
                       }
                     ],
-                    "type": "List`1",
-                    "value": "count: 1"
+                    "size": 1,
+                    "type": "List`1"
                   },
                   "Id": {
                     "type": "Guid",
@@ -136,7 +135,7 @@
                         "type": "Int32",
                         "value": "99"
                       },
-                      "Address": {
+                      "Adrs": {
                         "fields": {
                           "City": {
                             "notCapturedReason": "depth",
@@ -171,7 +170,7 @@
                                 "type": "Int32",
                                 "value": "31"
                               },
-                              "Address": {
+                              "Adrs": {
                                 "notCapturedReason": "depth",
                                 "type": "Address",
                                 "value": "Address"
@@ -197,8 +196,8 @@
                             "value": "Person"
                           }
                         ],
-                        "type": "List`1",
-                        "value": "count: 1"
+                        "size": 1,
+                        "type": "List`1"
                       },
                       "Id": {
                         "type": "Guid",
@@ -226,7 +225,7 @@
                     "type": "Int32",
                     "value": "99"
                   },
-                  "Address": {
+                  "Adrs": {
                     "fields": {
                       "City": {
                         "fields": {
@@ -270,7 +269,7 @@
                             "type": "Int32",
                             "value": "31"
                           },
-                          "Address": {
+                          "Adrs": {
                             "fields": {
                               "City": {
                                 "notCapturedReason": "depth",
@@ -314,8 +313,8 @@
                         "value": "Person"
                       }
                     ],
-                    "type": "List`1",
-                    "value": "count: 1"
+                    "size": 1,
+                    "type": "List`1"
                   },
                   "Id": {
                     "type": "Guid",
@@ -347,7 +346,7 @@
                         "type": "Int32",
                         "value": "99"
                       },
-                      "Address": {
+                      "Adrs": {
                         "fields": {
                           "City": {
                             "notCapturedReason": "depth",
@@ -382,7 +381,7 @@
                                 "type": "Int32",
                                 "value": "31"
                               },
-                              "Address": {
+                              "Adrs": {
                                 "notCapturedReason": "depth",
                                 "type": "Address",
                                 "value": "Address"
@@ -408,8 +407,8 @@
                             "value": "Person"
                           }
                         ],
-                        "type": "List`1",
-                        "value": "count: 1"
+                        "size": 1,
+                        "type": "List`1"
                       },
                       "Id": {
                         "type": "Guid",
@@ -433,9 +432,112 @@
                 "type": "String",
                 "value": "Ralph (99)Samples.Probes.TestRuns.Shared.GenericRalphMethod99Ralph"
               },
+              "adr": {
+                "type": "String",
+                "value": "Ralph (99)Samples.Probes.TestRuns.Shared.GenericRalphMethod99Ralph"
+              },
+              "children": {
+                "fields": {
+                  "m_task": "ScrubbedValue"
+                },
+                "type": "TaskAwaiter",
+                "value": "TaskAwaiter"
+              },
               "output": {
-                "isNull": "true",
-                "type": "String"
+                "type": "String",
+                "value": "Ralph (99)Samples.Probes.TestRuns.Shared.GenericRalph"
+              },
+              "person": {
+                "type": "Double",
+                "value": "99"
+              },
+              "place": {
+                "fields": {
+                  "_person": {
+                    "fields": {
+                      "_shouldCloned": {
+                        "type": "Int32",
+                        "value": "99"
+                      },
+                      "Adrs": {
+                        "fields": {
+                          "City": {
+                            "notCapturedReason": "depth",
+                            "type": "Place",
+                            "value": "Place"
+                          },
+                          "HomeType": {
+                            "type": "BuildingType",
+                            "value": "Duplex"
+                          },
+                          "Number": {
+                            "type": "Int32",
+                            "value": "15"
+                          },
+                          "Street": {
+                            "type": "String",
+                            "value": "Harlem"
+                          }
+                        },
+                        "type": "Address",
+                        "value": "Address"
+                      },
+                      "Age": {
+                        "type": "Double",
+                        "value": "99"
+                      },
+                      "Children": {
+                        "elements": [
+                          {
+                            "fields": {
+                              "_shouldCloned": {
+                                "type": "Int32",
+                                "value": "31"
+                              },
+                              "Adrs": {
+                                "notCapturedReason": "depth",
+                                "type": "Address",
+                                "value": "Address"
+                              },
+                              "Age": {
+                                "type": "Double",
+                                "value": "31"
+                              },
+                              "Children": {
+                                "isNull": "true",
+                                "type": "List`1"
+                              },
+                              "Id": {
+                                "type": "Guid",
+                                "value": "ScrubbedValue"
+                              },
+                              "Name": {
+                                "type": "String",
+                                "value": "Ralph Jr."
+                              }
+                            },
+                            "type": "Person",
+                            "value": "Person"
+                          }
+                        ],
+                        "size": 1,
+                        "type": "List`1"
+                      },
+                      "Id": {
+                        "type": "Guid",
+                        "value": "ScrubbedValue"
+                      },
+                      "Name": {
+                        "type": "String",
+                        "value": "Ralph"
+                      }
+                    },
+                    "type": "Person",
+                    "value": "Person"
+                  }
+                },
+                "type": "NestedAsyncGenericStruct",
+                "value": "NestedAsyncGenericStruct"
               }
             }
           }
@@ -448,7 +550,8 @@
           "location": {
             "method": "Method",
             "type": "Samples.Probes.TestRuns.SmokeTests.AsyncLineProbeWithFieldsArgsAndLocalsTest+NestedAsyncGenericStruct"
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -468,14 +571,13 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
           "lines": {
             "23": {
               "locals": {
-                "address": {
+                "adr": {
                   "fields": {
                     "City": {
                       "fields": {
@@ -541,9 +643,10 @@
           "location": {
             "file": "AsyncLineProbeWithFieldsArgsAndLocalsTest.cs",
             "lines": [
-              23
+              "23"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -563,14 +666,13 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
           "lines": {
             "25": {
               "locals": {
-                "address": {
+                "adr": {
                   "fields": {
                     "City": {
                       "fields": {
@@ -636,9 +738,10 @@
           "location": {
             "file": "AsyncLineProbeWithFieldsArgsAndLocalsTest.cs",
             "lines": [
-              25
+              "25"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -658,14 +761,13 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
           "lines": {
             "26": {
               "locals": {
-                "address": {
+                "adr": {
                   "fields": {
                     "City": {
                       "fields": {
@@ -731,9 +833,10 @@
           "location": {
             "file": "AsyncLineProbeWithFieldsArgsAndLocalsTest.cs",
             "lines": [
-              26
+              "26"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -753,14 +856,13 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
           "lines": {
             "27": {
               "locals": {
-                "address": {
+                "adr": {
                   "fields": {
                     "City": {
                       "fields": {
@@ -794,8 +896,8 @@
                 },
                 "children": {
                   "elements": [],
-                  "type": "List`1",
-                  "value": "count: 0"
+                  "size": 0,
+                  "type": "List`1"
                 },
                 "person": {
                   "isNull": "true",
@@ -827,9 +929,10 @@
           "location": {
             "file": "AsyncLineProbeWithFieldsArgsAndLocalsTest.cs",
             "lines": [
-              27
+              "27"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -849,14 +952,13 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
           "lines": {
             "28": {
               "locals": {
-                "address": {
+                "adr": {
                   "fields": {
                     "City": {
                       "fields": {
@@ -896,7 +998,7 @@
                           "type": "Int32",
                           "value": "31"
                         },
-                        "Address": {
+                        "Adrs": {
                           "fields": {
                             "City": {
                               "fields": {
@@ -949,8 +1051,8 @@
                       "value": "Person"
                     }
                   ],
-                  "type": "List`1",
-                  "value": "count: 1"
+                  "size": 1,
+                  "type": "List`1"
                 },
                 "person": {
                   "isNull": "true",
@@ -982,9 +1084,10 @@
           "location": {
             "file": "AsyncLineProbeWithFieldsArgsAndLocalsTest.cs",
             "lines": [
-              28
+              "28"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -1004,14 +1107,13 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
           "lines": {
             "29": {
               "locals": {
-                "address": {
+                "adr": {
                   "fields": {
                     "City": {
                       "fields": {
@@ -1051,7 +1153,7 @@
                           "type": "Int32",
                           "value": "31"
                         },
-                        "Address": {
+                        "Adrs": {
                           "fields": {
                             "City": {
                               "fields": {
@@ -1104,8 +1206,8 @@
                       "value": "Person"
                     }
                   ],
-                  "type": "List`1",
-                  "value": "count: 1"
+                  "size": 1,
+                  "type": "List`1"
                 },
                 "person": {
                   "fields": {
@@ -1113,7 +1215,7 @@
                       "type": "Int32",
                       "value": "99"
                     },
-                    "Address": {
+                    "Adrs": {
                       "fields": {
                         "City": {
                           "fields": {
@@ -1157,7 +1259,7 @@
                               "type": "Int32",
                               "value": "31"
                             },
-                            "Address": {
+                            "Adrs": {
                               "fields": {
                                 "City": {
                                   "notCapturedReason": "depth",
@@ -1201,8 +1303,8 @@
                           "value": "Person"
                         }
                       ],
-                      "type": "List`1",
-                      "value": "count: 1"
+                      "size": 1,
+                      "type": "List`1"
                     },
                     "Id": {
                       "type": "Guid",
@@ -1242,9 +1344,10 @@
           "location": {
             "file": "AsyncLineProbeWithFieldsArgsAndLocalsTest.cs",
             "lines": [
-              29
+              "29"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -1264,7 +1367,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -1277,7 +1379,7 @@
                       "type": "Int32",
                       "value": "99"
                     },
-                    "Address": {
+                    "Adrs": {
                       "fields": {
                         "City": {
                           "fields": {
@@ -1321,7 +1423,7 @@
                               "type": "Int32",
                               "value": "31"
                             },
-                            "Address": {
+                            "Adrs": {
                               "fields": {
                                 "City": {
                                   "notCapturedReason": "depth",
@@ -1365,8 +1467,8 @@
                           "value": "Person"
                         }
                       ],
-                      "type": "List`1",
-                      "value": "count: 1"
+                      "size": 1,
+                      "type": "List`1"
                     },
                     "Id": {
                       "type": "Guid",
@@ -1398,7 +1500,7 @@
                           "type": "Int32",
                           "value": "99"
                         },
-                        "Address": {
+                        "Adrs": {
                           "fields": {
                             "City": {
                               "notCapturedReason": "depth",
@@ -1433,7 +1535,7 @@
                                   "type": "Int32",
                                   "value": "31"
                                 },
-                                "Address": {
+                                "Adrs": {
                                   "notCapturedReason": "depth",
                                   "type": "Address",
                                   "value": "Address"
@@ -1459,8 +1561,8 @@
                               "value": "Person"
                             }
                           ],
-                          "type": "List`1",
-                          "value": "count: 1"
+                          "size": 1,
+                          "type": "List`1"
                         },
                         "Id": {
                           "type": "Guid",
@@ -1480,9 +1582,112 @@
                 }
               },
               "locals": {
+                "adr": {
+                  "isNull": "true",
+                  "type": "String"
+                },
+                "children": {
+                  "fields": {
+                    "m_task": "ScrubbedValue"
+                  },
+                  "type": "TaskAwaiter",
+                  "value": "TaskAwaiter"
+                },
                 "output": {
                   "isNull": "true",
                   "type": "String"
+                },
+                "person": {
+                  "type": "Double",
+                  "value": "0"
+                },
+                "place": {
+                  "fields": {
+                    "_person": {
+                      "fields": {
+                        "_shouldCloned": {
+                          "type": "Int32",
+                          "value": "99"
+                        },
+                        "Adrs": {
+                          "fields": {
+                            "City": {
+                              "notCapturedReason": "depth",
+                              "type": "Place",
+                              "value": "Place"
+                            },
+                            "HomeType": {
+                              "type": "BuildingType",
+                              "value": "Duplex"
+                            },
+                            "Number": {
+                              "type": "Int32",
+                              "value": "15"
+                            },
+                            "Street": {
+                              "type": "String",
+                              "value": "Harlem"
+                            }
+                          },
+                          "type": "Address",
+                          "value": "Address"
+                        },
+                        "Age": {
+                          "type": "Double",
+                          "value": "99"
+                        },
+                        "Children": {
+                          "elements": [
+                            {
+                              "fields": {
+                                "_shouldCloned": {
+                                  "type": "Int32",
+                                  "value": "31"
+                                },
+                                "Adrs": {
+                                  "notCapturedReason": "depth",
+                                  "type": "Address",
+                                  "value": "Address"
+                                },
+                                "Age": {
+                                  "type": "Double",
+                                  "value": "31"
+                                },
+                                "Children": {
+                                  "isNull": "true",
+                                  "type": "List`1"
+                                },
+                                "Id": {
+                                  "type": "Guid",
+                                  "value": "ScrubbedValue"
+                                },
+                                "Name": {
+                                  "type": "String",
+                                  "value": "Ralph Jr."
+                                }
+                              },
+                              "type": "Person",
+                              "value": "Person"
+                            }
+                          ],
+                          "size": 1,
+                          "type": "List`1"
+                        },
+                        "Id": {
+                          "type": "Guid",
+                          "value": "ScrubbedValue"
+                        },
+                        "Name": {
+                          "type": "String",
+                          "value": "Ralph"
+                        }
+                      },
+                      "type": "Person",
+                      "value": "Person"
+                    }
+                  },
+                  "type": "NestedAsyncGenericStruct",
+                  "value": "NestedAsyncGenericStruct"
                 }
               }
             }
@@ -1496,9 +1701,10 @@
           "location": {
             "file": "AsyncLineProbeWithFieldsArgsAndLocalsTest.cs",
             "lines": [
-              45
+              "45"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -1518,7 +1724,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -1531,7 +1736,7 @@
                       "type": "Int32",
                       "value": "99"
                     },
-                    "Address": {
+                    "Adrs": {
                       "fields": {
                         "City": {
                           "fields": {
@@ -1575,7 +1780,7 @@
                               "type": "Int32",
                               "value": "31"
                             },
-                            "Address": {
+                            "Adrs": {
                               "fields": {
                                 "City": {
                                   "notCapturedReason": "depth",
@@ -1619,8 +1824,8 @@
                           "value": "Person"
                         }
                       ],
-                      "type": "List`1",
-                      "value": "count: 1"
+                      "size": 1,
+                      "type": "List`1"
                     },
                     "Id": {
                       "type": "Guid",
@@ -1652,7 +1857,7 @@
                           "type": "Int32",
                           "value": "99"
                         },
-                        "Address": {
+                        "Adrs": {
                           "fields": {
                             "City": {
                               "notCapturedReason": "depth",
@@ -1687,7 +1892,7 @@
                                   "type": "Int32",
                                   "value": "31"
                                 },
-                                "Address": {
+                                "Adrs": {
                                   "notCapturedReason": "depth",
                                   "type": "Address",
                                   "value": "Address"
@@ -1713,8 +1918,8 @@
                               "value": "Person"
                             }
                           ],
-                          "type": "List`1",
-                          "value": "count: 1"
+                          "size": 1,
+                          "type": "List`1"
                         },
                         "Id": {
                           "type": "Guid",
@@ -1734,9 +1939,112 @@
                 }
               },
               "locals": {
+                "adr": {
+                  "isNull": "true",
+                  "type": "String"
+                },
+                "children": {
+                  "fields": {
+                    "m_task": "ScrubbedValue"
+                  },
+                  "type": "TaskAwaiter",
+                  "value": "TaskAwaiter"
+                },
                 "output": {
                   "type": "String",
                   "value": "Ralph (99)Samples.Probes.TestRuns.Shared.GenericRalph"
+                },
+                "person": {
+                  "type": "Double",
+                  "value": "0"
+                },
+                "place": {
+                  "fields": {
+                    "_person": {
+                      "fields": {
+                        "_shouldCloned": {
+                          "type": "Int32",
+                          "value": "99"
+                        },
+                        "Adrs": {
+                          "fields": {
+                            "City": {
+                              "notCapturedReason": "depth",
+                              "type": "Place",
+                              "value": "Place"
+                            },
+                            "HomeType": {
+                              "type": "BuildingType",
+                              "value": "Duplex"
+                            },
+                            "Number": {
+                              "type": "Int32",
+                              "value": "15"
+                            },
+                            "Street": {
+                              "type": "String",
+                              "value": "Harlem"
+                            }
+                          },
+                          "type": "Address",
+                          "value": "Address"
+                        },
+                        "Age": {
+                          "type": "Double",
+                          "value": "99"
+                        },
+                        "Children": {
+                          "elements": [
+                            {
+                              "fields": {
+                                "_shouldCloned": {
+                                  "type": "Int32",
+                                  "value": "31"
+                                },
+                                "Adrs": {
+                                  "notCapturedReason": "depth",
+                                  "type": "Address",
+                                  "value": "Address"
+                                },
+                                "Age": {
+                                  "type": "Double",
+                                  "value": "31"
+                                },
+                                "Children": {
+                                  "isNull": "true",
+                                  "type": "List`1"
+                                },
+                                "Id": {
+                                  "type": "Guid",
+                                  "value": "ScrubbedValue"
+                                },
+                                "Name": {
+                                  "type": "String",
+                                  "value": "Ralph Jr."
+                                }
+                              },
+                              "type": "Person",
+                              "value": "Person"
+                            }
+                          ],
+                          "size": 1,
+                          "type": "List`1"
+                        },
+                        "Id": {
+                          "type": "Guid",
+                          "value": "ScrubbedValue"
+                        },
+                        "Name": {
+                          "type": "String",
+                          "value": "Ralph"
+                        }
+                      },
+                      "type": "Person",
+                      "value": "Person"
+                    }
+                  },
+                  "type": "NestedAsyncGenericStruct",
+                  "value": "NestedAsyncGenericStruct"
                 }
               }
             }
@@ -1750,9 +2058,10 @@
           "location": {
             "file": "AsyncLineProbeWithFieldsArgsAndLocalsTest.cs",
             "lines": [
-              46
+              "46"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"
@@ -1772,7 +2081,6 @@
     "dd.span_id": "ScrubbedValue",
     "dd.trace_id": "ScrubbedValue",
     "ddsource": "dd_debugger",
-    "ddtags": "Unknown",
     "debugger": {
       "snapshot": {
         "captures": {
@@ -1785,7 +2093,7 @@
                       "type": "Int32",
                       "value": "99"
                     },
-                    "Address": {
+                    "Adrs": {
                       "fields": {
                         "City": {
                           "fields": {
@@ -1829,7 +2137,7 @@
                               "type": "Int32",
                               "value": "31"
                             },
-                            "Address": {
+                            "Adrs": {
                               "fields": {
                                 "City": {
                                   "notCapturedReason": "depth",
@@ -1873,8 +2181,8 @@
                           "value": "Person"
                         }
                       ],
-                      "type": "List`1",
-                      "value": "count: 1"
+                      "size": 1,
+                      "type": "List`1"
                     },
                     "Id": {
                       "type": "Guid",
@@ -1906,7 +2214,7 @@
                           "type": "Int32",
                           "value": "99"
                         },
-                        "Address": {
+                        "Adrs": {
                           "fields": {
                             "City": {
                               "notCapturedReason": "depth",
@@ -1941,7 +2249,7 @@
                                   "type": "Int32",
                                   "value": "31"
                                 },
-                                "Address": {
+                                "Adrs": {
                                   "notCapturedReason": "depth",
                                   "type": "Address",
                                   "value": "Address"
@@ -1967,8 +2275,8 @@
                               "value": "Person"
                             }
                           ],
-                          "type": "List`1",
-                          "value": "count: 1"
+                          "size": 1,
+                          "type": "List`1"
                         },
                         "Id": {
                           "type": "Guid",
@@ -1988,9 +2296,112 @@
                 }
               },
               "locals": {
+                "adr": {
+                  "isNull": "true",
+                  "type": "String"
+                },
+                "children": {
+                  "fields": {
+                    "m_task": "ScrubbedValue"
+                  },
+                  "type": "TaskAwaiter",
+                  "value": "TaskAwaiter"
+                },
                 "output": {
                   "type": "String",
                   "value": "Ralph (99)Samples.Probes.TestRuns.Shared.GenericRalph"
+                },
+                "person": {
+                  "type": "Double",
+                  "value": "0"
+                },
+                "place": {
+                  "fields": {
+                    "_person": {
+                      "fields": {
+                        "_shouldCloned": {
+                          "type": "Int32",
+                          "value": "99"
+                        },
+                        "Adrs": {
+                          "fields": {
+                            "City": {
+                              "notCapturedReason": "depth",
+                              "type": "Place",
+                              "value": "Place"
+                            },
+                            "HomeType": {
+                              "type": "BuildingType",
+                              "value": "Duplex"
+                            },
+                            "Number": {
+                              "type": "Int32",
+                              "value": "15"
+                            },
+                            "Street": {
+                              "type": "String",
+                              "value": "Harlem"
+                            }
+                          },
+                          "type": "Address",
+                          "value": "Address"
+                        },
+                        "Age": {
+                          "type": "Double",
+                          "value": "99"
+                        },
+                        "Children": {
+                          "elements": [
+                            {
+                              "fields": {
+                                "_shouldCloned": {
+                                  "type": "Int32",
+                                  "value": "31"
+                                },
+                                "Adrs": {
+                                  "notCapturedReason": "depth",
+                                  "type": "Address",
+                                  "value": "Address"
+                                },
+                                "Age": {
+                                  "type": "Double",
+                                  "value": "31"
+                                },
+                                "Children": {
+                                  "isNull": "true",
+                                  "type": "List`1"
+                                },
+                                "Id": {
+                                  "type": "Guid",
+                                  "value": "ScrubbedValue"
+                                },
+                                "Name": {
+                                  "type": "String",
+                                  "value": "Ralph Jr."
+                                }
+                              },
+                              "type": "Person",
+                              "value": "Person"
+                            }
+                          ],
+                          "size": 1,
+                          "type": "List`1"
+                        },
+                        "Id": {
+                          "type": "Guid",
+                          "value": "ScrubbedValue"
+                        },
+                        "Name": {
+                          "type": "String",
+                          "value": "Ralph"
+                        }
+                      },
+                      "type": "Person",
+                      "value": "Person"
+                    }
+                  },
+                  "type": "NestedAsyncGenericStruct",
+                  "value": "NestedAsyncGenericStruct"
                 }
               }
             }
@@ -2004,9 +2415,10 @@
           "location": {
             "file": "AsyncLineProbeWithFieldsArgsAndLocalsTest.cs",
             "lines": [
-              47
+              "47"
             ]
-          }
+          },
+          "version": 0
         },
         "stack": "ScrubbedValue",
         "timestamp": "ScrubbedValue"

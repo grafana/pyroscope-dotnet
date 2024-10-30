@@ -3,10 +3,13 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
+#nullable enable
+
 using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
+using Datadog.Trace.Ci;
 using Datadog.Trace.Logging;
 using Datadog.Trace.Util;
 
@@ -18,7 +21,7 @@ namespace Datadog.Trace
     internal class LifetimeManager
     {
         private static readonly IDatadogLogger Log = DatadogLogging.GetLoggerFor<LifetimeManager>();
-        private static LifetimeManager _instance;
+        private static LifetimeManager? _instance;
         private readonly ConcurrentQueue<object> _shutdownHooks = new();
 
         public LifetimeManager()
@@ -53,48 +56,54 @@ namespace Datadog.Trace
         {
             get
             {
-                return LazyInitializer.EnsureInitialized(ref _instance);
+                return LazyInitializer.EnsureInitialized(ref _instance)!;
             }
         }
 
         public TimeSpan TaskTimeout { get; set; } = TimeSpan.FromSeconds(30);
 
-        public void AddShutdownTask(Action action)
+        public void AddShutdownTask(Action<Exception?> action)
         {
             _shutdownHooks.Enqueue(action);
         }
 
-        public void AddAsyncShutdownTask(Func<Task> func)
+        public void AddAsyncShutdownTask(Func<Exception?, Task> func)
         {
             _shutdownHooks.Enqueue(func);
         }
 
-        private void CurrentDomain_ProcessExit(object sender, EventArgs e)
+        private void CurrentDomain_ProcessExit(object? sender, EventArgs e)
         {
             RunShutdownTasks();
             AppDomain.CurrentDomain.ProcessExit -= CurrentDomain_ProcessExit;
         }
 
-        private void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e)
+        private void CurrentDomain_UnhandledException(object? sender, UnhandledExceptionEventArgs e)
         {
+            if (e == null || e.ExceptionObject is OutOfMemoryException)
+            {
+                // At this point, the runtime is in a bad state so we give up on exiting gracefully
+                return;
+            }
+
             Log.Warning("Application threw an unhandled exception: {Exception}", e.ExceptionObject);
-            RunShutdownTasks();
+            RunShutdownTasks(e.ExceptionObject as Exception);
             AppDomain.CurrentDomain.UnhandledException -= CurrentDomain_UnhandledException;
         }
 
-        private void Console_CancelKeyPress(object sender, ConsoleCancelEventArgs e)
+        private void Console_CancelKeyPress(object? sender, ConsoleCancelEventArgs e)
         {
             RunShutdownTasks();
             Console.CancelKeyPress -= Console_CancelKeyPress;
         }
 
-        private void CurrentDomain_DomainUnload(object sender, EventArgs e)
+        private void CurrentDomain_DomainUnload(object? sender, EventArgs e)
         {
             RunShutdownTasks();
             AppDomain.CurrentDomain.DomainUnload -= CurrentDomain_DomainUnload;
         }
 
-        private void RunShutdownTasks()
+        public void RunShutdownTasks(Exception? exception = null)
         {
             var current = SynchronizationContext.Current;
             try
@@ -106,17 +115,17 @@ namespace Datadog.Trace
 
                 while (_shutdownHooks.TryDequeue(out var actionOrFunc))
                 {
-                    if (actionOrFunc is Action action)
+                    if (actionOrFunc is Action<Exception?> action)
                     {
-                        action();
+                        action(exception);
                     }
-                    else if (actionOrFunc is Func<Task> func)
+                    else if (actionOrFunc is Func<Exception?, Task> func)
                     {
-                        AsyncUtil.RunSync(func, (int)TaskTimeout.TotalMilliseconds);
+                        AsyncUtil.RunSync(func, exception, (int)TaskTimeout.TotalMilliseconds);
                     }
                     else
                     {
-                        Log.Error("Hooks must be of Action or Func<Task> types.");
+                        Log.Error("Hooks must be of Action<Exception> or Func<Task> types.");
                     }
                 }
             }
@@ -134,7 +143,7 @@ namespace Datadog.Trace
                 DatadogLogging.CloseAndFlush();
             }
 
-            static void SetSynchronizationContext(SynchronizationContext context)
+            static void SetSynchronizationContext(SynchronizationContext? context)
             {
                 if (!AppDomain.CurrentDomain.IsFullyTrusted)
                 {

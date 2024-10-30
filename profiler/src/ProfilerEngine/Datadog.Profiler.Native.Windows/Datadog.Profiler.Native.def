@@ -8,3 +8,5 @@
   GetPointerToNativeTraceContext PRIVATE
   SetApplicationInfoForAppDomain PRIVATE
   SetEndpointForTrace PRIVATE
+  SetGitMetadataForApplication PRIVATE
+  FlushProfile PRIVATE

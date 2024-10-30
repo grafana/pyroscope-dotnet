@@ -5,6 +5,7 @@
 #include "shared/src/native-src/string.h"
 
 std::atomic<std::uint32_t> ManagedThreadInfo::s_nextProfilerThreadInfoId{1};
+thread_local std::shared_ptr<ManagedThreadInfo> ManagedThreadInfo::CurrentThreadInfo{nullptr};
 
 std::uint32_t ManagedThreadInfo::GenerateProfilerThreadInfoId()
 {
@@ -19,18 +20,20 @@ std::uint32_t ManagedThreadInfo::GenerateProfilerThreadInfoId()
     return newId;
 }
 
-ManagedThreadInfo::ManagedThreadInfo(ThreadID clrThreadId) :
-    ManagedThreadInfo(clrThreadId, 0, static_cast<HANDLE>(0), shared::WSTRING())
+ManagedThreadInfo::ManagedThreadInfo(ThreadID clrThreadId, ICorProfilerInfo4* pCorProfilerInfo) :
+    ManagedThreadInfo(clrThreadId,pCorProfilerInfo, 0, static_cast<HANDLE>(0), shared::WSTRING())
 {
 }
 
-ManagedThreadInfo::ManagedThreadInfo(ThreadID clrThreadId, DWORD osThreadId, HANDLE osThreadHandle, shared::WSTRING pThreadName) :
+ManagedThreadInfo::ManagedThreadInfo(ThreadID clrThreadId, ICorProfilerInfo4* pCorProfilerInfo, DWORD osThreadId, HANDLE osThreadHandle, shared::WSTRING pThreadName) :
     _profilerThreadInfoId{GenerateProfilerThreadInfoId()},
     _clrThreadId(clrThreadId),
     _osThreadId(osThreadId),
     _osThreadHandle(osThreadHandle),
     _pThreadName(std::move(pThreadName)),
     _lastSampleHighPrecisionTimestampNanoseconds{0},
+    _cpuConsumptionMilliseconds{0},
+    _timestamp{0},
     _lastKnownSampleUnixTimeUtc{0},
     _highPrecisionNanosecsAtLastUnixTimeUpdate{0},
     _snapshotsPerformedSuccessCount{0},
@@ -41,7 +44,8 @@ ManagedThreadInfo::ManagedThreadInfo(ThreadID clrThreadId, DWORD osThreadId, HAN
     _stackWalkLock(1),
     _isThreadDestroyed{false},
     _traceContextTrackingInfo{},
-    _cpuConsumptionMilliseconds{0},
-    _timestamp{0}
+    _sharedMemoryArea{nullptr},
+    _info{pCorProfilerInfo},
+    _blockingThreadId{0}
 {
 }

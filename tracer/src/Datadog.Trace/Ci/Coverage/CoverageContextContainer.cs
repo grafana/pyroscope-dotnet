@@ -19,6 +19,20 @@ internal sealed class CoverageContextContainer
     private ModuleValue? _currentModuleValue = null;
 
     /// <summary>
+    /// Initializes a new instance of the <see cref="CoverageContextContainer"/> class.
+    /// </summary>
+    /// <param name="state">State instance</param>
+    public CoverageContextContainer(object? state = null)
+    {
+        State = state;
+    }
+
+    /// <summary>
+    /// Gets or sets the context container state
+    /// </summary>
+    public object? State { get; set; }
+
+    /// <summary>
     /// Gets the current module value
     /// </summary>
     /// <param name="module">Module instance</param>
@@ -74,6 +88,11 @@ internal sealed class CoverageContextContainer
         var container = _container;
         lock (container)
         {
+            foreach (var moduleValue in container)
+            {
+                moduleValue.Dispose();
+            }
+
             container.Clear();
             _currentModuleValue = null;
         }
@@ -89,9 +108,8 @@ internal sealed class CoverageContextContainer
         var container = _container;
         lock (container)
         {
-            var data = container.ToArray();
             _currentModuleValue = null;
-            return data;
+            return container.Count == 0 ? [] : container.ToArray();
         }
     }
 }

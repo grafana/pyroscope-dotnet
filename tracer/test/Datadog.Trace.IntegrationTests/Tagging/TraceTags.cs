@@ -27,14 +27,14 @@ public class TraceTags
         var settings = new TracerSettings { GlobalSamplingRate = 0 };
 
         _testApi = new MockApi();
-        var agentWriter = new AgentWriter(_testApi, statsAggregator: null, statsd: null, spanSampler: null);
+        var agentWriter = new AgentWriter(_testApi, statsAggregator: null, statsd: null);
         _tracer = new Tracer(settings, agentWriter, sampler: null, scopeManager: null, statsd: null);
     }
 
     [Theory]
     [InlineData(SamplingMechanism.Default)]
     [InlineData(SamplingMechanism.AgentRate)]
-    [InlineData(SamplingMechanism.TraceSamplingRule)]
+    [InlineData(SamplingMechanism.LocalTraceSamplingRule)]
     [InlineData(SamplingMechanism.Manual)]
     [InlineData(SamplingMechanism.Asm)]
     public async Task SerializeSamplingMechanismTag(int samplingMechanism)

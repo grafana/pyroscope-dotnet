@@ -16,8 +16,6 @@
 #include "shared/src/native-src/string.h"
 #include "shared/src/native-src/util.h"
 
-using namespace std::literals::chrono_literals;
-
 std::string const Configuration::DefaultDevSite = "datad0g.com";
 std::string const Configuration::DefaultProdSite = "datadoghq.com";
 std::string const Configuration::DefaultVersion = "Unspecified-Version";
@@ -25,7 +23,13 @@ std::string const Configuration::DefaultEnvironment = "Unspecified-Environment";
 std::string const Configuration::DefaultAgentHost = "localhost";
 int32_t const Configuration::DefaultAgentPort = 8126;
 std::string const Configuration::DefaultEmptyString = "";
+std::chrono::seconds const Configuration::DefaultDevUploadInterval = 20s;
+std::chrono::seconds const Configuration::DefaultProdUploadInterval = 60s;
+std::chrono::milliseconds const Configuration::DefaultCpuProfilingInterval = 9ms;
+
+
 std::string const Configuration::DefaultPyroscopeServerAddress = "http://localhost:4040";
+
 
 Configuration::Configuration()
 {
@@ -53,9 +57,9 @@ Configuration::Configuration()
     _apiKey = GetEnvironmentValue(EnvironmentVariables::ApiKey, DefaultEmptyString);
     _serviceName = GetEnvironmentValue(EnvironmentVariables::ServiceName, OpSysTools::GetProcessName());
     _isAgentLess = GetEnvironmentValue(EnvironmentVariables::Agentless, false);
-    _exceptionSampleLimit = GetEnvironmentValue(EnvironmentVariables::ExceptionSampleLimit, 100);
+    _exceptionSampleLimit = GetEnvironmentValue(EnvironmentVariables::ExceptionSampleLimit, 500);
     _allocationSampleLimit = GetEnvironmentValue(EnvironmentVariables::AllocationSampleLimit, 2000);
-    _contentionSampleLimit = GetEnvironmentValue(EnvironmentVariables::ContentionSampleLimit, 1500);
+    _contentionSampleLimit = GetEnvironmentValue(EnvironmentVariables::ContentionSampleLimit, 3000);
     _contentionDurationThreshold = GetEnvironmentValue(EnvironmentVariables::ContentionDurationThreshold, 100);
     _cpuWallTimeSamplingRate = ExtractCpuWallTimeSamplingRate();
     _walltimeThreadsThreshold = ExtractWallTimeThreadsThreshold();
@@ -67,6 +71,40 @@ Configuration::Configuration()
     _useBacktrace2 = GetEnvironmentValue(EnvironmentVariables::UseBacktrace2, true);
     _isAllocationRecorderEnabled = GetEnvironmentValue(EnvironmentVariables::AllocationRecorderEnabled, false);
     _isDebugInfoEnabled = GetEnvironmentValue(EnvironmentVariables::DebugInfoEnabled, false);
+    _isGcThreadsCpuTimeEnabled = GetEnvironmentValue(EnvironmentVariables::GcThreadsCpuTimeEnabled, false);
+    _isThreadLifetimeEnabled = GetEnvironmentValue(EnvironmentVariables::ThreadLifetimeEnabled, false);
+    _gitRepositoryUrl = GetEnvironmentValue(EnvironmentVariables::GitRepositoryUrl, DefaultEmptyString);
+    _gitCommitSha = GetEnvironmentValue(EnvironmentVariables::GitCommitSha, DefaultEmptyString);
+    _isInternalMetricsEnabled = GetEnvironmentValue(EnvironmentVariables::InternalMetricsEnabled, false);
+    _isSystemCallsShieldEnabled = GetEnvironmentValue(EnvironmentVariables::SystemCallsShieldEnabled, true);
+
+    // Check CI Visibility mode
+    _isCIVisibilityEnabled = GetEnvironmentValue(EnvironmentVariables::CIVisibilityEnabled, false);
+    _internalCIVisibilitySpanId = uint64_t{0};
+    _cpuProfilingInterval = ExtractCpuProfilingInterval();
+    if (_isCIVisibilityEnabled)
+    {
+        // We cannot write 0ull instead of std::uint64_t{0} because on Windows, compiling in x64, std::uint64_t == unsigned long long.
+        // But on Linux, it's std::uint64_t == unsigned long (=> 0ul)and it fails to compile.
+        // Here we create a 0 value of type std::uint64_t which will succeed the compilation
+        _internalCIVisibilitySpanId = GetEnvironmentValue(EnvironmentVariables::InternalCIVisibilitySpanId, uint64_t{0});
+
+        // If we detect CI Visibility we allow to reduce the minimum ms in sampling rate down to 1ms.
+        _cpuWallTimeSamplingRate = ExtractCpuWallTimeSamplingRate(1);
+        // for timer_create based profiling
+        _cpuProfilingInterval = ExtractCpuProfilingInterval(1ms);
+    }
+
+    _isEtwEnabled = GetEnvironmentValue(EnvironmentVariables::EtwEnabled, false);
+    _deploymentMode = GetEnvironmentValue(EnvironmentVariables::SsiDeployed, DeploymentMode::Manual);
+    _isEtwLoggingEnabled = GetEnvironmentValue(EnvironmentVariables::EtwLoggingEnabled, false);
+    _enablementStatus = ExtractEnablementStatus();
+    _ssiLongLivedThreshold = ExtractSsiLongLivedThreshold();
+    _isTelemetryToDiskEnabled = GetEnvironmentValue(EnvironmentVariables::TelemetryToDiskEnabled, false);
+    _isSsiTelemetryEnabled = GetEnvironmentValue(EnvironmentVariables::SsiTelemetryEnabled, false);
+    _cpuProfilerType = GetEnvironmentValue(EnvironmentVariables::CpuProfilerType, CpuProfilerType::ManualCpuTime);
+
+
     _pyroscopeServerAddress = GetEnvironmentValue(EnvironmentVariables::PyroscopeServerAddress, DefaultPyroscopeServerAddress);
     _pyroscopeAuthToken = GetEnvironmentValue(EnvironmentVariables::PyroscopeAuthToken, DefaultEmptyString);
     _pyroscopeApplicationName = GetEnvironmentValue(EnvironmentVariables::PyroscopeApplicationName, DefaultEmptyString);
@@ -160,9 +198,19 @@ bool Configuration::IsGarbageCollectionProfilingEnabled() const
     return _isGarbageCollectionProfilingEnabled;
 }
 
+bool Configuration::IsGcThreadsCpuTimeEnabled() const
+{
+    return _isGcThreadsCpuTimeEnabled;
+}
+
 bool Configuration::IsHeapProfilingEnabled() const
 {
     return _isHeapProfilingEnabled;
+}
+
+bool Configuration::IsThreadLifetimeEnabled() const
+{
+    return _isThreadLifetimeEnabled;
 }
 
 int32_t Configuration::ContentionSampleLimit() const
@@ -270,6 +318,20 @@ bool Configuration::IsAllocationRecorderEnabled() const
     return _isAllocationRecorderEnabled;
 }
 
+bool Configuration::IsInternalMetricsEnabled() const
+{
+    return _isInternalMetricsEnabled;
+}
+
+bool Configuration::IsCIVisibilityEnabled() const
+{
+    return _isCIVisibilityEnabled;
+}
+
+std::uint64_t Configuration::GetCIVisibilitySpanId() const
+{
+    return _internalCIVisibilitySpanId;
+}
 
 fs::path Configuration::GetApmBaseDirectory()
 {
@@ -326,7 +388,7 @@ std::string Configuration::ExtractSite()
 
 std::chrono::seconds Configuration::GetDefaultUploadInterval()
 {
-    return 10s;
+    return 15s;
 }
 
 const std::string& Configuration::GetNamedPipeName() const
@@ -339,6 +401,16 @@ bool Configuration::IsTimestampsAsLabelEnabled() const
     return _isTimestampsAsLabelEnabled;
 }
 
+std::string const& Configuration::GetGitRepositoryUrl() const
+{
+    return _gitRepositoryUrl;
+}
+
+std::string const& Configuration::GetGitCommitSha() const
+{
+    return _gitCommitSha;
+}
+
 //
 // shared::TryParse does not work on Linux
 // not found the issue yet.
@@ -347,10 +419,10 @@ bool Configuration::IsTimestampsAsLabelEnabled() const
 // - replace shared::TryParse by this implementation
 // - add tests
 
-bool TryParse(shared::WSTRING const& s, int32_t& result)
+static bool TryParse(shared::WSTRING const& s, int32_t& result)
 {
-    auto str = shared::ToString(s);
-    if (str == "")
+    auto r = shared::Trim(s);
+    if (r.empty())
     {
         result = 0;
         return false;
@@ -358,7 +430,31 @@ bool TryParse(shared::WSTRING const& s, int32_t& result)
 
     try
     {
-        result = std::stoi(str);
+        result = std::stoi(shared::ToString(r));
+        return true;
+    }
+    catch (std::exception const&)
+    {
+        // TODO log
+    }
+    result = 0;
+    return false;
+}
+
+static bool TryParse(shared::WSTRING const& s, uint64_t& result)
+{
+    auto r = shared::Trim(s);
+
+    if (r.empty())
+    {
+        result = 0;
+        return false;
+    }
+
+    try
+    {
+        auto str = shared::ToString(r);
+        result = std::stoull(str);
         return true;
     }
     catch (std::exception const&)
@@ -381,10 +477,18 @@ std::chrono::seconds Configuration::ExtractUploadInterval()
     return GetDefaultUploadInterval();
 }
 
-std::chrono::nanoseconds Configuration::ExtractCpuWallTimeSamplingRate()
+std::chrono::milliseconds Configuration::ExtractCpuProfilingInterval(std::chrono::milliseconds minimum)
+{
+    // For normal path (no CI-visibility), 9ms is the default and lowest value we can have
+    // for CI-Visibility we allow it to be less
+    auto interval = GetEnvironmentValue(EnvironmentVariables::CpuProfilingInterval, DefaultCpuProfilingInterval);
+    return std::max(interval, minimum);
+}
+
+std::chrono::nanoseconds Configuration::ExtractCpuWallTimeSamplingRate(int minimum)
 {
     // default sampling rate is 9 ms; could be changed via env vars but down to a minimum of 5 ms
-    int64_t rate = std::max(GetEnvironmentValue(EnvironmentVariables::CpuWallTimeSamplingRate, 9), 5);
+    int64_t rate = std::max(GetEnvironmentValue(EnvironmentVariables::CpuWallTimeSamplingRate, 9), minimum);
     rate *= 1000000;
     return std::chrono::nanoseconds(rate);
 }
@@ -418,8 +522,8 @@ int32_t Configuration::ExtractCpuThreadsThreshold()
 
 bool Configuration::GetContention()
 {
-    // disabled by default
-    bool lockContentionEnabled = false;
+    // enabled by default
+    bool lockContentionEnabled = true;
 
     // first look at the supported env var
     if (IsEnvironmentValueSet(EnvironmentVariables::LockContentionProfilingEnabled, lockContentionEnabled))
@@ -428,7 +532,7 @@ bool Configuration::GetContention()
     }
 
     // if not there, look at the deprecated one
-    return GetEnvironmentValue(EnvironmentVariables::DeprecatedContentionProfilingEnabled, false);
+    return GetEnvironmentValue(EnvironmentVariables::DeprecatedContentionProfilingEnabled, lockContentionEnabled);
 }
 
 bool Configuration::GetDefaultDebugLogEnabled()
@@ -448,6 +552,209 @@ bool Configuration::IsDebugInfoEnabled() const
 {
     return _isDebugInfoEnabled;
 }
+
+bool Configuration::IsSystemCallsShieldEnabled() const
+{
+#ifdef LINUX
+    return _isSystemCallsShieldEnabled;
+#else
+    return false;
+#endif
+}
+
+bool Configuration::IsEtwEnabled() const
+{
+#ifdef LINUX
+    return false;
+#else
+    return _isEtwEnabled;
+#endif
+}
+
+bool Configuration::IsEtwLoggingEnabled() const
+{
+#ifdef LINUX
+    return false;
+#else
+    return _isEtwLoggingEnabled;
+#endif
+}
+
+EnablementStatus Configuration::GetEnablementStatus() const
+{
+    return _enablementStatus;
+}
+
+DeploymentMode Configuration::GetDeploymentMode() const
+{
+    return _deploymentMode;
+}
+
+std::chrono::milliseconds Configuration::GetSsiLongLivedThreshold() const
+{
+    return _ssiLongLivedThreshold;
+}
+
+CpuProfilerType Configuration::GetCpuProfilerType() const
+{
+    return _cpuProfilerType;
+}
+
+std::chrono::milliseconds Configuration::GetCpuProfilingInterval() const
+{
+    return _cpuProfilingInterval;
+}
+
+static bool convert_to(shared::WSTRING const& s, bool& result)
+{
+    return shared::TryParseBooleanEnvironmentValue(s, result);
+}
+
+static bool convert_to(shared::WSTRING const& s, std::string& result)
+{
+    result = shared::ToString(shared::Trim(s));
+    return true;
+}
+
+static bool convert_to(shared::WSTRING const& s, shared::WSTRING& result)
+{
+    result = shared::Trim(s);
+    return true;
+}
+
+static bool convert_to(shared::WSTRING const& s, int32_t& result)
+{
+    return TryParse(s, result);
+}
+
+static bool convert_to(shared::WSTRING const& s, uint64_t& result)
+{
+    return TryParse(s, result);
+}
+
+static bool convert_to(shared::WSTRING const& s, double& result)
+{
+    auto str = shared::ToString(shared::Trim(s));
+
+    char* endPtr = nullptr;
+    const char* ptr = str.c_str();
+    result = strtod(ptr, &endPtr);
+
+    // non numeric input
+    if (ptr == endPtr)
+    {
+        return false;
+    }
+
+    // Based on tests, numbers such as "0.1.2" are converted into 0.1 without error
+    return (errno != ERANGE);
+}
+
+static bool convert_to(shared::WSTRING const& s, std::chrono::milliseconds& result)
+{
+    std::uint64_t value;
+    auto parsed = TryParse(s, value);
+    if (parsed)
+    {
+        result = std::chrono::milliseconds(value);
+    }
+    return parsed;
+}
+
+static bool convert_to(shared::WSTRING const& s, DeploymentMode& result)
+{
+    // if we reach here it means the env var exists
+    result = DeploymentMode::SingleStepInstrumentation;
+    return true;
+}
+
+
+template <typename T>
+T Configuration::GetEnvironmentValue(shared::WSTRING const& name, T const& defaultValue)
+{
+    if (!shared::EnvironmentExist(name)) return defaultValue;
+
+    T result{};
+    auto r = shared::GetEnvironmentValue(name);
+    if (!convert_to(r, result)) return defaultValue;
+    return result;
+}
+
+template <typename T>
+bool Configuration::IsEnvironmentValueSet(shared::WSTRING const& name, T& value)
+{
+    auto r = shared::Trim(shared::GetEnvironmentValue(name));
+    if (r.empty()) return false;
+
+    T result{};
+    if (!convert_to(r, result)) return false;
+
+    value = result;
+    return true;
+}
+
+EnablementStatus Configuration::ExtractEnablementStatus()
+{
+    if (shared::EnvironmentExist(EnvironmentVariables::ProfilerEnabled) || shared::EnvironmentExist(EnvironmentVariables::PyroscopeProfilerEnabled))
+    {
+        auto isEnabled = false;
+        auto enabled = shared::EnvironmentExist(EnvironmentVariables::ProfilerEnabled) ? shared::GetEnvironmentValue(EnvironmentVariables::ProfilerEnabled) : shared::GetEnvironmentValue(EnvironmentVariables::PyroscopeProfilerEnabled);
+        auto parsed = shared::TryParseBooleanEnvironmentValue(enabled, isEnabled);
+
+        if (parsed)
+        {
+            return isEnabled
+                ? EnablementStatus::ManuallyEnabled
+                : EnablementStatus::ManuallyDisabled;
+        }
+
+        // It is possible that a Single Step Instrumentation deployment was done
+        // and the profiler was enabled during that step. In that case, the "auto" value
+        // will be set and profiler should be enabled.
+        // This should be replaced by adding "profiler" in EnvironmentVariables::SsiDeployed
+        // later that will take into account heuristics
+        return !enabled.empty() && enabled == WStr("auto")
+            ? EnablementStatus::Auto
+            : EnablementStatus::ManuallyDisabled;
+    }
+
+    auto r = shared::GetEnvironmentValue(EnvironmentVariables::SsiDeployed);
+    auto pos = r.find(WStr("profiler"));
+    auto ssiEnabled = (pos != shared::WSTRING::npos);
+
+    if (ssiEnabled)
+    {
+        return EnablementStatus::SsiEnabled;
+    }
+    else
+    {
+        return EnablementStatus::NotSet;
+    }
+}
+
+std::chrono::milliseconds Configuration::ExtractSsiLongLivedThreshold() const
+{
+    auto const defaultValue = 30'000ms;
+    auto value = GetEnvironmentValue(EnvironmentVariables::SsiLongLivedThreshold, defaultValue);
+
+    if (value < 0ms)
+        return defaultValue;
+    return std::chrono::milliseconds(value);
+}
+
+bool Configuration::IsTelemetryToDiskEnabled() const
+{
+    return _isTelemetryToDiskEnabled;
+}
+
+bool Configuration::IsSsiTelemetryEnabled() const
+{
+    return _isSsiTelemetryEnabled;
+}
+
+
+
+
 
 std::string Configuration::PyroscopeServerAddress() const
 {
@@ -482,67 +789,4 @@ std::string Configuration::PyroscopeBasicAuthUser() const
 std::string Configuration::PyroscopeBasicAuthPassword() const
 {
     return _pyroscopeBasicAuthPassword;
-}
-
-bool convert_to(shared::WSTRING const& s, bool& result)
-{
-    return shared::TryParseBooleanEnvironmentValue(s, result);
-}
-
-bool convert_to(shared::WSTRING const& s, std::string& result)
-{
-    result = shared::ToString(s);
-    return true;
-}
-
-bool convert_to(shared::WSTRING const& s, shared::WSTRING& result)
-{
-    result = s;
-    return true;
-}
-
-bool convert_to(shared::WSTRING const& s, int32_t& result)
-{
-    return TryParse(s, result);
-}
-
-bool convert_to(shared::WSTRING const& s, double& result)
-{
-    auto str = shared::ToString(s);
-
-    char* endPtr = nullptr;
-    const char* ptr = str.c_str();
-    result = strtod(ptr, &endPtr);
-
-    // non numeric input
-    if (ptr == endPtr)
-    {
-        return false;
-    }
-
-    // Based on tests, numbers such as "0.1.2" are converted into 0.1 without error
-    return (errno != ERANGE);
-}
-
-template <typename T>
-T Configuration::GetEnvironmentValue(shared::WSTRING const& name, T const& defaultValue)
-{
-    auto r = shared::Trim(shared::GetEnvironmentValue(name));
-    if (r.empty()) return defaultValue;
-    T result{};
-    if (!convert_to(r, result)) return std::move(defaultValue);
-    return result;
-}
-
-template <typename T>
-bool Configuration::IsEnvironmentValueSet(shared::WSTRING const& name, T& value)
-{
-    auto r = shared::Trim(shared::GetEnvironmentValue(name));
-    if (r.empty()) return false;
-
-    T result{};
-    if (!convert_to(r, result)) return false;
-
-    value = result;
-    return true;
 }

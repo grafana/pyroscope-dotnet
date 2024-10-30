@@ -9,9 +9,11 @@
 #include <iomanip>
 #include <libunwind.h>
 #include <mutex>
+#include <ucontext.h>
 #include <unordered_map>
-#include <errno.h>
 
+#include "CallstackProvider.h"
+#include "CpuProfilerDisableScope.h"
 #include "IConfiguration.h"
 #include "Log.h"
 #include "ManagedThreadInfo.h"
@@ -25,15 +27,24 @@ using namespace std::chrono_literals;
 std::mutex LinuxStackFramesCollector::s_stackWalkInProgressMutex;
 LinuxStackFramesCollector* LinuxStackFramesCollector::s_pInstanceCurrentlyStackWalking = nullptr;
 
-LinuxStackFramesCollector::LinuxStackFramesCollector(ProfilerSignalManager* signalManager, IConfiguration const* const configuration) :
+LinuxStackFramesCollector::LinuxStackFramesCollector(
+    ProfilerSignalManager* signalManager,
+    IConfiguration const* const configuration,
+    CallstackProvider* callstackProvider,
+    LibrariesInfoCache* librariesCacheInfo) :
+    StackFramesCollectorBase(configuration, callstackProvider),
     _lastStackWalkErrorCode{0},
     _stackWalkFinished{false},
-    _errorStatistics{},
     _processId{OpSysTools::GetProcId()},
     _signalManager{signalManager},
-    _useBacktrace2{configuration->UseBacktrace2()}
+    _errorStatistics{},
+    _useBacktrace2{configuration->UseBacktrace2()},
+    _plibrariesInfo{librariesCacheInfo}
 {
-    _signalManager->RegisterHandler(LinuxStackFramesCollector::CollectStackSampleSignalHandler);
+    if (_signalManager != nullptr)
+    {
+        _signalManager->RegisterHandler(LinuxStackFramesCollector::CollectStackSampleSignalHandler);
+    }
 }
 
 LinuxStackFramesCollector::~LinuxStackFramesCollector()
@@ -76,23 +87,47 @@ void LinuxStackFramesCollector::UpdateErrorStats(std::int32_t errorCode)
     }
 }
 
+
 StackSnapshotResultBuffer* LinuxStackFramesCollector::CollectStackSampleImplementation(ManagedThreadInfo* pThreadInfo,
                                                                                        uint32_t* pHR,
                                                                                        bool selfCollect)
 {
     long errorCode;
 
+    // If there a timer associated to the managed thread, we have to disarm it.
+    // Otherwise, the CPU consumption to collect the callstack, will be accounted as "user app CPU time"
+    auto timerId = pThreadInfo->GetTimerId();
+
     if (selfCollect)
     {
+        // In case we are self-unwinding, we do not want to be interrupted by the signal-based profilers (walltime and cpu)
+        // This will crashing in libunwind (accessing a memory area  which was unmapped)
+        // This lock is acquired by the signal-based profiler (see StackSamplerLoop->StackSamplerLoopManager)
+        pThreadInfo->GetStackWalkLock().Acquire();
+
+        _plibrariesInfo->UpdateCache();
+
+        on_leave
+        {
+            pThreadInfo->GetStackWalkLock().Release();
+        };
+
         errorCode = CollectCallStackCurrentThread(nullptr);
     }
     else
     {
-        if (!_signalManager->IsHandlerInPlace())
+        if (_signalManager == nullptr || !_signalManager->IsHandlerInPlace())
         {
             *pHR = E_FAIL;
             return GetStackSnapshotResult();
         }
+
+        // Disable timer_create-based CPU profiler if needed
+        // When scope goes out of scope, the CPU profiler will be reenabled for
+        // pThreadInfo thread
+        auto scope = CpuProfilerDisableScope(pThreadInfo);
+
+        _plibrariesInfo->UpdateCache();
 
         std::unique_lock<std::mutex> stackWalkInProgressLock(s_stackWalkInProgressMutex);
 
@@ -123,7 +158,8 @@ StackSnapshotResultBuffer* LinuxStackFramesCollector::CollectStackSampleImplemen
 
             if (status == std::cv_status::timeout)
             {
-                _lastStackWalkErrorCode = E_ABORT;;
+                _lastStackWalkErrorCode = E_ABORT;
+                
                 if (!_signalManager->CheckSignalHandler())
                 {
                     _lastStackWalkErrorCode = E_FAIL;
@@ -172,7 +208,7 @@ std::int32_t LinuxStackFramesCollector::CollectCallStackCurrentThread(void* ctx)
     try
     {
         // Collect data for TraceContext tracking:
-        bool traceContextDataCollected = TryApplyTraceContextDataFromCurrentCollectionThreadToSnapshot();
+        TryApplyTraceContextDataFromCurrentCollectionThreadToSnapshot();
 
         return _useBacktrace2 ? CollectStackWithBacktrace2(ctx) : CollectStackManually(ctx);
     }
@@ -246,8 +282,8 @@ std::int32_t LinuxStackFramesCollector::CollectStackWithBacktrace2(void* ctx)
     auto* context = reinterpret_cast<unw_context_t*>(ctx);
 
     // Now walk the stack:
-    auto [data, size] = Data();
-    auto count = unw_backtrace2((void**)data, size, context);
+    auto buffer = Data();
+    auto count = unw_backtrace2((void**)buffer.data(), buffer.size(), context, UNW_INIT_SIGNAL_FRAME);
 
     if (count == 0)
     {
@@ -255,6 +291,7 @@ std::int32_t LinuxStackFramesCollector::CollectStackWithBacktrace2(void* ctx)
     }
 
     SetFrameCount(count);
+
     return S_OK;
 }
 
@@ -266,8 +303,35 @@ bool LinuxStackFramesCollector::CanCollect(int32_t threadId, pid_t processId) co
     return currentThreadInfo != nullptr && currentThreadInfo->GetOsThreadId() == threadId && processId == _processId;
 }
 
+void LinuxStackFramesCollector::MarkAsInterrupted()
+{
+    auto* currentThreadInfo = _pCurrentCollectionThreadInfo;
+
+    if (currentThreadInfo != nullptr)
+    {
+        currentThreadInfo->MarkAsInterrupted();
+    }
+}
+
+bool IsInSigSegvHandler(void* context)
+{
+    auto* ctx = reinterpret_cast<ucontext_t*>(context);
+
+    // If SIGSEGV is part of the sigmask set, it means that the thread was executing
+    // the SIGSEGV signal handler (or someone blocks SIGSEGV signal for this thread,
+    // but that less likely)
+    return sigismember(&(ctx->uc_sigmask), SIGSEGV) == 1;
+}
+
 bool LinuxStackFramesCollector::CollectStackSampleSignalHandler(int signal, siginfo_t* info, void* context)
 {
+    // This is a workaround to prevent libunwind from unwind 2 signal frames and potentially crashing.
+    // Current crash occurs in libcoreclr.so, while reading the Elf header.
+    if (IsInSigSegvHandler(context))
+    {
+        return false;
+    }
+
     // Libunwind can overwrite the value of errno - save it beforehand and restore it at the end
     auto oldErrno = errno;
 
@@ -284,6 +348,8 @@ bool LinuxStackFramesCollector::CollectStackSampleSignalHandler(int signal, sigi
         // sampling in progress
         if (pCollectorInstance != nullptr)
         {
+            pCollectorInstance->MarkAsInterrupted();
+
             // There can be a race:
             // The sampling thread has sent the signal and is waiting, but another SIGUSR1 signal was sent
             // by another thread and is handled before the one sent by the sampling thread.

@@ -8,7 +8,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Datadog.Trace.Ci;
+using Datadog.Trace.Ci.CiEnvironment;
 using Datadog.Trace.Ci.Tags;
 using Datadog.Trace.Configuration;
 using Datadog.Trace.ExtensionMethods;
@@ -17,15 +19,17 @@ using Datadog.Trace.TestHelpers.Ci;
 using Datadog.Trace.Util;
 using Datadog.Trace.Vendors.Newtonsoft.Json;
 using FluentAssertions;
+using VerifyXunit;
 using Xunit;
 using Xunit.Abstractions;
 
 namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
 {
-    public class NUnitEvpTests : TestHelper
+    [UsesVerify]
+    public class NUnitEvpTests : TestingFrameworkEvpTest
     {
-        private const int ExpectedTestCount = 30;
-        private const int ExpectedTestSuiteCount = 9;
+        private const int ExpectedTestCount = 33;
+        private const int ExpectedTestSuiteCount = 10;
 
         private const string TestBundleName = "Samples.NUnitTests";
         private static readonly string[] _testSuiteNames =
@@ -39,6 +43,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
             "Samples.NUnitTests.TestSetupError",
             "Samples.NUnitTests.TestTearDownError",
             "Samples.NUnitTests.TestTearDown2Error",
+            "Samples.NUnitTests.UnSkippableSuite",
         };
 
         public NUnitEvpTests(ITestOutputHelper output)
@@ -48,11 +53,43 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
             SetServiceVersion("1.0.0");
         }
 
+        public static IEnumerable<object[]> GetData()
+        {
+            foreach (var version in PackageVersions.NUnit)
+            {
+                // EVP version to remove, expects gzip
+                yield return version.Concat("evp_proxy/v2", true);
+                yield return version.Concat("evp_proxy/v4", false);
+            }
+        }
+
+        public static IEnumerable<object[]> GetDataForEarlyFlakeDetection()
+        {
+            foreach (var row in GetData())
+            {
+                // settings json, efd tests json, expected spans, friendly name
+
+                // EFD for all tests
+                yield return row.Concat(
+                    """{"data":{"id":"511938a3f19c12f8bb5e5caa695ca24f4563de3f","type":"ci_app_tracers_test_service_settings","attributes":{"code_coverage":false,"early_flake_detection":{"enabled":true,"slow_test_retries":{"10s":5,"30s":3,"5m":2,"5s":10},"faulty_session_threshold":100},"flaky_test_retries_enabled":false,"itr_enabled":true,"require_git":false,"tests_skipping":true}}}""",
+                    """{"data":{"id":"lNemDTwOV8U","type":"ci_app_libraries_tests","attributes":{"tests":{}}}}""",
+                    249,
+                    "all_efd");
+
+                // EFD with 1 test to bypass (TraitPassTest)
+                yield return row.Concat(
+                    """{"data":{"id":"511938a3f19c12f8bb5e5caa695ca24f4563de3f","type":"ci_app_tracers_test_service_settings","attributes":{"code_coverage":false,"early_flake_detection":{"enabled":true,"slow_test_retries":{"10s":5,"30s":3,"5m":2,"5s":10},"faulty_session_threshold":100},"flaky_test_retries_enabled":false,"itr_enabled":true,"require_git":false,"tests_skipping":true}}}""",
+                    """{"data":{"id":"lNemDTwOV8U","type":"ci_app_libraries_tests","attributes":{"tests":{"Samples.NUnitTests":{"Samples.NUnitTests.TestSuite":["TraitPassTest"]}}}}}""",
+                    240,
+                    "efd_with_test_bypass");
+            }
+        }
+
         [SkippableTheory]
-        [MemberData(nameof(PackageVersions.NUnit), MemberType = typeof(PackageVersions))]
+        [MemberData(nameof(GetData))]
         [Trait("Category", "EndToEnd")]
         [Trait("Category", "TestIntegrations")]
-        public void SubmitTraces(string packageVersion)
+        public async Task SubmitTraces(string packageVersion, string evpVersionToRemove, bool expectedGzip)
         {
             if (new Version(FrameworkDescription.Instance.ProductVersion).Major >= 5)
             {
@@ -76,65 +113,100 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
             SetEnvironmentVariable(TestSuiteVisibilityTags.TestSessionCommandEnvironmentVariable, sessionCommand);
             SetEnvironmentVariable(TestSuiteVisibilityTags.TestSessionWorkingDirectoryEnvironmentVariable, sessionWorkingDirectory);
 
+            const string gitRepositoryUrl = "git@github.com:DataDog/dd-trace-dotnet.git";
+            const string gitBranch = "main";
+            const string gitCommitSha = "3245605c3d1edc67226d725799ee969c71f7632b";
+            SetEnvironmentVariable(CIEnvironmentValues.Constants.DDGitRepository, gitRepositoryUrl);
+            SetEnvironmentVariable(CIEnvironmentValues.Constants.DDGitBranch, gitBranch);
+            SetEnvironmentVariable(CIEnvironmentValues.Constants.DDGitCommitSha, gitCommitSha);
+
             try
             {
                 SetEnvironmentVariable(ConfigurationKeys.CIVisibility.Enabled, "1");
-                SetEnvironmentVariable(ConfigurationKeys.CIVisibility.ForceAgentsEvpProxy, "1");
 
                 using (var agent = EnvironmentHelper.GetMockAgent())
                 {
+                    agent.Configuration.Endpoints = agent.Configuration.Endpoints.Where(e => !e.Contains(evpVersionToRemove)).ToArray();
+
+                    const string correlationId = "2e8a36bda770b683345957cc6c15baf9";
                     agent.EventPlatformProxyPayloadReceived += (sender, e) =>
                     {
-                        if (e.Value.PathAndQuery != "/evp_proxy/v2/api/v2/citestcycle")
+                        if (e.Value.PathAndQuery.EndsWith("api/v2/libraries/tests/services/setting"))
                         {
+                            e.Value.Response = new MockTracerResponse("""{"data":{"id":"b5a855bffe6c0b2ae5d150fb6ad674363464c816","type":"ci_app_tracers_test_service_settings","attributes":{"code_coverage":false,"efd_enabled":false,"flaky_test_retries_enabled":false,"itr_enabled":true,"require_git":false,"tests_skipping":true}}} """, 200);
                             return;
                         }
 
-                        var payload = JsonConvert.DeserializeObject<MockCIVisibilityProtocol>(e.Value.BodyInJson);
-                        if (payload.Events?.Length > 0)
+                        if (e.Value.PathAndQuery.EndsWith("api/v2/ci/tests/skippable"))
                         {
-                            foreach (var @event in payload.Events)
+                            e.Value.Response = new MockTracerResponse($"{{\"data\":[],\"meta\":{{\"correlation_id\":\"{correlationId}\"}}}}", 200);
+                            return;
+                        }
+
+                        if (e.Value.PathAndQuery.EndsWith("api/v2/citestcycle"))
+                        {
+                            e.Value.Headers["Content-Encoding"].Should().Be(expectedGzip ? "gzip" : null);
+
+                            var payload = JsonConvert.DeserializeObject<MockCIVisibilityProtocol>(e.Value.BodyInJson);
+                            if (payload.Events?.Length > 0)
                             {
-                                if (@event.Type == SpanTypes.Test)
+                                foreach (var @event in payload.Events)
                                 {
-                                    var testObject = JsonConvert.DeserializeObject<MockCIVisibilityTest>(@event.Content.ToString());
-                                    Output.WriteLine($"Test: {testObject.Meta[TestTags.Suite]}.{testObject.Meta[TestTags.Name]} | {testObject.Meta[TestTags.Status]}");
-                                    tests.Add(testObject);
-                                }
-                                else if (@event.Type == SpanTypes.TestSuite)
-                                {
-                                    var suiteObject = JsonConvert.DeserializeObject<MockCIVisibilityTestSuite>(@event.Content.ToString());
-                                    Output.WriteLine($"Suite: {suiteObject.Meta[TestTags.Suite]} | {suiteObject.Meta[TestTags.Status]}");
-                                    testSuites.Add(suiteObject);
-                                }
-                                else if (@event.Type == SpanTypes.TestModule)
-                                {
-                                    var moduleObject = JsonConvert.DeserializeObject<MockCIVisibilityTestModule>(@event.Content.ToString());
-                                    Output.WriteLine($"Module: {moduleObject.Meta[TestTags.Module]} | {moduleObject.Meta[TestTags.Status]}");
-                                    testModules.Add(moduleObject);
+                                    if (@event.Content.ToString() is { } eventContent)
+                                    {
+                                        if (@event.Type == SpanTypes.Test)
+                                        {
+                                            var testObject = JsonConvert.DeserializeObject<MockCIVisibilityTest>(eventContent);
+                                            Output.WriteLine($"Test: {testObject.Meta[TestTags.Suite]}.{testObject.Meta[TestTags.Name]} | {testObject.Meta[TestTags.Status]}");
+                                            tests.Add(testObject);
+                                        }
+                                        else if (@event.Type == SpanTypes.TestSuite)
+                                        {
+                                            var suiteObject = JsonConvert.DeserializeObject<MockCIVisibilityTestSuite>(eventContent);
+                                            Output.WriteLine($"Suite: {suiteObject.Meta[TestTags.Suite]} | {suiteObject.Meta[TestTags.Status]}");
+                                            testSuites.Add(suiteObject);
+                                        }
+                                        else if (@event.Type == SpanTypes.TestModule)
+                                        {
+                                            var moduleObject = JsonConvert.DeserializeObject<MockCIVisibilityTestModule>(eventContent);
+                                            Output.WriteLine($"Module: {moduleObject.Meta[TestTags.Module]} | {moduleObject.Meta[TestTags.Status]}");
+                                            testModules.Add(moduleObject);
+                                        }
+                                    }
                                 }
                             }
                         }
                     };
 
-                    using (ProcessResult processResult = RunDotnetTestSampleAndWaitForExit(agent, packageVersion: packageVersion))
+                    using (ProcessResult processResult = await RunDotnetTestSampleAndWaitForExit(agent, packageVersion: packageVersion))
                     {
+                        var settings = VerifyHelper.GetCIVisibilitySpanVerifierSettings();
+                        settings.UseTextForParameters("packageVersion=all");
+                        settings.DisableRequireUniquePrefix();
+                        await Verifier.Verify(tests.OrderBy(s => s.Resource).ThenBy(s => s.Meta.GetValueOrDefault(TestTags.Parameters)), settings);
+
                         // Check the tests, suites and modules count
                         Assert.Equal(ExpectedTestCount, tests.Count);
                         Assert.Equal(ExpectedTestSuiteCount, testSuites.Count);
                         Assert.Single(testModules);
+                        var testModule = testModules[0];
 
                         // Check suites
                         Assert.True(tests.All(t => testSuites.Find(s => s.TestSuiteId == t.TestSuiteId) != null));
-                        Assert.True(tests.All(t => t.TestModuleId == testModules[0].TestModuleId));
+                        Assert.True(tests.All(t => t.TestModuleId == testModule.TestModuleId));
 
                         // Check Module
                         Assert.True(tests.All(t => t.TestModuleId == testSuites[0].TestModuleId));
 
+                        // ITR tags inside the test module
+                        testModule.Metrics.Should().Contain(IntelligentTestRunnerTags.SkippingCount, 1);
+                        testModule.Meta.Should().Contain(IntelligentTestRunnerTags.SkippingType, IntelligentTestRunnerTags.SkippingTypeTest);
+                        testModule.Meta.Should().Contain(IntelligentTestRunnerTags.TestsSkipped, "true");
+
                         // Check Session
                         tests.Should().OnlyContain(t => t.TestSessionId == testSuites[0].TestSessionId);
-                        testSuites[0].TestSessionId.Should().Be(testModules[0].TestSessionId);
-                        testModules[0].TestSessionId.Should().Be(sessionId);
+                        testSuites[0].TestSessionId.Should().Be(testModule.TestSessionId);
+                        testModule.TestSessionId.Should().Be(sessionId);
 
                         foreach (var targetSuite in testSuites.ToArray())
                         {
@@ -161,11 +233,18 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                             // Remove decision maker tag (not used by the backend for civisibility)
                             targetTest.Meta.Remove(Tags.Propagated.DecisionMaker);
 
+                            // Remove EFD tags
+                            targetTest.Meta.Remove(EarlyFlakeDetectionTags.TestIsNew);
+                            targetTest.Meta.Remove(EarlyFlakeDetectionTags.TestIsRetry);
+
                             // check the name
                             Assert.Equal("nunit.test", targetTest.Name);
 
+                            // check correlationId
+                            Assert.Equal(correlationId, targetTest.CorrelationId);
+
                             // check the CIEnvironmentValues decoration.
-                            CheckCIEnvironmentValuesDecoration(targetTest);
+                            CheckCIEnvironmentValuesDecoration(targetTest, gitRepositoryUrl, gitBranch, gitCommitSha);
 
                             // check the runtime values
                             CheckRuntimeValues(targetTest);
@@ -193,9 +272,6 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                             // checks code owners
                             AssertTargetSpanExists(targetTest, TestTags.CodeOwners);
 
-                            // remove ITR skippeable tags
-                            AssertTargetSpanExists(targetTest, CommonTags.TestsSkipped);
-
                             // checks the origin tag
                             CheckOriginTag(targetTest);
 
@@ -212,17 +288,31 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                             AssertTargetSpanEqual(targetTest, TestTags.Command, sessionCommand);
                             AssertTargetSpanEqual(targetTest, TestTags.CommandWorkingDirectory, sessionWorkingDirectory);
 
+                            // Unskippable data
+                            if (targetTest.Meta[TestTags.Name] != "UnskippableTest")
+                            {
+                                AssertTargetSpanEqual(targetTest, IntelligentTestRunnerTags.UnskippableTag, "false");
+                                AssertTargetSpanEqual(targetTest, IntelligentTestRunnerTags.ForcedRunTag, "false");
+                            }
+
                             // check specific test span
                             switch (targetTest.Meta[TestTags.Name])
                             {
                                 case "SimplePassTest":
-                                case "Test" when !suite.Contains("SetupError"):
-                                case "IsNull" when !suite.Contains("SetupError"):
+                                case "Test" when !suite.Contains("SetupError") && !suite.Contains("TearDownError"):
+                                case "IsNull" when !suite.Contains("SetupError") && !suite.Contains("TearDownError"):
                                     CheckSimpleTestSpan(targetTest);
+                                    break;
+
+                                case "SkipByITRSimulation":
+                                    AssertTargetSpanEqual(targetTest, TestTags.Status, TestTags.StatusSkip);
+                                    AssertTargetSpanEqual(targetTest, TestTags.SkipReason, IntelligentTestRunnerTags.SkippedByReason);
+                                    AssertTargetSpanEqual(targetTest, IntelligentTestRunnerTags.SkippedBy, "true");
                                     break;
 
                                 case "SimpleSkipFromAttributeTest":
                                     CheckSimpleSkipFromAttributeTest(targetTest);
+                                    AssertTargetSpanEqual(targetTest, IntelligentTestRunnerTags.SkippedBy, "false");
                                     break;
 
                                 case "SimpleErrorTest":
@@ -237,6 +327,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                                 case "TraitSkipFromAttributeTest":
                                     CheckSimpleSkipFromAttributeTest(targetTest);
                                     CheckTraitsValues(targetTest);
+                                    AssertTargetSpanEqual(targetTest, IntelligentTestRunnerTags.SkippedBy, "false");
                                     break;
 
                                 case "TraitErrorTest":
@@ -263,6 +354,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                                         "{\"metadata\":{\"test_name\":\"SimpleSkipParameterizedTest(1,1,2)\"},\"arguments\":{\"xValue\":\"1\",\"yValue\":\"1\",\"expectedResult\":\"2\"}}",
                                         "{\"metadata\":{\"test_name\":\"SimpleSkipParameterizedTest(2,2,4)\"},\"arguments\":{\"xValue\":\"2\",\"yValue\":\"2\",\"expectedResult\":\"4\"}}",
                                         "{\"metadata\":{\"test_name\":\"SimpleSkipParameterizedTest(3,3,6)\"},\"arguments\":{\"xValue\":\"3\",\"yValue\":\"3\",\"expectedResult\":\"6\"}}");
+                                    AssertTargetSpanEqual(targetTest, IntelligentTestRunnerTags.SkippedBy, "false");
                                     break;
 
                                 case "SimpleErrorParameterizedTest":
@@ -281,6 +373,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
 
                                 case "SimpleAssertInconclusive":
                                     CheckSimpleSkipFromAttributeTest(targetTest, "The test is inconclusive.");
+                                    AssertTargetSpanEqual(targetTest, IntelligentTestRunnerTags.SkippedBy, "false");
                                     break;
 
                                 case "Test" when suite.Contains("SetupError"):
@@ -289,8 +382,14 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                                 case "Test03" when suite.Contains("SetupError"):
                                 case "Test04" when suite.Contains("SetupError"):
                                 case "Test05" when suite.Contains("SetupError"):
-                                case "IsNull" when suite.Contains("SetupError"):
-                                    CheckSetupErrorTest(targetTest);
+                                case "IsNull" when suite.Contains("SetupError") || suite.Contains("TearDownError"):
+                                    CheckSetupOrTearDownErrorTest(targetTest);
+                                    break;
+
+                                case "UnskippableTest":
+                                    AssertTargetSpanEqual(targetTest, IntelligentTestRunnerTags.UnskippableTag, "true");
+                                    AssertTargetSpanEqual(targetTest, IntelligentTestRunnerTags.ForcedRunTag, "false");
+                                    CheckSimpleTestSpan(targetTest);
                                     break;
                             }
 
@@ -316,96 +415,151 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
             }
         }
 
-        private static string AssertTargetSpanAnyOf(MockCIVisibilityTest targetTest, string key, params string[] values)
+        [SkippableTheory]
+        [MemberData(nameof(GetDataForEarlyFlakeDetection))]
+        [Trait("Category", "EndToEnd")]
+        [Trait("Category", "TestIntegrations")]
+        [Trait("Category", "EarlyFlakeDetection")]
+        public async Task EarlyFlakeDetection(string packageVersion, string evpVersionToRemove, bool expectedGzip, string settingsJson, string testsJson, int expectedSpans, string friendlyName)
         {
-            string actualValue = targetTest.Meta[key];
-            Assert.Contains(actualValue, values);
-            targetTest.Meta.Remove(key);
-            return actualValue;
-        }
-
-        private static void AssertTargetSpanEqual(MockCIVisibilityTest targetTest, string key, string value)
-        {
-            Assert.Equal(value, targetTest.Meta[key]);
-            targetTest.Meta.Remove(key);
-        }
-
-        private static void AssertTargetSpanExists(MockCIVisibilityTest targetTest, string key)
-        {
-            Assert.True(targetTest.Meta.ContainsKey(key));
-            targetTest.Meta.Remove(key);
-        }
-
-        private static void AssertTargetSpanContains(MockCIVisibilityTest targetTest, string key, string value)
-        {
-            Assert.Contains(value, targetTest.Meta[key]);
-            targetTest.Meta.Remove(key);
-        }
-
-        private static void CheckCIEnvironmentValuesDecoration(MockCIVisibilityTest targetTest)
-        {
-            var context = new SpanContext(null, null, null, null);
-            var span = new Span(context, DateTimeOffset.UtcNow);
-            CIEnvironmentValues.Instance.DecorateSpan(span);
-
-            AssertEqual(CommonTags.CIProvider);
-            AssertEqual(CommonTags.CIPipelineId);
-            AssertEqual(CommonTags.CIPipelineName);
-            AssertEqual(CommonTags.CIPipelineNumber);
-            AssertEqual(CommonTags.CIPipelineUrl);
-            AssertEqual(CommonTags.CIJobUrl);
-            AssertEqual(CommonTags.CIJobName);
-            AssertEqual(CommonTags.StageName);
-            AssertEqual(CommonTags.CIWorkspacePath);
-            AssertEqual(CommonTags.GitRepository);
-            AssertEqual(CommonTags.GitCommit);
-            AssertEqual(CommonTags.GitBranch);
-            AssertEqual(CommonTags.GitTag);
-            AssertEqual(CommonTags.GitCommitAuthorName);
-            AssertEqual(CommonTags.GitCommitAuthorEmail);
-            AssertEqualDate(CommonTags.GitCommitAuthorDate);
-            AssertEqual(CommonTags.GitCommitCommitterName);
-            AssertEqual(CommonTags.GitCommitCommitterEmail);
-            AssertEqualDate(CommonTags.GitCommitCommitterDate);
-            AssertEqual(CommonTags.GitCommitMessage);
-            AssertEqual(CommonTags.BuildSourceRoot);
-
-            void AssertEqual(string key)
+            if (new Version(FrameworkDescription.Instance.ProductVersion).Major >= 5)
             {
-                if (span.GetTag(key) is { } keyValue)
+                if (!string.IsNullOrWhiteSpace(packageVersion) && new Version(packageVersion) < new Version("3.13"))
                 {
-                    Assert.Equal(keyValue, targetTest.Meta[key]);
-                    targetTest.Meta.Remove(key);
+                    // Ignore due https://github.com/nunit/nunit/issues/3565#issuecomment-726835235
+                    return;
                 }
             }
 
-            void AssertEqualDate(string key)
+            var tests = new List<MockCIVisibilityTest>();
+            var testSuites = new List<MockCIVisibilityTestSuite>();
+            var testModules = new List<MockCIVisibilityTestModule>();
+
+            // Inject session
+            var sessionId = RandomIdGenerator.Shared.NextSpanId();
+            var sessionCommand = "test command";
+            var sessionWorkingDirectory = "C:\\evp_demo\\working_directory";
+            SetEnvironmentVariable(HttpHeaderNames.TraceId.Replace(".", "_").Replace("-", "_").ToUpperInvariant(), sessionId.ToString(CultureInfo.InvariantCulture));
+            SetEnvironmentVariable(HttpHeaderNames.ParentId.Replace(".", "_").Replace("-", "_").ToUpperInvariant(), sessionId.ToString(CultureInfo.InvariantCulture));
+            SetEnvironmentVariable(TestSuiteVisibilityTags.TestSessionCommandEnvironmentVariable, sessionCommand);
+            SetEnvironmentVariable(TestSuiteVisibilityTags.TestSessionWorkingDirectoryEnvironmentVariable, sessionWorkingDirectory);
+
+            const string gitRepositoryUrl = "git@github.com:DataDog/dd-trace-dotnet.git";
+            const string gitBranch = "main";
+            const string gitCommitSha = "3245605c3d1edc67226d725799ee969c71f7632b";
+            SetEnvironmentVariable(CIEnvironmentValues.Constants.DDGitRepository, gitRepositoryUrl);
+            SetEnvironmentVariable(CIEnvironmentValues.Constants.DDGitBranch, gitBranch);
+            SetEnvironmentVariable(CIEnvironmentValues.Constants.DDGitCommitSha, gitCommitSha);
+
+            try
             {
-                if (span.GetTag(key) is { } keyValue)
+                SetEnvironmentVariable(ConfigurationKeys.CIVisibility.Enabled, "1");
+
+                using var agent = EnvironmentHelper.GetMockAgent();
+                agent.Configuration.Endpoints = agent.Configuration.Endpoints.Where(e => !e.Contains(evpVersionToRemove)).ToArray();
+
+                const string correlationId = "2e8a36bda770b683345957cc6c15baf9";
+                agent.EventPlatformProxyPayloadReceived += (sender, e) =>
                 {
-                    Assert.Equal(DateTimeOffset.Parse(keyValue), DateTimeOffset.Parse(targetTest.Meta[key]));
-                    targetTest.Meta.Remove(key);
+                    if (e.Value.PathAndQuery.EndsWith("api/v2/libraries/tests/services/setting"))
+                    {
+                        e.Value.Response = new MockTracerResponse(settingsJson, 200);
+                        return;
+                    }
+
+                    if (e.Value.PathAndQuery.EndsWith("api/v2/ci/libraries/tests"))
+                    {
+                        e.Value.Response = new MockTracerResponse(testsJson, 200);
+                        return;
+                    }
+
+                    if (e.Value.PathAndQuery.EndsWith("api/v2/ci/tests/skippable"))
+                    {
+                        e.Value.Response = new MockTracerResponse($"{{\"data\":[],\"meta\":{{\"correlation_id\":\"{correlationId}\"}}}}", 200);
+                        return;
+                    }
+
+                    if (e.Value.PathAndQuery.EndsWith("api/v2/citestcycle"))
+                    {
+                        e.Value.Headers["Content-Encoding"].Should().Be(expectedGzip ? "gzip" : null);
+
+                        var payload = JsonConvert.DeserializeObject<MockCIVisibilityProtocol>(e.Value.BodyInJson);
+                        if (payload.Events?.Length > 0)
+                        {
+                            foreach (var @event in payload.Events)
+                            {
+                                if (@event.Content.ToString() is { } eventContent)
+                                {
+                                    if (@event.Type == SpanTypes.Test)
+                                    {
+                                        var testObject = JsonConvert.DeserializeObject<MockCIVisibilityTest>(eventContent);
+                                        Output.WriteLine($"Test: {testObject.Meta[TestTags.Suite]}.{testObject.Meta[TestTags.Name]} | {testObject.Meta[TestTags.Status]}");
+                                        tests.Add(testObject);
+                                    }
+                                    else if (@event.Type == SpanTypes.TestSuite)
+                                    {
+                                        var suiteObject = JsonConvert.DeserializeObject<MockCIVisibilityTestSuite>(eventContent);
+                                        Output.WriteLine($"Suite: {suiteObject.Meta[TestTags.Suite]} | {suiteObject.Meta[TestTags.Status]}");
+                                        testSuites.Add(suiteObject);
+                                    }
+                                    else if (@event.Type == SpanTypes.TestModule)
+                                    {
+                                        var moduleObject = JsonConvert.DeserializeObject<MockCIVisibilityTestModule>(eventContent);
+                                        Output.WriteLine($"Module: {moduleObject.Meta[TestTags.Module]} | {moduleObject.Meta[TestTags.Status]}");
+                                        testModules.Add(moduleObject);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                };
+
+                using var processResult = await RunDotnetTestSampleAndWaitForExit(agent, packageVersion: packageVersion);
+
+                var settings = VerifyHelper.GetCIVisibilitySpanVerifierSettings();
+                settings.UseTextForParameters(friendlyName);
+                settings.DisableRequireUniquePrefix();
+                await Verifier.Verify(
+                    tests
+                       .OrderBy(s => s.Resource)
+                       .ThenBy(s => s.Meta.GetValueOrDefault(TestTags.Parameters))
+                       .ThenBy(s => s.Meta.GetValueOrDefault(EarlyFlakeDetectionTags.TestIsNew))
+                       .ThenBy(s => s.Meta.GetValueOrDefault(EarlyFlakeDetectionTags.TestIsRetry))
+                       .ThenBy(s => s.Meta.GetValueOrDefault(EarlyFlakeDetectionTags.AbortReason)),
+                    settings);
+
+                // Check the tests, suites and modules count
+                Assert.Equal(expectedSpans, tests.Count);
+                Assert.Equal(ExpectedTestSuiteCount, testSuites.Count);
+                Assert.Single(testModules);
+            }
+            catch
+            {
+                Output.WriteLine("Framework Version: " + new Version(FrameworkDescription.Instance.ProductVersion));
+                if (!string.IsNullOrWhiteSpace(packageVersion))
+                {
+                    Output.WriteLine("Package Version: " + new Version(packageVersion));
                 }
+
+                WriteSpans(testSuites);
+                WriteSpans(tests);
+                throw;
             }
         }
 
-        private static void CheckRuntimeValues(MockCIVisibilityTest targetTest)
+        protected override void CheckSimpleTestSpan(MockCIVisibilityTest targetTest)
         {
-            AssertTargetSpanExists(targetTest, CommonTags.RuntimeName);
-            AssertTargetSpanExists(targetTest, CommonTags.RuntimeVersion);
-            AssertTargetSpanExists(targetTest, CommonTags.RuntimeArchitecture);
-            AssertTargetSpanExists(targetTest, CommonTags.OSArchitecture);
-            AssertTargetSpanExists(targetTest, CommonTags.OSPlatform);
-            AssertTargetSpanEqual(targetTest, CommonTags.OSVersion, CIVisibility.GetOperatingSystemVersion());
+            // Check the Test Status
+            base.CheckSimpleTestSpan(targetTest);
+
+            // Check the `test.message` tag. We check if contains the default or the custom message.
+            if (targetTest.Meta.ContainsKey(TestTags.Message))
+            {
+                AssertTargetSpanAnyOf(targetTest, TestTags.Message, new string[] { "Test is ok", "The test passed." });
+            }
         }
 
-        private static void CheckTraitsValues(MockCIVisibilityTest targetTest)
-        {
-            // Check the traits tag value
-            AssertTargetSpanEqual(targetTest, TestTags.Traits, "{\"Category\":[\"Category01\"],\"Compatibility\":[\"Windows\",\"Linux\"]}");
-        }
-
-        private static void CheckParametrizedTraitsValues(MockCIVisibilityTest targetTest)
+        private void CheckParametrizedTraitsValues(MockCIVisibilityTest targetTest)
         {
             // Check the traits tag value
             AssertTargetSpanAnyOf(
@@ -416,34 +570,7 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
                 "{\"Category\":[\"ParemeterizedTest\",\"ThirdCase\"]}");
         }
 
-        private static void CheckOriginTag(MockCIVisibilityTest targetTest)
-        {
-            // Check the test origin tag
-            AssertTargetSpanEqual(targetTest, Tags.Origin, TestTags.CIAppTestOriginName);
-        }
-
-        private static void CheckSimpleTestSpan(MockCIVisibilityTest targetTest)
-        {
-            // Check the Test Status
-            AssertTargetSpanEqual(targetTest, TestTags.Status, TestTags.StatusPass);
-
-            // Check the `test.message` tag. We check if contains the default or the custom message.
-            if (targetTest.Meta.ContainsKey(TestTags.Message))
-            {
-                AssertTargetSpanAnyOf(targetTest, TestTags.Message, new string[] { "Test is ok", "The test passed." });
-            }
-        }
-
-        private static void CheckSimpleSkipFromAttributeTest(MockCIVisibilityTest targetTest, string skipReason = "Simple skip reason")
-        {
-            // Check the Test Status
-            AssertTargetSpanEqual(targetTest, TestTags.Status, TestTags.StatusSkip);
-
-            // Check the Test skip reason
-            AssertTargetSpanEqual(targetTest, TestTags.SkipReason, skipReason);
-        }
-
-        private static void CheckSimpleErrorTest(MockCIVisibilityTest targetTest)
+        private void CheckSetupOrTearDownErrorTest(MockCIVisibilityTest targetTest)
         {
             // Check the Test Status
             AssertTargetSpanEqual(targetTest, TestTags.Status, TestTags.StatusFail);
@@ -452,100 +579,13 @@ namespace Datadog.Trace.ClrProfiler.IntegrationTests.CI
             Assert.Equal(1, targetTest.Error);
 
             // Check the error type
-            AssertTargetSpanEqual(targetTest, Tags.ErrorType, typeof(DivideByZeroException).FullName);
-
-            // Check the error stack
-            AssertTargetSpanContains(targetTest, Tags.ErrorStack, typeof(DivideByZeroException).FullName);
+            AssertTargetSpanAnyOf(targetTest, Tags.ErrorType, "SetUpException", "System.Exception", "TearDownException");
 
             // Check the error message
-            AssertTargetSpanEqual(targetTest, Tags.ErrorMsg, new DivideByZeroException().Message);
-        }
-
-        private static void CheckSetupErrorTest(MockCIVisibilityTest targetTest)
-        {
-            // Check the Test Status
-            AssertTargetSpanEqual(targetTest, TestTags.Status, TestTags.StatusFail);
-
-            // Check the span error flag
-            Assert.Equal(1, targetTest.Error);
-
-            // Check the error type
-            AssertTargetSpanAnyOf(targetTest, Tags.ErrorType, "SetUpException", "Exception");
-
-            // Check the error message
-            AssertTargetSpanEqual(targetTest, Tags.ErrorMsg, "System.Exception : SetUp exception.");
+            AssertTargetSpanAnyOf(targetTest, Tags.ErrorMsg, "SetUp exception.", "TearDown exception.");
 
             // Remove the stacktrace
             targetTest.Meta.Remove(Tags.ErrorStack);
-        }
-
-        private void WriteSpans(List<MockCIVisibilityTestSuite> suites)
-        {
-            if (suites is null || suites.Count == 0)
-            {
-                return;
-            }
-
-            var sb = StringBuilderCache.Acquire(250);
-            sb.AppendLine("***********************************");
-
-            int i = 0;
-            foreach (var suite in suites)
-            {
-                sb.Append($" {i++}) ");
-                sb.Append($"TestSuiteId={suite.TestSuiteId}, ");
-                sb.Append($"Service={suite.Service}, ");
-                sb.Append($"Name={suite.Name}, ");
-                sb.Append($"Resource={suite.Resource}, ");
-                sb.Append($"Type={suite.Type}, ");
-                sb.Append($"Error={suite.Error}");
-                sb.AppendLine();
-                sb.AppendLine("   Tags=");
-                foreach (var kv in suite.Meta)
-                {
-                    sb.AppendLine($"       => {kv.Key} = {kv.Value}");
-                }
-
-                sb.AppendLine();
-            }
-
-            sb.AppendLine("***********************************");
-            Output.WriteLine(StringBuilderCache.GetStringAndRelease(sb));
-        }
-
-        private void WriteSpans(List<MockCIVisibilityTest> tests)
-        {
-            if (tests is null || tests.Count == 0)
-            {
-                return;
-            }
-
-            var sb = StringBuilderCache.Acquire(250);
-            sb.AppendLine("***********************************");
-
-            int i = 0;
-            foreach (var test in tests)
-            {
-                sb.Append($" {i++}) ");
-                sb.Append($"TraceId={test.TraceId}, ");
-                sb.Append($"SpanId={test.SpanId}, ");
-                sb.Append($"Service={test.Service}, ");
-                sb.Append($"Name={test.Name}, ");
-                sb.Append($"Resource={test.Resource}, ");
-                sb.Append($"Type={test.Type}, ");
-                sb.Append($"Error={test.Error}");
-                sb.AppendLine();
-                sb.AppendLine("   Tags=");
-                foreach (var kv in test.Meta)
-                {
-                    sb.AppendLine($"       => {kv.Key} = {kv.Value}");
-                }
-
-                sb.AppendLine();
-            }
-
-            sb.AppendLine("***********************************");
-            Output.WriteLine(StringBuilderCache.GetStringAndRelease(sb));
         }
     }
 }

@@ -4,11 +4,14 @@
 #include <string>
 #include <vector>
 
+#include "CallstackProvider.h"
 #include "GarbageCollection.h"
 #include "IConfiguration.h"
 #include "LiveObjectsProvider.h"
 #include "OpSysTools.h"
 #include "Sample.h"
+#include "SamplesEnumerator.h"
+#include "SampleValueTypeProvider.h"
 
 std::vector<SampleValueType> LiveObjectsProvider::SampleTypeDefinitions(
 {
@@ -21,9 +24,8 @@ const uint32_t MAX_LIVE_OBJECTS = 1024;
 const std::string LiveObjectsProvider::Gen1("1");
 const std::string LiveObjectsProvider::Gen2("2");
 
-
 LiveObjectsProvider::LiveObjectsProvider(
-    uint32_t valueOffset,
+    SampleValueTypeProvider& valueTypeProvider,
     ICorProfilerInfo13* pCorProfilerInfo,
     IManagedThreadList* pManagedThreadList,
     IFrameStore* pFrameStore,
@@ -33,15 +35,11 @@ LiveObjectsProvider::LiveObjectsProvider(
     IConfiguration* pConfiguration,
     MetricsRegistry& metricsRegistry)
     :
-    _valueOffset(valueOffset),
     _pCorProfilerInfo(pCorProfilerInfo),
-    _pFrameStore(pFrameStore),
-    _pAppDomainStore(pAppDomainStore),
-    _pRuntimeIdStore(pRuntimeIdStore),
     _isTimestampsAsLabelEnabled(pConfiguration->IsTimestampsAsLabelEnabled())
 {
     _pAllocationsProvider = std::make_unique<AllocationsProvider>(
-        valueOffset,  // the values (allocation count and size are stored in the live object values, not tha allocation values)
+        valueTypeProvider.GetOrRegister(SampleTypeDefinitions),
         pCorProfilerInfo,
         pManagedThreadList,
         pFrameStore,
@@ -50,7 +48,9 @@ LiveObjectsProvider::LiveObjectsProvider(
         pRuntimeIdStore,
         pConfiguration,
         nullptr,
-        metricsRegistry);
+        metricsRegistry,
+        CallstackProvider(shared::pmr::null_memory_resource()), // safe to pass the null memory resource for the provider. This provider does not collect callstack
+        shared::pmr::null_memory_resource()); // safe to pass null memory resource for the provider. This provider is only used to transform RawSamples
 }
 
 const char* LiveObjectsProvider::GetName()
@@ -59,11 +59,12 @@ const char* LiveObjectsProvider::GetName()
 }
 
 void LiveObjectsProvider::OnGarbageCollectionStart(
+    uint64_t timestamp,
     int32_t number,
     uint32_t generation,
     GCReason reason,
     GCType type
-    )
+)
 {
     // The address provided during AllocationTick event is not pointing to real object
     // so we tried to wait for the next garbage collection to create a wrapping weak handle.
@@ -79,8 +80,10 @@ void LiveObjectsProvider::OnGarbageCollectionEnd(
     bool isCompacting,
     uint64_t pauseDuration,
     uint64_t totalDuration,
-    uint64_t endTimestamp
-    )
+    uint64_t endTimestamp,
+    uint64_t gen2Size,
+    uint64_t lohSize,
+    uint64_t pohSize)
 {
     std::lock_guard<std::mutex> lock(_liveObjectsLock);
 
@@ -99,26 +102,59 @@ void LiveObjectsProvider::OnGarbageCollectionEnd(
     });
 }
 
-std::list<std::shared_ptr<Sample>> LiveObjectsProvider::GetSamples()
+class LiveObjectsEnumerator : public SamplesEnumerator
 {
-    // return the live object samples
-    std::list<std::shared_ptr<Sample>> liveObjectsSamples;
-
-    // limit lock scope
+public:
+    LiveObjectsEnumerator(std::size_t size) :
+        _currentPos{0}
     {
-        std::lock_guard<std::mutex> lock(_liveObjectsLock);
-
-        int64_t currentTimestamp = OpSysTools::GetHighPrecisionTimestamp();
-        for (auto const& info : _monitoredObjects)
-        {
-            // gen2 objects are candidates for leaking however collections could be rare and only gen1 objects
-            // are available for live heap profiling
-            auto sample = info.GetSample();
-            liveObjectsSamples.push_back(sample);
-        }
+        _samples.reserve(size);
     }
 
-    return liveObjectsSamples;
+    void Add(std::shared_ptr<Sample> sample)
+    {
+        _samples.push_back(std::move(sample));
+    }
+
+    // Inherited via SamplesEnumerator
+    std::size_t size() const override
+    {
+        return _samples.size();
+    }
+
+    bool MoveNext(std::shared_ptr<Sample>& sample) override
+    {
+        if (_currentPos >= _samples.size())
+            return false;
+
+        sample = _samples[_currentPos++];
+        return true;
+    }
+
+    std::vector<std::shared_ptr<Sample>> _samples;
+    std::size_t _currentPos;
+};
+
+std::unique_ptr<SamplesEnumerator> LiveObjectsProvider::GetSamples()
+{
+    std::lock_guard<std::mutex> lock(_liveObjectsLock);
+
+    int64_t currentTimestamp = OpSysTools::GetHighPrecisionTimestamp();
+    std::size_t nbSamples = 0;
+
+    // OPTIM maybe use an allocator
+    auto samples = std::make_unique<LiveObjectsEnumerator>(_monitoredObjects.size());
+
+    for (auto const& info : _monitoredObjects)
+    {
+        // gen2 objects are candidates for leaking however collections could be rare and only gen1 objects
+        // are available for live heap profiling
+        auto sample = info.GetSample();
+
+        samples->Add(sample);
+    }
+
+    return samples;
 }
 
 void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
@@ -157,11 +193,13 @@ bool LiveObjectsProvider::IsAlive(ObjectHandleID handle) const
         return false;
     }
 
-    ObjectID object = NULL;
+    static ObjectID NullObjectID = static_cast<ObjectID>(NULL);
+
+    auto object = NullObjectID;
     auto hr = _pCorProfilerInfo->GetObjectIDFromHandle(handle, &object);
     if (SUCCEEDED(hr))
     {
-        return object != NULL;
+        return object != NullObjectID;
     }
 
     return false;
@@ -169,7 +207,7 @@ bool LiveObjectsProvider::IsAlive(ObjectHandleID handle) const
 
 ObjectHandleID LiveObjectsProvider::CreateWeakHandle(uintptr_t address) const
 {
-    if (address == NULL)
+    if (reinterpret_cast<void*>(address) == nullptr)
     {
         return nullptr;
     }
@@ -194,12 +232,12 @@ void LiveObjectsProvider::CloseWeakHandle(ObjectHandleID handle) const
     _pCorProfilerInfo->DestroyHandle(handle);
 }
 
-bool LiveObjectsProvider::Start()
+bool LiveObjectsProvider::StartImpl()
 {
     return true;
 }
 
-bool LiveObjectsProvider::Stop()
+bool LiveObjectsProvider::StopImpl()
 {
     return true;
 }

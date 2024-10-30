@@ -5,10 +5,12 @@
       "diagnostics": {
         "exception": null,
         "probeId": "31d232fd-e292-63a1-cfc5-f0e71d98afd1",
-        "status": "INSTALLED"
+        "probeVersion": 0,
+        "runtimeId": "scrubbed",
+        "status": "EMITTING"
       }
     },
-    "message": "Installed probe 31d232fd-e292-63a1-cfc5-f0e71d98afd1.",
+    "message": "Emitted probe 31d232fd-e292-63a1-cfc5-f0e71d98afd1.",
     "service": "probes"
   },
   {
@@ -17,10 +19,12 @@
       "diagnostics": {
         "exception": null,
         "probeId": "f23aa325-ec46-b774-3f32-a89b9879ce7d",
-        "status": "INSTALLED"
+        "probeVersion": 0,
+        "runtimeId": "scrubbed",
+        "status": "EMITTING"
       }
     },
-    "message": "Installed probe f23aa325-ec46-b774-3f32-a89b9879ce7d.",
+    "message": "Emitted probe f23aa325-ec46-b774-3f32-a89b9879ce7d.",
     "service": "probes"
   }
 ]

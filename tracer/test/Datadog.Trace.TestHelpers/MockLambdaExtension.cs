@@ -68,8 +68,6 @@ public class MockLambdaExtension : IDisposable
         }
     }
 
-    public event EventHandler<EventArgs<HttpListenerContext>>? RequestReceived;
-
     /// <summary>
     /// Gets a value indicating whether the extension should return a TraceId and Sampling priority when
     /// it receives a StartInvocation
@@ -92,15 +90,8 @@ public class MockLambdaExtension : IDisposable
         _listener?.Close();
     }
 
-    protected virtual void OnRequestReceived(HttpListenerContext context)
-    {
-        RequestReceived?.Invoke(this, new EventArgs<HttpListenerContext>(context));
-    }
-
     protected virtual void HandleHttpRequest(HttpListenerContext ctx)
     {
-        OnRequestReceived(ctx);
-
         if (ctx.Request.Url?.PathAndQuery.StartsWith("/lambda/start-invocation") ?? false)
         {
             var headers = new NameValueCollection(ctx.Request.Headers);
@@ -139,7 +130,10 @@ public class MockLambdaExtension : IDisposable
             ulong? spanId = ulong.TryParse(headers.Get("x-datadog-span-id"), out var s) ? s : null;
             int? samplingPriority = int.TryParse(headers.Get("x-datadog-sampling-priority"), out var p) ? p : null;
             bool isError = headers.Get("x-datadog-invocation-error") == "true";
-            var invocation = new EndExtensionRequest(headers, body, traceId, spanId, samplingPriority, isError);
+            string? errorMsg = headers.Get("x-datadog-invocation-error-msg") ?? null;
+            string? errorType = headers.Get("x-datadog-invocation-error-type") ?? null;
+            string? errorStack = headers.Get("x-datadog-invocation-error-stack") ?? null;
+            var invocation = new EndExtensionRequest(headers, body,  traceId, spanId, samplingPriority, isError, errorMsg, errorType, errorStack);
 
             EndInvocations.Push(invocation);
             Output?.WriteLine($"[LambdaExtension]Received end-invocation. traceId:{traceId}, spanId:{spanId}");
@@ -226,7 +220,10 @@ public class MockLambdaExtension : IDisposable
             ulong? traceId,
             ulong? spanId,
             int? samplingPriority,
-            bool isError)
+            bool isError,
+            string? errorMsg,
+            string? errorType,
+            string? errorStack)
         {
             Headers = headers;
             Body = body;
@@ -234,6 +231,9 @@ public class MockLambdaExtension : IDisposable
             SpanId = spanId;
             SamplingPriority = samplingPriority;
             IsError = isError;
+            ErrorMsg = errorMsg;
+            ErrorType = errorType;
+            ErrorStack = errorStack;
         }
 
         public NameValueCollection Headers { get; }
@@ -247,6 +247,12 @@ public class MockLambdaExtension : IDisposable
         public int? SamplingPriority { get; }
 
         public bool IsError { get; }
+
+        public string? ErrorMsg { get; }
+
+        public string? ErrorType { get; }
+
+        public string? ErrorStack { get; }
 
         public DateTimeOffset Created { get; } = DateTimeOffset.UtcNow;
     }

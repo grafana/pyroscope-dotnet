@@ -14,11 +14,6 @@ ThreadsCpuManager::ThreadsCpuManager()
 ThreadsCpuManager::~ThreadsCpuManager()
 {
     std::lock_guard<std::recursive_mutex> lock(_lockThreads);
-
-    for (const std::pair<DWORD, ThreadCpuInfo*>& current : _threads)
-    {
-        delete current.second;
-    }
     _threads.clear();
 }
 
@@ -27,13 +22,13 @@ const char* ThreadsCpuManager::GetName()
     return _serviceName;
 }
 
-bool ThreadsCpuManager::Start()
+bool ThreadsCpuManager::StartImpl()
 {
     // nothing special to start
     return true;
 }
 
-bool ThreadsCpuManager::Stop()
+bool ThreadsCpuManager::StopImpl()
 {
     // nothing special to stop
     return true;
@@ -53,16 +48,10 @@ void ThreadsCpuManager::Map(DWORD threadOSId, const WCHAR* name)
     }
 
     // find or create the info corresponding to the given thread ID
-    ThreadCpuInfo* pInfo = nullptr;
-    auto element = _threads.find(threadOSId);
-    if (element == _threads.end())
+    auto& pInfo = _threads[threadOSId];
+    if (pInfo == nullptr)
     {
-        pInfo = new ThreadCpuInfo(threadOSId);
-        _threads[threadOSId] = pInfo;
-    }
-    else
-    {
-        pInfo = element->second;
+        pInfo = std::make_unique<ThreadCpuInfo>(threadOSId);
     }
 
     // set its name if any

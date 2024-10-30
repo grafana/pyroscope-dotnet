@@ -9,9 +9,11 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using Datadog.Trace.Debugger.Configurations.Models;
 using Datadog.Trace.Pdb;
 using Datadog.Trace.TestHelpers;
+using Datadog.Trace.Vendors.Newtonsoft.Json;
 using FluentAssertions;
 using Samples.Probes.TestRuns;
 using Xunit;
@@ -58,14 +60,14 @@ internal static class DebuggerTestHelper
         return type;
     }
 
-    internal static DebuggerSampleProcessHelper StartSample(TestHelper helper, MockTracerAgent agent, string testName)
+    internal static async Task<DebuggerSampleProcessHelper> StartSample(TestHelper helper, MockTracerAgent agent, string testName)
     {
         var listenPort = TcpPortProvider.GetOpenPort();
 
         var localHost = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? "http://127.0.0.1" : "http://localhost";
         var listenUrl = $"{localHost}:{listenPort}/";
 
-        var process = helper.StartSample(agent, $"--test-name {testName} --listen-url {listenUrl}", string.Empty, aspNetCorePort: 5000);
+        var process = await helper.StartSample(agent, $"--test-name {testName} --listen-url {listenUrl}", string.Empty, aspNetCorePort: 5000);
         var processHelper = new DebuggerSampleProcessHelper(listenUrl, process);
 
         return processHelper;
@@ -76,9 +78,24 @@ internal static class DebuggerTestHelper
         return probes.Aggregate(0, (accuNumOfSnapshots, next) => accuNumOfSnapshots + next.ExpectedNumberOfSnapshots);
     }
 
-    internal static bool IsMetricProbe(ProbeAttributeBase[] probeData)
+    internal static bool IsMetricProbe(ProbeAttributeBase probeAttr)
     {
-        return probeData.Any(p => !string.IsNullOrEmpty(p.MetricKind));
+        return probeAttr is MetricMethodProbeTestDataAttribute or MetricLineProbeTestDataAttribute;
+    }
+
+    internal static bool IsSpanProbe(ProbeAttributeBase probeAttr)
+    {
+        return probeAttr is SpanOnMethodProbeTestDataAttribute;
+    }
+
+    internal static bool IsSpanDecorationProbe(ProbeAttributeBase probeAttr)
+    {
+        return probeAttr is SpanDecorationMethodProbeTestDataAttribute;
+    }
+
+    internal static bool IsLogProbe(ProbeAttributeBase probeAttr)
+    {
+        return probeAttr is LogMethodProbeTestDataAttribute or LogLineProbeTestDataAttribute;
     }
 
     internal static (ProbeAttributeBase ProbeTestData, ProbeDefinition Probe)[] GetAllProbes(Type type, string targetFramework, bool unlisted, DeterministicGuidGenerator guidGenerator)
@@ -104,16 +121,31 @@ internal static class DebuggerTestHelper
            .Select(m =>
             {
                 var probes = new List<(ProbeAttributeBase ProbeTestData, ProbeDefinition Probe)>();
-                var testAttribute = m.GetCustomAttribute<MethodProbeTestDataAttribute>().As<ProbeAttributeBase>();
-
-                if (testAttribute.CaptureSnapshot || testAttribute.ConditionJson != null || testAttribute.TemplateJson != null)
+                var testAttributes = m.GetCustomAttributes<MethodProbeTestDataAttribute>().OfType<ProbeAttributeBase>().ToArray();
+                for (var testIndex = 0; testIndex < testAttributes.Length; testIndex++)
                 {
-                    probes.Add((testAttribute, CreateLogMethodProbe(m, guidGenerator)));
-                }
+                    var testAttribute = testAttributes[testIndex];
 
-                if (!string.IsNullOrEmpty(testAttribute.MetricKind))
-                {
-                    probes.Add((testAttribute, CreateMetricMethodProbe(m, guidGenerator)));
+                    if (IsMetricProbe(testAttribute))
+                    {
+                        probes.Add((testAttribute, CreateMetricMethodProbe(m, guidGenerator, testIndex)));
+                    }
+                    else if (IsSpanProbe(testAttribute))
+                    {
+                        probes.Add((testAttribute, CreateSpanMethodProbe(m, guidGenerator, testIndex)));
+                    }
+                    else if (IsLogProbe(testAttribute))
+                    {
+                        probes.Add((testAttribute, CreateLogMethodProbe(m, guidGenerator, testIndex)));
+                    }
+                    else if (IsSpanDecorationProbe(testAttribute))
+                    {
+                        probes.Add((testAttribute, CreateSpanDecorationMethodProbe(m, guidGenerator, testIndex)));
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException($"Unknown probe type: {testAttribute.GetType()}");
+                    }
                 }
 
                 return probes;
@@ -134,10 +166,15 @@ internal static class DebuggerTestHelper
 
     internal static ProbeDefinition CreateDefaultLogProbe(string typeName, string methodName, DeterministicGuidGenerator guidGenerator, MethodProbeTestDataAttribute probeTestData = null)
     {
-        return CreateBasicProbe<LogProbe>(probeTestData?.ProbeId ?? guidGenerator.New().ToString()).WithSampling().WithDefaultTemplate().WithCapture(probeTestData?.CaptureSnapshot).WithMethodWhere(typeName, methodName, probeTestData);
+        return CreateBasicProbe<LogProbe>(probeTestData?.ProbeId ?? guidGenerator.New().ToString()).WithSampling().WithDefaultTemplate().WithCapture(probeTestData?.CaptureSnapshot).WithMethodWhere(typeName, methodName, probeTestData: probeTestData);
     }
 
-    private static ProbeDefinition WithMethodWhere(this ProbeDefinition snapshot, string typeName, string methodName, MethodProbeTestDataAttribute probeTestData = null)
+    internal static ProbeDefinition CreateLogLineProbe(Type type, LineProbeTestDataAttribute line, DeterministicGuidGenerator guidGenerator)
+    {
+        return CreateBasicProbe<LogProbe>(line?.ProbeId ?? guidGenerator.New().ToString()).WithCapture(line?.CaptureSnapshot).WithSampling().WithTemplate(line).WithWhen(line).WithLineProbeWhere(type, line);
+    }
+
+    private static ProbeDefinition WithMethodWhere(this ProbeDefinition snapshot, string typeName, string methodName, MethodBase method = null, MethodProbeTestDataAttribute probeTestData = null)
     {
         var @where = new Where
         {
@@ -147,13 +184,14 @@ internal static class DebuggerTestHelper
 
         if (probeTestData != null)
         {
-            var signature = probeTestData.ReturnTypeName;
+            var signature = string.Empty;
             if (probeTestData.ParametersTypeName?.Any() == true)
             {
-                signature += "," + string.Join(",", probeTestData.ParametersTypeName);
+                signature = (method != null && !method.IsStatic) ? method.DeclaringType.FullName + "," : string.Empty;
+                signature += string.Join(",", probeTestData.ParametersTypeName);
             }
 
-            @where.Signature = signature;
+            @where.Signature = string.IsNullOrEmpty(signature) ? null : signature;
         }
 
         snapshot.Where = where;
@@ -162,9 +200,9 @@ internal static class DebuggerTestHelper
 
     private static ProbeDefinition WithLineProbeWhere(this ProbeDefinition snapshot, Type type, LineProbeTestDataAttribute line)
     {
-        using var reader = DatadogPdbReader.CreatePdbReader(type.Assembly);
-        var symbolMethod = reader.ReadMethodSymbolInfo(type.GetMethods().First().MetadataToken);
-        var filePath = symbolMethod.SequencePoints.First().Document.URL;
+        using var reader = DatadogMetadataReader.CreatePdbReader(type.Assembly);
+        var sequencePoints = reader?.GetMethodSequencePoints(type.GetMethods().First().MetadataToken);
+        var filePath = sequencePoints?.First().URL;
         var where = new Where { SourceFile = filePath, Lines = new[] { line.LineNumber.ToString() } };
         snapshot.Where = where;
         return snapshot;
@@ -182,7 +220,6 @@ internal static class DebuggerTestHelper
         {
             MaxCollectionSize = 1000,
             MaxFieldCount = 10000,
-            MaxFieldDepth = 3,
             MaxLength = int.MaxValue,
             MaxReferenceDepth = 3
         };
@@ -228,17 +265,29 @@ internal static class DebuggerTestHelper
 
     private static LogProbe WithTemplate(this LogProbe snapshot, ProbeAttributeBase att)
     {
-        if (att == null || string.IsNullOrEmpty(att.TemplateJson))
+        if (att == null || (string.IsNullOrEmpty(att.TemplateJson) && string.IsNullOrEmpty(att.TemplateStr)))
         {
             return snapshot.WithDefaultTemplate();
         }
 
-        snapshot.Segments = new SnapshotSegment[] { new(null, null, att.TemplateStr), new(string.Empty, att.TemplateJson, null) };
-        snapshot.EvaluateAt = ParseEnum<EvaluateAt>(att.EvaluateAt);
+        var segments = new List<SnapshotSegment>();
+
+        if (att.TemplateStr != null)
+        {
+            segments.Add(new SnapshotSegment(null, null, att.TemplateStr));
+        }
+
+        if (att.TemplateJson != null)
+        {
+            segments.Add(new SnapshotSegment(string.Empty, att.TemplateJson, null));
+        }
+
+        snapshot.Segments = segments.ToArray();
+        snapshot.EvaluateAt = ParseEnum<EvaluateAt>(att.EvaluateAt ?? "Exit");
         return snapshot;
     }
 
-    private static MetricProbe WithMetric(this MetricProbe probe, MethodProbeTestDataAttribute probeTestData)
+    private static MetricProbe WithMetric(this MetricProbe probe, MetricMethodProbeTestDataAttribute probeTestData)
     {
         probe.Value = new SnapshotSegment(null, probeTestData.MetricJson, string.Empty);
         probe.Kind = ParseEnum<MetricKind>(probeTestData.MetricKind);
@@ -246,16 +295,45 @@ internal static class DebuggerTestHelper
         return probe;
     }
 
-    private static ProbeDefinition CreateMetricMethodProbe(MethodBase method, DeterministicGuidGenerator guidGenerator)
+    private static SpanDecorationProbe WithSpanDecoration(this SpanDecorationProbe probe, SpanDecorationMethodProbeTestDataAttribute probeTestData)
     {
-        var probeTestData = GetProbeTestData(method, out var typeName);
+        probe.TargetSpan = TargetSpan.Active;
+        probe.Decorations = JsonConvert.DeserializeObject<SpanDecorationProbe>(probeTestData.Decorations).Decorations;
+        return probe;
+    }
+
+    private static ProbeDefinition CreateMetricMethodProbe(MethodBase method, DeterministicGuidGenerator guidGenerator, int testIndex)
+    {
+        var probeTestData = GetProbeTestData<MetricMethodProbeTestDataAttribute>(method, testIndex, out var typeName) as MetricMethodProbeTestDataAttribute;
 
         if (probeTestData == null || string.IsNullOrEmpty(probeTestData.MetricKind))
         {
             throw new InvalidOperationException("This probe attribute has no metric information");
         }
 
-        return CreateBasicProbe<MetricProbe>(probeTestData.ProbeId ?? guidGenerator.New().ToString()).WithMetric(probeTestData).WithMethodWhere(typeName, method.Name, probeTestData);
+        return CreateBasicProbe<MetricProbe>(probeTestData.ProbeId ?? guidGenerator.New().ToString()).WithMetric(probeTestData).WithMethodWhere(typeName, method.Name, method, probeTestData);
+    }
+
+    private static ProbeDefinition CreateSpanMethodProbe(MethodBase method, DeterministicGuidGenerator guidGenerator, int testIndex)
+    {
+        var probeTestData = GetProbeTestData<SpanOnMethodProbeTestDataAttribute>(method, testIndex, out var typeName);
+        if (probeTestData == null)
+        {
+            throw new InvalidOperationException("Probe attribute is null");
+        }
+
+        return CreateBasicProbe<SpanProbe>(probeTestData.ProbeId ?? guidGenerator.New().ToString()).WithMethodWhere(typeName, method.Name, method, probeTestData);
+    }
+
+    private static ProbeDefinition CreateSpanDecorationMethodProbe(MethodBase method, DeterministicGuidGenerator guidGenerator, int testIndex)
+    {
+        var probeTestData = GetProbeTestData<SpanDecorationMethodProbeTestDataAttribute>(method, testIndex, out var typeName) as SpanDecorationMethodProbeTestDataAttribute;
+        if (probeTestData == null)
+        {
+            throw new InvalidOperationException("Probe attribute is null");
+        }
+
+        return CreateBasicProbe<SpanDecorationProbe>(probeTestData.ProbeId ?? guidGenerator.New().ToString()).WithSpanDecoration(probeTestData).WithMethodWhere(typeName, method.Name, method, probeTestData);
     }
 
     private static bool IsOptimized(Assembly assembly)
@@ -265,23 +343,24 @@ internal static class DebuggerTestHelper
         return isOptimized;
     }
 
-    private static ProbeDefinition CreateLogMethodProbe(MethodBase method, DeterministicGuidGenerator guidGenerator)
+    private static ProbeDefinition CreateLogMethodProbe(MethodBase method, DeterministicGuidGenerator guidGenerator, int testIndex)
     {
-        var probeTestData = GetProbeTestData(method, out var typeName);
+        var probeTestData = GetProbeTestData<LogMethodProbeTestDataAttribute>(method, testIndex, out var typeName);
         if (probeTestData == null)
         {
             throw new InvalidOperationException("Probe attribute is null");
         }
 
-        return CreateBasicProbe<LogProbe>(probeTestData.ProbeId ?? guidGenerator.New().ToString()).WithCapture(probeTestData.CaptureSnapshot).WithSampling().WithTemplate(probeTestData).WithWhen(probeTestData).WithMethodWhere(typeName, method.Name, probeTestData);
+        return CreateBasicProbe<LogProbe>(probeTestData.ProbeId ?? guidGenerator.New().ToString()).WithCapture(probeTestData.CaptureSnapshot).WithSampling().WithTemplate(probeTestData).WithWhen(probeTestData).WithMethodWhere(typeName, method.Name, method, probeTestData);
     }
 
-    private static MethodProbeTestDataAttribute GetProbeTestData(MethodBase method, out string typeName)
+    private static MethodProbeTestDataAttribute GetProbeTestData<T>(MethodBase method, int testIndex, out string typeName)
+        where T : MethodProbeTestDataAttribute
     {
-        var probeTestData = method.GetCustomAttribute<MethodProbeTestDataAttribute>();
+        var probeTestData = method.GetCustomAttributes<MethodProbeTestDataAttribute>().ElementAt(testIndex);
         if (probeTestData == null)
         {
-            throw new Xunit.Sdk.SkipException($"{nameof(MethodProbeTestDataAttribute)} has not found for method: {method.DeclaringType?.FullName}.{method.Name}");
+            throw new Xunit.Sdk.SkipException($"{typeof(T).Name} has not found for method: {method.DeclaringType?.FullName}.{method.Name}");
         }
 
         typeName = probeTestData.UseFullTypeName ? method.DeclaringType?.FullName : method.DeclaringType?.Name;
@@ -294,11 +373,6 @@ internal static class DebuggerTestHelper
         return probeTestData;
     }
 
-    private static ProbeDefinition CreateLogLineProbe(Type type, LineProbeTestDataAttribute line, DeterministicGuidGenerator guidGenerator)
-    {
-        return CreateBasicProbe<LogProbe>(line?.ProbeId ?? guidGenerator.New().ToString()).WithCapture(line?.CaptureSnapshot).WithSampling().WithTemplate(line).WithWhen(line).WithLineProbeWhere(type, line);
-    }
-
     private static IEnumerable<MethodBase> GetAllTestMethods<T>(Type type, string targetFramework, bool unlisted)
         where T : ProbeAttributeBase
     {
@@ -308,21 +382,24 @@ internal static class DebuggerTestHelper
             BindingFlags.Static |
             BindingFlags.Instance;
 
-        return type.GetNestedTypes(allMask)
-                   .SelectMany(
-                        nestedType =>
-                            nestedType.GetMethods(allMask | BindingFlags.DeclaredOnly)
-                                      .Concat(nestedType.GetConstructors(allMask | BindingFlags.DeclaredOnly).As<IEnumerable<MethodBase>>()))
-                   .Concat(
-                        type.GetMethods(allMask | BindingFlags.DeclaredOnly)
-                            .Concat(type.GetConstructors(allMask | BindingFlags.DeclaredOnly).As<IEnumerable<MethodBase>>()))
-                   .As<IEnumerable<MethodBase>>()
-                   .Where(
-                        m =>
-                        {
-                            var att = m.GetCustomAttribute<T>();
-                            return att?.Skip == false && att.Unlisted == unlisted && att.SkipOnFrameworks.Contains(targetFramework) == false;
-                        });
+        IEnumerable<MethodBase> GetMethodsRecursive(Type currentType)
+        {
+            var methods = currentType.GetMethods(allMask | BindingFlags.DeclaredOnly)
+                                     .Concat(currentType.GetConstructors(allMask | BindingFlags.DeclaredOnly).As<IEnumerable<MethodBase>>());
+
+            var nestedMethods = currentType.GetNestedTypes(allMask)
+                                           .SelectMany(GetMethodsRecursive);
+
+            return methods.Concat(nestedMethods);
+        }
+
+        var allMethods = GetMethodsRecursive(type);
+
+        return allMethods.Where(m =>
+        {
+            var atts = m.GetCustomAttributes<T>();
+            return atts.Any() && atts.All(att => att?.Skip == false && att.Unlisted == unlisted && !att.SkipOnFrameworks.Contains(targetFramework));
+        });
     }
 
     private static T ParseEnum<T>(string enumValue)

@@ -18,7 +18,6 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Testing.MsTestV2;
     TypeName = "Microsoft.VisualStudio.TestPlatform.MSTest.TestAdapter.Execution.TestAssemblyInfo",
     MethodName = "RunAssemblyCleanup",
     ReturnTypeName = ClrNames.String,
-    ParameterTypeNames = new string[0],
     MinimumVersion = "14.0.0",
     MaximumVersion = "14.*.*",
     IntegrationName = MsTestIntegration.IntegrationName)]
@@ -33,8 +32,9 @@ public static class TestAssemblyInfoRunAssemblyCleanupIntegration
     /// <param name="instance">Instance value, aka `this` of the instrumented method.</param>
     /// <returns>Calltarget state value</returns>
     internal static CallTargetState OnMethodBegin<TTarget>(TTarget instance)
+        where TTarget : ITestAssemblyInfo
     {
-        if (MsTestIntegration.IsEnabled && TestAssemblyInfoRunAssemblyInitializeIntegration.TestAssemblyInfos.TryGetValue(instance, out var moduleObject) && moduleObject is TestModule module)
+        if (MsTestIntegration.IsEnabled && MsTestIntegration.GetOrCreateTestModuleFromTestAssemblyInfo(instance, null) is { } module)
         {
             return new CallTargetState(null, module);
         }
@@ -67,6 +67,9 @@ public static class TestAssemblyInfoRunAssemblyCleanupIntegration
             }
 
             module.Close();
+
+            // Because we are auto-instrumenting a VSTest testhost process we need to manually call the shutdown process
+            CIVisibility.Close();
         }
 
         return new CallTargetReturn<TReturn>(returnValue);

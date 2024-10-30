@@ -1,11 +1,18 @@
 cmake_minimum_required (VERSION 3.8..3.19)
 cmake_policy(SET CMP0015 NEW)
 
+# macOS uses 3.30 which deprecates FetchContent_Populate in favor of FetchContent_MakeAvailable,
+# but we're using 3.13.4 on Linux, which doesn't have FetchContent_MakeAvailable
+
+if(POLICY CMP0169)
+    cmake_policy(SET CMP0169 OLD)
+endif()
+
 # ******************************************************
 # Project definition
 # ******************************************************
 
-project("Datadog.Tracer.Native" VERSION 2.27.0)
+project("Datadog.Tracer.Native" VERSION 3.3.1)
 
 # ******************************************************
 # Environment detection
@@ -108,7 +115,7 @@ SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${OUTPUT_BIN_DIR})
 # ******************************************************
 
 # Sets compiler options
-add_compile_options(-std=c++17 -fPIC -fms-extensions -fvisibility=hidden)
+add_compile_options(-std=c++20 -fPIC -fms-extensions -fvisibility=hidden -g)
 add_compile_options(-DPAL_STDCPP_COMPAT -DPLATFORM_UNIX -DUNICODE)
 add_compile_options(-Wno-invalid-noreturn -Wno-macro-redefined)
 if (ISMACOS)
@@ -178,13 +185,28 @@ add_library("Datadog.Tracer.Native.static" STATIC
         iast/dataflow_aspects.cpp
         iast/dataflow_il_analysis.cpp
         iast/dataflow_il_rewriter.cpp
+        iast/hardcoded_secrets_method_analyzer.cpp
         iast/iast_util.cpp
+        iast/method_analyzer.cpp
+        iast/method_analyzers.cpp
         iast/method_info.cpp
         iast/module_info.cpp
         iast/signature_info.cpp
         iast/signature_types.cpp
         iast/string_literal_aspect_filter.cpp
         iast/string_optimization_aspect_filter.cpp
+        fault_tolerant_envionrment_variables_util.cpp
+        fault_tolerant_method_duplicator.cpp
+        fault_tolerant_rewriter.cpp
+        fault_tolerant_tokens.cpp
+        fault_tolerant_tracker.cpp
+        fault_tolerant_cor_profiler_function_control.cpp
+        threadUtils.cpp
+        function_control_wrapper.cpp
+        tracer_handler_module_method.cpp
+        tracer_integration_definition.cpp
+        tracer_method_rewriter.cpp
+        tracer_rejit_preprocessor.cpp
 )
 
 set_target_properties("Datadog.Tracer.Native.static" PROPERTIES PREFIX "")
@@ -195,7 +217,6 @@ if (ISMACOS)
     target_link_libraries("Datadog.Tracer.Native.static"
         managed-loader-objs
         coreclr
-        fmt-lib
         re2-lib
         spdlog-headers
         ${CMAKE_DL_LIBS}
@@ -205,17 +226,17 @@ elseif(ISLINUX)
     target_link_libraries("Datadog.Tracer.Native.static"
         managed-loader-objs
         coreclr
-        fmt-lib
         re2-lib
         spdlog-headers
         managed-loader-objs
         ${CMAKE_DL_LIBS}
         -static-libgcc
         -static-libstdc++
+        -Wl,--build-id
     )
 endif()
 
-add_dependencies("Datadog.Tracer.Native.static" fmt-lib coreclr re2-lib spdlog-headers managed-loader-objs)
+add_dependencies("Datadog.Tracer.Native.static" coreclr re2-lib spdlog-headers managed-loader-objs)
 
 # ******************************************************
 # Define shared target

@@ -3,6 +3,8 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
 
+using System.ComponentModel;
+
 #pragma warning disable SA1300
 
 namespace Datadog.Trace.Debugger.Snapshots
@@ -14,7 +16,9 @@ namespace Datadog.Trace.Debugger.Snapshots
             collectionSize,
             depth,
             fieldCount,
-            timeout
+            timeout,
+            redactedIdent,
+            redactedType
         }
     }
 }

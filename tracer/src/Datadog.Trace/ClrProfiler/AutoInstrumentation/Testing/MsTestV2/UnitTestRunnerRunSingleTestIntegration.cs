@@ -4,6 +4,7 @@
 // </copyright>
 
 using System;
+using System.Collections;
 using System.ComponentModel;
 using Datadog.Trace.Ci;
 using Datadog.Trace.ClrProfiler.CallTarget;
@@ -19,7 +20,7 @@ namespace Datadog.Trace.ClrProfiler.AutoInstrumentation.Testing.MsTestV2;
     TypeName = "Microsoft.VisualStudio.TestPlatform.MSTest.TestAdapter.Execution.UnitTestRunner",
     MethodName = "RunSingleTest",
     ReturnTypeName = "Microsoft.VisualStudio.TestPlatform.MSTest.TestAdapter.ObjectModel.UnitTestResult[]",
-    ParameterTypeNames = new string[] { "Microsoft.VisualStudio.TestPlatform.MSTest.TestAdapter.ObjectModel.TestMethod", "System.Collections.Generic.IDictionary`2[System.String,System.Object]" },
+    ParameterTypeNames = new[] { "Microsoft.VisualStudio.TestPlatform.MSTest.TestAdapter.ObjectModel.TestMethod", "System.Collections.Generic.IDictionary`2[System.String,System.Object]" },
     MinimumVersion = "14.0.0",
     MaximumVersion = "14.*.*",
     IntegrationName = MsTestIntegration.IntegrationName)]
@@ -44,22 +45,26 @@ public static class UnitTestRunnerRunSingleTestIntegration
             return new CallTargetReturn<TReturn>(returnValue);
         }
 
-        var objTestMethodInfo = MsTestIntegration.IsTestMethodRunnableThreadLocal.Value;
+        var methodInfoCacheItem = MsTestIntegration.IsTestMethodRunnableThreadLocal.Value;
         MsTestIntegration.IsTestMethodRunnableThreadLocal.Value = null;
-        if (objTestMethodInfo is not null && returnValue is Array { Length: 1 } returnValueArray)
-        {
-            var unitTestResultObject = returnValueArray.GetValue(0);
 
-            if (unitTestResultObject != null &&
-                unitTestResultObject.TryDuckCast<UnitTestResultStruct>(out var unitTestResult) &&
-                objTestMethodInfo.TryDuckCast<ITestMethod>(out var testMethodInfo))
+        if (methodInfoCacheItem is not null && returnValue is IList { Count: > 0 } lstResults)
+        {
+            foreach (var unitTestResultObject in lstResults)
             {
-                var outcome = unitTestResult.Outcome;
-                if (outcome is UnitTestResultOutcome.Inconclusive or UnitTestResultOutcome.NotRunnable or UnitTestResultOutcome.Ignored)
+                if (unitTestResultObject != null &&
+                    unitTestResultObject.TryDuckCast<UnitTestResultStruct>(out var unitTestResult) &&
+                    methodInfoCacheItem.TestMethodInfo.TryDuckCast<ITestMethod>(out var testMethodInfo))
                 {
-                    // This instrumentation catches all tests being ignored
-                    var test = MsTestIntegration.OnMethodBegin(testMethodInfo, instance.GetType());
-                    test.Close(TestStatus.Skip, TimeSpan.Zero, unitTestResult.ErrorMessage);
+                    if (unitTestResult.Outcome is UnitTestResultOutcome.Inconclusive or UnitTestResultOutcome.NotRunnable or UnitTestResultOutcome.Ignored)
+                    {
+                        if (!MsTestIntegration.ShouldSkip(testMethodInfo, out _, out _))
+                        {
+                            // This instrumentation catches all tests being ignored
+                            MsTestIntegration.OnMethodBegin(testMethodInfo, instance.GetType(), isRetry: false)?
+                               .Close(TestStatus.Skip, TimeSpan.Zero, unitTestResult.ErrorMessage);
+                        }
+                    }
                 }
             }
         }

@@ -4,7 +4,13 @@
 // </copyright>
 
 #nullable enable
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Datadog.Trace.Configuration;
+using Datadog.Trace.Configuration.Telemetry;
+using Datadog.Trace.Telemetry;
+using Datadog.Trace.VendoredMicrosoftCode.System.Collections.Immutable;
 
 namespace Datadog.Trace.Debugger
 {
@@ -15,52 +21,105 @@ namespace Datadog.Trace.Debugger
         public const int DefaultMaxSerializationTimeInMilliseconds = 200;
         public const int DefaultMaxNumberOfItemsInCollectionToCopy = 100;
         public const int DefaultMaxNumberOfFieldsToCopy = 20;
+        public const int DefaultMaxStringLength = 1000;
 
         private const int DefaultUploadBatchSize = 100;
-        private const int DefaultDiagnosticsIntervalSeconds = 5;
+        public const int DefaultSymbolBatchSizeInBytes = 100000;
+        private const int DefaultDiagnosticsIntervalSeconds = 60 * 60; // 1 hour
         private const int DefaultUploadFlushIntervalMilliseconds = 0;
 
-        public DebuggerSettings()
-            : this(configurationSource: null)
+        public DebuggerSettings(IConfigurationSource? source, IConfigurationTelemetry telemetry)
         {
-        }
+            source ??= NullConfigurationSource.Instance;
+            var config = new ConfigurationBuilder(source, telemetry);
 
-        public DebuggerSettings(IConfigurationSource? configurationSource)
-        {
-            Enabled = configurationSource?.GetBool(ConfigurationKeys.Debugger.Enabled) ?? false;
+            Enabled = config.WithKeys(ConfigurationKeys.Debugger.Enabled).AsBool(false);
+            SymbolDatabaseUploadEnabled = config.WithKeys(ConfigurationKeys.Debugger.SymbolDatabaseUploadEnabled).AsBool(false);
 
-            var maxDepth = configurationSource?.GetInt32(ConfigurationKeys.Debugger.MaxDepthToSerialize);
-            MaximumDepthOfMembersToCopy =
-                maxDepth is null or <= 0
-                    ? DefaultMaxDepthToSerialize
-                    : maxDepth.Value;
+            MaximumDepthOfMembersToCopy = config
+                                         .WithKeys(ConfigurationKeys.Debugger.MaxDepthToSerialize)
+                                         .AsInt32(DefaultMaxDepthToSerialize, maxDepth => maxDepth > 0)
+                                         .Value;
 
-            var serializationTimeThreshold = configurationSource?.GetInt32(ConfigurationKeys.Debugger.MaxTimeToSerialize);
-            MaxSerializationTimeInMilliseconds =
-                serializationTimeThreshold is null or <= 0
-                    ? DefaultMaxSerializationTimeInMilliseconds
-                    : serializationTimeThreshold.Value;
+            MaxSerializationTimeInMilliseconds = config
+                                                .WithKeys(ConfigurationKeys.Debugger.MaxTimeToSerialize)
+                                                .AsInt32(
+                                                     DefaultMaxSerializationTimeInMilliseconds,
+                                                     serializationTimeThreshold => serializationTimeThreshold > 0)
+                                                .Value;
 
-            var batchSize = configurationSource?.GetInt32(ConfigurationKeys.Debugger.UploadBatchSize);
-            UploadBatchSize =
-                batchSize is null or <= 0
-                    ? DefaultUploadBatchSize
-                    : batchSize.Value;
+            UploadBatchSize = config
+                             .WithKeys(ConfigurationKeys.Debugger.UploadBatchSize)
+                             .AsInt32(DefaultUploadBatchSize, batchSize => batchSize > 0)
+                             .Value;
 
-            var interval = configurationSource?.GetInt32(ConfigurationKeys.Debugger.DiagnosticsInterval);
-            DiagnosticsIntervalSeconds =
-                interval is null or <= 0
-                    ? DefaultDiagnosticsIntervalSeconds
-                    : interval.Value;
+            SymbolDatabaseBatchSizeInBytes = config
+                                         .WithKeys(ConfigurationKeys.Debugger.SymbolDatabaseBatchSizeInBytes)
+                                         .AsInt32(DefaultSymbolBatchSizeInBytes, batchSize => batchSize > 0)
+                                         .Value;
 
-            var flushInterval = configurationSource?.GetInt32(ConfigurationKeys.Debugger.UploadFlushInterval);
-            UploadFlushIntervalMilliseconds =
-                flushInterval is null or < 0
-                    ? DefaultUploadFlushIntervalMilliseconds
-                    : flushInterval.Value;
+            var thirdPartyIncludes = config
+                                  .WithKeys(ConfigurationKeys.Debugger.ThirdPartyDetectionIncludes)
+                                  .AsString()?
+                                  .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries) ??
+                                   Enumerable.Empty<string>();
+
+            ThirdPartyDetectionIncludes = thirdPartyIncludes.ToImmutableHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var thirdPartyExcludes = config
+                                    .WithKeys(ConfigurationKeys.Debugger.ThirdPartyDetectionExcludes)
+                                    .AsString()?
+                                    .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries) ??
+                                     Enumerable.Empty<string>();
+
+            ThirdPartyDetectionExcludes = thirdPartyExcludes.ToImmutableHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var symDb3rdPartyIncludeLibraries = config
+                                               .WithKeys(ConfigurationKeys.Debugger.SymDbThirdPartyDetectionIncludes)
+                                               .AsString()?
+                                               .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries) ??
+                                                Enumerable.Empty<string>();
+
+            SymDbThirdPartyDetectionIncludes = new HashSet<string>([..symDb3rdPartyIncludeLibraries, ..ThirdPartyDetectionIncludes]).ToImmutableHashSet();
+
+            var symDb3rdPartyExcludeLibraries = config
+                                               .WithKeys(ConfigurationKeys.Debugger.SymDbThirdPartyDetectionExcludes)
+                                               .AsString()?
+                                               .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries) ??
+                                                Enumerable.Empty<string>();
+
+            SymDbThirdPartyDetectionExcludes = new HashSet<string>([..symDb3rdPartyExcludeLibraries, ..ThirdPartyDetectionExcludes]).ToImmutableHashSet();
+
+            DiagnosticsIntervalSeconds = config
+                                        .WithKeys(ConfigurationKeys.Debugger.DiagnosticsInterval)
+                                        .AsInt32(DefaultDiagnosticsIntervalSeconds, interval => interval > 0)
+                                        .Value;
+
+            UploadFlushIntervalMilliseconds = config
+                                             .WithKeys(ConfigurationKeys.Debugger.UploadFlushInterval)
+                                             .AsInt32(DefaultUploadFlushIntervalMilliseconds, flushInterval => flushInterval >= 0)
+                                             .Value;
+
+            var redactedIdentifiers = config
+                                 .WithKeys(ConfigurationKeys.Debugger.RedactedIdentifiers)
+                                 .AsString()?
+                                 .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries) ??
+                                  Enumerable.Empty<string>();
+
+            RedactedIdentifiers = new HashSet<string>(redactedIdentifiers, StringComparer.OrdinalIgnoreCase);
+
+            var redactedTypes = config
+                                     .WithKeys(ConfigurationKeys.Debugger.RedactedTypes)
+                                     .AsString()?
+                                     .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries) ??
+                                      Enumerable.Empty<string>();
+
+            RedactedTypes = new HashSet<string>(redactedTypes, StringComparer.OrdinalIgnoreCase);
         }
 
         public bool Enabled { get; }
+
+        public bool SymbolDatabaseUploadEnabled { get; }
 
         public int MaxSerializationTimeInMilliseconds { get; }
 
@@ -68,18 +127,32 @@ namespace Datadog.Trace.Debugger
 
         public int UploadBatchSize { get; }
 
+        public int SymbolDatabaseBatchSizeInBytes { get; }
+
+        public ImmutableHashSet<string> ThirdPartyDetectionIncludes { get; }
+
+        public ImmutableHashSet<string> ThirdPartyDetectionExcludes { get; }
+
+        public ImmutableHashSet<string> SymDbThirdPartyDetectionIncludes { get; }
+
+        public ImmutableHashSet<string> SymDbThirdPartyDetectionExcludes { get; }
+
         public int DiagnosticsIntervalSeconds { get; }
 
         public int UploadFlushIntervalMilliseconds { get; }
 
-        public static DebuggerSettings FromSource(IConfigurationSource source)
+        public HashSet<string> RedactedIdentifiers { get; }
+
+        public HashSet<string> RedactedTypes { get; }
+
+        public static DebuggerSettings FromSource(IConfigurationSource source, IConfigurationTelemetry telemetry)
         {
-            return new DebuggerSettings(source);
+            return new DebuggerSettings(source, telemetry);
         }
 
         public static DebuggerSettings FromDefaultSource()
         {
-            return FromSource(GlobalConfigurationSource.Instance);
+            return FromSource(GlobalConfigurationSource.Instance, TelemetryFactory.Config);
         }
     }
 }

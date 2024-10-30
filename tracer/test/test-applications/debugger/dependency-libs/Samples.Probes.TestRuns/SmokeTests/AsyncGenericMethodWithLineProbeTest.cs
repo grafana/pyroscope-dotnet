@@ -6,7 +6,7 @@ using Samples.Probes.TestRuns.Shared;
 
 namespace Samples.Probes.TestRuns.SmokeTests
 {
-    [LineProbeTestData(39, expectedNumberOfSnapshots:0 /* in optimize code this will create a generic struct state machine */)]
+    [LogLineProbeTestData(39, expectedNumberOfSnapshots:0 /* in optimize code this will create a generic struct state machine */, expectProbeStatusFailure: true)]
     public class AsyncGenericMethodWithLineProbeTest : IAsyncRun
     {
         [MethodImpl(MethodImplOptions.NoInlining)]
@@ -14,10 +14,10 @@ namespace Samples.Probes.TestRuns.SmokeTests
         {
             var place = new Place { Type = PlaceType.City, Name = "New York" };
 
-            var address = new Address { City = place, HomeType = BuildingType.Duplex, Number = 15, Street = "Harlem" };
+            var adrs = new Address { City = place, HomeType = BuildingType.Duplex, Number = 15, Street = "Harlem" };
             var children = new List<Person>();
-            children.Add(new Person("Ralph Jr.", 31, address, Guid.Empty, null));
-            var person = new Person("Ralph", 99, address, Guid.Empty, children);
+            children.Add(new Person("Ralph Jr.", 31, adrs, Guid.Empty, null));
+            var person = new Person("Ralph", 99, adrs, Guid.Empty, children);
             await new NestedAsyncGenericStruct<Generic>(person).Method(new Generic { Message = "NestedAsyncGenericStruct" }, $".{nameof(RunAsync)}");
         }
 
@@ -31,7 +31,8 @@ namespace Samples.Probes.TestRuns.SmokeTests
             }
 
             [MethodImpl(MethodImplOptions.NoInlining)]
-            [MethodProbeTestData(expectedNumberOfSnapshots: 0 /* in optimize code this will create a generic struct state machine*/)]
+            [LogMethodProbeTestData(expectedNumberOfSnapshots: 0 /* in optimize code this will create a generic struct state machine*/,
+                                    expectProbeStatusFailure: false)] /* this currently doesn't get reported as a failure, though it should */
             public async Task<string> Method<K>(K generic, string input) where K : IGeneric
             {
                 var output = generic.Message + input + ".";
