@@ -47,16 +47,8 @@ public:
         auto contentionCountIndex = valueOffsets[0];
         auto contentionDurationIndex = valueOffsets[1];
 
-        //sample->AddLabel(Label{BucketLabelName, std::move(Bucket)});
         sample->AddValue(1, contentionCountIndex);
-        sample->AddNumericLabel(NumericLabel{RawCountLabelName, 1});
-        sample->AddNumericLabel(NumericLabel{RawDurationLabelName, static_cast<uint64_t>(ContentionDuration)});
         sample->AddValue(static_cast<std::int64_t>(ContentionDuration), contentionDurationIndex);
-        if (BlockingThreadId != 0)
-        {
-            sample->AddNumericLabel(NumericLabel{BlockingThreadIdLabelName, BlockingThreadId});
-            sample->AddLabel(Label{BlockingThreadNameLabelName, shared::ToString(BlockingThreadName)});
-        }
     }
 
     double ContentionDuration;
