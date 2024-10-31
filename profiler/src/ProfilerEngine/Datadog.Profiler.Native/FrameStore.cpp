@@ -176,9 +176,6 @@ FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId)
         return {UnknownManagedAssembly, UnknownManagedFrame, {}, 0};
     }
 
-    // get the method signature
-     std::string signature = GetMethodSignature(_pCorProfilerInfo, pMetadataImport.Get(), mdTokenType, functionId, mdTokenFunc);
-
     // get type related description (assembly, namespace and type name)
     // look into the cache first
     TypeDesc* pTypeDesc = nullptr;  // if already in the cache
