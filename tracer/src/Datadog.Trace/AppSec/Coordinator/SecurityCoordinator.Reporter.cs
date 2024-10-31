@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.IO;
 using System.IO.Compression;
+using Datadog.Trace.AppSec.AttackerFingerprint;
 using Datadog.Trace.AppSec.Waf;
 using Datadog.Trace.ExtensionMethods;
 using Datadog.Trace.Headers;
@@ -113,6 +114,8 @@ internal readonly partial struct SecurityCoordinator
             _httpTransport.ReportedExternalWafsRequestHeaders = true;
         }
 
+        AttackerFingerprintHelper.AddSpanTags(_localRootSpan, result);
+
         if (result.ShouldReportSecurityResult)
         {
             _localRootSpan.SetTag(Tags.AppSecEvent, "true");
@@ -128,7 +131,7 @@ internal readonly partial struct SecurityCoordinator
             var traceContext = _localRootSpan.Context.TraceContext;
             if (result.Data != null)
             {
-                traceContext.AddWafSecurityEvents(result.Data);
+                traceContext.AppSecRequestContext.AddWafSecurityEvents(result.Data);
             }
 
             var clientIp = _localRootSpan.GetTag(Tags.HttpClientIp);
@@ -157,9 +160,9 @@ internal readonly partial struct SecurityCoordinator
 
         AddRaspSpanMetrics(result, _localRootSpan);
 
-        if (result.ShouldReportSchema)
+        if (result.ExtractSchemaDerivatives?.Count > 0)
         {
-            foreach (var derivative in result.Derivatives)
+            foreach (var derivative in result.ExtractSchemaDerivatives)
             {
                 var serializeObject = JsonConvert.SerializeObject(derivative.Value);
                 var bytes = System.Text.Encoding.UTF8.GetBytes(serializeObject);
@@ -191,7 +194,7 @@ internal readonly partial struct SecurityCoordinator
         // We report always, even if there is no match
         if (result.AggregatedTotalRuntimeRasp > 0)
         {
-            localRootSpan.Context.TraceContext.AddRaspSpanMetrics(result.AggregatedTotalRuntimeRasp, result.AggregatedTotalRuntimeWithBindingsRasp, result.Timeout);
+            localRootSpan.Context.TraceContext.AppSecRequestContext.AddRaspSpanMetrics(result.AggregatedTotalRuntimeRasp, result.AggregatedTotalRuntimeWithBindingsRasp, result.Timeout);
         }
     }
 

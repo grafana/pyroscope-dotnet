@@ -6,10 +6,14 @@
 
 using System;
 using System.Collections.Specialized;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
+using Datadog.Trace.Ci.Tags;
 using Datadog.Trace.Configuration;
 using Datadog.Trace.Configuration.ConfigurationSources.Telemetry;
 using Datadog.Trace.Configuration.Telemetry;
+using Datadog.Trace.ExtensionMethods;
 using Datadog.Trace.Telemetry;
 using Datadog.Trace.Util;
 
@@ -63,6 +67,48 @@ namespace Datadog.Trace.Ci.Configuration
 
             // RUM flush milliseconds
             RumFlushWaitMillis = config.WithKeys(ConfigurationKeys.CIVisibility.RumFlushWaitMillis).AsInt32(500);
+
+            // Test session name
+            TestSessionName = config.WithKeys(ConfigurationKeys.CIVisibility.TestSessionName).AsString(
+                getDefaultValue: () =>
+                {
+                    // We try to get the command from the active test session or test module
+                    var command = TestSession.ActiveTestSessions.FirstOrDefault()?.Command ??
+                                  TestModule.ActiveTestModules.FirstOrDefault()?.Tags.Command ??
+                                  string.Empty;
+
+                    if (string.IsNullOrEmpty(command))
+                    {
+                        // If there's no active test session or test module we try to get the command from the environment (sent by dd-trace session)
+                        var environmentVariables = EnvironmentHelpers.GetEnvironmentVariables();
+                        if (environmentVariables.TryGetValue<string>(TestSuiteVisibilityTags.TestSessionCommandEnvironmentVariable, out var testSessionCommand) && !string.IsNullOrEmpty(testSessionCommand))
+                        {
+                            command = testSessionCommand;
+                        }
+                        else
+                        {
+                            // As last resort we use the command line that started this process
+                            command = Environment.CommandLine;
+                        }
+                    }
+
+                    if (CiEnvironment.CIEnvironmentValues.Instance.JobName is { } jobName)
+                    {
+                        return $"{jobName}-{command}";
+                    }
+
+                    return command;
+                },
+                validator: null);
+
+            // Flaky retry
+            FlakyRetryEnabled = config.WithKeys(ConfigurationKeys.CIVisibility.FlakyRetryEnabled).AsBool();
+
+            // Maximum number of retry attempts for a single test case.
+            FlakyRetryCount = config.WithKeys(ConfigurationKeys.CIVisibility.FlakyRetryCount).AsInt32(defaultValue: 5, validator: val => val >= 1) ?? 5;
+
+            // Maximum number of retry attempts for the entire session.
+            TotalFlakyRetryCount = config.WithKeys(ConfigurationKeys.CIVisibility.TotalFlakyRetryCount).AsInt32(defaultValue: 1_000, validator: val => val >= 1) ?? 1_000;
         }
 
         /// <summary>
@@ -171,6 +217,26 @@ namespace Datadog.Trace.Ci.Configuration
         public int RumFlushWaitMillis { get; }
 
         /// <summary>
+        /// Gets the test session name
+        /// </summary>
+        public string TestSessionName { get; }
+
+        /// <summary>
+        /// Gets a value indicating whether the Flaky Retry feature is enabled.
+        /// </summary>
+        public bool? FlakyRetryEnabled { get; private set; }
+
+        /// <summary>
+        /// Gets a value indicating the maximum number of retry attempts for a single test case.
+        /// </summary>
+        public int FlakyRetryCount { get; private set; }
+
+        /// <summary>
+        /// Gets a value indicating the maximum number of retry attempts for the entire session.
+        /// </summary>
+        public int TotalFlakyRetryCount { get; private set; }
+
+        /// <summary>
         /// Gets the tracer settings
         /// </summary>
         public TracerSettings TracerSettings => LazyInitializer.EnsureInitialized(ref _tracerSettings, () => InitializeTracerSettings())!;
@@ -193,6 +259,11 @@ namespace Datadog.Trace.Ci.Configuration
         internal void SetEarlyFlakeDetectionEnabled(bool value)
         {
             EarlyFlakeDetectionEnabled = value;
+        }
+
+        internal void SetFlakyRetryEnabled(bool value)
+        {
+            FlakyRetryEnabled = value;
         }
 
         internal void SetAgentlessConfiguration(bool enabled, string? apiKey, string? agentlessUrl)

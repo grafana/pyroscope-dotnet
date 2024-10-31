@@ -8,10 +8,10 @@
 #pragma warning disable SA1649 // File name must match first type name
 
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading.Tasks;
-using Datadog.Trace.AppSec;
 using Datadog.Trace.Iast.Telemetry;
 using Datadog.Trace.Security.IntegrationTests.IAST;
 using Datadog.Trace.TestHelpers;
@@ -68,6 +68,7 @@ public abstract class AspNetMvc5RaspTests : AspNetBase, IClassFixture<IisFixture
         EnableRasp();
         SetSecurity(true);
         EnableIast(enableIast);
+        AddCookies(new Dictionary<string, string> { { "cookie-key", "cookie-value" } });
         EnableIastTelemetry((int)IastMetricsVerbosityLevel.Off);
         EnableEvidenceRedaction(false);
         SetEnvironmentVariable("DD_IAST_DEDUPLICATION_ENABLED", "false");
@@ -95,6 +96,13 @@ public abstract class AspNetMvc5RaspTests : AspNetBase, IClassFixture<IisFixture
     [InlineData("/Iast/ExecuteCommand?file=ls&argumentLine=;evilCommand&fromShell=true", "CmdI")]
     public async Task TestRaspRequest(string url, string exploit)
     {
+        AddHeaders(new()
+        {
+            { "Accept-Language", "en_UK" },
+            { "X-Custom-Header", "42" },
+            { "AnotherHeader", "Value" },
+        });
+
         var agent = _iisFixture.Agent;
         var settings = VerifyHelper.GetSpanVerifierSettings();
         settings.UseParameters(url, exploit);
