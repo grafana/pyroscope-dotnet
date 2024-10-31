@@ -11,6 +11,7 @@ using System.Linq;
 using System.Numerics;
 using System.Threading;
 using Datadog.Trace.Agent.DiscoveryService;
+using Datadog.Trace.AppSec.AttackerFingerprint;
 using Datadog.Trace.AppSec.Rcm;
 using Datadog.Trace.AppSec.Rcm.Models.AsmDd;
 using Datadog.Trace.AppSec.Waf;
@@ -207,7 +208,6 @@ namespace Datadog.Trace.AppSec
                 // store the last config state, clearing any previous state, without deserializing any payloads yet.
                 var anyChange = _configurationStatus.StoreLastConfigState(configsByProduct, removedConfigs);
                 var securityStateChange = Enabled != _configurationStatus.EnableAsm;
-
                 // normally CanBeToggled should not need a check as asm_features capacity is only sent if AppSec env var is null, but still guards it in case
                 if (securityStateChange && _settings.CanBeToggled)
                 {
@@ -231,7 +231,7 @@ namespace Datadog.Trace.AppSec
                 else if (Enabled && anyChange)
                 {
                     _configurationStatus.ApplyStoredFiles();
-                    updateResult = _waf?.UpdateWafFromConfigurationStatus(_configurationStatus);
+                    updateResult = _waf?.UpdateWafFromConfigurationStatus(_configurationStatus, _settings.Rules);
                     if (updateResult?.Success ?? false)
                     {
                         if (!string.IsNullOrEmpty(updateResult.RuleFileVersion))
@@ -503,6 +503,10 @@ namespace Datadog.Trace.AppSec
             rcm.SetCapability(RcmCapabilitiesIndices.AsmRaspShi, _settings.RaspEnabled && _noLocalRules && WafSupportsCapability(RcmCapabilitiesIndices.AsmRaspShi));
             rcm.SetCapability(RcmCapabilitiesIndices.AsmRaspSqli, _settings.RaspEnabled && _noLocalRules && WafSupportsCapability(RcmCapabilitiesIndices.AsmRaspSqli));
             rcm.SetCapability(RcmCapabilitiesIndices.AsmExclusionData, _noLocalRules && WafSupportsCapability(RcmCapabilitiesIndices.AsmExclusionData));
+            rcm.SetCapability(RcmCapabilitiesIndices.AsmEnpointFingerprint, _noLocalRules && WafSupportsCapability(RcmCapabilitiesIndices.AsmEnpointFingerprint));
+            rcm.SetCapability(RcmCapabilitiesIndices.AsmHeaderFingerprint, _noLocalRules && WafSupportsCapability(RcmCapabilitiesIndices.AsmHeaderFingerprint));
+            rcm.SetCapability(RcmCapabilitiesIndices.AsmNetworkFingerprint, _noLocalRules && WafSupportsCapability(RcmCapabilitiesIndices.AsmNetworkFingerprint));
+            rcm.SetCapability(RcmCapabilitiesIndices.AsmSessionFingerprint, _noLocalRules && WafSupportsCapability(RcmCapabilitiesIndices.AsmSessionFingerprint));
             // follows a different pattern to rest of ASM remote config, if available it's the RC value
             // that takes precedence. This follows what other products do.
             rcm.SetCapability(RcmCapabilitiesIndices.AsmAutoUserInstrumentationMode, true);
@@ -534,7 +538,7 @@ namespace Datadog.Trace.AppSec
                 _wafLibraryInvoker!,
                 _settings.ObfuscationParameterKeyRegex,
                 _settings.ObfuscationParameterValueRegex,
-                _settings.Rules,
+                embeddedRulesetPath: _settings.Rules,
                 configurationFromRcm ? _configurationStatus : null,
                 _settings.UseUnsafeEncoder,
                 GlobalSettings.Instance.DebugEnabledInternal && _settings.WafDebugEnabled);
@@ -552,10 +556,6 @@ namespace Datadog.Trace.AppSec
                 Enabled = true;
                 InitializationError = null;
                 Log.Information("AppSec is now Enabled, _settings.Enabled is {EnabledValue}, coming from remote config: {EnableFromRemoteConfig}", _settings.Enabled, configurationFromRcm);
-                if (_wafInitResult.EmbeddedRules != null)
-                {
-                    _configurationStatus.FallbackEmbeddedRuleSet ??= RuleSet.From(_wafInitResult.EmbeddedRules);
-                }
 
                 if (!configurationFromRcm)
                 {
@@ -585,7 +585,7 @@ namespace Datadog.Trace.AppSec
             {
                 if (_rcmSubscription != null)
                 {
-                    var newKeys = _rcmSubscription.ProductKeys.Except(new[] { RcmProducts.AsmData, RcmProducts.Asm }).ToArray();
+                    var newKeys = _rcmSubscription.ProductKeys.Except([RcmProducts.AsmData, RcmProducts.Asm]).ToArray();
                     if (newKeys.Length > 0)
                     {
                         var newSubscription = new Subscription(UpdateFromRcm, newKeys);

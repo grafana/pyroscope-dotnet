@@ -431,6 +431,11 @@ namespace Datadog.Trace
         internal const string AwsQueueUrl = "aws.queue.url";
 
         /// <summary>
+        /// The rule name associated with the AWS EventBridge span.
+        /// </summary>
+        internal const string RuleName = "rulename";
+
+        /// <summary>
         /// The stream name associated with the AWS SDK Kinesis span.
         /// </summary>
         internal const string StreamName = "streamname";
@@ -600,6 +605,26 @@ namespace Datadog.Trace
         ///  Rules(r) - an array of rules which failed to load with this error.
         /// </summary>
         internal const string AppSecWafInitRuleErrors = "_dd.appsec.event_rules.errors";
+
+        /// <summary>
+        /// Indicates the http endpoint fingerprint
+        /// </summary>
+        internal const string AppSecFpEndpoint = "_dd.appsec.fp.http.endpoint";
+
+        /// <summary>
+        /// Indicates the http header fingerprint
+        /// </summary>
+        internal const string AppSecFpHeader = "_dd.appsec.fp.http.header";
+
+        /// <summary>
+        /// Indicates the http network fingerprint
+        /// </summary>
+        internal const string AppSecFpHttpNetwork = "_dd.appsec.fp.http.network";
+
+        /// <summary>
+        /// Indicates the session fingerprint
+        /// </summary>
+        internal const string AppSecFpSession = "_dd.appsec.fp.session";
 
         /// <summary>
         /// Should contain the public IP of the host initiating the request.

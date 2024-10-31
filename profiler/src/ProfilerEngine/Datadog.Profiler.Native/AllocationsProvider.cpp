@@ -147,10 +147,11 @@ void AllocationsProvider::OnAllocation(uint32_t allocationKind,
     rawSample.MethodTable = classId;
     rawSample.Tags = threadInfo->GetTags().GetAll();
 
-    // The provided type name contains the metadata-based `xx syntax for generics instead of <>
-    // So rely on the frame store to get a C#-like representation like what is done for frames
-    if (!_pFrameStore->GetTypeName(classId, rawSample.AllocationClass))
+    // the classID can be null when events are replayed in integration tests
+    if ((classId == 0) || !_pFrameStore->GetTypeName(classId, rawSample.AllocationClass))
     {
+        // The provided type name contains the metadata-based `xx syntax for generics instead of <>
+        // So rely on the frame store to get a C#-like representation like what is done for frames
         rawSample.AllocationClass = shared::ToString(shared::WSTRING(typeName));
     }
 

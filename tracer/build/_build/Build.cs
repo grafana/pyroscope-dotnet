@@ -62,7 +62,7 @@ partial class Build : NukeBuild
     const int LatestMajorVersion = 3;
 
     [Parameter("The current version of the source and build")]
-    readonly string Version = "3.3.1";
+    readonly string Version = "3.4.1";
 
     [Parameter("Whether the current build version is a prerelease(for packaging purposes)")]
     readonly bool IsPrerelease = false;
@@ -164,6 +164,16 @@ partial class Build : NukeBuild
                    .Where(x => x.Attributes.HasFlag(FileAttributes.ReparsePoint))
                    .ForEach(dir => Cmd.Value(arguments: $"cmd /c rmdir \"{dir}\""));
             }
+        });
+
+    Target CleanTestLogs => _ => _
+        .Unlisted()
+        .Description("Cleans all test logs")
+        .Executes(() =>
+        {
+            EnsureCleanDirectory(TestLogsDirectory);
+            ParallelIntegrationTests.ForEach(EnsureResultsDirectory);
+            ClrProfilerIntegrationTests.ForEach(EnsureResultsDirectory);
         });
 
     Target CleanObjFiles => _ => _
