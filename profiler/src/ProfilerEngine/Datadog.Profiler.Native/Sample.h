@@ -75,7 +75,7 @@ public:
     template<typename T>
     void AddNumericLabel(T&& label)
     {
-        _numericLabels.push_back(std::forward<T>(label));
+        // pyroscope does not use numeric labels
     }
 
     template<typename T>
