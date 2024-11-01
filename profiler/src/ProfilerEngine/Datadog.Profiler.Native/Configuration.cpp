@@ -682,7 +682,8 @@ static bool convert_to(shared::WSTRING const& s, DeploymentMode& result)
 template <typename T>
 T Configuration::GetEnvironmentValue(shared::WSTRING const& name, T const& defaultValue)
 {
-    if (!shared::EnvironmentExist(name)) return defaultValue;
+    // pyroscope: next line is removed because shared::GetEnvironmentValue has DD_ => PYROSCOPE_ fallback
+    // if (!shared::EnvironmentExist(name)) return defaultValue;
 
     T result{};
     auto r = shared::GetEnvironmentValue(name);
