@@ -524,7 +524,7 @@ int32_t Configuration::ExtractCpuThreadsThreshold()
 bool Configuration::GetContention()
 {
     // enabled by default
-    bool lockContentionEnabled = true;
+    bool lockContentionEnabled = false;
 
     // first look at the supported env var
     if (IsEnvironmentValueSet(EnvironmentVariables::LockContentionProfilingEnabled, lockContentionEnabled))
