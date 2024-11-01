@@ -55,11 +55,10 @@ docker/manifest:
 	docker manifest push $(DOCKER_IMAGE):latest-$(LIBC)
 
 
-VERSION?=
 .phony: bump_version
 bump_version:
-	sed -i "Pyroscope/Pyroscope/Pyroscope.csproj" -e "s/<PackageVersion>.*<\/PackageVersion>/<PackageVersion>$(VERSION)<\/PackageVersion>/"
-	sed -i "Pyroscope/Pyroscope/Pyroscope.csproj" -e "s/<AssemblyVersion>.*<\/AssemblyVersion>/<AssemblyVersion>$(VERSION)<\/AssemblyVersion>/"
-	sed -i "Pyroscope/Pyroscope/Pyroscope.csproj" -e "s/<FileVersion>.*<\/FileVersion>/<FileVersion>$(VERSION)<\/FileVersion>/"
+	sed -i "Pyroscope/Pyroscope/Pyroscope.csproj" -e "s/<PackageVersion>.*<\/PackageVersion>/<PackageVersion>$(RELEASE_VERSION)<\/PackageVersion>/"
+	sed -i "Pyroscope/Pyroscope/Pyroscope.csproj" -e "s/<AssemblyVersion>.*<\/AssemblyVersion>/<AssemblyVersion>$(RELEASE_VERSION)<\/AssemblyVersion>/"
+	sed -i "Pyroscope/Pyroscope/Pyroscope.csproj" -e "s/<FileVersion>.*<\/FileVersion>/<FileVersion>$(RELEASE_VERSION)<\/FileVersion>/"
 	sed -i "profiler/src/ProfilerEngine/Datadog.Profiler.Native/PyroscopePprofSink.h" -e "s/#define PYROSCOPE_SPY_VERSION \".*\"/#define PYROSCOPE_SPY_VERSION \"$(VERSION)\"/"
 
