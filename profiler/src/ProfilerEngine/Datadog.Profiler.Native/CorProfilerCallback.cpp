@@ -2075,7 +2075,7 @@ void CorProfilerCallback::SetStackSamplerEnabled(bool enabled)
     }
     else
     {
-        _pStackSamplerLoopManager->Stop();
+        _pStackSamplerLoopManager->Stop2(ServiceBase::State::Init);
     }
 }
 

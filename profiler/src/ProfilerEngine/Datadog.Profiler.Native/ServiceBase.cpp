@@ -44,6 +44,7 @@ bool ServiceBase::Start()
     if (result)
     {
         _currentState = State::Started;
+        Log::Debug("Service '", GetName(), "' started successfully.");
     }
     else
     {
@@ -56,6 +57,16 @@ bool ServiceBase::Start()
 
 bool ServiceBase::Stop()
 {
+    return Stop2(State::Stopped);
+}
+
+bool ServiceBase::Stop2(State stoppedState)
+{
+    if (stoppedState != State::Stopped && stoppedState != State::Init)
+    {
+        Log::Debug("Invalid final state to stop the service '", GetName(), "'. Expected State::Stopped or State::Init. Current state : ", to_string(_currentState.load()));
+        return false;
+    }
     auto expected = State::Started;
     auto exchange = _currentState.compare_exchange_strong(expected, State::Stopping);
 
@@ -68,7 +79,8 @@ bool ServiceBase::Stop()
     auto result = StopImpl();
     if (result)
     {
-        _currentState = State::Stopped;
+        _currentState = stoppedState;
+        Log::Debug("Service '", GetName(), "' stopped successfully. Current state : ", to_string(stoppedState));
     }
     else
     {
@@ -78,6 +90,7 @@ bool ServiceBase::Stop()
 
     return result;
 }
+
 
 ServiceBase::State ServiceBase::GetState() const
 {
