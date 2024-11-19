@@ -24,7 +24,7 @@ public:
     bool Stop() final override;
 
     // Like Stop, but allows to specify stopped state - either Stopped or Init. Init allows the service to be restarted.
-    bool Stop2(State stoppedState); // todo better name
+    bool StopWithState(State stoppedState);
 
 protected:
     virtual bool StartImpl() = 0;

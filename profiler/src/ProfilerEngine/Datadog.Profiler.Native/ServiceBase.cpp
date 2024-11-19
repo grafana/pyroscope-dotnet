@@ -57,10 +57,10 @@ bool ServiceBase::Start()
 
 bool ServiceBase::Stop()
 {
-    return Stop2(State::Stopped);
+    return StopWithState(State::Stopped);
 }
 
-bool ServiceBase::Stop2(State stoppedState)
+bool ServiceBase::StopWithState(State stoppedState)
 {
     if (stoppedState != State::Stopped && stoppedState != State::Init)
     {
