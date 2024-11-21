@@ -630,7 +630,7 @@ void StackSamplerLoop::ResetThreadsCpuConsumption()
             OsSpecificApi::IsRunning(it.get(), currentConsumption, failure);
             if (!failure)
             {
-                it->SetCpuConsumptionMilliseconds(currentConsumption, 0);
+                it->SetCpuConsumptionMilliseconds(currentConsumption, t1);
             } else
             {
                 Log::Debug("Failed to get CPU consumption for thread ", it->GetClrThreadId());
