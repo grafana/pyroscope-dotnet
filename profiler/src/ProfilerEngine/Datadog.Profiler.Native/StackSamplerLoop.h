@@ -115,4 +115,7 @@ private:
 
     bool StartImpl() override;
     bool StopImpl() override;
+
+
+    void ResetThreadsCpuConsumption();
 };

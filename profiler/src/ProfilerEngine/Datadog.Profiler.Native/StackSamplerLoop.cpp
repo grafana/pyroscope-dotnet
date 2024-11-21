@@ -149,6 +149,8 @@ void StackSamplerLoop::MainLoop()
     _loopThreadOsId = OpSysTools::GetThreadId();
     _pThreadsCpuManager->Map(_loopThreadOsId, ThreadName);
 
+    ResetThreadsCpuConsumption();
+
     while (!_shutdownRequested)
     {
         try
@@ -611,4 +613,30 @@ void StackSamplerLoop::PersistStackSnapshotResults(
         rawCpuSample.Tags = pSnapshotResult->GetTags().GetAll();
         _pCpuTimeCollector->Add(std::move(rawCpuSample));
     }
+}
+
+void StackSamplerLoop::ResetThreadsCpuConsumption()
+{
+    auto t1  = OpSysTools::GetHighPrecisionTimestamp();
+    int32_t managedThreadsCount = _pManagedThreadList->Count();
+
+    for (int32_t i = 0; i < managedThreadsCount ; i++)
+    {
+        std::shared_ptr<ManagedThreadInfo> it = _pManagedThreadList->LoopNext(_iteratorCpuTime);
+        if (it != nullptr)
+        {
+            bool failure = false;
+            uint64_t currentConsumption = 0;
+            OsSpecificApi::IsRunning(it.get(), currentConsumption, failure);
+            if (!failure)
+            {
+                it->SetCpuConsumptionMilliseconds(currentConsumption, t1);
+            } else
+            {
+                Log::Debug("Failed to get CPU consumption for thread ", it->GetClrThreadId());
+            }
+        }
+    }
+    auto t2 = OpSysTools::GetHighPrecisionTimestamp();
+    Log::Debug("ResetThreadsCpuConsumption took ", t2 - t1, " ns");
 }
