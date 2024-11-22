@@ -18,10 +18,10 @@ jobs:
         name: ['glibc', 'musl']
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: 'true'
-      - uses: docker/login-action@v2
+      - uses: docker/login-action@v3
         name: Login to Docker Hub
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -30,7 +30,7 @@ jobs:
       - run: make docker/push
       - run: make docker/archive
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: ./*.tar.gz
   release-linux-profiler-aarch64:
@@ -45,10 +45,10 @@ jobs:
         name: ['glibc', 'musl']
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: 'true'
-      - uses: docker/login-action@v2
+      - uses: docker/login-action@v3
         name: Login to Docker Hub
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -57,7 +57,7 @@ jobs:
       - run: make docker/push
       - run: make docker/archive
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: ./*.tar.gz
   release-linux-profiler:
@@ -72,10 +72,10 @@ jobs:
         name: ['glibc', 'musl']
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
         with:
           submodules: 'true'
-      - uses: docker/login-action@v2
+      - uses: docker/login-action@v3
         name: Login to Docker Hub
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
