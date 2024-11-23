@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "tags.h"
+#include "JavaProfilerTags.h"
 
 #include <algorithm>
 #include <mutex>  // NOLINT
