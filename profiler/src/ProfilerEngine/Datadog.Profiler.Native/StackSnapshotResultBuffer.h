@@ -18,7 +18,7 @@
 
 #include "shared/src/native-src/dd_span.hpp"
 
-#include "tags.h"
+#include "JavaProfilerTags.h"
 
 
 

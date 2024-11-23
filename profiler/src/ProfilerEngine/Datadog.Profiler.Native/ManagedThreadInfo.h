@@ -11,7 +11,7 @@
 #include "IThreadInfo.h"
 #include "ScopedHandle.h"
 #include "shared/src/native-src/string.h"
-#include "tags.h"
+#include "JavaProfilerTags.h"
 
 #include <atomic>
 #include <memory>
