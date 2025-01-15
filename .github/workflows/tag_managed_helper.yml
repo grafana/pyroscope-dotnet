@@ -3,20 +3,24 @@ name: Release managed helper
 on:
   push:
     tags:
-      - v*-pyroscope
+      - 'v*'
+      - '!v*opentelemetry'
+      - '!v*opentracing'
 
 jobs:
   release-managed-helper:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: ${{  github.ref_name }}
     steps:
-      -
-        name: Checkout
+      - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: 'true'
       - uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '6.0'
+      - run: make bump_version && git diff --exit-code
       - run: dotnet build -c Release
         working-directory: Pyroscope
       - name: Publish the package to nuget.org
