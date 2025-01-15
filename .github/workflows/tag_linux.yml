@@ -3,8 +3,9 @@ name: Release linux profiler
 on:
   push:
     tags:
-      - v*-pyroscope
-
+      - 'v*'
+      - '!v*opentelemetry'
+      - '!v*opentracing'
 jobs:
   release-linux-profiler-x86_64:
     runs-on: ubuntu-latest
@@ -26,6 +27,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      - run: make bump_version && git diff --exit-code
       - run: make docker/build
       - run: make docker/push
       - run: make docker/archive
@@ -53,6 +55,7 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      - run: make bump_version && git diff --exit-code
       - run: make docker/build
       - run: make docker/push
       - run: make docker/archive
