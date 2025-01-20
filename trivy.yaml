@@ -1,0 +1,5 @@
+scan:
+  skip-dirs:
+    - tracer/test/test-applications/
+    - profiler/src/Demos/
+    - tracer/samples/
