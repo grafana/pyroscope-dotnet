@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "Samples.InstrumentedTests": {
-      "commandName": "Project",
-      "nativeDebugging": true
-    }
-  }
-}
