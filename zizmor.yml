@@ -1,0 +1,29 @@
+rules:
+  excessive-permissions:
+    ignore:
+      - php-ext.yml
+      - objc_cocoapods.yml
+      - codespell.yml
+      - windows.yml
+      - ubuntu.yml
+      - publish_documentation.yml
+      - macos.yml
+      - codeql-analysis.yml
+  artipacked:
+    ignore:
+      - php-ext.yml
+      - objc_cocoapods.yml
+      - windows.yml
+      - ubuntu.yml
+      - publish_documentation.yml
+      - macos.yml
+      - codespell.yml
+      - codeql-analysis.yml
+  unpinned-uses:
+    ignore:
+      - codespell.yml
+      - ubuntu.yml
+      - labeler.yml
+  dangerous-triggers:
+    ignore:
+      - labeler.yml
