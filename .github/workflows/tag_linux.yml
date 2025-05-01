@@ -6,8 +6,11 @@ on:
       - 'v*'
       - '!v*opentelemetry'
       - '!v*opentracing'
+
 jobs:
   release-linux-profiler-x86_64:
+    permissions:
+      contents: write
     runs-on: ubuntu-latest
     env:
       DOCKER_BUILDKIT: 1
@@ -22,7 +25,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: 'true'
-      - uses: docker/login-action@v3
+          persist-credentials: false
+      - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 #v3.4.0
         name: Login to Docker Hub
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -32,10 +36,12 @@ jobs:
       - run: make docker/push
       - run: make docker/archive
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
         with:
           files: ./*.tar.gz
   release-linux-profiler-aarch64:
+    permissions:
+      contents: write
     runs-on: github-hosted-ubuntu-arm64-large
     env:
       DOCKER_BUILDKIT: 1
@@ -50,7 +56,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: 'true'
-      - uses: docker/login-action@v3
+          persist-credentials: false
+      - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 #v3.4.0
         name: Login to Docker Hub
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -60,10 +67,12 @@ jobs:
       - run: make docker/push
       - run: make docker/archive
       - name: Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
         with:
           files: ./*.tar.gz
   release-linux-profiler:
+    permissions:
+      contents: read
     needs: ['release-linux-profiler-x86_64', 'release-linux-profiler-aarch64']
     runs-on: ubuntu-latest
     env:
@@ -78,7 +87,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: 'true'
-      - uses: docker/login-action@v3
+          persist-credentials: false
+      - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 #v3.4.0
         name: Login to Docker Hub
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}

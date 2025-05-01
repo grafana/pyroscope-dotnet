@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+
+permissions:
+  contents: read
+
 jobs:
   build-managed-helper:
     runs-on: ubuntu-latest
@@ -15,6 +19,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: 'true'
+          persist-credentials: false
       - uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '6.0'
