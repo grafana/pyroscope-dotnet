@@ -69,8 +69,9 @@ namespace Pyroscope
             {
                 _traceContextPtr.Value = NativeInterop.GetTraceContextNativePointer();
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                Console.WriteLine($"[ContextTracker] Exception in EnsureIsInitialized: {ex.Message}");
                 _traceContextPtr.Value = IntPtr.Zero;
             }
         }
@@ -95,9 +96,9 @@ namespace Pyroscope
             {
                 ctx.Write(ctxPtr);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                
+                Console.WriteLine($"[ContextTracker] Exception in WriteToNative: {ex.Message}");
             }
         }
 

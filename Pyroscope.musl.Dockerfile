@@ -27,8 +27,18 @@ ADD tracer tracer
 ADD shared shared
 ADD CMakeLists.txt CMakeLists.txt
 
-RUN mkdir build-release && cd build-release && cmake .. -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DCMAKE_BUILD_TYPE=Release
-RUN cd build-release && make -j16 Datadog.Profiler.Native Datadog.Linux.ApiWrapper.x64
+# Allow build type to be passed as build arg, default to Release
+ARG CMAKE_BUILD_TYPE=Release
+RUN mkdir build-${CMAKE_BUILD_TYPE} && \
+    cd build-${CMAKE_BUILD_TYPE} && \
+    cmake .. \
+        -DCMAKE_C_COMPILER=clang \
+        -DCMAKE_CXX_COMPILER=clang++ \
+        -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
+        -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" \
+        -DCMAKE_C_FLAGS_DEBUG="-g -O0"
+
+RUN cd build-${CMAKE_BUILD_TYPE} && make -j16 Datadog.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
 FROM busybox:1.36.1-musl
 COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-musl/Datadog.Profiler.Native.so /Pyroscope.Profiler.Native.so
