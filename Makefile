@@ -62,3 +62,18 @@ bump_version:
 	sed -i "Pyroscope/Pyroscope/Pyroscope.csproj" -e "s/<FileVersion>.*<\/FileVersion>/<FileVersion>$(RELEASE_VERSION)<\/FileVersion>/"
 	sed -i "profiler/src/ProfilerEngine/Datadog.Profiler.Native/PyroscopePprofSink.h" -e "s/#define PYROSCOPE_SPY_VERSION \".*\"/#define PYROSCOPE_SPY_VERSION \"$(RELEASE_VERSION)\"/"
 
+
+.phony: itest
+itest:
+	docker build --platform linux/amd64 -t pyroscope-dotnet-glibc:${RELEASE_VERSION} -f Pyroscope.Dockerfile --build-arg CMAKE_BUILD_TYPE=Debug .
+	docker build --platform linux/amd64 -t pyroscope-dotnet-musl:${RELEASE_VERSION} -f Pyroscope.musl.Dockerfile --build-arg CMAKE_BUILD_TYPE=Debug .
+	docker build --platform linux/amd64 \
+		--build-arg PYROSCOPE_SDK_IMAGE=pyroscope-dotnet-glibc:${RELEASE_VERSION} \
+		-t rideshare-app-glibc:${RELEASE_VERSION} \
+		-f itest.Dockerfile .
+	docker build --platform linux/amd64 \
+		--build-arg PYROSCOPE_SDK_IMAGE=pyroscope-dotnet-musl:${RELEASE_VERSION} \
+		--build-arg SDK_IMAGE_SUFFIX=-alpine \
+		-t rideshare-app-musl:${RELEASE_VERSION} \
+		-f itest.Dockerfile .
+	docker compose -f docker-compose-itest.yml up  --build
