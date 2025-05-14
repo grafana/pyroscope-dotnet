@@ -1,37 +1,89 @@
 services:
   pyroscope:
+    platform: linux/amd64
     image: grafana/pyroscope
     ports:
       - "4040:4040"
 
-  rideshare-glibc:
+  rideshare-glibc-net-8-0:
     platform: linux/amd64
     ports:
       - "5000"
     environment:
       REGION: us-east
-      PYROSCOPE_APPLICATION_NAME: rideshare.dotnet.glibc.app
+      PYROSCOPE_APPLICATION_NAME: rideshare.dotnet.glibc.8.0.app
       PYROSCOPE_SERVER_ADDRESS: http://pyroscope:4040
       DD_TRACE_DEBUG: true
-    image: rideshare-app-glibc:$RELEASE_VERSION # built locally, see Makefile
+    image: rideshare-app-glibc:net8.0 # built locally
     pull_policy: never
 
-  rideshare-musl:
+  rideshare-glibc-net-7-0:
+    platform: linux/amd64
+    ports:
+      - "5000"
+    environment:
+      REGION: us-east
+      PYROSCOPE_APPLICATION_NAME: rideshare.dotnet.glibc.7.0.app
+      PYROSCOPE_SERVER_ADDRESS: http://pyroscope:4040
+      DD_TRACE_DEBUG: true
+    image: rideshare-app-glibc:net7.0 # built locally
+    pull_policy: never
+
+  rideshare-glibc-net-6-0:
+    platform: linux/amd64
+    ports:
+      - "5000"
+    environment:
+      REGION: us-east
+      PYROSCOPE_APPLICATION_NAME: rideshare.dotnet.glibc.6.0.app
+      PYROSCOPE_SERVER_ADDRESS: http://pyroscope:4040
+      DD_TRACE_DEBUG: true
+    image: rideshare-app-glibc:net6.0 # built locally
+    pull_policy: never
+
+  rideshare-musl-net-8-0:
     platform: linux/amd64
     ports:
       - "5000"
     environment:
       REGION: us-west
-      PYROSCOPE_APPLICATION_NAME: rideshare.dotnet.musl.app
+      PYROSCOPE_APPLICATION_NAME: rideshare.dotnet.musl.8.0.app
       PYROSCOPE_SERVER_ADDRESS: http://pyroscope:4040
       DD_TRACE_DEBUG: true
-    image: rideshare-app-musl:$RELEASE_VERSION # built locally, see Makefile
+    image: rideshare-app-musl:net8.0 # built locally
+    pull_policy: never
+
+  rideshare-musl-net-7-0:
+    platform: linux/amd64
+    ports:
+      - "5000"
+    environment:
+      REGION: us-west
+      PYROSCOPE_APPLICATION_NAME: rideshare.dotnet.musl.7.0.app
+      PYROSCOPE_SERVER_ADDRESS: http://pyroscope:4040
+      DD_TRACE_DEBUG: true
+    image: rideshare-app-musl:net7.0 # built locally
+    pull_policy: never
+
+  rideshare-musl-net-6-0:
+    platform: linux/amd64
+    ports:
+      - "5000"
+    environment:
+      REGION: us-west
+      PYROSCOPE_APPLICATION_NAME: rideshare.dotnet.musl.6.0.app
+      PYROSCOPE_SERVER_ADDRESS: http://pyroscope:4040
+      DD_TRACE_DEBUG: true
+    image: rideshare-app-musl:net6.0 # built locally
     pull_policy: never
 
   load-generator:
+    platform: linux/amd64
     build:
       context: IntegrationTest
       dockerfile: Dockerfile.load-generator
+    environment:
+      SERVICE_NAME: $SERVICE_NAME
 
   grafana:
     image: grafana/grafana:latest

@@ -1,0 +1,93 @@
+name: Integration Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-profiler-images:
+    name: Build Profiler Images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        flavour:
+          - glibc
+          - musl
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Build ${{ matrix.flavour }} profiler image
+        run: |
+            if [ "${{ matrix.flavour }}" = "musl" ]; then
+              docker build --platform linux/amd64 -t pyroscope-dotnet-musl:test -f Pyroscope.musl.Dockerfile --build-arg CMAKE_BUILD_TYPE=Debug .
+            else
+              docker build --platform linux/amd64 -t pyroscope-dotnet-glibc:test -f Pyroscope.Dockerfile --build-arg CMAKE_BUILD_TYPE=Debug .
+            fi
+            docker save pyroscope-dotnet-${{ matrix.flavour }}:test -o pyroscope-dotnet-${{ matrix.flavour }}.tar
+      - name: Upload ${{ matrix.flavour }} profiler image artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pyroscope-dotnet-${{ matrix.flavour }}
+          path: pyroscope-dotnet-${{ matrix.flavour }}.tar
+          retention-days: 1
+  run-integration-test:
+    name: Run Integration Test
+    needs: build-profiler-images
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        dotnet_version:
+          - '8.0'
+          # - '7.0' # this does not work at the moment
+          - '6.0'
+        flavour:
+          - glibc
+          - musl
+    steps:
+      - name: Download ${{ matrix.flavour }} profiler image artifact
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: pyroscope-dotnet-${{ matrix.flavour }}
+          path: .
+      - name: Load ${{matrix.flavour}} Docker image
+        run: |
+          docker load --input pyroscope-dotnet-${{ matrix.flavour }}.tar
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Build service image for ${{ matrix.flavour }} and .NET ${{ matrix.dotnet_version }}
+        run: |
+            if [ "${{ matrix.flavour }}" = "glibc" ]; then
+              SDK_IMAGE_SUFFIX="-jammy"
+            else
+              SDK_IMAGE_SUFFIX="-alpine"
+            fi
+
+            docker build --platform linux/amd64 \
+            --build-arg PYROSCOPE_SDK_IMAGE=pyroscope-dotnet-${{ matrix.flavour }}:test \
+            --build-arg SDK_VERSION=${{ matrix.dotnet_version }} \
+            --build-arg SDK_IMAGE_SUFFIX=${SDK_IMAGE_SUFFIX} \
+            -t rideshare-app-${{ matrix.flavour }}:net${{ matrix.dotnet_version }} \
+            -f itest.Dockerfile .
+      - name: Run integration test
+        run: |
+          # Create a unique project name for this matrix combination
+          VERSION_HYPHEN=$(echo "${{ matrix.dotnet_version }}" | tr '.' '-')
+          export COMPOSE_PROJECT_NAME="pyroscope-dotnet-${{ matrix.flavour }}-net$VERSION_HYPHEN"
+          
+          # Set the service name to start and to use in the load generator
+          export SERVICE_NAME="rideshare-${{ matrix.flavour }}-net-$VERSION_HYPHEN"
+          # Set up trap to ensure cleanup happens on exit
+          trap 'docker compose -f docker-compose-itest.yml down --remove-orphans --volumes' EXIT
+          
+          # Start the services
+          docker compose -f docker-compose-itest.yml up --build --force-recreate -d pyroscope load-generator $SERVICE_NAME 
+
+          # Run the verification script
+          ./IntegrationTest/verify_profiles.sh ${{ matrix.flavour }} ${{ matrix.dotnet_version }}
+
+          # Remove the trap since we're exiting normally
+          trap - EXIT
+          docker compose -f docker-compose-itest.yml down --remove-orphans --volumes

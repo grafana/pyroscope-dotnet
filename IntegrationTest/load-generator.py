@@ -1,11 +1,9 @@
 import random
 import requests
 import time
+import os
 
-HOSTS = [
-    'rideshare-glibc',
-    'rideshare-musl'
-]
+HOST = os.environ.get('SERVICE_NAME', '')
 
 VEHICLES = [
     'bike',
@@ -16,10 +14,11 @@ VEHICLES = [
 if __name__ == "__main__":
     print(f"starting load generator")
     time.sleep(3)
+    counter = 0
     while True:
-        host = HOSTS[random.randint(0, len(HOSTS) - 1)]
-        vehicle = VEHICLES[random.randint(0, len(VEHICLES) - 1)]
-        print(f"requesting {vehicle} from {host}")
-        resp = requests.get(f'http://{host}:5000/{vehicle}')
+        vehicle = VEHICLES[counter % len(VEHICLES)]
+        counter += 1
+        print(f"requesting {vehicle} from {HOST}")
+        resp = requests.get(f'http://{HOST}:5000/{vehicle}')
         print(f"received {resp}")
         time.sleep(random.uniform(0.2, 0.4))
