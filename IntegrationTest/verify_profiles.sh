@@ -1,7 +1,7 @@
 #!/bin/bash
 
 profilecli_url="https://github.com/grafana/pyroscope/releases/download/v1.13.2/profilecli_1.13.2_linux_amd64.tar.gz"
-sleep_time=120
+sleep_time=30
 
 echo "Downloading profilecli from $profilecli_url"
 curl -L $profilecli_url -o profilecli.tar.gz
