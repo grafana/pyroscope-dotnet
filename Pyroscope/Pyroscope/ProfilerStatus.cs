@@ -63,8 +63,9 @@ namespace Pyroscope
                 {
                     _engineStatusPtr = NativeInterop.GetProfilerStatusPointer();
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    Console.WriteLine($"[ProfilerStatus] Failed to get profiler status pointer: {ex.Message}");
                     _engineStatusPtr = IntPtr.Zero;
                 }
             }

@@ -14,7 +14,7 @@
 
   <ItemGroup>
     <PackageReference Include="OpenTracing" Version="0.12.1" />
-    <PackageReference Include="Pyroscope" Version="0.8.14" />
+    <ProjectReference Include="../Pyroscope/Pyroscope.csproj" />
     <None Include="README.md" Pack="true" PackagePath="\"/>
   </ItemGroup>
 

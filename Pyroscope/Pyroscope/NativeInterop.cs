@@ -79,37 +79,37 @@ namespace Pyroscope
         // These methods are rewritten by the native tracer to use the correct paths
         private static class NativeMethods
         {
-            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "GetNativeProfilerIsReadyPtr")]
+            [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "GetNativeProfilerIsReadyPtr")]
             public static extern IntPtr GetProfilerStatusPointer();
 
-            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "GetPointerToNativeTraceContext")]
+            [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "GetPointerToNativeTraceContext")]
             public static extern IntPtr GetTraceContextNativePointer();
 
-            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetApplicationInfoForAppDomain")]
+            [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "SetApplicationInfoForAppDomain")]
             public static extern void SetApplicationInfoForAppDomain(string runtimeId, string serviceName, string environment, string version);
             
-            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetDynamicTag")]
+            [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "SetDynamicTag")]
             public static extern void SetDynamicTag(string key, string value);
             
-            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "ClearDynamicTags")]
+            [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "ClearDynamicTags")]
             public static extern void ClearDynamicTags();
 
-            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetCPUTrackingEnabled")]
+            [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "SetCPUTrackingEnabled")]
             public static extern void SetCPUTrackingEnabled(bool enabled);
 
-            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetAllocationTrackingEnabled")]
+            [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "SetAllocationTrackingEnabled")]
             public static extern void SetAllocationTrackingEnabled(bool enabled);
 
-            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetContentionTrackingEnabled")]
+            [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "SetContentionTrackingEnabled")]
             public static extern void SetContentionTrackingEnabled(bool enabled);
 
-            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetExceptionTrackingEnabled")]
+            [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "SetExceptionTrackingEnabled")]
             public static extern void SetExceptionTrackingEnabled(bool enabled);
 
-            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetPyroscopeAuthToken")]
+            [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "SetPyroscopeAuthToken")]
             public static extern void SetPyroscopeAuthToken(string authToken);
 
-            [DllImport(dllName: "Datadog.Profiler.Native", EntryPoint = "SetPyroscopeBasicAuth")]
+            [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "SetPyroscopeBasicAuth")]
             public static extern void SetPyroscopeBasicAuth(string username, string password);
 
         }
