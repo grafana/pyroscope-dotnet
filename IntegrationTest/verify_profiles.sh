@@ -5,8 +5,8 @@ set -euo pipefail
 profilecli_download_url="https://github.com/grafana/pyroscope/releases/download/v1.13.4/profilecli_1.13.4_linux_amd64.tar.gz"
 sleep_time=30
 
-echo "Downloading profilecli from $profilecli_url"
-curl -L $profilecli_url -o profilecli.tar.gz
+echo "Downloading profilecli from $profilecli_download_url"
+curl -L $profilecli_download_url -o profilecli.tar.gz
 tar -xzf profilecli.tar.gz
 chmod +x profilecli
 
