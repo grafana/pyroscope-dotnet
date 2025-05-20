@@ -1,6 +1,8 @@
 #!/bin/bash
 
-profilecli_url="https://github.com/grafana/pyroscope/releases/download/v1.13.2/profilecli_1.13.2_linux_amd64.tar.gz"
+set -euo pipefail
+
+profilecli_download_url="https://github.com/grafana/pyroscope/releases/download/v1.13.4/profilecli_1.13.4_linux_amd64.tar.gz"
 sleep_time=30
 
 echo "Downloading profilecli from $profilecli_url"
@@ -17,7 +19,7 @@ echo "Labels in profilecli output:"
 cat profilecli_output.json
 labels=$(cat profilecli_output.json)
 
-# Verify that all expected labels are present in the correct order
+# Verify that all expected labels are present
 expected_labels=("bike" "car" "scooter")
 actual_labels=($(cat profilecli_output.json))
 
@@ -39,4 +41,4 @@ for i in "${!expected_labels[@]}"; do
   fi
 done
 
-echo "Successfully verified all expected labels (bike, car, scooter) are present in the correct order" 
+echo "Successfully verified all expected labels (bike, car, scooter) are present"
