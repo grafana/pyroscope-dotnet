@@ -3,6 +3,8 @@
 //
 
 #include "PprofExporter.h"
+#include "ISamplesProvider.h"
+#include "SamplesEnumerator.h"
 #include "Log.h"
 #include <signal.h>
 
