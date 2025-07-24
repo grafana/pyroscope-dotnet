@@ -94,7 +94,7 @@ std::unique_ptr<StackFramesCollectorBase> CreateNewStackFramesCollectorInstance(
 
 bool BuildThreadStatPath(pid_t tid, char* statPath, int capacity)
 {
-    strncpy(statPath, "/proc/self/task/", 16);
+    strncpy(statPath, "/proc/", 16);
     int base = 1000000000;
 
     // Adjust the base
@@ -103,7 +103,7 @@ bool BuildThreadStatPath(pid_t tid, char* statPath, int capacity)
         base /= 10;
     }
 
-    int offset = 16;
+    int offset = 6;
     // Write each number to the string
     while (base > 0 && offset < 64)
     {
