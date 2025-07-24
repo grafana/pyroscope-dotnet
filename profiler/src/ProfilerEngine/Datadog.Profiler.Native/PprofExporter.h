@@ -49,6 +49,7 @@ private:
     IApplicationStore* _applicationStore;
     std::shared_ptr<PProfExportSink> _sink;
     std::vector<SampleValueType> _sampleTypeDefinitions;
+    std::vector<SampleValueType> _processSampleTypeDefinitions;
     std::unordered_map<std::string_view, std::unique_ptr<PprofBuilder>> _perAppBuilder;
     std::mutex _perAppBuilderLock;
 

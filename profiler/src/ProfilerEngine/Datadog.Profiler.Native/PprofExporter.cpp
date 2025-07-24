@@ -13,10 +13,10 @@ PprofExporter::PprofExporter(IApplicationStore* applicationStore,
                              std::vector<SampleValueType> sampleTypeDefinitions) :
     _applicationStore(applicationStore),
     _sink(std::move(sink)),
-    _sampleTypeDefinitions(sampleTypeDefinitions)
+    _sampleTypeDefinitions(sampleTypeDefinitions),
+    _processSampleTypeDefinitions(_sampleTypeDefinitions)
 {
-    std::vector<SampleValueType> processSampleTypeDefinitions = _sampleTypeDefinitions;
-    for (auto& sampleType : processSampleTypeDefinitions)
+    for (auto& sampleType : _processSampleTypeDefinitions)
     {
         if (sampleType.Name == "cpu")
         {
@@ -24,7 +24,7 @@ PprofExporter::PprofExporter(IApplicationStore* applicationStore,
         }
     }
 
-    _processSamplesBuilder = std::make_unique<PprofBuilder>(processSampleTypeDefinitions);
+    _processSamplesBuilder = std::make_unique<PprofBuilder>(_processSampleTypeDefinitions);
     signal(SIGPIPE, SIG_IGN);
 }
 
