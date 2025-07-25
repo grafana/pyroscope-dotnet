@@ -29,8 +29,8 @@ jobs:
       - uses: grafana/shared-workflows/actions/get-vault-secrets@28361cdb22223e5f1e34358c86c20908e7248760
         with:
           repo_secrets: |
-            DOCKERHUB_USERNAME=dockerhub:username
-            DOCKERHUB_PASSWORD=dockerhub:password
+            DOCKERHUB_USERNAME=dockerhub:user
+            DOCKERHUB_PASSWORD=dockerhub:token
       - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 #v3.4.0
         name: Login to Docker Hub
         with:
@@ -66,8 +66,8 @@ jobs:
       - uses: grafana/shared-workflows/actions/get-vault-secrets@28361cdb22223e5f1e34358c86c20908e7248760
         with:
           repo_secrets: |
-            DOCKERHUB_USERNAME=dockerhub:username
-            DOCKERHUB_PASSWORD=dockerhub:password
+            DOCKERHUB_USERNAME=dockerhub:user
+            DOCKERHUB_PASSWORD=dockerhub:token
       - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 #v3.4.0
         name: Login to Docker Hub
         with:
@@ -103,8 +103,8 @@ jobs:
       - uses: grafana/shared-workflows/actions/get-vault-secrets@28361cdb22223e5f1e34358c86c20908e7248760
         with:
           repo_secrets: |
-            DOCKERHUB_USERNAME=dockerhub:username
-            DOCKERHUB_PASSWORD=dockerhub:password
+            DOCKERHUB_USERNAME=dockerhub:user
+            DOCKERHUB_PASSWORD=dockerhub:token
       - uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 #v3.4.0
         name: Login to Docker Hub
         with:
