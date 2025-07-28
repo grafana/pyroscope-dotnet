@@ -12,6 +12,8 @@ ARG SDK_IMAGE_SUFFIX
 WORKDIR /dotnet
 
 COPY IntegrationTest ./app
+COPY Pyroscope/Directory.Build.props ./Pyroscope/Directory.Build.props
+COPY Pyroscope/package-logo.png ./Pyroscope/package-logo.png
 COPY Pyroscope/Pyroscope ./Pyroscope/Pyroscope
 
 # Set the target framework to SDK_VERSION
