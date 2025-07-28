@@ -19,9 +19,7 @@ jobs:
         with:
           submodules: 'true'
           persist-credentials: false
-      - uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '6.0'
+      - uses: actions/setup-dotnet@v4
       - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTracing
   build-opentelemetry-lib:
@@ -32,8 +30,6 @@ jobs:
         with:
           submodules: 'true'
           persist-credentials: false
-      - uses: actions/setup-dotnet@v3
-        with:
-          dotnet-version: '6.0'
+      - uses: actions/setup-dotnet@v4
       - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTelemetry
