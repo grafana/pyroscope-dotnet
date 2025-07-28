@@ -26,6 +26,12 @@ jobs:
       - run: make bump_version && git diff --exit-code
       - run: dotnet build -c Release
         working-directory: Pyroscope
+      - name: Publish NuGet packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: ./Pyroscope/artifacts/package/release
+          if-no-files-found: error
       - uses: grafana/shared-workflows/actions/get-vault-secrets@28361cdb22223e5f1e34358c86c20908e7248760
         with:
           repo_secrets: |

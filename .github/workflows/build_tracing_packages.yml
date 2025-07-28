@@ -22,6 +22,12 @@ jobs:
       - uses: actions/setup-dotnet@v4
       - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTracing
+      - name: Publish NuGet packages
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: packages-OpenTracing
+          path: ./Pyroscope/artifacts/package/release
+          if-no-files-found: error
   build-opentelemetry-lib:
     runs-on: ubuntu-latest
     steps:
@@ -33,3 +39,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
       - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTelemetry
+      - name: Publish NuGet packages
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: packages-OpenTelemetry
+          path: ./Pyroscope/artifacts/package/release
+          if-no-files-found: error
