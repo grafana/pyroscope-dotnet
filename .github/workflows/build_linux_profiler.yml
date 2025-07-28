@@ -9,6 +9,7 @@ on:
 permissions:
   contents: read
 
+
 jobs:
   build-linux-profiler-x86_64:
     runs-on: ubuntu-latest
