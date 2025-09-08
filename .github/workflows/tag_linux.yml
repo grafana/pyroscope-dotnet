@@ -11,7 +11,7 @@ jobs:
     permissions:
       contents: write
       id-token: write
-    runs-on: github-hosted-ubuntu-x64-large
+    runs-on: ubuntu-x64-large
     env:
       DOCKER_BUILDKIT: 1
       ARCH: x86_64
@@ -48,7 +48,7 @@ jobs:
     permissions:
       contents: write
       id-token: write
-    runs-on: github-hosted-ubuntu-arm64-large
+    runs-on: ubuntu-arm64-large
     env:
       DOCKER_BUILDKIT: 1
       ARCH: aarch64
