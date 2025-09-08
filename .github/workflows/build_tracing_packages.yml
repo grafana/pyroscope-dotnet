@@ -19,7 +19,9 @@ jobs:
         with:
           submodules: 'true'
           persist-credentials: false
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          dotnet-version: '8.0.412'
       - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTracing
       - name: Publish NuGet packages
@@ -36,7 +38,9 @@ jobs:
         with:
           submodules: 'true'
           persist-credentials: false
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          dotnet-version: '8.0.412'
       - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTelemetry
       - name: Publish NuGet packages

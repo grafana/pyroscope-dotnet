@@ -38,4 +38,7 @@ jobs:
         with:
           submodules: 'true'
           persist-credentials: false
+      - uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          dotnet-version: '8.0.412'
       - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=aarch64 LIBC=${{ matrix.name }}  make docker/build
