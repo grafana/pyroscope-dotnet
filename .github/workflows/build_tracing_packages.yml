@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build-opentracing-lib:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-x64-small
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,7 +29,7 @@ jobs:
           path: ./Pyroscope/artifacts/package/release
           if-no-files-found: error
   build-opentelemetry-lib:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-x64-small
     steps:
       - name: Checkout
         uses: actions/checkout@v4

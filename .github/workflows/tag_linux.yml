@@ -86,7 +86,7 @@ jobs:
       contents: read
       id-token: write
     needs: ['release-linux-profiler-x86_64', 'release-linux-profiler-aarch64']
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-x64-small
     env:
       DOCKER_BUILDKIT: 1
       LIBC: ${{ matrix.name }}

@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build-managed-helper:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-x64-small
     steps:
       -
         name: Checkout

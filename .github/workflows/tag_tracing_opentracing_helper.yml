@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   release-opentracing-lib:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-x64-small
     steps:
       - name: Checkout
         uses: actions/checkout@v4

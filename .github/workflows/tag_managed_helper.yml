@@ -13,7 +13,7 @@ permissions:
 
 jobs:
   release-managed-helper:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-x64-small
     env:
       RELEASE_VERSION: ${{  github.ref_name }}
     steps:

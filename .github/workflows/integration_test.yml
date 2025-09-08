@@ -12,7 +12,7 @@ permissions:
 jobs:
   build-profiler-images:
     name: Build Profiler Image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-x64-small
     strategy:
       matrix:
         flavour:
@@ -39,7 +39,7 @@ jobs:
   run-integration-test:
     name: Run Integration Test
     needs: build-profiler-images
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-x64-small
     strategy:
       fail-fast: false
       matrix:
