@@ -1,33 +1,25 @@
-using System.Diagnostics;
-
 namespace Example;
 
-internal class ScooterService
+internal class ScooterService(OrderService orderService)
 {
-    private readonly OrderService _orderService;
-
-    public ScooterService(OrderService orderService)
-    {
-        _orderService = orderService;
-    }
-
     public void Order(int searchRadius)
     {
-        for (long i = 0; i < 2000000000; i++)
+        for (long i = 0; i < 2_000_000_000; i++)
         {
         }
+
         OrderInternal(searchRadius);
         DoSomeOtherWork();
     }
 
     private void OrderInternal(int searchRadius)
     {
-        _orderService.FindNearestVehicle(searchRadius, "scooter");
+        orderService.FindNearestVehicle(searchRadius, "scooter");
     }
 
-    private void DoSomeOtherWork()
+    private static void DoSomeOtherWork()
     {
-        for (long i = 0; i < 1000000000; i++)
+        for (long i = 0; i < 1_000_000_000; i++)
         {
         }
     }

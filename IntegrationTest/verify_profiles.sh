@@ -20,7 +20,7 @@ cat profilecli_output.json
 labels=$(cat profilecli_output.json)
 
 # Verify that all expected labels are present
-expected_labels=("bike" "car" "scooter")
+expected_labels=("bike" "car" "scooter", "helicopter")
 actual_labels=($(cat profilecli_output.json))
 
 if [ ${#actual_labels[@]} -ne ${#expected_labels[@]} ]; then
@@ -41,4 +41,4 @@ for i in "${!expected_labels[@]}"; do
   fi
 done
 
-echo "Successfully verified all expected labels (bike, car, scooter) are present"
+echo "Successfully verified all expected labels (bike, car, scooter, helicopter) are present"

@@ -9,6 +9,7 @@ VEHICLES = [
     'bike',
     'scooter',
     'car',
+    'helicopter',
 ]
 
 if __name__ == "__main__":
