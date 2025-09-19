@@ -19,7 +19,7 @@ internal class HelicopterService(OrderService orderService)
 
         await LabelsWrapper.DoAsync(labels, async () =>
         {
-            for (long i = 0; i < 1_000_000_000; i++)
+            for (long i = 0; i < 1_000; i++)
             {
                 await Task.Yield();
             }
