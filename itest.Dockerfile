@@ -39,6 +39,8 @@ COPY --from=sdk /Pyroscope.Profiler.Native.so ./subfolder/Pyroscope.Profiler.Nat
 COPY --from=sdk /Pyroscope.Linux.ApiWrapper.x64.so ./subfolder/Pyroscope.Linux.ApiWrapper.x64.so
 COPY --from=build /dotnet/app ./
 
+# Fix for alpine not being able to dlopen an already loaded library
+ENV LD_LIBRARY_PATH=/dotnet/subfolder/
 
 ENV CORECLR_ENABLE_PROFILING=1
 ENV CORECLR_PROFILER={BD1A650D-AC5D-4896-B64F-D6FA25D6B26A}
