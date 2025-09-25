@@ -1,45 +1,37 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading;
-using System.Collections;
+using Example;
 
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.DependencyInjection;
+var builder = WebApplication.CreateBuilder(args);
 
-namespace Example;
+builder.Services.AddSingleton<BikeService>();
+builder.Services.AddSingleton<CarService>();
+builder.Services.AddSingleton<HelicopterService>();
+builder.Services.AddSingleton<OrderService>();
+builder.Services.AddSingleton<ScooterService>();
 
-public static class Program
+var app = builder.Build();
+
+app.MapGet("/bike", (BikeService service) =>
 {
-    private static readonly List<FileStream> Files = new();
-    public static void Main(string[] args)
-    {
-        var orderService = new OrderService();
-        var bikeService = new BikeService(orderService);
-        var scooterService = new ScooterService(orderService);
-        var carService = new CarService(orderService);
+    service.Order(1);
+    return "Bike ordered";
+});
 
-        var builder = WebApplication.CreateBuilder(args);
-        var app = builder.Build();
+app.MapGet("/scooter", (ScooterService service) =>
+{
+    service.Order(2);
+    return "Scooter ordered";
+});
 
-        app.MapGet("/bike", () =>
-        {
-            bikeService.Order(1);
-            return "Bike ordered";
-        });
-        app.MapGet("/scooter", () =>
-        {
-            scooterService.Order(2);
-            return "Scooter ordered";
-        });
+app.MapGet("/car", (CarService service) =>
+{
+    service.Order(3);
+    return "Car ordered";
+});
 
-        app.MapGet("/car", () =>
-        {
-            carService.Order(3);
-            return "Car ordered";
-        });
+app.MapGet("/helicopter", async (HelicopterService service) =>
+{
+    await service.Order(4);
+    return "Helicopter ordered";
+});
 
-        app.Run();
-    }
-}
+app.Run();

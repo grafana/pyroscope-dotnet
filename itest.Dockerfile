@@ -17,7 +17,7 @@ COPY Pyroscope/package-logo.png ./Pyroscope/package-logo.png
 COPY Pyroscope/Pyroscope ./Pyroscope/Pyroscope
 
 # Set the target framework to SDK_VERSION
-RUN sed -i -E 's|<TargetFramework>.*</TargetFramework>|<TargetFramework>net'$SDK_VERSION'</TargetFramework>|' ./app/Rideshare.csproj
+RUN sed -i -E 's|<TargetFrameworks>.*</TargetFrameworks>|<TargetFramework>net'$SDK_VERSION'</TargetFramework>|' ./app/Rideshare.csproj
 
 WORKDIR /dotnet/app
 
