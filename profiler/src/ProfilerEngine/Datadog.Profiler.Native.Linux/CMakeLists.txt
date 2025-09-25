@@ -55,7 +55,7 @@ endif()
 # Environment detection
 # ******************************************************
 
-SET(PROFILER_BASENAME Datadog.Profiler.Native)
+SET(PROFILER_BASENAME Pyroscope.Profiler.Native)
 SET(PROFILER_STATIC_LIB_NAME ${PROFILER_BASENAME}.static)
 SET(PROFILER_SHARED_LIB_NAME ${PROFILER_BASENAME})
 
