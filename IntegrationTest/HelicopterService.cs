@@ -28,7 +28,7 @@ internal class HelicopterService
         {
             for (long i = 0; i < 1_000; i++)
             {
-                await Task.Yield();
+                await Task.Delay(0);
             }
         });
     }
