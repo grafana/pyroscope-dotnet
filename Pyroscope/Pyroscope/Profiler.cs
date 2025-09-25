@@ -43,8 +43,9 @@ namespace Pyroscope
             {
                 NativeInterop.SetDynamicTag(key, value);
             }
-            catch (DllNotFoundException)
+            catch (DllNotFoundException ex)
             {
+                DllNotFound(ex);
                 _dllNotFound = true;
             }
         }
@@ -59,8 +60,9 @@ namespace Pyroscope
             {
                 NativeInterop.ClearDynamicTags();
             }
-            catch (DllNotFoundException)
+            catch (DllNotFoundException ex)
             {
+                DllNotFound(ex);
                 _dllNotFound = true;
             }
         }
@@ -80,8 +82,9 @@ namespace Pyroscope
             {
                 NativeInterop.SetCPUTrackingEnabled(enabled);
             }
-            catch (DllNotFoundException)
+            catch (DllNotFoundException ex)
             {
+                DllNotFound(ex);
                 _dllNotFound = true;
             }
         }
@@ -100,8 +103,9 @@ namespace Pyroscope
             {
                 NativeInterop.SetAllocationTrackingEnabled(enabled);
             }
-            catch (DllNotFoundException)
+            catch (DllNotFoundException ex)
             {
+                DllNotFound(ex);
                 _dllNotFound = true;
             }
         }
@@ -120,8 +124,9 @@ namespace Pyroscope
             {
                 NativeInterop.SetContentionTrackingEnabled(enabled);
             }
-            catch (DllNotFoundException)
+            catch (DllNotFoundException ex)
             {
+                DllNotFound(ex);
                 _dllNotFound = true;
             }
         }
@@ -140,8 +145,9 @@ namespace Pyroscope
             {
                 NativeInterop.SetExceptionTrackingEnabled(enabled);
             }
-            catch (DllNotFoundException)
+            catch (DllNotFoundException ex)
             {
+                DllNotFound(ex);
                 _dllNotFound = true;
             }
         }
@@ -156,8 +162,9 @@ namespace Pyroscope
             {
                 NativeInterop.SetAuthToken(authToken);
             }
-            catch (DllNotFoundException)
+            catch (DllNotFoundException ex)
             {
+                DllNotFound(ex);
                 _dllNotFound = true;
             }
         }
@@ -172,10 +179,15 @@ namespace Pyroscope
             {
                 NativeInterop.SetBasicAuth(username, password);
             }
-            catch (DllNotFoundException)
+            catch (DllNotFoundException ex)
             {
+                DllNotFound(ex);
                 _dllNotFound = true;
             }
+        }
+
+        private static void DllNotFound(DllNotFoundException ex) {
+            Console.WriteLine($"[Profiler] Failed to load Pyroscope.Profiler.Native.so : {ex}.\nConsider setting LD_LIBRARY_PATH pointing to the directory containing the Pyroscope.Profiler.Native.so");
         }
         
         private readonly ContextTracker _contextTracker;

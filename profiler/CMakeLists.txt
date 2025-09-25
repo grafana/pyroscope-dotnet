@@ -143,7 +143,7 @@ enable_testing()
 add_subdirectory(test)
 
 add_custom_target(profiler)
-add_dependencies(profiler Datadog.Profiler.Native)
+add_dependencies(profiler Pyroscope.Profiler.Native)
 
 add_custom_target(all-profiler)
 add_dependencies(all-profiler profiler profiler-native-tests)
