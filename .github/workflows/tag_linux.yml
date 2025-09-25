@@ -11,7 +11,7 @@ jobs:
     permissions:
       contents: write
       id-token: write
-    runs-on: github-hosted-ubuntu-x64-large
+    runs-on: ubuntu-x64-large
     env:
       DOCKER_BUILDKIT: 1
       ARCH: x86_64
@@ -48,7 +48,7 @@ jobs:
     permissions:
       contents: write
       id-token: write
-    runs-on: github-hosted-ubuntu-arm64-large
+    runs-on: ubuntu-arm64-large
     env:
       DOCKER_BUILDKIT: 1
       ARCH: aarch64
@@ -86,7 +86,7 @@ jobs:
       contents: read
       id-token: write
     needs: ['release-linux-profiler-x86_64', 'release-linux-profiler-aarch64']
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-x64-small
     env:
       DOCKER_BUILDKIT: 1
       LIBC: ${{ matrix.name }}

@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build-linux-profiler-x86_64:
-    runs-on: github-hosted-ubuntu-x64-large
+    runs-on: ubuntu-x64-large
     env:
       DOCKER_BUILDKIT: 1
     strategy:
@@ -26,7 +26,7 @@ jobs:
           persist-credentials: false
       - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=x86_64 LIBC=${{ matrix.name }}  make docker/build
   build-linux-profiler-aarch64:
-    runs-on: github-hosted-ubuntu-arm64-large
+    runs-on: ubuntu-arm64-large
     env:
       DOCKER_BUILDKIT: 1
     strategy:
@@ -38,4 +38,7 @@ jobs:
         with:
           submodules: 'true'
           persist-credentials: false
+      - uses: actions/setup-dotnet@d4c94342e560b34958eacfc5d055d21461ed1c5d
+        with:
+          dotnet-version: '8.0.412'
       - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=aarch64 LIBC=${{ matrix.name }}  make docker/build
