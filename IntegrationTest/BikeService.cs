@@ -1,7 +1,14 @@
 namespace Example;
 
-internal class BikeService(OrderService orderService)
+internal class BikeService
 {
+    private readonly OrderService _orderService;
+
+    public BikeService(OrderService orderService)
+    {
+        _orderService = orderService;
+    }
+
     public void Order(int searchRadius) =>
-        orderService.FindNearestVehicle(searchRadius, "bike");
+        _orderService.FindNearestVehicle(searchRadius, "bike");
 }

@@ -3,11 +3,18 @@ using Pyroscope;
 
 namespace Example;
 
-internal class HelicopterService(OrderService orderService)
+internal class HelicopterService
 {
+    private readonly OrderService _orderService;
+
+    public HelicopterService(OrderService orderService)
+    {
+        _orderService = orderService;
+    }
+
     public async Task Order(int searchRadius)
     {
-        orderService.FindNearestVehicle(searchRadius, "helicopter");
+        _orderService.FindNearestVehicle(searchRadius, "helicopter");
         await DoWorkAsync(searchRadius);
     }
 
