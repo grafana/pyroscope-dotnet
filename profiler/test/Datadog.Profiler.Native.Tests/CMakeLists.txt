@@ -63,7 +63,7 @@ target_include_directories(${TEST_EXECUTABLE_NAME}
     PUBLIC ${googletest_SOURCE_DIR}/googlemock/include
 )
 
-add_dependencies(${TEST_EXECUTABLE_NAME} gmock gtest Pyroscope.Profiler.Native.static libunwind)
+add_dependencies(${TEST_EXECUTABLE_NAME} gmock gtest Datadog.Profiler.Native.static libunwind)
 
 if (RUN_ASAN)
     target_link_libraries(${TEST_EXECUTABLE_NAME} -fsanitize=address)
@@ -74,7 +74,7 @@ if (RUN_UBSAN)
 endif()
 
 target_link_libraries(${TEST_EXECUTABLE_NAME}
-  Pyroscope.Profiler.Native.static
+  Datadog.Profiler.Native.static
   gtest_main
   gmock_main
   -static-libgcc

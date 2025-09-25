@@ -38,9 +38,9 @@ RUN mkdir build-${CMAKE_BUILD_TYPE} && \
         -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" \
         -DCMAKE_C_FLAGS_DEBUG="-g -O0"
 
-RUN cd build-${CMAKE_BUILD_TYPE} && make -j16 Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64
+RUN cd build-${CMAKE_BUILD_TYPE} && make -j16 Datadog.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
 FROM busybox:1.36.1-musl
-COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-musl/Pyroscope.Profiler.Native.so /Pyroscope.Profiler.Native.so
+COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-musl/Datadog.Profiler.Native.so /Pyroscope.Profiler.Native.so
 COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-musl/Datadog.Linux.ApiWrapper.x64.so /Pyroscope.Linux.ApiWrapper.x64.so
 
