@@ -37,6 +37,7 @@ namespace Pyroscope
         {
             if (_dllNotFound)
             {
+            Console.WriteLine(">>> dll not found");
                 return;
             }
             try

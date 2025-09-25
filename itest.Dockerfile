@@ -33,15 +33,17 @@ FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/aspnet:$SDK_VERSION$SDK_IMA
 
 WORKDIR /dotnet
 
-COPY --from=sdk /Pyroscope.Profiler.Native.so ./Pyroscope.Profiler.Native.so
-COPY --from=sdk /Pyroscope.Linux.ApiWrapper.x64.so ./Pyroscope.Linux.ApiWrapper.x64.so
+# place the binaries in a subfolder - to rigger a problme when SONAME was Datadog.Profiler.Native
+# and dynamic linker could not find the profiler lib.
+COPY --from=sdk /Pyroscope.Profiler.Native.so ./subfolder/Pyroscope.Profiler.Native.so
+COPY --from=sdk /Pyroscope.Linux.ApiWrapper.x64.so ./subfolder/Pyroscope.Linux.ApiWrapper.x64.so
 COPY --from=build /dotnet/app ./
 
 
 ENV CORECLR_ENABLE_PROFILING=1
 ENV CORECLR_PROFILER={BD1A650D-AC5D-4896-B64F-D6FA25D6B26A}
-ENV CORECLR_PROFILER_PATH=/dotnet/Pyroscope.Profiler.Native.so
-ENV LD_PRELOAD=/dotnet/Pyroscope.Linux.ApiWrapper.x64.so
+ENV CORECLR_PROFILER_PATH=/dotnet/subfolder/Pyroscope.Profiler.Native.so
+ENV LD_PRELOAD=/dotnet/subfolder/Pyroscope.Linux.ApiWrapper.x64.so
 
 ENV PYROSCOPE_SERVER_ADDRESS=http://pyroscope:4040
 ENV PYROSCOPE_LOG_LEVEL=debug
