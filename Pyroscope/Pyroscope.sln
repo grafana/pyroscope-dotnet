@@ -1,6 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36429.23 d17.14
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pyroscope", "Pyroscope\Pyroscope.csproj", "{7DA9EFD3-9B8D-4DF4-A1D1-108D43B53BBD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pyroscope.OpenTelemetry", "Pyroscope.OpenTelemetry\Pyroscope.OpenTelemetry.csproj", "{AEB842E5-386E-275E-3A1B-00CD047918A4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Pyroscope.OpenTracing", "Pyroscope.OpenTracing\Pyroscope.OpenTracing.csproj", "{AE3C5FD4-119D-3AAD-DC9E-C903F2D8EFDF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Rideshare", "..\IntegrationTest\Rideshare.csproj", "{230842A8-C534-4ECF-249E-0AD71F4126E2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -12,5 +21,23 @@ Global
 		{7DA9EFD3-9B8D-4DF4-A1D1-108D43B53BBD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7DA9EFD3-9B8D-4DF4-A1D1-108D43B53BBD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7DA9EFD3-9B8D-4DF4-A1D1-108D43B53BBD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AEB842E5-386E-275E-3A1B-00CD047918A4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AEB842E5-386E-275E-3A1B-00CD047918A4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AEB842E5-386E-275E-3A1B-00CD047918A4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AEB842E5-386E-275E-3A1B-00CD047918A4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AE3C5FD4-119D-3AAD-DC9E-C903F2D8EFDF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AE3C5FD4-119D-3AAD-DC9E-C903F2D8EFDF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AE3C5FD4-119D-3AAD-DC9E-C903F2D8EFDF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AE3C5FD4-119D-3AAD-DC9E-C903F2D8EFDF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{230842A8-C534-4ECF-249E-0AD71F4126E2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{230842A8-C534-4ECF-249E-0AD71F4126E2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{230842A8-C534-4ECF-249E-0AD71F4126E2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{230842A8-C534-4ECF-249E-0AD71F4126E2}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {F1C82690-DF18-45C2-AFA5-BC1083ABCD77}
 	EndGlobalSection
 EndGlobal
