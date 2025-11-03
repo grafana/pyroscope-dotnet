@@ -1,4 +1,4 @@
-using System;
+using Pyroscope;
 
 namespace Example;
 
@@ -8,49 +8,53 @@ internal class OrderService
     {
         lock (_lock)
         {
-            var labels = Pyroscope.LabelSet.Empty.BuildUpon()
+            var labels = LabelSet.Empty.BuildUpon()
                 .Add("vehicle", vehicle)
                 .Build();
-            Pyroscope.LabelsWrapper.Do(labels, () =>
+
+            LabelsWrapper.Do(labels, static (state) =>
             {
-                for (long i = 0; i < searchRadius * 1000000000; i++)
+                for (long i = 0; i < state.searchRadius * 1_000_000_000; i++)
                 {
                 }
 
-                if (vehicle.Equals("car"))
+                if (string.Equals("car", state.vehicle))
                 {
-                    CheckDriverAvailability(labels, searchRadius);
+                    CheckDriverAvailability(state.labels, state.searchRadius);
                 }
-            });
+            },
+            (labels, searchRadius, vehicle));
         }
     }
 
     private readonly object _lock = new();
 
-    private static void CheckDriverAvailability(Pyroscope.LabelSet ctx, long searchRadius)
+    private static void CheckDriverAvailability(LabelSet labels, long searchRadius)
     {
-        var region = System.Environment.GetEnvironmentVariable("REGION") ?? "unknown_region";
-        ctx = ctx.BuildUpon()
+        var region = Environment.GetEnvironmentVariable("REGION") ?? "unknown_region";
+        labels = labels.BuildUpon()
             .Add("driver_region", region)
             .Build();
-        Pyroscope.LabelsWrapper.Do(ctx, () =>
+
+        LabelsWrapper.Do(labels, static (state) =>
         {
-            for (long i = 0; i < searchRadius * 1000000000; i++)
+            for (long i = 0; i < state.searchRadius * 1_000_000_000; i++)
             {
             }
 
-            var now = DateTime.Now.Minute % 2 == 0;
             var forceMutexLock = DateTime.Now.Minute % 2 == 0;
-            if ("eu-north".Equals(region) && forceMutexLock)
+
+            if (string.Equals("eu-north", state.region) && forceMutexLock)
             {
-                MutexLock(searchRadius);
+                MutexLock(state.searchRadius);
             }
-        });
+        },
+        (region, searchRadius));
     }
 
     private static void MutexLock(long searchRadius)
     {
-        for (long i = 0; i < 30 * searchRadius * 1000000000; i++)
+        for (long i = 0; i < 30 * searchRadius * 1_000_000_000; i++)
         {
         }
     }
