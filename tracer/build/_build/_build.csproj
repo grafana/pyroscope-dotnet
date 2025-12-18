@@ -40,7 +40,7 @@
     <PackageReference Include="Octokit" Version="10.0.0" />
     <PackageReference Include="Perfolizer" Version="0.2.1" />
     <PackageReference Include="Sep" Version="0.5.2" />
-    <PackageReference Include="ByteSize" Version="2.1.0" />
+    <PackageReference Include="ByteSize" Version="2.1.2" />
   </ItemGroup>
 
   <!-- On it's own, since windows only and just used for notifications -->
