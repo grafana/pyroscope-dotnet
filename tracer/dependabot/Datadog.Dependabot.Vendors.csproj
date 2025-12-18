@@ -16,7 +16,7 @@
     <PackageReference Include="StatsdClient" Version="6.0.0" />
 
     <!-- https://www.nuget.org/packages/MessagePack/2.5.187 -->
-    <PackageReference Include="MessagePack" Version="2.5.187" />
+    <PackageReference Include="MessagePack" Version="2.5.198" />
 
     <!-- https://www.nuget.org/packages/Newtonsoft.Json/13.0.2 -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
