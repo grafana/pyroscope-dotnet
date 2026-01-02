@@ -1,4 +1,4 @@
-﻿FROM python:3.10.5-windowsservercore-ltsc2022
+﻿FROM python:3.10.5-windowsservercore-ltsc2022@sha256:cf357e769124547c6f1a44e291d98c5b55528bf9aaac62909135840e6e220869
 
 WORKDIR /
 

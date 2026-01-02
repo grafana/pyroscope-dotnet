@@ -1,5 +1,5 @@
 #See https://aka.ms/containerfastmode to understand how Visual Studio uses this Dockerfile to build your images for faster debugging.
-FROM mcr.microsoft.com/dotnet/aspnet:3.1 AS appbase
+FROM mcr.microsoft.com/dotnet/aspnet:3.1@sha256:31740421c9c67f0cb99f31b16ae3d2fab4e2b5443ffb605a700e6e4a7369ad09 AS appbase
 ARG DD_API_KEY
 ENV DD_API_KEY=$DD_API_KEY
 
@@ -7,7 +7,7 @@ EXPOSE 80
 EXPOSE 443
 WORKDIR /app
 
-FROM mcr.microsoft.com/dotnet/runtime-deps:5.0-buster-slim as builder
+FROM mcr.microsoft.com/dotnet/runtime-deps:5.0-buster-slim@sha256:e69543c230fbf59e049ce9eb6ef2cd57f0da09a5d0b849130344c27e363e7f41 as builder
 ARG DOTNETSDK_VERSION=6.0.100
 ENV DOTNETSDK_VERSION=$DOTNETSDK_VERSION
 
