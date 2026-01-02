@@ -1,4 +1,4 @@
-﻿FROM datadog/libddwaf:toolchain as base
+﻿FROM datadog/libddwaf:toolchain@sha256:dce2db6683e462e9ac170027f4121e8eb532e60ef503b85fbe1ac592a3de2b4f as base
 
 ARG DOTNETSDK_VERSION
 

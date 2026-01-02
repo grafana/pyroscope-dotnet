@@ -1,4 +1,4 @@
-﻿FROM andrewlockdd/alpine-clang:1.0 as base
+﻿FROM andrewlockdd/alpine-clang:1.0@sha256:cb350dbbe9b9faac570357461e2db806c54f8535451829cf6827b5ab0c2d2d53 as base
 ARG DOTNETSDK_VERSION
 
 ENV \

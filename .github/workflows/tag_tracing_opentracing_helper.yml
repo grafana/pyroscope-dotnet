@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-x64-small
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           submodules: 'true'
           persist-credentials: false
@@ -24,7 +24,7 @@ jobs:
       - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTracing
       - name: Publish NuGet packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: packages
           path: ./Pyroscope/artifacts/package/release

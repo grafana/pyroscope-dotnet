@@ -1,4 +1,4 @@
-﻿FROM gleocadie/centos7-clang16 as base
+﻿FROM gleocadie/centos7-clang16@sha256:0d654543a9bdbdcf55e9c1a05ee2da1ac5355aaca07727f82171b03b3ab76998 as base
 
 ARG DOTNETSDK_VERSION
 

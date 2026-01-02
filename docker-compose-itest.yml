@@ -1,7 +1,7 @@
 services:
   pyroscope:
     platform: linux/amd64
-    image: grafana/pyroscope
+    image: grafana/pyroscope@sha256:f6e3caa6cade1dea53dd39db6117668e92cf9e43fbc097dda2096368b14f1cd1
     ports:
       - "4040:4040"
 
@@ -86,7 +86,7 @@ services:
       SERVICE_NAME: $SERVICE_NAME
 
   grafana:
-    image: grafana/grafana:latest
+    image: grafana/grafana:latest@sha256:2175aaa91c96733d86d31cf270d5310b278654b03f5718c59de12a865380a31f
     environment:
       - GF_INSTALL_PLUGINS=grafana-pyroscope-app
       - GF_AUTH_ANONYMOUS_ENABLED=true
