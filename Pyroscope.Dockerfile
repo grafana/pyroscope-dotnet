@@ -16,7 +16,6 @@ WORKDIR /profiler
 
 ADD build build
 ADD profiler profiler
-ADD tracer tracer
 ADD shared shared
 ADD CMakeLists.txt CMakeLists.txt
 

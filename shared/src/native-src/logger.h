@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+#include <iostream>
 #include <memory>
 #include <regex>
 #include <sstream>
@@ -10,6 +12,7 @@
 #include <spdlog/sinks/rotating_file_sink.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
+#include "lazy_rotating_file_sink.h"
 
 #include "dd_filesystem.hpp"
 #include "pal.h"
@@ -43,6 +46,7 @@ public:
     inline void Flush();
 
     inline void EnableDebug(bool enable);
+    inline void FlushAndDisableBuffering();
     inline bool IsDebugEnabled() const;
 
 
@@ -50,7 +54,7 @@ private:
 
     friend class LogManager;
 
-    Logger(std::shared_ptr<spdlog::logger> const& logger) : _internalLogger{logger}, m_debug_logging_enabled{false}
+    Logger(std::shared_ptr<spdlog::logger> const& logger, bool bufferingEnabled) : _internalLogger{logger}, m_debug_logging_enabled{false}, m_buffering_enabled{bufferingEnabled}
     {
     }
 
@@ -67,19 +71,21 @@ private:
     static inline std::string BuildLogFileSuffix();
 
     template <class LoggerPolicy>
-    static std::string GetLogPath(const std::string& file_name_suffix, std::shared_ptr<spdlog::logger> &stderr_logger);
+    static std::string GetLogPath(const std::string& file_name_suffix);
 
     template <class LoggerPolicy>
-    static std::shared_ptr<spdlog::logger> CreateInternalLogger();
+    static std::tuple<std::shared_ptr<spdlog::logger>, bool>  CreateInternalLogger();
 
     std::shared_ptr<spdlog::logger> _internalLogger;
     bool m_debug_logging_enabled;
+    bool m_buffering_enabled;
 };
 
 template <class LoggerPolicy>
 inline Logger Logger::Create()
 {
-    return {Logger::CreateInternalLogger<LoggerPolicy>()};
+    const auto [logger, bufferingEnabled] = Logger::CreateInternalLogger<LoggerPolicy>();
+    return {logger, bufferingEnabled};
 }
 
 inline std::string Logger::SanitizeProcessName(std::string const& processName)
@@ -99,7 +105,7 @@ inline std::string Logger::BuildLogFileSuffix()
 }
 
 template <class LoggerPolicy>
-std::shared_ptr<spdlog::logger> Logger::CreateInternalLogger()
+std::tuple<std::shared_ptr<spdlog::logger>, bool> Logger::CreateInternalLogger()
 {
     spdlog::set_error_handler([](const std::string& msg) {
         // By writing into the stderr was changing the behavior in a CI scenario.
@@ -108,9 +114,9 @@ std::shared_ptr<spdlog::logger> Logger::CreateInternalLogger()
          // std::cerr << "LoggerImpl Handler: " << msg << std::endl;
     });
 
-    spdlog::flush_every(std::chrono::seconds(3));
-
     static auto file_name_suffix = Logger::BuildLogFileSuffix();
+
+    const auto buffering_enabled = LoggerPolicy::enable_buffering();
 
     std::shared_ptr<spdlog::logger> logger;
     std::shared_ptr<spdlog::logger> stderr_logger;
@@ -126,13 +132,27 @@ std::shared_ptr<spdlog::logger> Logger::CreateInternalLogger()
     }
     try
     {
-        std::vector<spdlog::sink_ptr> sinks;
+        auto log_path = Logger::GetLogPath<LoggerPolicy>(file_name_suffix);
+        // If we are buffering logs, we use a LazyRotatingFileSink to avoid creating the file until the first log is
+        // written.
         if (stderr_log_enabled)
         {
+            std::vector<spdlog::sink_ptr> sinks;
             sinks.push_back(std::make_shared<spdlog::sinks::ansicolor_stderr_sink_mt>());
+            if (buffering_enabled)
+            {
+                sinks.push_back(std::make_shared<spdlog::sinks::lazy_rotating_file_sink_mt>(log_path, 1048576 * 5, 10));
+            } else
+            {
+                sinks.push_back(std::make_shared<spdlog::sinks::rotating_file_sink_mt>(log_path, 1048576 * 5, 10));
+            }
+            logger = std::make_shared<spdlog::logger>(LoggerPolicy::file_name, begin(sinks), end(sinks));
+        } else
+        {
+            logger = buffering_enabled
+            ? spdlog::lazy_rotating_logger_mt(LoggerPolicy::file_name, log_path, 1048576 * 5, 10)
+            : spdlog::rotating_logger_mt(LoggerPolicy::file_name, log_path, 1048576 * 5, 10);
         }
-        sinks.push_back(std::make_shared<spdlog::sinks::rotating_file_sink_mt>(Logger::GetLogPath<LoggerPolicy>(file_name_suffix, stderr_logger), 1048576 * 5, 10));
-        logger = std::make_shared<spdlog::logger>(LoggerPolicy::file_name, begin(sinks), end(sinks));
     }
     catch (...)
     {
@@ -143,17 +163,34 @@ std::shared_ptr<spdlog::logger> Logger::CreateInternalLogger()
         logger->error("LoggerImpl Handler: Error creating native log file.");
     }
 
-    logger->set_level(spdlog::level::debug);
-
     logger->set_pattern(LoggerPolicy::pattern);
 
-    logger->flush_on(spdlog::level::info);
+    // Only start flushing if explicitly enabled
+    if (buffering_enabled)
+    {
+        // we set the level to off but enable backtracing so that
+        // any logs written are stored in a buffer
+        // We can then dump that buffer by calling EnableAutoFlush()
+        logger->set_level(spdlog::level::off);
+        logger->flush_on(spdlog::level::off);
+        // Can only store 100 messages in the backtrace buffer, but, we currently log ~40 in debug so should be ok for a while
+        logger->enable_backtrace(100);
+        logger->debug("Buffering of logs enabled");
+    }
+    else
+    {
+        logger->disable_backtrace();
+        logger->set_level(spdlog::level::debug);
+        logger->flush_on(spdlog::level::info);
+        spdlog::flush_every(std::chrono::seconds(3));
+        logger->debug("Buffering of logs disabled");
+    }
 
-    return logger;
+    return std::make_tuple(logger, buffering_enabled);
 }
 
 template <class TLoggerPolicy>
-std::string Logger::GetLogPath(const std::string& file_name_suffix, std::shared_ptr<spdlog::logger> &stderr_logger)
+std::string Logger::GetLogPath(const std::string& file_name_suffix)
 {
     const auto log_path = fs::path(::shared::GetDatadogLogFilePath<TLoggerPolicy>(file_name_suffix));
 
@@ -163,12 +200,7 @@ std::string Logger::GetLogPath(const std::string& file_name_suffix, std::shared_
 
         if (!fs::exists(parent_path))
         {
-            try {
-
-                fs::create_directories(parent_path);
-            } catch (std::exception &e) {
-                stderr_logger->error("Logger::GetLogPath failed to create a parent directory: {0}",  parent_path.string());
-            }
+            fs::create_directories(parent_path);
         }
     }
 
@@ -217,18 +249,36 @@ concept IsWstring = same_as<T, ::shared::WSTRING> ||
 template <IsWstring T>
 void WriteToStream(std::ostringstream& oss, T const& x)
 {
-    if constexpr (std::is_same_v<T, ::shared::WSTRING>)
+    oss << ::shared::ToString(x);
+}
+
+template <class Period>
+const char* time_unit_str()
+{
+    if constexpr(std::is_same_v<Period, std::nano>)
     {
-        oss << ::shared::ToString(x);
+        return "ns";
     }
-    else if constexpr (std::is_array_v<T>)
+    else if constexpr(std::is_same_v<Period, std::micro>)
     {
-        oss << ::shared::ToString(x, std::extent_v<T>);
+        return "us";
     }
-    else
+    else if constexpr(std::is_same_v<Period, std::milli>)
     {
-        oss << ::shared::ToString(x);
+        return "ms";
     }
+    else if constexpr(std::is_same_v<Period, std::ratio<1>>)
+    {
+        return "s";
+    }
+
+    return "<unknown unit of time>";
+}
+
+template <class Rep, class Period>
+void WriteToStream(std::ostringstream& oss, std::chrono::duration<Rep, Period> const& x)
+{
+    oss << x.count() << time_unit_str<Period>();
 }
 
 template <class T>
@@ -292,5 +342,28 @@ inline void Logger::EnableDebug(bool enable)
 inline bool Logger::IsDebugEnabled() const
 {
     return m_debug_logging_enabled;
+}
+
+/**
+ * Writes all currently buffered logs to the log file and disables buffering.
+ */
+inline void Logger::FlushAndDisableBuffering()
+{
+    if (!m_buffering_enabled)
+    {
+        return;
+    }
+
+    m_buffering_enabled = false;
+
+    // Write all
+    _internalLogger->set_level(spdlog::level::debug);
+    Flush();
+    _internalLogger->flush_on(spdlog::level::info);
+    _internalLogger->dump_backtrace();
+    _internalLogger->disable_backtrace();
+    spdlog::flush_every(std::chrono::seconds(3));
+
+    _internalLogger->debug("Buffered logs flushed and buffering disabled");
 }
 } // namespace datadog::shared

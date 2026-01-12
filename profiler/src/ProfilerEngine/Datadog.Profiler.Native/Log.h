@@ -5,6 +5,7 @@
 
 #include "EnvironmentVariables.h"
 
+#include <mutex>
 #include <string>
 
 #include "shared/src/native-src/logger.h"
@@ -23,6 +24,10 @@ private:
         inline static const shared::WSTRING folder_path = WStr(R"(Datadog .NET Tracer\logs)");
 #endif
         inline static const std::string pattern = "[%Y-%m-%d %H:%M:%S.%e | %l | PId: %P | TId: %t] %v";
+        static bool enable_buffering() {
+            // We don't buffer logs, as we know we are definitely instrumenting
+            return false;
+        }
         struct logging_environment
         {
             inline static const shared::WSTRING log_path = EnvironmentVariables::LogPath;
@@ -68,3 +73,11 @@ public:
         Instance->Error<Args...>(args...);
     }
 };
+
+#define LogOnce(level, ...)                                                                                                \
+    do                                                                                                                     \
+    {                                                                                                                      \
+        static std::once_flag UNIQUE_ONCE_FLAG_##__COUNTER__;                                                              \
+        std::call_once(                                                                                                    \
+            UNIQUE_ONCE_FLAG_##__COUNTER__, [](auto&&... args) { Log::level(std::forward<decltype(args)>(args)...); }, __VA_ARGS__); \
+    } while (0) // NOLINT

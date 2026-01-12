@@ -30,11 +30,12 @@ void PprofBuilder::AddSample(const Sample& sample)
     }
     for (const auto& label : sample.GetLabels())
     {
-        if (label.second.Get() != nullptr)
+        auto sl = std::get_if<StringLabel>(&label);
+        if (sl)
         {
             auto* pLabel = pSample->add_label();
-            pLabel->set_key(AddString(label.first));
-            pLabel->set_str(AddString(*label.second.Get()));
+            pLabel->set_key(AddString(sl->first));
+            pLabel->set_str(AddString(*sl->second.Get()));
         }
     }
     _samplesCount++;

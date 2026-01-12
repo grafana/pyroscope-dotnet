@@ -20,6 +20,14 @@ EnabledProfilers::EnabledProfilers(IConfiguration* pConfiguration, bool isListen
     {
         _enabledProfilers |= RuntimeProfiler::Exceptions;
     }
+    if (pConfiguration->IsGcThreadsCpuTimeEnabled())
+    {
+        _enabledProfilers |= RuntimeProfiler::CpuGc;
+    }
+    if (pConfiguration->IsThreadLifetimeEnabled())
+    {
+        _enabledProfilers |= RuntimeProfiler::ThreadsLifetime;
+    }
 
     // CLR events driven profilers
     if (isListeningToClrEvents)
@@ -45,6 +53,16 @@ EnabledProfilers::EnabledProfilers(IConfiguration* pConfiguration, bool isListen
 
             // heap profiling requires allocations profiling
             _enabledProfilers |= RuntimeProfiler::Allocations;
+        }
+
+        if (pConfiguration->IsHttpProfilingEnabled())
+        {
+            _enabledProfilers |= RuntimeProfiler::Network;
+        }
+
+        if (pConfiguration->IsHeapSnapshotEnabled())
+        {
+            _enabledProfilers |= RuntimeProfiler::HeapSnapshot;
         }
 
         // TODO: add new CLR event driven profilers

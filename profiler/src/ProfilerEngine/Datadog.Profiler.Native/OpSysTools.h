@@ -3,8 +3,11 @@
 
 #pragma once
 
+#include "Log.h"
+
 #include "shared/src/native-src/string.h"
 
+#include <chrono>
 #include <string>
 #include <thread>
 
@@ -42,6 +45,7 @@ public:
 #ifdef _WINDOWS
     static shared::WSTRING GetNativeThreadName(HANDLE threadHandle);
     static ScopedHandle GetThreadHandle(DWORD threadId);
+    static bool GetFileVersion(LPCWSTR pszFilename, uint16_t& major, uint16_t& minor, uint16_t& build, uint16_t& reviews);
 #else
     static shared::WSTRING GetNativeThreadName(pid_t tid);
 #endif
@@ -109,18 +113,18 @@ public:
     ///
     /// This function get the current timestamp in a signal-safe manner
     ///
-    static inline std::uint64_t GetTimestampSafe()
+    static inline std::chrono::nanoseconds GetTimestampSafe()
     {
         struct timespec ts;
         // TODO error handling ?
-        clock_gettime(CLOCK_MONOTONIC, &ts);
-        return (std::uint64_t)ts.tv_sec * 1000000000 + ts.tv_nsec;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        return std::chrono::nanoseconds((std::uint64_t)ts.tv_sec * 1000000000 + ts.tv_nsec);
     }
 
 #endif
 
     static bool IsSafeToStartProfiler(double coresThreshold, double& cpuLimit);
-    static std::int64_t GetHighPrecisionTimestamp();
+    static std::chrono::nanoseconds GetHighPrecisionTimestamp();
     static std::int64_t ConvertTicks(uint64_t ticks);
 
     static void Sleep(std::chrono::nanoseconds duration);
@@ -137,23 +141,30 @@ private:
 #ifdef _WINDOWS
     typedef HRESULT(__stdcall* SetThreadDescriptionDelegate_t)(HANDLE threadHandle, PCWSTR pThreadDescription);
     typedef HRESULT(__stdcall* GetThreadDescriptionDelegate_t)(HANDLE hThread, PWSTR* ppThreadDescription);
-
-    static bool s_isRunTimeLinkingThreadDescriptionDone;
+    typedef BOOL(__stdcall* GetFileVersionInfoSizeDelegate_t)(LPCWSTR pszFilename, DWORD* pdwHandle);
+    typedef BOOL(__stdcall* GetFileVersionInfoDelegate_t)(LPCWSTR pszFilename, DWORD dwHandle, DWORD dwLen, LPVOID lpData);
+    typedef BOOL(__stdcall* VerQueryValueDelegate_t)(LPCVOID pBlock, LPCWSTR lpSubBlock, LPVOID* lplpBuffer, PUINT puLen);
+    static bool s_areWindowsDelegateSet;
     static SetThreadDescriptionDelegate_t s_setThreadDescriptionDelegate;
     static GetThreadDescriptionDelegate_t s_getThreadDescriptionDelegate;
+    static GetFileVersionInfoSizeDelegate_t s_getFileVersionInfoSizeW;
+    static GetFileVersionInfoDelegate_t s_getFileVersionInfoW;
+    static VerQueryValueDelegate_t s_verQueryValueW;
 
-    static void InitDelegates_GetSetThreadDescription();
+    static void InitWindowsDelegates();
     static SetThreadDescriptionDelegate_t GetDelegate_SetThreadDescription();
     static GetThreadDescriptionDelegate_t GetDelegate_GetThreadDescription();
+    static GetFileVersionInfoSizeDelegate_t GetDelegate_GetFileVersionInfoSize();
+    static GetFileVersionInfoDelegate_t GetDelegate_GetFileVersionInfo();
+    static VerQueryValueDelegate_t GetDelegate_VerQueryValue();
 #endif
 };
 
-inline std::int64_t OpSysTools::GetHighPrecisionTimestamp()
+inline std::chrono::nanoseconds OpSysTools::GetHighPrecisionTimestamp()
 {
     auto now = std::chrono::system_clock::now();
 
-    int64_t totalNanosecs = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch()).count();
-    return static_cast<std::int64_t>(totalNanosecs);
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch());
 }
 
 inline std::int64_t OpSysTools::GetHighPrecisionNanoseconds()
@@ -220,5 +231,24 @@ inline HANDLE OpSysTools::GetCurrentProcess()
     return ::GetCurrentProcess();
 #else
     return nullptr;
+#endif
+}
+
+constexpr size_t DefaultPageSize{4096}; // Concerned about hugepages?
+inline std::size_t GetPageSize()
+{
+#ifdef _WINDOWS
+    throw std::runtime_error("GetPageSize() is not implemented for Windows.");
+#else
+    static std::size_t page_size = 0;
+    if (page_size == 0)
+    {
+        page_size = sysconf(_SC_PAGESIZE);
+        if (page_size != DefaultPageSize)
+        {
+            Log::Warn("Page size is ", page_size, " expected ", DefaultPageSize);
+        }
+    }
+    return page_size;
 #endif
 }

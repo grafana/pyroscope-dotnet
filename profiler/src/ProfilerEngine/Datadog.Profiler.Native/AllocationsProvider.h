@@ -8,6 +8,7 @@
 #include "CounterMetric.h"
 #include "GenericSampler.h"
 #include "IAllocationsListener.h"
+#include "IUpscaleProvider.h"
 #include "MeanMaxMetric.h"
 #include "MetricsRegistry.h"
 #include "RawAllocationSample.h"
@@ -15,6 +16,7 @@
 
 #include "shared/src/native-src/dd_memory_resource.hpp"
 
+#include <chrono>
 #include <memory>
 
 class IConfiguration;
@@ -24,13 +26,16 @@ class IThreadsCpuManager;
 class IAppDomainStore;
 class IRuntimeIdStore;
 class ISampledAllocationsListener;
+class RawSampleTransformer;
 class SampleValueTypeProvider;
 
 
 class AllocationsProvider
     :
     public CollectorBase<RawAllocationSample>,
-    public IAllocationsListener
+    public IAllocationsListener,
+    //public IUpscaleProvider,
+    public IUpscalePoissonProvider
 {
 public:
     AllocationsProvider(
@@ -39,9 +44,7 @@ public:
         ICorProfilerInfo4* pCorProfilerInfo,
         IManagedThreadList* pManagedThreadList,
         IFrameStore* pFrameStore,
-        IThreadsCpuManager* pThreadsCpuManager,
-        IAppDomainStore* pAppDomainStore,
-        IRuntimeIdStore* pRuntimeIdStore,
+        RawSampleTransformer* rawSampleTransformer,
         IConfiguration* pConfiguration,
         ISampledAllocationsListener* pListener,
         MetricsRegistry& metricsRegistry,
@@ -53,9 +56,7 @@ public:
         ICorProfilerInfo4* pCorProfilerInfo,
         IManagedThreadList* pManagedThreadList,
         IFrameStore* pFrameStore,
-        IThreadsCpuManager* pThreadsCpuManager,
-        IAppDomainStore* pAppDomainStore,
-        IRuntimeIdStore* pRuntimeIdStore,
+        RawSampleTransformer* rawSampleTransformer,
         IConfiguration* pConfiguration,
         ISampledAllocationsListener* pListener,
         MetricsRegistry& metricsRegistry,
@@ -69,13 +70,27 @@ public:
                       uint64_t objectSize,
                       uint64_t allocationAmount) override;
 
-    void OnAllocation(uint64_t timestamp,
+    void OnAllocation(std::chrono::nanoseconds timestamp,
                       uint32_t threadId,
                       uint32_t allocationKind,
                       ClassID classId,
                       const std::string& typeName,
                       uint64_t allocationAmount,
                       const std::vector<uintptr_t>& stack) override;
+
+    void OnAllocationSampled(
+        uint32_t allocationKind,
+        ClassID classId,
+        const WCHAR* typeName,
+        uintptr_t address,
+        uint64_t objectSize,
+        uint64_t allocationByteOffset) override;
+
+    // IUpscalePoissonProvider
+    UpscalingPoissonInfo GetPoissonInfo() override;
+
+private:
+    uint64_t AllocTickThreshold = 100 * 1024; // this is also used for AllocationSampled as the mean of the distribution
 
 private:
     static std::vector<SampleValueType> SampleTypeDefinitions;
@@ -95,4 +110,5 @@ private:
     std::shared_ptr<MeanMaxMetric> _sampledAllocationsSizeMetric;
     std::shared_ptr<SumMetric> _totalAllocationsSizeMetric;
     CallstackProvider _callstackProvider;
+    MetricsRegistry& _metricsRegistry;
 };

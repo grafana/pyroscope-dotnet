@@ -95,6 +95,8 @@ PprofBuilder& PprofExporter::GetPprofBuilder(std::string_view runtimeId)
 }
 
 void PprofExporter::RegisterUpscaleProvider(IUpscaleProvider* provider) {};
+void PprofExporter::RegisterUpscalePoissonProvider(IUpscalePoissonProvider* provider) {};
+
 void PprofExporter::RegisterProcessSamplesProvider(ISamplesProvider* provider)
 {
     std::lock_guard lock(_processSamplesLock);

@@ -364,6 +364,7 @@ profiler/_build/
 obj/*
 obj_arm64/*
 obj_x86_64/*
+obj_arm64_x86_64/*
 
 # cmake build files
 .ionide/
@@ -387,3 +388,16 @@ datadog-coverage-*
 
 # nuke
 .nuke/build.schema.json
+
+# Claude Code
+.claude/settings.local.json
+CLAUDE.local.md
+
+# tools/dumps
+tools/dumps/
+!tools/dumps/README_ALPINE_ARM64.md
+!tools/dumps/start_alpine-arm64.cmd
+!tools/dumps/start_alpine-arm64.sh
+!tools/dumps/README_DEBIAN_ARM64.md
+!tools/dumps/start_debian-arm64.cmd
+!tools/dumps/start_debian-arm64.sh

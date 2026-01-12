@@ -8,7 +8,8 @@
 #include "corprof.h"
 // end
 
-#include "LibrariesInfoCache.h"
+#include "CounterMetric.h"
+#include "MetricsRegistry.h"
 #include "StackFramesCollectorBase.h"
 
 #include <atomic>
@@ -23,13 +24,20 @@ class ProfilerSignalManager;
 class ProfilerSignalManager;
 class IConfiguration;
 class CallstackProvider;
-class LibrariesInfoCache;
+class DiscardMetrics;
+class IUnwinder;
 
 class LinuxStackFramesCollector : public StackFramesCollectorBase
 {
 public:
-    explicit LinuxStackFramesCollector(ProfilerSignalManager* signalManager, IConfiguration const* configuration, CallstackProvider* callstackProvider, LibrariesInfoCache* librariesCacheInfo);
+    explicit LinuxStackFramesCollector(
+        ProfilerSignalManager* signalManager,
+        IConfiguration const* configuration,
+        CallstackProvider* callstackProvider,
+        MetricsRegistry& metricsRegistry,
+        IUnwinder* pUnwinder);
     ~LinuxStackFramesCollector() override;
+
     LinuxStackFramesCollector(LinuxStackFramesCollector const&) = delete;
     LinuxStackFramesCollector& operator=(LinuxStackFramesCollector const&) = delete;
 
@@ -60,9 +68,8 @@ private:
     void NotifyStackWalkCompleted(std::int32_t resultErrorCode);
     void UpdateErrorStats(std::int32_t errorCode);
     static bool ShouldLogStats();
-    bool CanCollect(int32_t threadId, pid_t processId) const;
-    std::int32_t CollectStackManually(void* ctx);
-    std::int32_t CollectStackWithBacktrace2(void* ctx);
+    bool CanCollect(int32_t threadId, siginfo_t* info, void* ucontext) const;
+    std::int32_t CollectStack(void* ctx);
     void MarkAsInterrupted();
 
     std::int32_t _lastStackWalkErrorCode;
@@ -79,14 +86,15 @@ private:
 private:
     static bool CollectStackSampleSignalHandler(int sig, siginfo_t* info, void* ucontext);
 
-    static char const* ErrorCodeToString(int32_t errorCode);
     static std::mutex s_stackWalkInProgressMutex;
 
     static LinuxStackFramesCollector* s_pInstanceCurrentlyStackWalking;
 
-    std::int32_t CollectCallStackCurrentThread(void* ucontext);
+    std::int32_t CollectCallStackCurrentThread(void* ctx);
 
     ErrorStatistics _errorStatistics;
-    bool _useBacktrace2;
-    LibrariesInfoCache* _plibrariesInfo;
+    std::shared_ptr<CounterMetric> _samplingRequest;
+
+    std::shared_ptr<DiscardMetrics> _discardMetrics;
+    IUnwinder* _pUnwinder;
 };

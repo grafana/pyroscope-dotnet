@@ -16,6 +16,7 @@ jobs:
     env:
       DOCKER_BUILDKIT: 1
     strategy:
+      fail-fast: false
       matrix:
         name: ['glibc', 'musl']
     steps:
@@ -30,6 +31,7 @@ jobs:
     env:
       DOCKER_BUILDKIT: 1
     strategy:
+      fail-fast: false
       matrix:
         name: ['glibc', 'musl']
     steps:

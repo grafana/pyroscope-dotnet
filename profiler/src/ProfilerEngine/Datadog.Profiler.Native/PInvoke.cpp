@@ -33,7 +33,7 @@ extern "C" void* __stdcall GetNativeProfilerIsReadyPtr()
         return nullptr;
     }
 
-    if (!profiler->GetClrLifetime()->IsRunning())
+    if (!profiler->GetClrLifetime()->IsInitialized())
     {
         return nullptr;
     }
@@ -51,7 +51,7 @@ extern "C" void* __stdcall GetPointerToNativeTraceContext()
         return nullptr;
     }
 
-    if (!profiler->GetClrLifetime()->IsRunning())
+    if (!profiler->GetClrLifetime()->IsInitialized())
     {
         return nullptr;
     }
@@ -59,9 +59,8 @@ extern "C" void* __stdcall GetPointerToNativeTraceContext()
     profiler->TraceContextHasBeenSet();
 
     // Engine is active. Get info for current thread.
-    std::shared_ptr<ManagedThreadInfo> pCurrentThreadInfo;
-    HRESULT hr = profiler->GetManagedThreadList()->TryGetCurrentThreadInfo(pCurrentThreadInfo);
-    if (FAILED(hr))
+    auto pCurrentThreadInfo = ManagedThreadInfo::CurrentThreadInfo;
+    if (pCurrentThreadInfo == nullptr)
     {
         // There was an error looking up the current thread info:
         return nullptr;
@@ -79,12 +78,13 @@ extern "C" void __stdcall SetApplicationInfoForAppDomain(const char* runtimeId, 
 
     if (profiler == nullptr)
     {
-        Log::Error("SetApplicationInfo is called BEFORE CLR initialize");
+        Log::Error("SetApplicationInfo is called BEFORE profiler is created");
         return;
     }
 
-    if (!profiler->GetClrLifetime()->IsRunning())
+    if (!profiler->GetClrLifetime()->IsInitialized())
     {
+        Log::Error("SetApplicationInfo is called BEFORE CLR initialize");
         return;
     }
 
@@ -105,7 +105,7 @@ extern "C" void __stdcall SetEndpointForTrace(const char* runtimeId, uint64_t tr
         return;
     }
 
-    if (!profiler->GetClrLifetime()->IsRunning())
+    if (!profiler->GetClrLifetime()->IsInitialized())
     {
         return;
     }
@@ -147,7 +147,7 @@ extern "C" void __stdcall SetGitMetadataForApplication(const char* runtimeId, co
         return;
     }
 
-    if (!profiler->GetClrLifetime()->IsRunning())
+    if (!profiler->GetClrLifetime()->IsInitialized())
     {
         return;
     }
@@ -170,7 +170,6 @@ extern "C" void __stdcall SetGitMetadataForApplication(const char* runtimeId, co
     );
 }
 
-
 extern "C" void __stdcall FlushProfile()
 {
     const auto profiler = CorProfilerCallback::GetInstance();
@@ -181,7 +180,7 @@ extern "C" void __stdcall FlushProfile()
         return;
     }
 
-    if (!profiler->GetClrLifetime()->IsRunning())
+    if (!profiler->GetClrLifetime()->IsInitialized())
     {
         return;
     }
@@ -200,7 +199,7 @@ extern "C" void __stdcall SetDynamicTag(const char* key, const char* value)
         return;
     }
 
-    if (!profiler->GetClrLifetime()->IsRunning())
+    if (!profiler->GetClrLifetime()->IsInitialized())
     {
         return;
     }
@@ -228,7 +227,7 @@ extern "C" void __stdcall ClearDynamicTags()
         return;
     }
 
-    if (!profiler->GetClrLifetime()->IsRunning())
+    if (!profiler->GetClrLifetime()->IsInitialized())
     {
         return;
     }
@@ -255,7 +254,7 @@ extern "C" void __stdcall SetCPUTrackingEnabled(bool enabled)
         return;
     }
 
-    if (!profiler->GetClrLifetime()->IsRunning())
+    if (!profiler->GetClrLifetime()->IsInitialized())
     {
         return;
     }
@@ -272,7 +271,7 @@ extern "C" void __stdcall SetAllocationTrackingEnabled(bool enabled)
         return;
     }
 
-    if (!profiler->GetClrLifetime()->IsRunning())
+    if (!profiler->GetClrLifetime()->IsInitialized())
     {
         return;
     }
@@ -289,7 +288,7 @@ extern "C" void __stdcall SetContentionTrackingEnabled(bool enabled)
         return;
     }
 
-    if (!profiler->GetClrLifetime()->IsRunning())
+    if (!profiler->GetClrLifetime()->IsInitialized())
     {
         return;
     }
@@ -306,7 +305,7 @@ extern "C" void __stdcall SetExceptionTrackingEnabled(bool enabled)
         return;
     }
 
-    if (!profiler->GetClrLifetime()->IsRunning())
+    if (!profiler->GetClrLifetime()->IsInitialized())
     {
         return;
     }
@@ -323,7 +322,7 @@ extern "C" void __stdcall SetPyroscopeAuthToken(const char* authToken)
         return;
     }
 
-    if (!profiler->GetClrLifetime()->IsRunning())
+    if (!profiler->GetClrLifetime()->IsInitialized())
     {
         return;
     }
@@ -345,7 +344,7 @@ extern "C" void __stdcall SetPyroscopeBasicAuth(const char* username, const char
         return;
     }
 
-    if (!profiler->GetClrLifetime()->IsRunning())
+    if (!profiler->GetClrLifetime()->IsInitialized())
     {
         return;
     }
@@ -355,4 +354,19 @@ extern "C" void __stdcall SetPyroscopeBasicAuth(const char* username, const char
         return;
     }
     sink->SetBasicAuth(username, password);
+}
+
+extern "C" bool __stdcall SetConfiguration(shared::StableConfig::SharedConfig config)
+{
+    const auto profiler = CorProfilerCallback::GetInstance();
+
+    if (profiler == nullptr)
+    {
+        Log::Error("SetConfiguration is called BEFORE CLR initialize");
+        return false;
+    }
+
+    Log::Debug("SetConfiguration called by Managed code");
+
+    return profiler->SetConfiguration(config);
 }

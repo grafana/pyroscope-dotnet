@@ -41,6 +41,7 @@ class Tags {
   // Resets all values to nullptr.
   void ClearAll();
   // Returns all the key-value pairs stored in this Tags.
+  // Pyroscope modified - only return non-nil values
   std::vector<std::pair<std::string_view, AsyncRefCountedString>> GetAll() const;
 
   // Async-signal-safe version of operator=(const Tags &other). It requires that

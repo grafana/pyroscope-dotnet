@@ -1,14 +1,15 @@
 #define _GNU_SOURCE
 #include <dlfcn.h>
 #include <link.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
-#include <stdlib.h>
-#include <unistd.h>
 #include <stdatomic.h>
-#include <pthread.h>
+#include <stdlib.h>
+#include <sys/mman.h>
+#include <unistd.h>
 
 #include "common.h"
 
@@ -58,13 +59,28 @@ enum FUNCTION_ID
 // counters: one byte per function
 __thread unsigned long long functions_entered_counter = 0;
 
+// This variable is used to indicate to the profiler that the application is crashing
+// and it should not collect samples while the app is crashing.
+// At crash time, the .NET runtime calls fork() to create a child process which will
+// be in charge of collecting a crash dump (by calling execve()) while the parent is waiting
+// for the child to finish.
+// By calling fork(), the child process and the parent process will have their own address space,
+// which means that the child process won't be able to modify the parent process's variables.
+// We need a way to enable communication between the child and parent processes.
+// This is done by creating a shared memory region and use it as a flag to indicate that
+// the application is crashing.
+// This variable will be a pointer to that shared memory region.
 __attribute__((visibility("hidden")))
-atomic_int is_app_crashing = 0;
+int* is_app_crashing = NULL;
 
 // this function is called by the profiler
 unsigned long long dd_inside_wrapped_functions()
 {
-    return functions_entered_counter + is_app_crashing;
+    int app_is_crashing = 0;
+    if (is_app_crashing != NULL) {
+        app_is_crashing = *is_app_crashing;
+    }
+    return functions_entered_counter + app_is_crashing;
 }
 
 #if defined(__aarch64__)
@@ -375,14 +391,6 @@ int dl_iterate_phdr(int (*callback)(struct dl_phdr_info* info, size_t size, void
  * dlopen, dladdr issue happens mainly on Alpine
  */
 
-__attribute__((visibility("hidden")))
-atomic_ullong __dd_dlopen_dlcose_calls_counter = 0;
-
-unsigned long long dd_nb_calls_to_dlopen_dlclose()
-{
-    return __dd_dlopen_dlcose_calls_counter;
-}
-
 /* Function pointers to hold the value of the glibc functions */
 static void* (*__real_dlopen)(const char* file, int mode) = NULL;
 
@@ -394,7 +402,7 @@ void* dlopen(const char* file, int mode)
 
     // call the real dlopen (libc/musl-libc)
     void* result = __real_dlopen(file, mode);
-    __dd_dlopen_dlcose_calls_counter++;
+    __dd_notify_libraries_cache_update();
 
     ((char*)&functions_entered_counter)[ENTERED_DL_OPEN]--;
 
@@ -410,7 +418,7 @@ int dlclose(void* handle)
 
     // call the real dlopen (libc/musl-libc)
     int result = __real_dlclose(handle);
-    __dd_dlopen_dlcose_calls_counter++;
+    __dd_notify_libraries_cache_update();
 
     return result;
 }
@@ -475,7 +483,9 @@ int execve(const char* pathname, char* const argv[], char* const envp[])
         return __real_execve(pathname, argv, envp);
     }
 
-    is_app_crashing = 1;
+    if (is_app_crashing != NULL) {
+        *is_app_crashing = 1;
+    }
     // Execute the alternative crash handler, and prepend "createdump" to the arguments
 
     // Count the number of arguments (the list ends with a null pointer)
@@ -549,6 +559,24 @@ int execve(const char* pathname, char* const argv[], char* const envp[])
 
 #ifdef DD_ALPINE
 
+struct pthread_wrapped_arg
+{
+    void* (*func)(void*);
+    void* orig_arg;
+};
+
+// This symbol must be public for crashtracking filtering mechanism
+void* dd_pthread_entry(void* arg)
+{
+    struct pthread_wrapped_arg* new_arg = (struct pthread_wrapped_arg*)arg;
+    void* result = new_arg->func(new_arg->orig_arg);
+    free(new_arg);
+    // Call into the profiler to do extra cleanup.
+    // This is *useful* at shutdown time to avoid crashing.
+    __dd_on_thread_routine_finished();
+    return result;
+}
+
 /* Function pointers to hold the value of the glibc functions */
 static int (*__real_pthread_create)(pthread_t* restrict res, const pthread_attr_t* restrict attrp, void* (*entry)(void*), void* restrict arg) = NULL;
 
@@ -559,7 +587,11 @@ int pthread_create(pthread_t* restrict res, const pthread_attr_t* restrict attrp
     ((char*)&functions_entered_counter)[ENTERED_PTHREAD_CREATE]++;
 
     // call the real pthread_create (libc/musl-libc)
-    int result = __real_pthread_create(res, attrp, entry, arg);
+    struct pthread_wrapped_arg* new_arg = (struct pthread_wrapped_arg*)malloc(sizeof(struct pthread_wrapped_arg));
+    new_arg->func = entry;
+    new_arg->orig_arg = arg;
+
+    int result = __real_pthread_create(res, attrp, dd_pthread_entry, new_arg);
 
     ((char*)&functions_entered_counter)[ENTERED_PTHREAD_CREATE]--;
 
@@ -657,6 +689,13 @@ static void init()
     __real_pthread_setattr_default_np = __dd_dlsym(RTLD_NEXT, "pthread_setattr_default_np");
     //__real_fork = __dd_dlsym(RTLD_NEXT, "fork");
 #endif
+    // if we failed at allocating memory for the shared variable
+    // the parent process won't be notified that the app is crashing.
+    is_app_crashing = mmap(NULL, sizeof(int), PROT_READ | PROT_WRITE,
+                           MAP_SHARED | MAP_ANONYMOUS, -1, 0);
+    if (is_app_crashing != MAP_FAILED) {
+        *is_app_crashing = 0; // Initialize flag
+    }
 }
 
 static void check_init()
