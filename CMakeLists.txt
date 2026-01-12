@@ -103,4 +103,3 @@ message(STATUS "PPDB library")
 # profiler cannot be built on MacOS (yet)
 add_subdirectory(profiler)
 
-add_subdirectory(shared)
