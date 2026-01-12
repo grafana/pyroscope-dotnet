@@ -100,8 +100,6 @@ message(STATUS "GoogleTest library")
 find_package(PPDB REQUIRED)
 message(STATUS "PPDB library")
 
-add_subdirectory(tracer)
-
 # profiler cannot be built on MacOS (yet)
 add_subdirectory(profiler)
 
