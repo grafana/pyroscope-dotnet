@@ -16,7 +16,6 @@
 
 #include "async_ref_counted_string.h"
 
-#include <cassert>
 #include <mutex> // NOLINT
 #include <unordered_map>
 
@@ -152,7 +151,7 @@ AsyncRefCountedString &AsyncRefCountedString::operator=(
 
 AsyncRefCountedString &AsyncRefCountedString::AsyncSafeCopy(
     const AsyncRefCountedString &other) {
-  assert(ptr_.load() == nullptr);
+  CHECK(ptr_.load() == nullptr);
   ptr_.exchange(AcquireByCopy(other.ptr_.load()));
   return *this;
 }
@@ -160,7 +159,7 @@ AsyncRefCountedString &AsyncRefCountedString::AsyncSafeCopy(
 void AsyncRefCountedString::Reset() { Release(ptr_.exchange(nullptr)); }
 
 void AsyncRefCountedString::AsyncSafeReset() {
-  assert(AsyncSafeRelease(ptr_.exchange(nullptr)));
+  CHECK(AsyncSafeRelease(ptr_.exchange(nullptr)));
 }
 
 const std::string *AsyncRefCountedString::Get() const {

@@ -126,15 +126,21 @@ const AsyncRefCountedString &Tags::Get(const std::string &key) const {
 }
 
 std::vector<std::pair<std::string_view, AsyncRefCountedString>> Tags::GetAll()
-    const {
-  std::lock_guard<std::mutex> lock(mutex);
-  std::vector<std::pair<std::string_view, AsyncRefCountedString>> all_pairs(
-      keys->size());
-  for (int i = 0; i < keys->size(); i++) {
-    all_pairs[i].first = (*keys)[i];
-    all_pairs[i].second = values_[i];
-  }
-  return all_pairs;
+    const
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    std::vector<std::pair<std::string_view, AsyncRefCountedString>> all_pairs{};
+    all_pairs.reserve(keys->size());
+    for (int i = 0; i < keys->size(); i++)
+    {
+        if (values_[i].Get())
+        {
+            auto& it = all_pairs.emplace_back();
+            it.first = (*keys)[i];
+            it.second = values_[i];
+        }
+    }
+    return all_pairs;
 }
 
 const Tags &Tags::Empty() { return *empty_tags; }

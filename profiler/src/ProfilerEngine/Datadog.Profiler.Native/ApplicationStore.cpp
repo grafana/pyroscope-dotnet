@@ -7,16 +7,12 @@
 #include "IConfiguration.h"
 #include "IRuntimeInfo.h"
 #include "ISsiManager.h"
-#include "ProfileExporter.h"
-#include "TelemetryMetricsWorker.h"
+#include "Log.h"
 
-ApplicationStore::ApplicationStore(IConfiguration* configuration, IRuntimeInfo* runtimeInfo, ISsiManager* ssiManager) :
+ApplicationStore::ApplicationStore(IConfiguration* configuration, IRuntimeInfo* runtimeInfo) :
     _pConfiguration{configuration},
-    _pSsiManager{ssiManager},
     _pRuntimeInfo{runtimeInfo}
 {
-    // SSI telemetry is enabled if the configuration says so and the profiler has been deployed via SSI
-    _isSsiTelemetryEnabled = _pConfiguration->IsSsiTelemetryEnabled() ? (_pSsiManager->GetDeploymentMode() == DeploymentMode::SingleStepInstrumentation) : false;
 }
 
 ApplicationStore::~ApplicationStore() = default;
@@ -40,7 +36,7 @@ ApplicationInfo ApplicationStore::GetApplicationInfo(const std::string& runtimeI
             _pConfiguration->GetGitRepositoryUrl(),
             _pConfiguration->GetGitCommitSha()};
 
-        InitializeTelemetryMetricsWorker(runtimeId, info);
+        Log::Debug("Creating new application info for runtimeId: ", runtimeId, ", serviceName: ", info.ServiceName, ", environment: ", info.Environment, ", version: ", info.Version);
 
         _infos[runtimeId] = info;
         return info;
@@ -48,6 +44,8 @@ ApplicationInfo ApplicationStore::GetApplicationInfo(const std::string& runtimeI
 }
 void ApplicationStore::SetApplicationInfo(const std::string& runtimeId, const std::string& serviceName, const std::string& environment, const std::string& version)
 {
+    Log::Debug("Setting application info for runtimeId: ", runtimeId, ", serviceName: ", serviceName, ", environment: ", environment, ", version: ", version);
+
     std::lock_guard lock(_infosLock);
     auto& info = _infos[runtimeId];
     info.ServiceName = serviceName;
@@ -55,16 +53,13 @@ void ApplicationStore::SetApplicationInfo(const std::string& runtimeId, const st
     info.Version = version;
     info.RepositoryUrl = _pConfiguration->GetGitRepositoryUrl();
     info.CommitSha = _pConfiguration->GetGitCommitSha();
-
-    // we have to recreate the telemetry metrics worker
-    InitializeTelemetryMetricsWorker(runtimeId, info);
 }
 
-void ApplicationStore::SetGitMetadata(std::string runtimeId, std::string respositoryUrl, std::string commitSha)
+void ApplicationStore::SetGitMetadata(std::string runtimeId, std::string repositoryUrl, std::string commitSha)
 {
     std::lock_guard lock(_infosLock);
     auto& info = _infos[std::move(runtimeId)];
-    info.RepositoryUrl = std::move(respositoryUrl);
+    info.RepositoryUrl = std::move(repositoryUrl);
     info.CommitSha = std::move(commitSha);
     // no need to create worker, it has already been created
 }
@@ -84,32 +79,4 @@ bool ApplicationStore::StopImpl()
 {
     // nothing special to stop
     return true;
-}
-
-void ApplicationStore::InitializeTelemetryMetricsWorker(std::string const& runtimeId, ApplicationInfo& info)
-{
-    if (!_isSsiTelemetryEnabled)
-    {
-        return;
-    }
-
-    auto worker = std::make_shared<libdatadog::TelemetryMetricsWorker>(_pSsiManager);
-    auto agentUrl = ProfileExporter::BuildAgentEndpoint(_pConfiguration);
-    if (worker->Start(
-            _pConfiguration,
-            info.ServiceName,
-            info.Version,
-            ProfileExporter::LanguageFamily,
-            _pRuntimeInfo->GetClrString(),
-            ProfileExporter::LibraryVersion,
-            agentUrl,
-            runtimeId,
-            info.Environment))
-    {
-        info.Worker = worker;
-    }
-    else
-    {
-        info.Worker = nullptr;
-    }
 }

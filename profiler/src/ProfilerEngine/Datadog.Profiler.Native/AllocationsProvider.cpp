@@ -6,31 +6,34 @@
 #include "COMHelpers.h"
 #include "FrameworkThreadInfo.h"
 #include "HResultConverter.h"
-#include "IConfiguration.h"
-#include "IManagedThreadList.h"
-#include "IFrameStore.h"
-#include "IThreadsCpuManager.h"
 #include "IAppDomainStore.h"
+#include "IConfiguration.h"
+#include "IFrameStore.h"
+#include "IManagedThreadList.h"
 #include "IRuntimeIdStore.h"
 #include "ISampledAllocationsListener.h"
+#include "IThreadsCpuManager.h"
 #include "Log.h"
 #include "MetricsRegistry.h"
 #include "OsSpecificApi.h"
+#include "RawSampleTransformer.h"
 #include "SampleValueTypeProvider.h"
+
+#include <chrono>
 
 #include "shared/src/native-src/com_ptr.h"
 #include "shared/src/native-src/string.h"
 
 std::vector<SampleValueType> AllocationsProvider::SampleTypeDefinitions(
     {
-        {"alloc_samples", "count"},
-        {"alloc_size", "bytes"}
+        {"alloc_samples", "count", -1},
+        {"alloc_size", "bytes", -1}
     }
 );
 
 std::vector<SampleValueType> AllocationsProvider::FrameworkSampleTypeDefinitions(
     {
-        {"alloc-samples", "count"},
+        {"alloc_samples", "count", -1},
     }
 );
 
@@ -40,9 +43,7 @@ AllocationsProvider::AllocationsProvider(
     ICorProfilerInfo4* pCorProfilerInfo,
     IManagedThreadList* pManagedThreadList,
     IFrameStore* pFrameStore,
-    IThreadsCpuManager* pThreadsCpuManager,
-    IAppDomainStore* pAppDomainStore,
-    IRuntimeIdStore* pRuntimeIdStore,
+    RawSampleTransformer* rawSampleTransformer,
     IConfiguration* pConfiguration,
     ISampledAllocationsListener* pListener,
     MetricsRegistry& metricsRegistry,
@@ -54,7 +55,7 @@ AllocationsProvider::AllocationsProvider(
             ? valueTypeProvider.GetOrRegister(FrameworkSampleTypeDefinitions)
             : valueTypeProvider.GetOrRegister(SampleTypeDefinitions),
         pCorProfilerInfo, pManagedThreadList, pFrameStore,
-        pThreadsCpuManager, pAppDomainStore, pRuntimeIdStore,
+        rawSampleTransformer,
         pConfiguration,
         pListener,
         metricsRegistry,
@@ -68,15 +69,13 @@ AllocationsProvider::AllocationsProvider(
     ICorProfilerInfo4* pCorProfilerInfo,
     IManagedThreadList* pManagedThreadList,
     IFrameStore* pFrameStore,
-    IThreadsCpuManager* pThreadsCpuManager,
-    IAppDomainStore* pAppDomainStore,
-    IRuntimeIdStore* pRuntimeIdStore,
+    RawSampleTransformer* rawSampleTransformer,
     IConfiguration* pConfiguration,
     ISampledAllocationsListener* pListener,
     MetricsRegistry& metricsRegistry,
     CallstackProvider pool,
     shared::pmr::memory_resource* memoryResource) :
-    CollectorBase<RawAllocationSample>("AllocationsProvider", std::move(valueTypes), pThreadsCpuManager, pFrameStore, pAppDomainStore, pRuntimeIdStore, memoryResource),
+    CollectorBase<RawAllocationSample>("AllocationsProvider", std::move(valueTypes), rawSampleTransformer, memoryResource),
     _pCorProfilerInfo(pCorProfilerInfo),
     _pManagedThreadList(pManagedThreadList),
     _pFrameStore(pFrameStore),
@@ -84,7 +83,8 @@ AllocationsProvider::AllocationsProvider(
     _sampler(pConfiguration->AllocationSampleLimit(), pConfiguration->GetUploadInterval()),
     _sampleLimit(pConfiguration->AllocationSampleLimit()),
     _pConfiguration(pConfiguration),
-    _callstackProvider{std::move(pool)}
+    _callstackProvider{std::move(pool)},
+    _metricsRegistry{metricsRegistry}
 {
     _allocationsCountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_allocations");
     _allocationsSizeMetric = metricsRegistry.GetOrRegister<MeanMaxMetric>("dotnet_allocations_size");
@@ -95,7 +95,6 @@ AllocationsProvider::AllocationsProvider(
     // disable sub sampling when recording allocations
     _shouldSubSample = !_pConfiguration->IsAllocationRecorderEnabled();
 }
-
 
 void AllocationsProvider::OnAllocation(uint32_t allocationKind,
                                        ClassID classId,
@@ -116,10 +115,15 @@ void AllocationsProvider::OnAllocation(uint32_t allocationKind,
 
     // create a sample from the allocation
 
-    std::shared_ptr<ManagedThreadInfo> threadInfo;
-    CALL(_pManagedThreadList->TryGetCurrentThreadInfo(threadInfo))
+    auto threadInfo = ManagedThreadInfo::CurrentThreadInfo;
+    if (threadInfo == nullptr)
+    {
+        LogOnce(Warn, "AllocationsProvider::OnAllocation: Profiler failed at getting the current managed thread info ");
+        return;
+    }
 
-    const auto pStackFramesCollector = OsSpecificApi::CreateNewStackFramesCollectorInstance(_pCorProfilerInfo, _pConfiguration, &_callstackProvider);
+    const auto pStackFramesCollector = OsSpecificApi::CreateNewStackFramesCollectorInstance(
+        _pCorProfilerInfo, _pConfiguration, &_callstackProvider, _metricsRegistry);
     pStackFramesCollector->PrepareForNextCollection();
 
     uint32_t hrCollectStack = E_FAIL;
@@ -145,7 +149,6 @@ void AllocationsProvider::OnAllocation(uint32_t allocationKind,
     rawSample.AllocationSize = objectSize;
     rawSample.Address = address;
     rawSample.MethodTable = classId;
-    rawSample.Tags = threadInfo->GetTags().GetAll();
 
     // the classID can be null when events are replayed in integration tests
     if ((classId == 0) || !_pFrameStore->GetTypeName(classId, rawSample.AllocationClass))
@@ -166,7 +169,91 @@ void AllocationsProvider::OnAllocation(uint32_t allocationKind,
     _sampledAllocationsSizeMetric->Add((double_t)objectSize);
 }
 
-void AllocationsProvider::OnAllocation(uint64_t timestamp,
+void AllocationsProvider::OnAllocationSampled(
+    uint32_t allocationKind,
+    ClassID classId,
+    const WCHAR* typeName,
+    uintptr_t address,
+    uint64_t objectSize,
+    uint64_t allocationByteOffset)
+{
+    // TODO: deal with .NET+ AllocationSampled event and find a way to upscale the values
+    // look at https://github.com/DataDog/dd-trace-dotnet/pull/4236
+
+    _allocationsCountMetric->Incr();
+    _allocationsSizeMetric->Add((double_t)objectSize);
+
+    // It is not possible to compute the total allocation size because we don't have the allocation amount
+    // that is available in AllocationTick
+    // _totalAllocationsSizeMetric->Add((double_t)allocationAmount);
+
+    // remove sampling when recording allocations
+    if (_shouldSubSample && (_sampleLimit > 0) && (!_sampler.Sample()))
+    {
+        return;
+    }
+
+    // create a sample from the allocation
+
+    auto threadInfo = ManagedThreadInfo::CurrentThreadInfo;
+    if (threadInfo == nullptr)
+    {
+        LogOnce(Warn, "AllocationsProvider::OnAllocation: Profiler failed at getting the current managed thread info ");
+        return;
+    }
+
+    const auto pStackFramesCollector = OsSpecificApi::CreateNewStackFramesCollectorInstance(
+        _pCorProfilerInfo, _pConfiguration, &_callstackProvider, _metricsRegistry);
+    pStackFramesCollector->PrepareForNextCollection();
+
+    uint32_t hrCollectStack = E_FAIL;
+    const auto result = pStackFramesCollector->CollectStackSample(threadInfo.get(), &hrCollectStack);
+    static uint64_t failureCount = 0;
+    if ((result->GetFramesCount() == 0) && (failureCount % 100 == 0))
+    {
+        // log every 100 failures (every ~10 MB worse case)
+        failureCount++;
+        Log::Warn("Failed to walk ", failureCount, " stacks for sampled allocation: ", HResultConverter::ToStringWithCode(hrCollectStack));
+        return;
+    }
+
+    result->SetUnixTimeUtc(GetCurrentTimestamp());
+
+    RawAllocationSample rawSample;
+    rawSample.Timestamp = result->GetUnixTimeUtc();
+    rawSample.LocalRootSpanId = result->GetLocalRootSpanId();
+    rawSample.SpanId = result->GetSpanId();
+    rawSample.AppDomainId = threadInfo->GetAppDomainId();
+    rawSample.Stack = result->GetCallstack();
+    rawSample.ThreadInfo = threadInfo;
+
+    // TODO: compute the upscaled allocation size or rely on upscaling
+    rawSample.AllocationSize = objectSize;
+
+    rawSample.Address = address;
+    rawSample.MethodTable = classId;
+    rawSample.Tags.AsyncSafeCopy(threadInfo->GetTags());
+
+    // the classID can be null when events are replayed in integration tests
+    if ((classId == 0) || !_pFrameStore->GetTypeName(classId, rawSample.AllocationClass))
+    {
+        // The provided type name contains the metadata-based `xx syntax for generics instead of <>
+        // So rely on the frame store to get a C#-like representation like what is done for frames
+        rawSample.AllocationClass = shared::ToString(shared::WSTRING(typeName));
+    }
+
+    // the listener is the live objects profiler: could be null if disabled
+    if (_pListener != nullptr)
+    {
+        _pListener->OnAllocation(rawSample);
+    }
+
+    Add(std::move(rawSample));
+    _sampledAllocationsCountMetric->Incr();
+    _sampledAllocationsSizeMetric->Add((double_t)objectSize);
+}
+
+void AllocationsProvider::OnAllocation(std::chrono::nanoseconds timestamp,
                                        uint32_t threadId,
                                        uint32_t allocationKind,
                                        ClassID classId,
@@ -226,7 +313,7 @@ void AllocationsProvider::OnAllocation(uint64_t timestamp,
 
         // TODO: we need to check that threads are not jumping from one AppDomain to the other too frequently
         // because we might be receiving this event 1 second after it has been emitted
-        // It this is the case, we should simply set the AppDomainId to -1 all the time.
+        // It this is the case, we should simply set the AppDomainId to 0 all the time.
         AppDomainID appDomainId;
         if (SUCCEEDED(_pCorProfilerInfo->GetThreadAppDomain(threadInfo->GetClrThreadId(), &appDomainId)))
         {
@@ -234,19 +321,17 @@ void AllocationsProvider::OnAllocation(uint64_t timestamp,
         }
         else
         {
-            rawSample.AppDomainId = -1;
+            rawSample.AppDomainId = 0;
         }
     }
-    else  // create a fake IThreadInfo that wraps the OS thread id (no name, no profiler thread id)
+    else // create a fake IThreadInfo that wraps the OS thread id (no name, no profiler thread id)
     {
         rawSample.ThreadInfo = std::make_shared<FrameworkThreadInfo>(threadId);
-
-        // TODO: do we need to set to -1?
-        //rawSample.AppDomainId = -1;
+        rawSample.AppDomainId = 0;
     }
 
-    //rawSample.AllocationSize = objectSize;
-    //rawSample.Address = address;
+    // rawSample.AllocationSize = objectSize;
+    // rawSample.Address = address;
     rawSample.MethodTable = classId;
 
     // The provided type name contains the metadata-based `xx syntax for generics instead of <>
@@ -267,4 +352,11 @@ void AllocationsProvider::OnAllocation(uint64_t timestamp,
 
     // TODO: don't create that metric if running under .NET Framework
     //_sampledAllocationsSizeMetric->Add((double_t)objectSize);
+}
+
+UpscalingPoissonInfo AllocationsProvider::GetPoissonInfo()
+{
+    auto const& offsets = GetValueOffsets(); //              sum(size)       count
+    UpscalingPoissonInfo info{ offsets, AllocTickThreshold, offsets[1], offsets[0] };
+    return info;
 }

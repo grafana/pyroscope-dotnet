@@ -5,10 +5,14 @@
 #include "Protocol.h"
 #include "IpcClient.h"
 #include "../../Datadog.Profiler.Native/ClrEventsParser.h"
+
+#include "../chrono_helper.hpp"
+
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 
+//#define ETW_DEBUG_SESSION
 
 EtwEventsHandler::EtwEventsHandler()
     :
@@ -115,7 +119,7 @@ void EtwEventsHandler::OnConnect(HANDLE hPipe)
             uint64_t keyword = pHeader->EventDescriptor.Keyword;
             uint8_t level = pHeader->EventDescriptor.Level;
             uint16_t id = pHeader->EventDescriptor.Id;
-            uint64_t timestamp = pHeader->TimeStamp.QuadPart;
+            auto timestamp = etw_timestamp(pHeader->TimeStamp.QuadPart);
 
             ClrEventPayload* pPayload = (ClrEventPayload*)(&(message->Payload));
             uint16_t userDataLength = pPayload->EtwUserDataLength;
@@ -130,9 +134,11 @@ void EtwEventsHandler::OnConnect(HANDLE hPipe)
             {
                 _pReceiver->OnEvent(timestamp, tid, version, keyword, level, id, userDataLength, pUserData);
 
+#ifdef ETW_DEBUG_SESSION
                 std::stringstream builder;
                 builder << "ETW event #" << eventsCount << " | " << keyword << " - " << id;
                 _logger->Info(builder.str());
+#endif
             }
 
             // fire and forget so no need to answer

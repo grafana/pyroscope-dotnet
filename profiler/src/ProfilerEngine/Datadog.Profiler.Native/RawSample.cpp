@@ -10,7 +10,8 @@ RawSample::RawSample() noexcept
     LocalRootSpanId {0},
     SpanId {0},
     ThreadInfo{nullptr},
-    Stack{}
+    Stack{},
+    Tags{}
 {
 }
 

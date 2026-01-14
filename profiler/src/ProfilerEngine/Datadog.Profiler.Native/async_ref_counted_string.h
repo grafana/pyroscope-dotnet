@@ -99,6 +99,12 @@ class AsyncRefCountedString {
   // allocated or if there are known outstanding references to strings.
   static bool Destroy();
 
+  static void CHECK(bool v)
+  {
+    if (!v) {
+      abort();
+    }
+  }
  private:
   // The value of ptr_ requires to be changed atomically so that
   // its value will not get corrupted upon interrupts.

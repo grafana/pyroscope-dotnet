@@ -8,6 +8,7 @@
 #include <type_traits>
 
 #include "EnvironmentVariables.h"
+#include "Log.h"
 #include "OpSysTools.h"
 
 #include "shared/src/native-src/dd_filesystem.hpp"
@@ -26,6 +27,14 @@ std::string const Configuration::DefaultEmptyString = "";
 std::chrono::seconds const Configuration::DefaultDevUploadInterval = 20s;
 std::chrono::seconds const Configuration::DefaultProdUploadInterval = 60s;
 std::chrono::milliseconds const Configuration::DefaultCpuProfilingInterval = 9ms;
+CpuProfilerType const Configuration::DefaultCpuProfilerType =
+#ifdef _WINDOWS
+    CpuProfilerType::ManualCpuTime;
+#else
+    CpuProfilerType::TimerCreate;
+#endif
+std::chrono::minutes const Configuration::DefaultDevHeapSnapshotInterval = 1min;
+std::chrono::minutes const Configuration::DefaultProdHeapSnapshotInterval = 5min;
 
 
 std::string const Configuration::DefaultPyroscopeServerAddress = "http://localhost:4040";
@@ -55,7 +64,7 @@ Configuration::Configuration()
     _agentPort = GetEnvironmentValue(EnvironmentVariables::AgentPort, DefaultAgentPort);
     _site = ExtractSite();
     _apiKey = GetEnvironmentValue(EnvironmentVariables::ApiKey, DefaultEmptyString);
-    _serviceName = GetEnvironmentValue(EnvironmentVariables::ServiceName, OpSysTools::GetProcessName());
+    _serviceName = GetEnvironmentValue(EnvironmentVariables::ServiceName, OpSysTools::GetProcessName(), true);
     _isAgentLess = GetEnvironmentValue(EnvironmentVariables::Agentless, false);
     _exceptionSampleLimit = GetEnvironmentValue(EnvironmentVariables::ExceptionSampleLimit, 500);
     _allocationSampleLimit = GetEnvironmentValue(EnvironmentVariables::AllocationSampleLimit, 2000);
@@ -68,11 +77,12 @@ Configuration::Configuration()
     _minimumCores = GetEnvironmentValue<double>(EnvironmentVariables::CoreMinimumOverride, 1.0);
     _namedPipeName = GetEnvironmentValue(EnvironmentVariables::NamedPipeName, DefaultEmptyString);
     _isTimestampsAsLabelEnabled = GetEnvironmentValue(EnvironmentVariables::TimestampsAsLabelEnabled, false);
-    _useBacktrace2 = GetEnvironmentValue(EnvironmentVariables::UseBacktrace2, true);
     _isAllocationRecorderEnabled = GetEnvironmentValue(EnvironmentVariables::AllocationRecorderEnabled, false);
     _isDebugInfoEnabled = GetEnvironmentValue(EnvironmentVariables::DebugInfoEnabled, false);
-    _isGcThreadsCpuTimeEnabled = GetEnvironmentValue(EnvironmentVariables::GcThreadsCpuTimeEnabled, false);
-    _isThreadLifetimeEnabled = GetEnvironmentValue(EnvironmentVariables::ThreadLifetimeEnabled, false);
+    _isGcThreadsCpuTimeEnabled = GetEnvironmentValue(EnvironmentVariables::GcThreadsCpuTimeEnabled,
+                                  GetEnvironmentValue(EnvironmentVariables::GcThreadsCpuTimeInternalEnabled, true), true);
+    _isThreadLifetimeEnabled = GetEnvironmentValue(EnvironmentVariables::ThreadLifetimeEnabled,
+                                GetEnvironmentValue(EnvironmentVariables::ThreadLifetimeInternalEnabled, true), true);
     _gitRepositoryUrl = GetEnvironmentValue(EnvironmentVariables::GitRepositoryUrl, DefaultEmptyString);
     _gitCommitSha = GetEnvironmentValue(EnvironmentVariables::GitCommitSha, DefaultEmptyString);
     _isInternalMetricsEnabled = GetEnvironmentValue(EnvironmentVariables::InternalMetricsEnabled, false);
@@ -95,16 +105,15 @@ Configuration::Configuration()
         _cpuProfilingInterval = ExtractCpuProfilingInterval(1ms);
     }
 
-    _isEtwEnabled = GetEnvironmentValue(EnvironmentVariables::EtwEnabled, false);
-    _deploymentMode = GetEnvironmentValue(EnvironmentVariables::SsiDeployed, DeploymentMode::Manual);
+    _isEtwEnabled = GetEnvironmentValue(EnvironmentVariables::EtwEnabled, true, true);
+    _isManagedActivationEnabled = GetEnvironmentValue(EnvironmentVariables::ManagedActivationEnabled, false);
+
+    // check that the env var exists (special converter) and log the resulting value
+    _deploymentMode = GetEnvironmentValue(EnvironmentVariables::SsiDeployed, DeploymentMode::Manual, true);
     _isEtwLoggingEnabled = GetEnvironmentValue(EnvironmentVariables::EtwLoggingEnabled, false);
     _etwReplayEndpoint = GetEnvironmentValue(EnvironmentVariables::EtwReplayEndpoint, DefaultEmptyString);
     _enablementStatus = ExtractEnablementStatus();
     _ssiLongLivedThreshold = ExtractSsiLongLivedThreshold();
-    _isTelemetryToDiskEnabled = GetEnvironmentValue(EnvironmentVariables::TelemetryToDiskEnabled, false);
-    _isSsiTelemetryEnabled = GetEnvironmentValue(EnvironmentVariables::SsiTelemetryEnabled, false);
-    _cpuProfilerType = GetEnvironmentValue(EnvironmentVariables::CpuProfilerType, CpuProfilerType::ManualCpuTime);
-
 
     _pyroscopeServerAddress = GetEnvironmentValue(EnvironmentVariables::PyroscopeServerAddress, DefaultPyroscopeServerAddress);
     _pyroscopeAuthToken = GetEnvironmentValue(EnvironmentVariables::PyroscopeAuthToken, DefaultEmptyString);
@@ -119,6 +128,22 @@ Configuration::Configuration()
         Log::Info("We recommend specifying application name via env variable PYROSCOPE_APPLICATION_NAME");
         Log::Info("For now we choose ", _pyroscopeApplicationName);
     }
+
+    _isHttpProfilingEnabled =
+        GetEnvironmentValue(
+            EnvironmentVariables::HttpProfilingEnabled,
+            GetEnvironmentValue(EnvironmentVariables::HttpProfilingInternalEnabled, false // support previous internal env var
+            )
+        );
+    _httpRequestDurationThreshold = ExtractHttpRequestDurationThreshold();
+    _forceHttpSampling = GetEnvironmentValue(EnvironmentVariables::ForceHttpSampling, false);
+    _cpuProfilerType = GetEnvironmentValue(EnvironmentVariables::CpuProfilerType, DefaultCpuProfilerType);
+    _isWaitHandleProfilingEnabled = GetEnvironmentValue(EnvironmentVariables::WaitHandleProfilingEnabled, false);
+    _isHeapSnapshotEnabled = GetEnvironmentValue(EnvironmentVariables::HeapSnapshotEnabled, false);
+    _heapSnapshotInterval = ExtractHeapSnapshotInterval();
+    _heapSnapshotCheckInterval = ExtractHeapSnapshotCheckInterval();
+    _heapSnapshotMemoryPressureThreshold = GetEnvironmentValue(EnvironmentVariables::HeapSnapshotMemoryPressureThreshold, 85);
+    _heapHandleLimit = ExtractHeapHandleLimit();
 }
 
 fs::path Configuration::ExtractLogDirectory()
@@ -307,11 +332,6 @@ std::string const& Configuration::GetApiKey() const
 std::string const& Configuration::GetServiceName() const
 {
     return _serviceName;
-}
-
-bool Configuration::UseBacktrace2() const
-{
-    return _useBacktrace2;
 }
 
 bool Configuration::IsAllocationRecorderEnabled() const
@@ -529,11 +549,12 @@ bool Configuration::GetContention()
     // first look at the supported env var
     if (IsEnvironmentValueSet(EnvironmentVariables::LockContentionProfilingEnabled, lockContentionEnabled))
     {
+        Log::Info("Configuration: ", EnvironmentVariables::LockContentionProfilingEnabled, " env var is set - lock contention is enabled");
         return lockContentionEnabled;
     }
 
     // if not there, look at the deprecated one
-    return GetEnvironmentValue(EnvironmentVariables::DeprecatedContentionProfilingEnabled, lockContentionEnabled);
+    return GetEnvironmentValue(EnvironmentVariables::DeprecatedContentionProfilingEnabled, lockContentionEnabled, true);
 }
 
 bool Configuration::GetDefaultDebugLogEnabled()
@@ -680,14 +701,26 @@ static bool convert_to(shared::WSTRING const& s, DeploymentMode& result)
 
 
 template <typename T>
-T Configuration::GetEnvironmentValue(shared::WSTRING const& name, T const& defaultValue)
+T Configuration::GetEnvironmentValue(shared::WSTRING const& name, T const& defaultValue, bool shouldLog)
 {
     // pyroscope: next line is removed because shared::GetEnvironmentValue has DD_ => PYROSCOPE_ fallback
     // if (!shared::EnvironmentExist(name)) return defaultValue;
 
     T result{};
     auto r = shared::GetEnvironmentValue(name);
-    if (!convert_to(r, result)) return defaultValue;
+    if (!convert_to(r, result))
+    {
+        if (shouldLog)
+        {
+            Log::Info("Configuration: ", name, " env var is set to '", r,"' that cannot be converted - '", defaultValue, "' is used as default value");
+        }
+        return defaultValue;
+    }
+
+    if (shouldLog)
+    {
+        Log::Info("Configuration: ", name, " env var is set to '", r, "'");
+    }
     return result;
 }
 
@@ -706,6 +739,13 @@ bool Configuration::IsEnvironmentValueSet(shared::WSTRING const& name, T& value)
 
 EnablementStatus Configuration::ExtractEnablementStatus()
 {
+    // wait for the managed layer to set the activation status
+    if (_isManagedActivationEnabled)
+    {
+        return EnablementStatus::Standby;
+    }
+
+    // kill switch for local environment variables
     if (shared::EnvironmentExist(EnvironmentVariables::ProfilerEnabled) || shared::EnvironmentExist(EnvironmentVariables::PyroscopeProfilerEnabled))
     {
         auto isEnabled = false;
@@ -722,25 +762,14 @@ EnablementStatus Configuration::ExtractEnablementStatus()
         // It is possible that a Single Step Instrumentation deployment was done
         // and the profiler was enabled during that step. In that case, the "auto" value
         // will be set and profiler should be enabled.
-        // This should be replaced by adding "profiler" in EnvironmentVariables::SsiDeployed
-        // later that will take into account heuristics
         return !enabled.empty() && enabled == WStr("auto")
             ? EnablementStatus::Auto
             : EnablementStatus::ManuallyDisabled;
     }
 
-    auto r = shared::GetEnvironmentValue(EnvironmentVariables::SsiDeployed);
-    auto pos = r.find(WStr("profiler"));
-    auto ssiEnabled = (pos != shared::WSTRING::npos);
-
-    if (ssiEnabled)
-    {
-        return EnablementStatus::SsiEnabled;
-    }
-    else
-    {
-        return EnablementStatus::NotSet;
-    }
+    // Note: the initial support of adding "profiler" in EnvironmentVariables::SsiDeployed
+    // has never been implemented, so we are not checking for it here.
+    return EnablementStatus::NotSet;
 }
 
 std::chrono::milliseconds Configuration::ExtractSsiLongLivedThreshold() const
@@ -753,14 +782,114 @@ std::chrono::milliseconds Configuration::ExtractSsiLongLivedThreshold() const
     return std::chrono::milliseconds(value);
 }
 
-bool Configuration::IsTelemetryToDiskEnabled() const
+bool Configuration::IsHttpProfilingEnabled() const
 {
-    return _isTelemetryToDiskEnabled;
+    return _isHttpProfilingEnabled;
 }
 
-bool Configuration::IsSsiTelemetryEnabled() const
+bool Configuration::ForceHttpSampling() const
 {
-    return _isSsiTelemetryEnabled;
+    return _forceHttpSampling;
+}
+
+bool Configuration::IsWaitHandleProfilingEnabled() const
+{
+    return _isWaitHandleProfilingEnabled;
+}
+
+bool Configuration::IsManagedActivationEnabled() const
+{
+    return _isManagedActivationEnabled;
+}
+
+void Configuration::SetEnablementStatus(EnablementStatus status)
+{
+    _enablementStatus = status;
+}
+
+std::chrono::milliseconds Configuration::ExtractHttpRequestDurationThreshold() const
+{
+    auto const defaultValue = 50ms;
+    auto value = GetEnvironmentValue(EnvironmentVariables::HttpRequestDurationThreshold, defaultValue);
+    if (value < 0ms)
+        return defaultValue;
+
+    return std::chrono::milliseconds(value);
+}
+
+std::chrono::milliseconds Configuration::GetHttpRequestDurationThreshold() const
+{
+    return _httpRequestDurationThreshold;
+}
+
+bool Configuration::IsHeapSnapshotEnabled() const
+{
+    return _isHeapSnapshotEnabled;
+}
+
+std::chrono::minutes Configuration::GetDefaultHeapSnapshotInterval() const
+{
+    auto r = shared::GetEnvironmentValue(EnvironmentVariables::DevelopmentConfiguration);
+
+    bool isDev;
+    if (shared::TryParseBooleanEnvironmentValue(r, isDev) && isDev)
+        return DefaultDevHeapSnapshotInterval;
+
+    return DefaultProdHeapSnapshotInterval;
+}
+
+std::chrono::minutes Configuration::ExtractHeapSnapshotInterval() const
+{
+    auto r = shared::GetEnvironmentValue(EnvironmentVariables::HeapSnapshotInterval);
+    int32_t interval;
+    if (TryParse(r, interval))
+    {
+        return std::chrono::minutes(interval);
+    }
+
+    return GetDefaultHeapSnapshotInterval();
+}
+
+std::chrono::minutes Configuration::GetHeapSnapshotInterval() const
+{
+    return _heapSnapshotInterval;
+}
+
+std::chrono::milliseconds Configuration::ExtractHeapSnapshotCheckInterval() const
+{
+    auto r = shared::GetEnvironmentValue(EnvironmentVariables::HeapSnapshotCheckInterval);
+    int32_t interval;
+    if (TryParse(r, interval))
+    {
+        return std::chrono::milliseconds(interval);
+    }
+
+    return 250ms;
+}
+
+std::chrono::milliseconds Configuration::GetHeapSnapshotCheckInterval() const
+{
+    return _heapSnapshotCheckInterval;
+}
+
+uint32_t Configuration::GetHeapSnapshotMemoryPressureThreshold() const
+{
+    return _heapSnapshotMemoryPressureThreshold;
+}
+
+int32_t Configuration::ExtractHeapHandleLimit() const
+{
+    // default handle count limit is 4096; could be changed via env vars from 1024 to 16000
+    int32_t limit =
+        std::min(
+            std::max(GetEnvironmentValue(EnvironmentVariables::HeapHandleLimit, 4096), 1024),
+            16000);
+    return limit;
+}
+
+uint32_t Configuration::GetHeapHandleLimit() const
+{
+    return _heapHandleLimit;
 }
 
 

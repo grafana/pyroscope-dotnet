@@ -139,17 +139,7 @@ include_directories(third_party/cppcodec)
 
 add_subdirectory(src/ProfilerEngine/Datadog.Profiler.Native.Linux)
 add_subdirectory(src/ProfilerEngine/Datadog.Linux.ApiWrapper)
-enable_testing()
-add_subdirectory(test)
 
 add_custom_target(profiler)
 add_dependencies(profiler Pyroscope.Profiler.Native)
 
-add_custom_target(all-profiler)
-add_dependencies(all-profiler profiler profiler-native-tests)
-
-add_custom_target(wrapper)
-add_dependencies(wrapper Datadog.Linux.ApiWrapper.x64)
-
-add_custom_target(all-wrapper)
-add_dependencies(all-wrapper wrapper wrapper-native-tests)

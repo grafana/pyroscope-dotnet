@@ -8,6 +8,8 @@
 #include <mutex>
 #include <winerror.h>
 
+#include "shared/src/native-src/stable_config.h"
+
 /*
    TL;DR When returning a boolean value to the managed part, we must use a C BOOL type instead of C++ bool type.
 
@@ -51,3 +53,6 @@ extern "C" void __stdcall SetContentionTrackingEnabled(bool enabled);
 extern "C" void __stdcall SetExceptionTrackingEnabled(bool enabled);
 extern "C" void __stdcall SetPyroscopeAuthToken(const char *authToken);
 extern "C" void __stdcall SetPyroscopeBasicAuth(const char *user, const char *password);
+
+
+extern "C" bool __stdcall SetConfiguration(shared::StableConfig::SharedConfig config);

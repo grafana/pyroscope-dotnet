@@ -3,8 +3,9 @@
 
 #pragma once
 
-#include "CallstackProvider.h"
+#include "CounterMetric.h"
 #include "ManagedThreadInfo.h"
+#include "MetricsRegistry.h"
 #include "ServiceBase.h"
 
 #include <signal.h>
@@ -15,12 +16,13 @@
 #include <shared_mutex>
 #include <unordered_set>
 
+class DiscardMetrics;
 class IConfiguration;
 class IThreadInfo;
 class IManagedThreadList;
 class ProfilerSignalManager;
-class CpuTimeProvider;
-class CallstackProvider;
+class CpuSampleProvider;
+class IUnwinder;
 
 class TimerCreateCpuProfiler : public ServiceBase
 {
@@ -29,8 +31,9 @@ public:
         IConfiguration* pConfiguration,
         ProfilerSignalManager* pSignalManager,
         IManagedThreadList* pManagedThreadsList,
-        CpuTimeProvider* pProvider,
-        CallstackProvider calstackProvider) noexcept;
+        CpuSampleProvider* pProvider,
+        MetricsRegistry& metricsRegistry,
+        IUnwinder* pUnwinder) noexcept;
 
     ~TimerCreateCpuProfiler();
 
@@ -41,18 +44,23 @@ public:
 
 private:
     static bool CollectStackSampleSignalHandler(int sig, siginfo_t* info, void* ucontext);
-    static TimerCreateCpuProfiler* Instance;
+    static std::atomic<TimerCreateCpuProfiler*> Instance;
 
+    bool CanCollect(void* context);
     bool Collect(void* ucontext);
     void RegisterThreadImpl(ManagedThreadInfo* thread);
+    void UnregisterThreadImpl(ManagedThreadInfo* threadInfo);
 
     bool StartImpl() override;
     bool StopImpl() override;
 
     ProfilerSignalManager* _pSignalManager;
     IManagedThreadList* _pManagedThreadsList;
-    CpuTimeProvider* _pProvider;
-    CallstackProvider _callstackProvider;
+    CpuSampleProvider* _pProvider;
     std::chrono::milliseconds _samplingInterval;
     std::shared_mutex _registerLock;
+    std::shared_ptr<CounterMetric> _totalSampling;
+    std::shared_ptr<DiscardMetrics> _discardMetrics;
+    std::atomic<std::uint64_t> _nbThreadsInSignalHandler;
+    std::unique_ptr<IUnwinder> _pUnwinder;
 };

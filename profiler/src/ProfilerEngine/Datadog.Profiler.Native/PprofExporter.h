@@ -40,6 +40,7 @@ public:
     void SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint) override;
     bool Export(ProfileTime& startTime, ProfileTime& endTime, bool lastCall = false) override;
     void RegisterUpscaleProvider(IUpscaleProvider* provider) override;
+    void RegisterUpscalePoissonProvider(IUpscalePoissonProvider* provider) override;
     void RegisterProcessSamplesProvider(ISamplesProvider* provider) override;
     void RegisterApplication(std::string_view runtimeId) override;
 

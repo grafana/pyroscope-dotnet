@@ -1,4 +1,4 @@
-// <copyright file="ContextTracker.cs" company="Datadog">
+﻿// <copyright file="ContextTracker.cs" company="Datadog">
 // Unless explicitly stated otherwise all files in this repository are licensed under the Apache 2 License.
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2017 Datadog, Inc.
 // </copyright>
@@ -8,13 +8,11 @@ using System.Runtime.InteropServices;
 
 namespace Pyroscope
 {
-    internal class ContextTracker 
+    internal sealed class ContextTracker
     {
-        
 
         private readonly ProfilerStatus _status;
-        
-        
+
         /// <summary>
         /// _traceContextPtr points to a structure with this layout
         /// The structure is as follow:
@@ -32,7 +30,7 @@ namespace Pyroscope
         /// </summary>
         private readonly ThreadLocal<IntPtr> _traceContextPtr;
 
-        
+
         public ContextTracker(ProfilerStatus status)
         {
             _status = status;
@@ -58,11 +56,29 @@ namespace Pyroscope
             WriteToNative(SpanContext.Zero);
         }
 
-        private void EnsureIsInitialized()
+        private bool EnsureIsInitialized()
         {
-            if (_traceContextPtr.IsValueCreated)
+            try
             {
-                return;
+                // try to avoid thread abort deadly exceptions
+                if (
+                    ((Thread.CurrentThread.ThreadState & ThreadState.AbortRequested) == ThreadState.AbortRequested) ||
+                    ((Thread.CurrentThread.ThreadState & ThreadState.Aborted) == ThreadState.Aborted))
+                {
+                    return false;
+                }
+
+                if (_traceContextPtr.IsValueCreated)
+                {
+                    return true;
+                }
+            }
+            catch (Exception e)
+            {
+                // seen in a crash: weird but possible on shutdown probably if the object is disposed
+                Console.WriteLine($"Disposed tracing context pointer wrapper for the thread {Environment.CurrentManagedThreadId.ToString()} {e.Message}");
+                _traceContextPtr.Value = IntPtr.Zero;
+                return false;
             }
 
             try
@@ -73,7 +89,10 @@ namespace Pyroscope
             {
                 Console.WriteLine($"[ContextTracker] Exception in EnsureIsInitialized: {ex.Message}");
                 _traceContextPtr.Value = IntPtr.Zero;
+                return false;
             }
+
+            return true;
         }
 
         private void WriteToNative(in SpanContext ctx)
@@ -83,7 +102,10 @@ namespace Pyroscope
                 return;
             }
 
-            EnsureIsInitialized();
+            if (!EnsureIsInitialized())
+            {
+                return;
+            }
 
             var ctxPtr = _traceContextPtr.Value;
 

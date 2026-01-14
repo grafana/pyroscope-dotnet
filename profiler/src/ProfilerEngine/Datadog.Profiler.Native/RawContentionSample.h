@@ -5,15 +5,18 @@
 
 #include "RawSample.h"
 #include "Sample.h"
+#include "ManagedThreadInfo.h"
 
 class RawContentionSample : public RawSample
 {
 public:
     inline static const std::string BucketLabelName = "Duration bucket";
+    inline static const std::string WaitBucketLabelName = "Wait duration bucket";
     inline static const std::string RawCountLabelName = "raw count";
     inline static const std::string RawDurationLabelName = "raw duration";
     inline static const std::string BlockingThreadIdLabelName = "blocking thread id";
     inline static const std::string BlockingThreadNameLabelName = "blocking thread name";
+    inline static const std::string ContentionTypeLabelName = "contention type";
 
 public:
     RawContentionSample() = default;
@@ -24,7 +27,8 @@ public:
         ContentionDuration(other.ContentionDuration),
         Bucket(std::move(other.Bucket)),
         BlockingThreadId(other.BlockingThreadId),
-        BlockingThreadName(std::move(other.BlockingThreadName))
+        BlockingThreadName(std::move(other.BlockingThreadName)),
+        Type(other.Type)
     {
     }
 
@@ -37,6 +41,7 @@ public:
             Bucket = std::move(other.Bucket);
             BlockingThreadId = other.BlockingThreadId;
             BlockingThreadName = std::move(other.BlockingThreadName);
+            Type = other.Type;
         }
         return *this;
     }
@@ -48,11 +53,21 @@ public:
         auto contentionDurationIndex = valueOffsets[1];
 
         sample->AddValue(1, contentionCountIndex);
-        sample->AddValue(static_cast<std::int64_t>(ContentionDuration), contentionDurationIndex);
+        sample->AddValue(ContentionDuration.count(), contentionDurationIndex);
     }
 
-    double ContentionDuration;
+    std::chrono::nanoseconds ContentionDuration;
     std::string Bucket;
     uint64_t BlockingThreadId;
     shared::WSTRING BlockingThreadName;
+    ContentionType Type;
+
+    static std::string ContentionTypes[static_cast<int>(ContentionType::ContentionTypeCount)];
+};
+
+inline std::string RawContentionSample::ContentionTypes[static_cast<int>(ContentionType::ContentionTypeCount)] =
+{
+    "Unknown",
+    "Lock",
+    "Wait",
 };
