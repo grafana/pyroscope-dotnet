@@ -1287,4 +1287,4 @@ services:
 
   # keep syncronized image version with tracer\test\Datadog.Trace.TestHelpers.AutoInstrumentation\Containers\AerospikeFixture.cs
   aerospike:
-    image: aerospike/aerospike-server:6.2.0.6
+    image: aerospike/aerospike-server:6.4.0.33@sha256:f785ab6e18f8546b2d6b6c4d9c6e172f9bc2145193e801a4f935cdaa49ca2ac9
