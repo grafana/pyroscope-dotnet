@@ -41,7 +41,7 @@ jobs:
       - run: make docker/push
       - run: make docker/archive
       - name: Release
-        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           files: ./*.tar.gz
   release-linux-profiler-aarch64:
@@ -78,7 +78,7 @@ jobs:
       - run: make docker/push
       - run: make docker/archive
       - name: Release
-        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           files: ./*.tar.gz
   release-linux-profiler:
