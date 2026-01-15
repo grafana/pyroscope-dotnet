@@ -1,4 +1,4 @@
-FROM debian:11 AS builder
+FROM debian:11@sha256:8a08b2875ed17adc464ae03cf5f8652a41821fb8d3d2b17923f11e7489b146da AS builder
 
 RUN apt-get update && apt-get -y install cmake make git curl golang libtool wget
 
@@ -33,7 +33,7 @@ RUN mkdir build-${CMAKE_BUILD_TYPE} && \
 
 RUN cd build-${CMAKE_BUILD_TYPE} && make -j16 Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
-FROM busybox:1.36.1-glibc
+FROM busybox:1.36.1-glibc@sha256:8fe66e6f43e59abc326f16fa4491708d15591c42a17486235e55fabf18ba5cb6
 COPY --from=build /profiler/profiler/_build/DDProf-Deploy/linux/Pyroscope.Profiler.Native.so /Pyroscope.Profiler.Native.so
 COPY --from=build /profiler/profiler/_build/DDProf-Deploy/linux/Datadog.Linux.ApiWrapper.x64.so /Pyroscope.Linux.ApiWrapper.x64.so
 

@@ -1,7 +1,7 @@
 services:
   # ARM64 dependencies
   localstack_arm64:
-    image: localstack/localstack
+    image: localstack/localstack@sha256:cf530d9fe4d3b88dcbea5556197ee99cea56e4571c1104d3322b8efbe4338231
     environment:
       - SERVICES=sns,sqs,kinesis,dynamodb,events,s3,stepfunctions,lambda
       - DEBUG=1
@@ -11,7 +11,7 @@ services:
       - "4566:4566"
 
   elasticsearch7_arm64:
-    image: elasticsearch:7.10.1
+    image: elasticsearch:7.10.1@sha256:7cd88158f6ac75d43b447fdd98c4eb69483fa7bf1be5616a85fe556262dc864a
     ports:
     - "9200"
     - "9300"
@@ -20,13 +20,13 @@ services:
     - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
 
   mongo_arm64:
-    image: mongo:5.0.31
+    image: mongo:5.0.31@sha256:54bcd8da3ea5eec561b68c605046c55c6b304387dc4c2bf5b3a5f5064fbb7495
     ports:
       - "27017"
     command: mongod
 
   mysql_arm64:
-    image: mysql/mysql-server:8.0
+    image: mysql/mysql-server:8.0@sha256:d6c8301b7834c5b9c2b733b10b7e630f441af7bc917c74dba379f24eeeb6a313
     environment:
     - MYSQL_DATABASE=world
     - MYSQL_ROOT_PASSWORD=mysqldb
@@ -36,7 +36,7 @@ services:
     - "3306"
 
   postgres_arm64:
-    image: postgres:10.5-alpine
+    image: postgres:10.5-alpine@sha256:295a08ddd9efa1612c46033f0b96c3976f80f49c7ce29e05916b0af557806117
     environment:
     - POSTGRES_PASSWORD=postgres
     - POSTGRES_USER=postgres
@@ -45,20 +45,20 @@ services:
     - "5432"
 
   rabbitmq_arm64:
-    image: rabbitmq:3-management
+    image: rabbitmq:3-management@sha256:e582c0bc7766f3342496d8485efb5a1df782b5ce3886ad017e2eaae442311f69
     command: rabbitmq-server
     ports:
       - "5672"
       - "15672"
 
   servicestackredis_arm64:
-    image: redis:4-alpine
+    image: redis:4-alpine@sha256:aaf7c123077a5e45ab2328b5ef7e201b5720616efac498d55e65a7afbb96ae20
     command: redis-server --bind 0.0.0.0
     ports:
     - "6379"
 
   sqledge_arm64:
-    image: mcr.microsoft.com/azure-sql-edge:latest
+    image: mcr.microsoft.com/azure-sql-edge:latest@sha256:902628a8be89e35dfb7895ca31d602974c7bafde4d583a0d0873844feb1c42cf
     ports:
     - "1433"
     environment:
@@ -66,25 +66,25 @@ services:
     - SA_PASSWORD=Strong!Passw0rd
 
   cosmosdb-emulator_arm64:
-    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview
+    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview@sha256:428316f9930035f5ae4c80fbf1560d598bc4a2cc4719fc036dcb5ed57870c728
     command: ["--protocol", "https"]
 
   stackexchangeredis_arm64:
-    image: redis:4-alpine
+    image: redis:4-alpine@sha256:aaf7c123077a5e45ab2328b5ef7e201b5720616efac498d55e65a7afbb96ae20
     hostname: stackexchangeredis_arm64
     command: redis-server --bind 0.0.0.0
     ports:
     - "6379"
 
   stackexchangeredis_arm64-replica:
-    image: redis:4-alpine
+    image: redis:4-alpine@sha256:aaf7c123077a5e45ab2328b5ef7e201b5720616efac498d55e65a7afbb96ae20
     hostname: stackexchangeredis_arm64-replica
     command: redis-server --bind 0.0.0.0 --slaveof stackexchangeredis_arm64 6379
     ports:
     - "127.0.0.1:6390:6379"
 
   stackexchangeredis_arm64-single:
-    image: redis:4-alpine
+    image: redis:4-alpine@sha256:aaf7c123077a5e45ab2328b5ef7e201b5720616efac498d55e65a7afbb96ae20
     hostname: stackexchangeredis_arm64-single
     command: redis-server --bind 0.0.0.0
     ports:
@@ -92,7 +92,7 @@ services:
 
 # Dependencies
   localstack:
-    image: localstack/localstack
+    image: localstack/localstack@sha256:cf530d9fe4d3b88dcbea5556197ee99cea56e4571c1104d3322b8efbe4338231
     profiles: ["group2"]
     environment:
       - SERVICES=sns,sqs,kinesis,dynamodb,events,s3,stepfunctions,lambda
@@ -105,7 +105,7 @@ services:
       - "./.localstack:/tmp"
 
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:3-management@sha256:e582c0bc7766f3342496d8485efb5a1df782b5ce3886ad017e2eaae442311f69
     profiles: ["group1"]
     command: rabbitmq-server
     ports:
@@ -113,14 +113,14 @@ services:
       - "127.0.0.1:15672:15672"
 
   servicestackredis:
-    image: redis:4-alpine
+    image: redis:4-alpine@sha256:aaf7c123077a5e45ab2328b5ef7e201b5720616efac498d55e65a7afbb96ae20
     profiles: ["group1"]
     command: redis-server --bind 0.0.0.0
     ports:
     - "127.0.0.1:6379:6379"
 
   stackexchangeredis:
-    image: redis:4-alpine
+    image: redis:4-alpine@sha256:aaf7c123077a5e45ab2328b5ef7e201b5720616efac498d55e65a7afbb96ae20
     profiles: ["group1"]
     hostname: stackexchangeredis
     command: redis-server --bind 0.0.0.0
@@ -128,7 +128,7 @@ services:
     - "127.0.0.1:6389:6379"
 
   stackexchangeredis-replica:
-    image: redis:4-alpine
+    image: redis:4-alpine@sha256:aaf7c123077a5e45ab2328b5ef7e201b5720616efac498d55e65a7afbb96ae20
     profiles: ["group1"]
     hostname: stackexchangeredis-replica
     command: redis-server --bind 0.0.0.0 --slaveof stackexchangeredis 6379
@@ -136,7 +136,7 @@ services:
     - "127.0.0.1:6390:6379"
 
   stackexchangeredis-single:
-    image: redis:4-alpine
+    image: redis:4-alpine@sha256:aaf7c123077a5e45ab2328b5ef7e201b5720616efac498d55e65a7afbb96ae20
     profiles: ["group1"]
     hostname: stackexchangeredis-single
     command: redis-server --bind 0.0.0.0
@@ -144,21 +144,21 @@ services:
     - "127.0.0.1:6391:6379"
 
   mongo:
-    image: mongo:5.0.31
+    image: mongo:5.0.31@sha256:54bcd8da3ea5eec561b68c605046c55c6b304387dc4c2bf5b3a5f5064fbb7495
     profiles: ["group2"]
     ports:
       - "127.0.0.1:27017:27017"
     command: mongod
 
   couchbase:
-    image: bentonam/couchbase-docker:community-5.0.1
+    image: bentonam/couchbase-docker:community-5.0.1@sha256:847440848c80b95d82b12c8834856a14b1bfde854bd03b6acd0f9d0ac3484c63
     profiles: ["group1"]
     ports:
       - "8091-8094:8091-8094"
       - "11210:11210"
 
   elasticsearch7:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.14.1
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.14.1@sha256:2dcd2f31e246a8b13995ba24922da2edc3d88e65532ff301d0b92cb1be358af5
     profiles: ["group2"]
     ports:
     - "127.0.0.1:9210:9200"
@@ -168,7 +168,7 @@ services:
     - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
 
   elasticsearch6:
-    image: docker.elastic.co/elasticsearch/elasticsearch:6.4.2
+    image: docker.elastic.co/elasticsearch/elasticsearch:6.4.2@sha256:3da16b2f3b1d4e151c44f1a54f4f29d8be64884a64504b24ebcbdb4e14c80aa1
     profiles: ["group2"]
     ports:
     - "127.0.0.1:9200:9200"
@@ -178,7 +178,7 @@ services:
     - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
 
   elasticsearch5:
-    image: docker.elastic.co/elasticsearch/elasticsearch:5.6.16
+    image: docker.elastic.co/elasticsearch/elasticsearch:5.6.16@sha256:9ffbb6d9d0f383d70b8249117e5758dcf9c628a5ab3a78fd6a520ef1d0f416a2
     profiles: ["group2"]
     ports:
     - "127.0.0.1:9205:9200"
@@ -188,7 +188,7 @@ services:
     - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
 
   postgres:
-    image: postgres:10.5-alpine
+    image: postgres:10.5-alpine@sha256:295a08ddd9efa1612c46033f0b96c3976f80f49c7ce29e05916b0af557806117
     profiles: ["group1"]
     environment:
     - POSTGRES_PASSWORD=postgres
@@ -198,7 +198,7 @@ services:
     - "127.0.0.1:5432:5432"
 
   mysql:
-    image: mysql/mysql-server:8.0
+    image: mysql/mysql-server:8.0@sha256:d6c8301b7834c5b9c2b733b10b7e630f441af7bc917c74dba379f24eeeb6a313
     profiles: ["group1"]
     environment:
     - MYSQL_DATABASE=world
@@ -209,7 +209,7 @@ services:
     - "127.0.0.1:3307:3306"
 
   mysql57:
-    image: mysql/mysql-server:5.7
+    image: mysql/mysql-server:5.7@sha256:1178cdd375f758968cd834ac4057bae41307e64b7c69a9e145896e7b11f48064
     profiles: ["group1"]
     environment:
     - MYSQL_DATABASE=world
@@ -220,7 +220,7 @@ services:
     - "127.0.0.1:3407:3306"
 
   sqlserver:
-    image: mcr.microsoft.com/mssql/server:latest
+    image: mcr.microsoft.com/mssql/server:latest@sha256:bf438d7104f861f5e1e1ba14b063d60a5bd883964b3c9b3b3c0064536177baa5
     profiles: ["group1"]
     ports:
     - "127.0.0.1:1433:1433"
@@ -229,14 +229,14 @@ services:
     - SA_PASSWORD=Strong!Passw0rd
 
   sqledge:
-    image: mcr.microsoft.com/azure-sql-edge:latest
+    image: mcr.microsoft.com/azure-sql-edge:latest@sha256:902628a8be89e35dfb7895ca31d602974c7bafde4d583a0d0873844feb1c42cf
     profiles: ["group2"]
     environment:
     - ACCEPT_EULA=Y
     - MSSQL_SA_PASSWORD=Strong!Passw0rd
 
   azureservicebus-emulator:
-    image: mcr.microsoft.com/azure-messaging/servicebus-emulator:1.1.2
+    image: mcr.microsoft.com/azure-messaging/servicebus-emulator:1.1.2@sha256:353913ece3d9124cebd40f4b91d00dd197846b8cf86eae9a4790698709c64a1d
     profiles: ["group2"]
     depends_on:
       - sqledge
@@ -248,7 +248,7 @@ services:
       - ./docker/servicebus-emulator-config.json:/ServiceBus_Emulator/ConfigFiles/Config.json:ro
 
   azurite:
-    image: mcr.microsoft.com/azure-storage/azurite:latest
+    image: mcr.microsoft.com/azure-storage/azurite:latest@sha256:647c63a91102a9d8e8000aab803436e1fc85fbb285e7ce830a82ee5d6661cf37
     profiles: ["group2"]
     hostname: azurite
     container_name: azurite
@@ -258,7 +258,7 @@ services:
       - "10002:10002"
 
   azure-eventhubs-emulator:
-    image: mcr.microsoft.com/azure-messaging/eventhubs-emulator:latest
+    image: mcr.microsoft.com/azure-messaging/eventhubs-emulator:latest@sha256:25ec4141efb69933a0c82e6a787fa147a3895519e7d236d4c41ba568e03100eb
     profiles: ["group2"]
     depends_on:
       - azurite
@@ -272,27 +272,27 @@ services:
       - ./docker/eventhubs-emulator-config.json:/Eventhubs_Emulator/ConfigFiles/Config.json:ro
 
   cosmosdb-emulator:
-    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview
+    image: mcr.microsoft.com/cosmosdb/linux/azure-cosmos-emulator:vnext-preview@sha256:428316f9930035f5ae4c80fbf1560d598bc4a2cc4719fc036dcb5ed57870c728
     profiles: ["group2"]
     command: ["--protocol", "https"]
 
   # this docker image doesn't work on arm64. It can still be tested on Mac using colima, see https://github.com/abiosoft/colima
   oracle:
-    image: container-registry.oracle.com/database/free:latest
+    image: container-registry.oracle.com/database/free:latest@sha256:ef56a6ad07e88719415ef472c976bcaafa81428f44c20bb79ecf1d76f3708731
     ports:
       - "127.0.0.1:1521:1521"
     environment:
       - ORACLE_PWD=testpassword
 
   wcfservice:
-    image: mcr.microsoft.com/dotnet/framework/wcf:4.8
+    image: mcr.microsoft.com/dotnet/framework/wcf:4.8@sha256:cfdf1a05522af83b460bb0ce28fefac8d1b9e87a5adcc87b2dd235286c0a446a
     ports:
     - "127.0.0.1:8585:8585"
 
   # See https://github.com/confluentinc/cp-all-in-one/blob/6.1.1-post/cp-all-in-one/docker-compose.yml
   # For original definitions
   kafka-zookeeper:
-    image: confluentinc/cp-zookeeper:6.1.1
+    image: confluentinc/cp-zookeeper:6.1.1@sha256:a7c0a20dce46a705300cd464e511e9c70ac55ec7e62c024867470a19ce210563
     profiles: ["group1"]
     hostname: kafka-zookeeper
     container_name: kafka-zookeeper
@@ -304,7 +304,7 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
 
   kafka-broker:
-    image: confluentinc/cp-server:6.1.1
+    image: confluentinc/cp-server:6.1.1@sha256:4a1ff92bd03e361759ba339c97b4c4b7dbb52d7cea478dda22d034261a8991e4
     profiles: ["group1"]
     hostname: kafka-broker
     container_name: kafka-broker
@@ -336,7 +336,7 @@ services:
       CONFLUENT_SUPPORT_CUSTOMER_ID: 'anonymous'
 
   kafka-schema-registry:
-    image: confluentinc/cp-schema-registry:6.1.1
+    image: confluentinc/cp-schema-registry:6.1.1@sha256:d6c951b2157d015469f2968da678c84953b859d04a81efbf2fa39e6adec0693e
     profiles: ["group1"]
     hostname: kafka-schema-registry
     container_name: kafka-schema-registry
@@ -351,7 +351,7 @@ services:
       SCHEMA_REGISTRY_LISTENERS: http://0.0.0.0:8081
 
   kafka-control-center:
-    image: confluentinc/cp-enterprise-control-center:6.1.1
+    image: confluentinc/cp-enterprise-control-center:6.1.1@sha256:08657b278c96809aa16efb840e35b2334e1f15791e2e6d75c60cdb685a6e2140
     profiles: ["group1"]
     hostname: kafka-control-center
     container_name: kafka-control-center
@@ -371,7 +371,7 @@ services:
       PORT: 9021
 
   kafka-rest-proxy:
-    image: confluentinc/cp-kafka-rest:6.1.1
+    image: confluentinc/cp-kafka-rest:6.1.1@sha256:0c973f3d02090a8e667382f52e8d68ccf6f9002db60ea97557113f221c1ed7eb
     profiles: ["group1"]
     depends_on:
       - kafka-broker
@@ -388,7 +388,7 @@ services:
       KAFKA_REST_SCHEMA_REGISTRY_URL: 'http://kafka-schema-registry:8081'
 
   openldap:
-    image: osixia/openldap:latest
+    image: osixia/openldap:latest@sha256:3f68751292b43564a2586fc29fb7337573e2dad692b92d4e78e49ad5c22e567b
     ports:
       - "389:369"
       - "636:636"
@@ -690,7 +690,7 @@ services:
       - DD_LOGGER_DD_TAGS
 
   StartDependencies.Group1:
-    image: andrewlock/wait-for-dependencies
+    image: andrewlock/wait-for-dependencies@sha256:5d87561de8c019c3954298f707c1f6d7087f620a1ce36c3ec38cdfbc1ec4066e
     profiles: ["group1"]
     depends_on:
       - servicestackredis
@@ -711,7 +711,7 @@ services:
     command: servicestackredis:6379 stackexchangeredis:6379 stackexchangeredis-replica:6379 stackexchangeredis-single:6379 sqlserver:1433 postgres:5432 mysql:3306 mysql57:3306 rabbitmq:5672 kafka-broker:9092 kafka-zookeeper:2181 couchbase:11210 test-agent:8126
 
   StartDependencies.Group2:
-    image: andrewlock/wait-for-dependencies
+    image: andrewlock/wait-for-dependencies@sha256:5d87561de8c019c3954298f707c1f6d7087f620a1ce36c3ec38cdfbc1ec4066e
     profiles: ["group2"]
     depends_on:
       - elasticsearch7
@@ -814,7 +814,7 @@ services:
       - cosmosdb-emulator_arm64
 
   StartDependencies.ARM64:
-    image: andrewlock/wait-for-dependencies
+    image: andrewlock/wait-for-dependencies@sha256:5d87561de8c019c3954298f707c1f6d7087f620a1ce36c3ec38cdfbc1ec4066e
     depends_on:
       - servicestackredis_arm64
       - stackexchangeredis_arm64
@@ -883,7 +883,7 @@ services:
       - RANDOM_SEED
 
   start-test-agent:
-    image: andrewlock/wait-for-dependencies
+    image: andrewlock/wait-for-dependencies@sha256:5d87561de8c019c3954298f707c1f6d7087f620a1ce36c3ec38cdfbc1ec4066e
     depends_on:
     - test-agent
     environment:
@@ -891,7 +891,7 @@ services:
     command: test-agent:8126
 
   test-agent:
-    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest
+    image: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:latest@sha256:842b93a1a026da7e7b24297b2057b98b93ea38333b2c368c1cae1de00621929d
     volumes:
     - ./tracer/build/smoke_test_snapshots:/snapshots
     - ./artifacts/build_data/snapshots:/debug_snapshots
@@ -1178,7 +1178,7 @@ services:
       - test-agent
 
   StartDependencies.OSXARM64:
-    image: andrewlock/wait-for-dependencies
+    image: andrewlock/wait-for-dependencies@sha256:5d87561de8c019c3954298f707c1f6d7087f620a1ce36c3ec38cdfbc1ec4066e
     depends_on:
       - servicestackredis_osx_arm64
       - stackexchangeredis_osx_arm64
@@ -1198,7 +1198,7 @@ services:
   # OSX ARM64 dependencies
 
   localstack_osx_arm64:
-    image: localstack/localstack
+    image: localstack/localstack@sha256:cf530d9fe4d3b88dcbea5556197ee99cea56e4571c1104d3322b8efbe4338231
     environment:
       - SERVICES=sns,sqs,kinesis,dynamodb,events,s3,stepfunctions,lambda
       - DEBUG=1
@@ -1210,7 +1210,7 @@ services:
       - "./.localstack:/tmp"
 
   elasticsearch7_osx_arm64:
-    image: elasticsearch:7.10.1
+    image: elasticsearch:7.10.1@sha256:7cd88158f6ac75d43b447fdd98c4eb69483fa7bf1be5616a85fe556262dc864a
     ports:
       - "9200:9200"
       - "9300:9300"
@@ -1219,13 +1219,13 @@ services:
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
 
   mongo_osx_arm64:
-    image: mongo:5.0.31
+    image: mongo:5.0.31@sha256:54bcd8da3ea5eec561b68c605046c55c6b304387dc4c2bf5b3a5f5064fbb7495
     ports:
       - "27017:27017"
     command: mongod
 
   mysql_osx_arm64:
-    image: mysql/mysql-server:8.0
+    image: mysql/mysql-server:8.0@sha256:d6c8301b7834c5b9c2b733b10b7e630f441af7bc917c74dba379f24eeeb6a313
     environment:
       - MYSQL_DATABASE=world
       - MYSQL_ROOT_PASSWORD=mysqldb
@@ -1235,7 +1235,7 @@ services:
       - "3306:3306"
 
   postgres_osx_arm64:
-    image: postgres:10.5-alpine
+    image: postgres:10.5-alpine@sha256:295a08ddd9efa1612c46033f0b96c3976f80f49c7ce29e05916b0af557806117
     environment:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_USER=postgres
@@ -1244,41 +1244,41 @@ services:
       - "5432:5432"
 
   rabbitmq_osx_arm64:
-    image: rabbitmq:3-management
+    image: rabbitmq:3-management@sha256:e582c0bc7766f3342496d8485efb5a1df782b5ce3886ad017e2eaae442311f69
     command: rabbitmq-server
     ports:
       - "5672:5672"
       - "15672:15672"
 
   servicestackredis_osx_arm64:
-    image: redis:4-alpine
+    image: redis:4-alpine@sha256:aaf7c123077a5e45ab2328b5ef7e201b5720616efac498d55e65a7afbb96ae20
     command: redis-server --bind 0.0.0.0
     ports:
       - "6379:6379"
 
   stackexchangeredis_osx_arm64:
-    image: redis:4-alpine
+    image: redis:4-alpine@sha256:aaf7c123077a5e45ab2328b5ef7e201b5720616efac498d55e65a7afbb96ae20
     hostname: stackexchangeredis_osx_arm64
     command: redis-server --bind 0.0.0.0
     ports:
       - "6392:6379"
 
   stackexchangeredis_osx_arm64-replica:
-    image: redis:4-alpine
+    image: redis:4-alpine@sha256:aaf7c123077a5e45ab2328b5ef7e201b5720616efac498d55e65a7afbb96ae20
     hostname: stackexchangeredis_osx_arm64-replica
     command: redis-server --bind 0.0.0.0 --slaveof stackexchangeredis_osx_arm64 6379
     ports:
       - "6390:6379"
 
   stackexchangeredis_osx_arm64-single:
-    image: redis:4-alpine
+    image: redis:4-alpine@sha256:aaf7c123077a5e45ab2328b5ef7e201b5720616efac498d55e65a7afbb96ae20
     hostname: stackexchangeredis_osx_arm64-single
     command: redis-server --bind 0.0.0.0
     ports:
       - "6391:6379"
 
   sqledge_osx_arm64:
-    image: mcr.microsoft.com/azure-sql-edge:latest
+    image: mcr.microsoft.com/azure-sql-edge:latest@sha256:902628a8be89e35dfb7895ca31d602974c7bafde4d583a0d0873844feb1c42cf
     ports:
       - "1433:1433"
     environment:
@@ -1287,4 +1287,4 @@ services:
 
   # keep syncronized image version with tracer\test\Datadog.Trace.TestHelpers.AutoInstrumentation\Containers\AerospikeFixture.cs
   aerospike:
-    image: aerospike/aerospike-server:6.2.0.6
+    image: aerospike/aerospike-server:6.2.0.6@sha256:ec8959a17598dd1e2a254489c127f9cba2172a51272f0ba4cb26194028e28324
