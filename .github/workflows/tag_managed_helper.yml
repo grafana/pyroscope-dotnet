@@ -34,7 +34,7 @@ jobs:
           name: packages
           path: ./Pyroscope/artifacts/package/release
           if-no-files-found: error
-      - uses: grafana/shared-workflows/actions/get-vault-secrets@10ecff5fcf764bfa768d7a52b46feaade9c8a95b
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@f8d38df9065ff1beb3c670acb5c0efacd9299f97
         with:
           repo_secrets: |
             NUGET_API_KEY=nuget:api_key
