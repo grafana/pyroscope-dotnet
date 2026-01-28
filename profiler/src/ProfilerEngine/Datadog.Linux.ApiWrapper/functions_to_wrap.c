@@ -575,6 +575,7 @@ static void patch_coreclr_sigsegv_sigaction(int signum, struct sigaction* act)
         return;
     }
     sigaddset(&act->sa_mask, SIGPROF);
+    sigaddset(&act->sa_mask, SIGUSR1);
 }
 
 int sigaction(int signum, const struct sigaction* act, struct sigaction* oldact)
