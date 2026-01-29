@@ -8,6 +8,7 @@ git rm -rf .azure-pipelines
 git rm -rf .gitlab
 git rm -rf docs
 git rm -rf profiler/test
+git rm -rf profiler/src/Tools
 
 git status --porcelain | grep '^DU ' | cut -c4- | xargs git rm -f
 

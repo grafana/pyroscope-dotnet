@@ -19,7 +19,7 @@ jobs:
           - glibc
           - musl
     steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
         with:
           submodules: true
       - name: Build ${{ matrix.flavour }} profiler image
@@ -58,7 +58,7 @@ jobs:
       - name: Load ${{matrix.flavour}} Docker image
         run: |
           docker load --input pyroscope-dotnet-${{ matrix.flavour }}.tar
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Build service image for ${{ matrix.flavour }} and .NET ${{ matrix.dotnet_version }}
         run: |
             if [ "${{ matrix.flavour }}" = "glibc" ]; then
