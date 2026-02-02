@@ -557,6 +557,34 @@ int execve(const char* pathname, char* const argv[], char* const envp[])
     return result;
 }
 
+static int (*__real_sigaction)(int signum, const struct sigaction* act, struct sigaction* oldact) = NULL;
+
+static void patch_coreclr_sigsegv_sigaction(int signum, struct sigaction* act)
+{
+    Dl_info dl_info;
+    if (signum != SIGSEGV || act == NULL || !(act->sa_flags & SA_SIGINFO))
+    {
+        return;
+    }
+    if (!dladdr((void*)act->sa_sigaction, &dl_info))
+    {
+        return;
+    }
+    if (dl_info.dli_fname == NULL || strstr(dl_info.dli_fname, "/libcoreclr.so") == NULL)
+    {
+        return;
+    }
+    sigaddset(&act->sa_mask, SIGPROF);
+    sigaddset(&act->sa_mask, SIGUSR1);
+}
+
+int sigaction(int signum, const struct sigaction* act, struct sigaction* oldact)
+{
+    check_init();
+    patch_coreclr_sigsegv_sigaction(signum, (struct sigaction*)act);
+    return __real_sigaction(signum, act, oldact);
+}
+
 #ifdef DD_ALPINE
 
 struct pthread_wrapped_arg
@@ -682,6 +710,7 @@ static void init()
     __real_dlclose = __dd_dlsym(RTLD_NEXT, "dlclose");
     __real_dladdr = __dd_dlsym(RTLD_NEXT, "dladdr");
     __real_execve = __dd_dlsym(RTLD_NEXT, "execve");
+    __real_sigaction = __dd_dlsym(RTLD_NEXT, "sigaction");
 #ifdef DD_ALPINE
     __real_pthread_create = __dd_dlsym(RTLD_NEXT, "pthread_create");
     __real_pthread_attr_init = __dd_dlsym(RTLD_NEXT, "pthread_attr_init");
