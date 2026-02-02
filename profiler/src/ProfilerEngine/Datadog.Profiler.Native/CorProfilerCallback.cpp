@@ -633,7 +633,8 @@ void CorProfilerCallback::InitializeServices()
         _pConfiguration.get(),
         _pThreadsCpuManager,
         _pExporter.get(),
-        _metricsSender.get());
+        _metricsSender.get(),
+        &_metricsRegistry);
 
     if (_pConfiguration->IsThreadLifetimeEnabled())
     {

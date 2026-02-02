@@ -11,10 +11,11 @@
 #include "IThreadsCpuManager.h"
 #include "ServiceBase.h"
 
+#include <MetricsRegistry.h>
 #include <forward_list>
+#include <future>
 #include <mutex>
 #include <thread>
-#include <future>
 
 using namespace std::chrono_literals;
 
@@ -24,7 +25,7 @@ class SamplesCollector
     public ServiceBase
 {
 public:
-    SamplesCollector(IConfiguration* configuration, IThreadsCpuManager* pThreadsCpuManager, IExporter* exporter, IMetricsSender* metricsSender);
+    SamplesCollector(IConfiguration* configuration, IThreadsCpuManager* pThreadsCpuManager, IExporter* exporter, IMetricsSender* metricsSender, MetricsRegistry *metrics_registry);
 
     // Inherited via IService
     const char* GetName() override;
@@ -45,6 +46,7 @@ private:
     void ExportWork();
     void CollectSamples(std::forward_list<std::pair<ISamplesProvider*, uint64_t>>& samplesProviders);
     void SendHeartBeatMetric(bool success);
+    void LogMetrics();
 
     const char* _serviceName = "SamplesCollector";
     const WCHAR* WorkerThreadName = WStr("DD_worker");
@@ -62,6 +64,7 @@ private:
     std::promise<void> _exporterThreadPromise;
     std::promise<void> _workerThreadPromise;
     IMetricsSender* _metricsSender;
+    MetricsRegistry *_metricsRegistry;
     IExporter* _exporter;
 
     // OPTIM

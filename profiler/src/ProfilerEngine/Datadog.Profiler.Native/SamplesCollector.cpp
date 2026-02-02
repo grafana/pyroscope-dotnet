@@ -8,6 +8,7 @@
 #include "OpSysTools.h"
 #include "SamplesEnumerator.h"
 
+#include <MetricsRegistry.h>
 #include <chrono>
 
 
@@ -41,12 +42,15 @@ SamplesCollector::SamplesCollector(
     IConfiguration* configuration,
     IThreadsCpuManager* pThreadsCpuManager,
     IExporter* exporter,
-    IMetricsSender* metricsSender) :
+    IMetricsSender* metricsSender,
+    MetricsRegistry *metrics_registry
+    ) :
     _uploadInterval{configuration->GetUploadInterval()},
     _pThreadsCpuManager{pThreadsCpuManager},
     _metricsSender{metricsSender},
     _exporter{exporter},
-    _cachedSample{std::make_shared<Sample>(0ns, std::string_view{}, Callstack::MaxFrames)}
+    _cachedSample{std::make_shared<Sample>(0ns, std::string_view{}, Callstack::MaxFrames)},
+    _metricsRegistry(metrics_registry)
 {
 }
 
@@ -179,6 +183,7 @@ void SamplesCollector::Export(ProfileTime &startTime, ProfileTime &endTime, bool
 
     SendHeartBeatMetric(success);
     _pThreadsCpuManager->LogCpuTimes();
+    LogMetrics();
 }
 
 void SamplesCollector::CollectSamples(std::forward_list<std::pair<ISamplesProvider*, uint64_t>>& samplesProviders)
@@ -207,6 +212,15 @@ void SamplesCollector::CollectSamples(std::forward_list<std::pair<ISamplesProvid
     }
 }
 
+void SamplesCollector::LogMetrics()
+{
+    auto metrics = _metricsRegistry->Collect();
+    Log::Info("SamplesCollector::LogMetrics");
+    for (auto metric : metrics)
+    {
+        Log::Info("[metric] ", metric.first, " ", metric.second);
+    }
+}
 void SamplesCollector::SendHeartBeatMetric(bool success)
 {
     if (_metricsSender != nullptr)
