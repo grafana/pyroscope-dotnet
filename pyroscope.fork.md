@@ -10,6 +10,10 @@ git rm -rf docs
 git rm -rf profiler/test
 git rm -rf profiler/src/Tools
 
+[//]: # (we use a git submodule)
+git rm -rf build/cmake/FindSpdlog.cmake 
+git rm -rf shared/src/native-lib/spdlog
+
 git status --porcelain | grep '^DU ' | cut -c4- | xargs git rm -f
 
 git status --porcelain | grep '^A ' | grep .github | cut -c4- | xargs git rm -f
