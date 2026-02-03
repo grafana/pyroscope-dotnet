@@ -1989,6 +1989,16 @@ void CorProfilerCallback::OnThreadRoutineFinished()
 
 HRESULT STDMETHODCALLTYPE CorProfilerCallback::ThreadDestroyed(ThreadID threadId)
 {
+
+    void *buffer[20] = {0};
+    int res = unw_backtrace2(buffer, std::size(buffer), nullptr, 0);;
+    for (int i = 0; i < res; i++)
+    {
+        Dl_info info{};
+        dladdr(buffer[i], &info);
+        Log::Info("stack ", std::dec, i, " ", std::hex, buffer[i], " base ", info.dli_fbase, " " , info.dli_fname," " , info.dli_sname);
+    }
+
     Log::Info("Callback invoked: ThreadDestroyed(threadId=0x", std::hex, threadId, std::dec, ")");
 
     if (false == _isInitialized.load())
