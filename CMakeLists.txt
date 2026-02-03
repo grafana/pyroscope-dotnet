@@ -82,8 +82,15 @@ message(STATUS "Coreclr files ")
 find_package(Re2 REQUIRED)
 message(STATUS "Re2 library " ${RE2_VERSION})
 
-find_package(Spdlog REQUIRED)
-message(STATUS "Spdlog headers")
+# spdlog - header-only logging library (git submodule)
+set(SPDLOG_BUILD_EXAMPLE OFF CACHE INTERNAL "")
+set(SPDLOG_BUILD_TESTS OFF CACHE INTERNAL "")
+set(SPDLOG_INSTALL OFF CACHE INTERNAL "")
+add_subdirectory(profiler/third_party/spdlog)
+# Create compatibility alias for existing code that uses spdlog-headers target
+add_library(spdlog-headers INTERFACE)
+target_link_libraries(spdlog-headers INTERFACE spdlog::spdlog_header_only)
+message(STATUS "Spdlog library v" ${SPDLOG_VERSION})
 
 find_package(ManagedLoader REQUIRED)
 message(STATUS "Tracer Managed Loader")
