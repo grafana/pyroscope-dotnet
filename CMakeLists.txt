@@ -92,9 +92,6 @@ add_library(spdlog-headers INTERFACE)
 target_link_libraries(spdlog-headers INTERFACE spdlog::spdlog_header_only)
 message(STATUS "Spdlog library v" ${SPDLOG_VERSION})
 
-find_package(ManagedLoader REQUIRED)
-message(STATUS "Tracer Managed Loader")
-
 find_package(Libunwind REQUIRED)
 message(STATUS "Libunwind library " ${LIBUNWIND_VERSION})
 
