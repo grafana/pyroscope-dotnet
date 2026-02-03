@@ -215,7 +215,7 @@ void SamplesCollector::CollectSamples(std::forward_list<std::pair<ISamplesProvid
 void SamplesCollector::LogMetrics()
 {
     auto metrics = _metricsRegistry->Collect();
-    Log::Info("SamplesCollector::LogMetrics");
+    Log::Info("============== SamplesCollector::LogMetrics ============== ");
     for (auto metric : metrics)
     {
         Log::Info("[metric] ", metric.first, " ", metric.second);

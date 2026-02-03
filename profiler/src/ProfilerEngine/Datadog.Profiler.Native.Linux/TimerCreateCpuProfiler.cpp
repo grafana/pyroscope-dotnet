@@ -51,6 +51,7 @@ void TimerCreateCpuProfiler::RegisterThread(std::shared_ptr<ManagedThreadInfo> t
 
     if (GetState() != ServiceBase::State::Started)
     {
+        Log::Error("[TimerCreateCpuProfiler] RegisterThread as not Started");
         return;
     }
 
@@ -287,11 +288,11 @@ void TimerCreateCpuProfiler::RegisterThreadImpl(ManagedThreadInfo* threadInfo)
     if (timerId != -1)
     {
         // already register (lost the race)
-        Log::Debug("Timer was already created for thread ", tid);
+        Log::Info("[TimerCreateCpuProfiler] Timer was already created for thread ", tid);
         return;
     }
 
-    Log::Debug("Creating timer for thread ", tid);
+    Log::Info("[TimerCreateCpuProfiler] Creating timer for thread ", tid);
 
     struct sigevent sev;
     sev.sigev_value.sival_ptr = nullptr;
@@ -303,7 +304,7 @@ void TimerCreateCpuProfiler::RegisterThreadImpl(ManagedThreadInfo* threadInfo)
     clockid_t clock = ((~tid) << 3) | 6; // CPUCLOCK_SCHED | CPUCLOCK_PERTHREAD_MASK thread_cpu_clock(tid);
     if (syscall(__NR_timer_create, clock, &sev, &timerId) < 0)
     {
-        Log::Error("Call to timer_create failed for thread ", tid);
+        Log::Error("[TimerCreateCpuProfiler] Call to timer_create failed for thread ", tid);
         return;
     }
 
@@ -323,7 +324,7 @@ void TimerCreateCpuProfiler::UnregisterThreadImpl(ManagedThreadInfo* threadInfo)
 
     if (timerId != -1)
     {
-        Log::Debug("Unregister timer for thread ", threadInfo->GetOsThreadId());
+        Log::Info("[TimerCreateCpuProfiler] Unregister timer for thread ", threadInfo->GetOsThreadId());
         syscall(__NR_timer_delete, timerId);
     }
 }

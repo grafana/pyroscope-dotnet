@@ -2036,7 +2036,7 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::ThreadDestroyed(ThreadID threadId
 
 HRESULT STDMETHODCALLTYPE CorProfilerCallback::ThreadAssignedToOSThread(ThreadID managedThreadId, DWORD osThreadId)
 {
-    Log::Debug("Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x", std::hex, managedThreadId, ", osThreadId=", std::dec, osThreadId, ")");
+    Log::Info("[ThreadAssignedToOSThread] Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x", std::hex, managedThreadId, ", osThreadId=", std::dec, osThreadId, ")");
 
     if (false == _isInitialized.load())
     {
@@ -2048,7 +2048,7 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::ThreadAssignedToOSThread(ThreadID
     HRESULT hr = _pCorProfilerInfo->GetHandleFromThread(managedThreadId, &origOsThreadHandle);
     if (hr != S_OK)
     {
-        Log::Debug("GetHandleFromThread() failed.");
+        Log::Error("[ThreadAssignedToOSThread]  GetHandleFromThread() failed.");
         return hr;
     }
 
@@ -2070,6 +2070,7 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::ThreadAssignedToOSThread(ThreadID
     // threads such as the HeapSnapshotManager one could be seen as "managed" by the CLR.
     if (_pNativeThreadList->Contains(osThreadId))
     {
+        Log::Error("[ThreadAssignedToOSThread]  skipping native thread");
         return S_OK;
     }
 

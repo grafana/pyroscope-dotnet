@@ -181,7 +181,7 @@ bool ManagedThreadList::SetThreadOsInfo(ThreadID clrThreadId, DWORD osThreadId, 
     pInfo->SetOsInfo(osThreadId, osThreadHandle);
     _lookupByOsThreadId[osThreadId] = pInfo;
 
-    Log::Debug("ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x", std::hex, clrThreadId,
+    Log::Info("ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x", std::hex, clrThreadId,
                ", osThreadId: ", std::dec, osThreadId,
                ", osThreadHandle: 0x", std::hex, osThreadHandle, ")",
                " completed for ProfilerThreadInfoId=", std::dec, pInfo->GetProfilerThreadInfoId(), ".");
