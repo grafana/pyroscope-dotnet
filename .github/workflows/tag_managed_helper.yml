@@ -25,20 +25,25 @@ jobs:
       - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
         with:
           dotnet-version: '10.0.100'
-      - run: make bump_version && git diff --exit-code
+      - run: make bump_version
+      - name: Check version matches committed version
+        if: ${{ !contains(github.ref_name, '-rc') }}
+        run: git diff --exit-code
       - run: dotnet build -c Release
         working-directory: Pyroscope
-      - name: Publish NuGet packages
+      - name: Upload NuGet packages
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: packages
           path: ./Pyroscope/artifacts/package/release
           if-no-files-found: error
       - uses: grafana/shared-workflows/actions/get-vault-secrets@ac5193564bb463032623a9a0ba23716f866f309c
+        if: ${{ !contains(github.ref_name, '-rc') }}
         with:
           repo_secrets: |
             NUGET_API_KEY=nuget:api_key
       - name: Publish the package to nuget.org
+        if: ${{ !contains(github.ref_name, '-rc') }}
         run: dotnet nuget push ./Pyroscope/artifacts/package/release/*.nupkg -k "${NUGET_API_KEY}" -s https://api.nuget.org/v3/index.json
         env:
           NUGET_API_KEY: ${{ env.NUGET_API_KEY }}
@@ -49,3 +54,4 @@ jobs:
           files: |
             ./Pyroscope/artifacts/bin/Pyroscope/release/Pyroscope.dll
             ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg
+          make_latest: ${{ !contains(github.ref_name, '-rc') }}

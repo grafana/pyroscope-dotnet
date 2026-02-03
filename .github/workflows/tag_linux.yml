@@ -36,7 +36,10 @@ jobs:
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_PASSWORD }}
-      - run: make bump_version && git diff --exit-code
+      - run: make bump_version
+      - name: Check version matches committed version
+        if: ${{ !contains(github.ref_name, '-rc') }}
+        run: git diff --exit-code
       - run: make docker/build
       - run: make docker/push
       - run: make docker/archive
@@ -44,6 +47,7 @@ jobs:
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           files: ./*.tar.gz
+          make_latest: ${{ !contains(github.ref_name, '-rc') }}
   release-linux-profiler-aarch64:
     permissions:
       contents: write
@@ -73,7 +77,10 @@ jobs:
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_PASSWORD }}
-      - run: make bump_version && git diff --exit-code
+      - run: make bump_version
+      - name: Check version matches committed version
+        if: ${{ !contains(github.ref_name, '-rc') }}
+        run: git diff --exit-code
       - run: make docker/build
       - run: make docker/push
       - run: make docker/archive
@@ -81,6 +88,7 @@ jobs:
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           files: ./*.tar.gz
+          make_latest: ${{ !contains(github.ref_name, '-rc') }}
   release-linux-profiler:
     permissions:
       contents: read
@@ -111,3 +119,6 @@ jobs:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_PASSWORD }}
       - run: make docker/manifest
+      - name: Push latest manifest
+        if: ${{ !contains(github.ref_name, '-rc') }}
+        run: make docker/manifest-latest
