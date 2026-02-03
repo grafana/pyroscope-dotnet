@@ -61,22 +61,32 @@ bool ManagedThreadList::StopImpl()
 
 std::shared_ptr<ManagedThreadInfo> ManagedThreadList::GetOrCreate(ThreadID clrThreadId)
 {
-    std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-    auto pInfo = FindByClrId(clrThreadId);
-    if (pInfo == nullptr)
+        std::shared_ptr<ManagedThreadInfo> pInfo{};
+
+    bool created = false;
     {
-        pInfo = std::make_shared<ManagedThreadInfo>(clrThreadId, _pCorProfilerInfo);
-        _threads.push_back(pInfo);
 
-        _lookupByClrThreadId[clrThreadId] = pInfo;
+        std::lock_guard<std::recursive_mutex> lock(_mutex);
 
-        auto currentCount = _threads.size();
-        if (_highCount <= currentCount)
+        pInfo = FindByClrId(clrThreadId);
+        if (pInfo == nullptr)
         {
-            _highCount = static_cast<uint32_t>(currentCount);
+            created = true;
+            pInfo = std::make_shared<ManagedThreadInfo>(clrThreadId, _pCorProfilerInfo);
+            _threads.push_back(pInfo);
+
+            _lookupByClrThreadId[clrThreadId] = pInfo;
+
+            auto currentCount = _threads.size();
+            if (_highCount <= currentCount)
+            {
+                _highCount = static_cast<uint32_t>(currentCount);
+            }
         }
     }
+    if (created)
+        Log::Info("ManagedThreadList::GetOrCreate created ", std::hex, clrThreadId);
 
     return pInfo;
 }
