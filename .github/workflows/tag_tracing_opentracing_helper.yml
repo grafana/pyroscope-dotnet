@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-x64-small
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
         with:
           submodules: 'true'
           persist-credentials: false
@@ -29,7 +29,7 @@ jobs:
           name: packages
           path: ./Pyroscope/artifacts/package/release
           if-no-files-found: error
-      - uses: grafana/shared-workflows/actions/get-vault-secrets@10ecff5fcf764bfa768d7a52b46feaade9c8a95b
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@ac5193564bb463032623a9a0ba23716f866f309c
         with:
           repo_secrets: |
             NUGET_API_KEY=nuget:api_key

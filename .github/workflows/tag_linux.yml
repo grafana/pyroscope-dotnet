@@ -22,11 +22,11 @@ jobs:
         name: ['glibc', 'musl']
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
         with:
           submodules: 'true'
           persist-credentials: false
-      - uses: grafana/shared-workflows/actions/get-vault-secrets@10ecff5fcf764bfa768d7a52b46feaade9c8a95b
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@ac5193564bb463032623a9a0ba23716f866f309c
         with:
           repo_secrets: |
             DOCKERHUB_USERNAME=dockerhub:user
@@ -36,7 +36,10 @@ jobs:
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_PASSWORD }}
-      - run: make bump_version && git diff --exit-code
+      - run: make bump_version
+      - name: Check version matches committed version
+        if: ${{ !contains(github.ref_name, '-rc') }}
+        run: git diff --exit-code
       - run: make docker/build
       - run: make docker/push
       - run: make docker/archive
@@ -44,6 +47,7 @@ jobs:
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           files: ./*.tar.gz
+          make_latest: ${{ !contains(github.ref_name, '-rc') }}
   release-linux-profiler-aarch64:
     permissions:
       contents: write
@@ -59,11 +63,11 @@ jobs:
         name: ['glibc', 'musl']
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
         with:
           submodules: 'true'
           persist-credentials: false
-      - uses: grafana/shared-workflows/actions/get-vault-secrets@10ecff5fcf764bfa768d7a52b46feaade9c8a95b
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@ac5193564bb463032623a9a0ba23716f866f309c
         with:
           repo_secrets: |
             DOCKERHUB_USERNAME=dockerhub:user
@@ -73,7 +77,10 @@ jobs:
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_PASSWORD }}
-      - run: make bump_version && git diff --exit-code
+      - run: make bump_version
+      - name: Check version matches committed version
+        if: ${{ !contains(github.ref_name, '-rc') }}
+        run: git diff --exit-code
       - run: make docker/build
       - run: make docker/push
       - run: make docker/archive
@@ -81,6 +88,7 @@ jobs:
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           files: ./*.tar.gz
+          make_latest: ${{ !contains(github.ref_name, '-rc') }}
   release-linux-profiler:
     permissions:
       contents: read
@@ -96,11 +104,11 @@ jobs:
         name: ['glibc', 'musl']
     steps:
       - name: Checkout
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
         with:
           submodules: 'true'
           persist-credentials: false
-      - uses: grafana/shared-workflows/actions/get-vault-secrets@10ecff5fcf764bfa768d7a52b46feaade9c8a95b
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@ac5193564bb463032623a9a0ba23716f866f309c
         with:
           repo_secrets: |
             DOCKERHUB_USERNAME=dockerhub:user
@@ -111,3 +119,6 @@ jobs:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_PASSWORD }}
       - run: make docker/manifest
+      - name: Push latest manifest
+        if: ${{ !contains(github.ref_name, '-rc') }}
+        run: make docker/manifest-latest
