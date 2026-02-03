@@ -113,6 +113,8 @@ bool TimerCreateCpuProfiler::StopImpl()
     {
         std::unique_lock lock(_registerLock);
 
+        Log::Info("[TimerCreateCpuProfiler] Unregistering all threads ");
+
         // We have to remove all timers before unregistering the handler for SIGPROF.
         // Otherwise, the process will end with exit code 155 (128 + 27 => 27 being SIGPROF value)
         _pManagedThreadsList->ForEach([this](ManagedThreadInfo* thread) { UnregisterThreadImpl(thread); });
@@ -292,7 +294,6 @@ void TimerCreateCpuProfiler::RegisterThreadImpl(ManagedThreadInfo* threadInfo)
         return;
     }
 
-    Log::Info("[TimerCreateCpuProfiler] Creating timer for thread ", tid);
 
     struct sigevent sev;
     sev.sigev_value.sival_ptr = nullptr;
@@ -315,7 +316,8 @@ void TimerCreateCpuProfiler::RegisterThreadImpl(ManagedThreadInfo* threadInfo)
     ts.it_interval.tv_sec = (time_t)(_interval / 1000000000);
     ts.it_interval.tv_nsec = _interval % 1000000000;
     ts.it_value = ts.it_interval;
-    syscall(__NR_timer_settime, timerId, 0, &ts, nullptr);
+    long int res = syscall(__NR_timer_settime, timerId, 0, &ts, nullptr);
+    Log::Info("[TimerCreateCpuProfiler] Created timer for thread ", tid, " v ", res);
 }
 
 void TimerCreateCpuProfiler::UnregisterThreadImpl(ManagedThreadInfo* threadInfo)
@@ -326,5 +328,8 @@ void TimerCreateCpuProfiler::UnregisterThreadImpl(ManagedThreadInfo* threadInfo)
     {
         Log::Info("[TimerCreateCpuProfiler] Unregister timer for thread ", threadInfo->GetOsThreadId());
         syscall(__NR_timer_delete, timerId);
+    } else
+    {
+        Log::Info("[TimerCreateCpuProfiler] Unregister timer -1 for thread ", threadInfo->GetOsThreadId());
     }
 }

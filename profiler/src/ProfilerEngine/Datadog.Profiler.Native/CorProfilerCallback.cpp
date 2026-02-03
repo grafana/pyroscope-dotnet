@@ -1933,7 +1933,7 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::JITInlining(FunctionID callerId, 
 
 HRESULT STDMETHODCALLTYPE CorProfilerCallback::ThreadCreated(ThreadID threadId)
 {
-    Log::Debug("Callback invoked: ThreadCreated(threadId=0x", std::hex, threadId, std::dec, ")");
+    Log::Info("Callback invoked: ThreadCreated(threadId=0x", std::hex, threadId, std::dec, ")");
 
     if (false == _isInitialized.load())
     {
@@ -1963,6 +1963,8 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::ThreadCreated(ThreadID threadId)
 #ifdef LINUX
 void CorProfilerCallback::OnThreadRoutineFinished()
 {
+        Log::Info("[CorProfilerCallback] OnThreadRoutineFinished ");
+
     auto threadInfo = ManagedThreadInfo::CurrentThreadInfo;
     if (threadInfo == nullptr)
     {
@@ -1987,7 +1989,7 @@ void CorProfilerCallback::OnThreadRoutineFinished()
 
 HRESULT STDMETHODCALLTYPE CorProfilerCallback::ThreadDestroyed(ThreadID threadId)
 {
-    Log::Debug("Callback invoked: ThreadDestroyed(threadId=0x", std::hex, threadId, std::dec, ")");
+    Log::Info("Callback invoked: ThreadDestroyed(threadId=0x", std::hex, threadId, std::dec, ")");
 
     if (false == _isInitialized.load())
     {
@@ -2007,7 +2009,7 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::ThreadDestroyed(ThreadID threadId
         pThreadInfo.reset();
     }
 
-    Log::Debug("Removing thread ", std::hex, threadId, " from the main managed thread list.");
+    Log::Info("Removing thread ", std::hex, threadId, " from the main managed thread list.");
     if (_pManagedThreadList->UnregisterThread(threadId, pThreadInfo))
     {
         // The docs require that we do not allow to destroy a thread while it is being stack-walked.
