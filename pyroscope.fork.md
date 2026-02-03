@@ -13,6 +13,7 @@ git rm -rf profiler/src/Tools
 [//]: # (we use a git submodule)
 git rm -rf build/cmake/FindSpdlog.cmake 
 git rm -rf shared/src/native-lib/spdlog
+git rm -rf build/cmake/FindManagedLoader.cmake 
 
 git status --porcelain | grep '^DU ' | cut -c4- | xargs git rm -f
 
