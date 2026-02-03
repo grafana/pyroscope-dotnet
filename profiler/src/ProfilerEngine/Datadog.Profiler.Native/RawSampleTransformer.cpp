@@ -38,6 +38,10 @@ void RawSampleTransformer::Transform(const RawSample& rawSample, std::shared_ptr
     for (auto &tag: rawSample.Tags.GetAll()) {
         sample->AddLabel(StringLabel{tag.first, tag.second});
     }
+    if (rawSample.ThreadInfo)
+    {
+        sample->AddLabel(StringLabel{"tid", std::to_string(rawSample.ThreadInfo->GetOsThreadId())});
+    }
 
     // compute thread/appdomain details
     // SetAppDomainDetails(rawSample, sample); // pyroscope removed because of spaces in the label name and cardinality
