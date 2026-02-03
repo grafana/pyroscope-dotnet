@@ -45,13 +45,15 @@ docker/manifest:
 	docker manifest create \
 		$(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)                 \
 		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-x86_64   \
-		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-aarch64 
+		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-aarch64
 	docker manifest push $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)
 
+.phony: docker/manifest-latest
+docker/manifest-latest:
 	docker manifest create \
 		$(DOCKER_IMAGE):latest-$(LIBC)                 \
 		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-x86_64   \
-		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-aarch64 
+		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-aarch64
 	docker manifest push $(DOCKER_IMAGE):latest-$(LIBC)
 
 
