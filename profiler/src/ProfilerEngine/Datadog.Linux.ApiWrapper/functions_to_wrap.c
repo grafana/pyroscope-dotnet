@@ -597,9 +597,15 @@ int pthread_sigmask(int how, const sigset_t *set, sigset_t *oldset)
     {
         return __real_pthread_sigmask(how, set, oldset);
     }
-    if (how == SIG_UNBLOCK && set != NULL && oldset == NULL && sigismember(set, SIGSEGV))
+    if (how == SIG_UNBLOCK && set != NULL && oldset == NULL)
     {
-        sigaddset((sigset_t*)set, SIGPROF);
+        sigset_t sigsegv_only;
+        sigemptyset(&sigsegv_only);
+        sigaddset(&sigsegv_only, SIGSEGV);
+        if (memcmp(set, &sigsegv_only, sizeof(sigset_t)) == 0)
+        {
+            sigaddset((sigset_t*)set, SIGPROF);
+        }
     }
     return __real_pthread_sigmask(how, set, oldset);
 }
