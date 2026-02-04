@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using System.Threading;
 using Pyroscope;
 
@@ -5,8 +6,15 @@ namespace Example;
 
 internal class OrderService
 {
+    [DllImport("libc")]
+    static extern int syscall(int number);
+
+    
     public void FindNearestVehicle(long searchRadius, string vehicle)
     {
+
+        int tid = syscall(186);
+        Console.WriteLine($"Thread id {tid}");
         lock (_lock)
         {
             var labels = LabelSet.Empty.BuildUpon()
@@ -15,13 +23,22 @@ internal class OrderService
 
             LabelsWrapper.Do(labels, static (state) =>
             {
-                for (long i = 0; i < state.searchRadius * 1_000_000_000; i++)
-                {
-                }
+                
 
                 if (string.Equals("car", state.vehicle))
                 {
+                    for (long i = 0; i < 100_0000; i++)
+                    {
+                        NPE.work();
+                    }
                     CheckDriverAvailability(state.labels, state.searchRadius);
+                }
+                else
+                {
+                    for (long i = 0; i < 100_000_000; i++)
+                    {
+                        
+                    }
                 }
             },
             (labels, searchRadius, vehicle));
@@ -39,9 +56,9 @@ internal class OrderService
 
         LabelsWrapper.Do(labels, static (state) =>
         {
-            for (long i = 0; i < state.searchRadius * 1_000_000_000; i++)
+            for (long i = 0; i < 100_000_000; i++)
             {
-                NPE.work();
+                        
             }
 
             var forceMutexLock = DateTime.Now.Minute % 2 == 0;
@@ -56,8 +73,9 @@ internal class OrderService
 
     private static void MutexLock(long searchRadius)
     {
-        for (long i = 0; i < 30 * searchRadius * 1_000_000_000; i++)
+        for (long i = 0; i < 100_000_000; i++)
         {
+                        
         }
     }
 }

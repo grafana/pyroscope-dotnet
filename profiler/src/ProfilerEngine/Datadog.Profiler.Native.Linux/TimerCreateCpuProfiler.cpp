@@ -10,6 +10,7 @@
 #include "Log.h"
 #include "OpSysTools.h"
 #include "ProfilerSignalManager.h"
+#include "SignalHandlerDebug.h"
 #include "IConfiguration.h"
 
 #include <sys/syscall.h> /* Definition of SYS_* constants */
@@ -140,6 +141,9 @@ bool TimerCreateCpuProfiler::StopImpl()
 
 bool TimerCreateCpuProfiler::CollectStackSampleSignalHandler(int sig, siginfo_t* info, void* ucontext)
 {
+    SignalHandlerDebug::WriteThreadId("[SIGPROF tid=");
+    SignalHandlerDebug::WriteStr("enter\n");
+
     auto instance = Instance.load();
     if (instance == nullptr)
     {
@@ -221,6 +225,9 @@ private:
 
 bool TimerCreateCpuProfiler::Collect(void* ctx)
 {
+    SignalHandlerDebug::WriteThreadId("[SIGPROF tid=");
+    SignalHandlerDebug::WriteStr("collect\n");
+
     _nbThreadsInSignalHandler++;
     _totalSampling->Incr();
 
@@ -279,6 +286,10 @@ bool TimerCreateCpuProfiler::Collect(void* ctx)
     rawCpuSample->ThreadInfo = std::move(threadInfo);
     rawCpuSample->Duration = _samplingInterval;
     _nbThreadsInSignalHandler--;
+
+    SignalHandlerDebug::WriteThreadId("[SIGPROF tid=");
+    SignalHandlerDebug::WriteStr("done\n");
+
     return true;
 }
 

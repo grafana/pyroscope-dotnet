@@ -98,7 +98,7 @@ bool ProfilerSignalManager::IgnoreSignal() {
     sampleAction.sa_handler = SIG_IGN;
     sigemptyset(&sampleAction.sa_mask);
     sampleAction.sa_flags = 0;
-
+    abort();
     int32_t result = sigaction(_signalToSend, &sampleAction, nullptr);
     if (result != 0)
     {

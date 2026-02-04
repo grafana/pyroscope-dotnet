@@ -1,0 +1,32 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Rideshare" type="DotNetProject" factoryName=".NET Project">
+    <option name="EXE_PATH" value="$PROJECT_DIR$/../IntegrationTest/bin/Debug/net8.0/rideshare" />
+    <option name="PROGRAM_PARAMETERS" value="" />
+    <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/../IntegrationTest" />
+    <option name="PASS_PARENT_ENVS" value="1" />
+    <envs>
+      <env name="CORECLR_ENABLE_PROFILING" value="1" />
+      <env name="CORECLR_PROFILER" value="{BD1A650D-AC5D-4896-B64F-D6FA25D6B26A}" />
+      <env name="CORECLR_PROFILER_PATH" value="$PROJECT_DIR$/../profiler/_build/DDProf-Deploy/linux/Pyroscope.Profiler.Native.so" />
+      <env name="LD_PRELOAD" value="$PROJECT_DIR$/../profiler/_build/DDProf-Deploy/linux/Datadog.Linux.ApiWrapper.x64.so" />
+      <env name="PYROSCOPE_PROFILING_ALLOCATION_ENABLED" value="true" />
+      <env name="PYROSCOPE_PROFILING_ENABLED" value="1" />
+      <env name="PYROSCOPE_SERVER_ADDRESS" value="http://localhost:4040/" />
+    </envs>
+    <option name="ENV_FILE_PATHS" value="" />
+    <option name="REDIRECT_INPUT_PATH" value="" />
+    <option name="MIXED_MODE_DEBUG" value="0" />
+    <option name="USE_MONO" value="0" />
+    <option name="RUNTIME_ARGUMENTS" value="" />
+    <option name="AUTO_ATTACH_CHILDREN" value="0" />
+    <option name="PROJECT_PATH" value="$PROJECT_DIR$/../IntegrationTest/Rideshare.csproj" />
+    <option name="PROJECT_EXE_PATH_TRACKING" value="1" />
+    <option name="PROJECT_ARGUMENTS_TRACKING" value="1" />
+    <option name="PROJECT_WORKING_DIRECTORY_TRACKING" value="1" />
+    <option name="PROJECT_KIND" value="DotNetCore" />
+    <option name="PROJECT_TFM" value="net8.0" />
+    <method v="2">
+      <option name="Build" />
+    </method>
+  </configuration>
+</component>
