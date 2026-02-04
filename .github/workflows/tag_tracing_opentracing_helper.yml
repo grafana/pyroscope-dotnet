@@ -44,3 +44,4 @@ jobs:
           files: |
             ./Pyroscope/artifacts/bin/Pyroscope.OpenTracing/release/Pyroscope.OpenTracing.dll
             ./Pyroscope/artifacts/package/release/Pyroscope.OpenTracing*.nupkg
+          make_latest: ${{ !contains(github.ref_name, '-rc') }}

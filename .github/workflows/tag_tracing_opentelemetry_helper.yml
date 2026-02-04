@@ -44,3 +44,4 @@ jobs:
           files: |
             ./Pyroscope/artifacts/bin/Pyroscope.OpenTelemetry/release/Pyroscope.OpenTelemetry.dll
             ./Pyroscope/artifacts/package/release/Pyroscope.OpenTelemetry*.nupkg
+          make_latest: ${{ !contains(github.ref_name, '-rc') }}
