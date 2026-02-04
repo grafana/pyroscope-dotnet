@@ -599,10 +599,18 @@ int pthread_sigmask(int how, const sigset_t *set, sigset_t *oldset)
     }
     if (how == SIG_UNBLOCK && set != NULL && oldset == NULL)
     {
-        sigset_t sigsegv_only;
-        sigemptyset(&sigsegv_only);
-        sigaddset(&sigsegv_only, SIGSEGV);
-        if (memcmp(set, &sigsegv_only, sizeof(sigset_t)) == 0)
+        // Check if SIGSEGV is the only signal in the set
+        int has_sigsegv = sigismember(set, SIGSEGV);
+        int other_signals = 0;
+        for (int sig = 1; sig < NSIG; sig++)
+        {
+            if (sig != SIGSEGV && sigismember(set, sig) == 1)
+            {
+                other_signals = 1;
+                break;
+            }
+        }
+        if (has_sigsegv && !other_signals)
         {
             sigaddset((sigset_t*)set, SIGPROF);
         }
