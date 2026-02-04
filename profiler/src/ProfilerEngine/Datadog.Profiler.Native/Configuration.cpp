@@ -713,17 +713,17 @@ T Configuration::GetEnvironmentValue(shared::WSTRING const& name, T const& defau
     T result{};
     if (!convert_to(r, result))
     {
-        // if (shouldLog)
-        // {
+         if (shouldLog)
+         {
             Log::Info("Configuration: ", name, " env var is set to '", r,"' that cannot be converted - '", defaultValue, "' is used as default value");
-        // }
+         }
         return defaultValue;
     }
 
-    // if (shouldLog)
-    // {
+     if (shouldLog)
+     {
         Log::Info("Configuration: ", name, " env var is set to '", r, "'");
-    // }
+     }
     return result;
 }
 
