@@ -38,7 +38,7 @@ if (RUN_TSAN)
 endif()
 
 if(ISLINUX)
-    add_compile_options(-stdlib=libstdc++ -DLINUX -Wno-pragmas)
+    add_compile_options($<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:Clang>>:-stdlib=libstdc++> -DLINUX -Wno-pragmas)
 endif()
 
 if (BIT64)
