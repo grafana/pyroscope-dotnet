@@ -15,13 +15,13 @@ jobs:
     runs-on: ubuntu-x64-small
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           submodules: 'true'
           persist-credentials: false
       - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
         with:
-          dotnet-version: '10.0.100'
+          global-json-file: global.json
       - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTracing
       - name: Publish NuGet packages
@@ -34,13 +34,13 @@ jobs:
     runs-on: ubuntu-x64-small
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           submodules: 'true'
           persist-credentials: false
       - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
         with:
-          dotnet-version: '10.0.100'
+          global-json-file: global.json
       - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTelemetry
       - name: Publish NuGet packages
