@@ -142,11 +142,18 @@ namespace shared
 
     WSTRING GetEnvironmentValue(const WSTRING& name)
     {
+        bool existed = false;
+        return GetEnvironmentValue(name, existed);
+    }
+
+    WSTRING GetEnvironmentValue(const WSTRING& name, bool& existed)
+    {
 #ifdef _WIN32
 #error "not implemented"
         const size_t max_buf_size = 4096;
         WSTRING buf(max_buf_size, 0);
         auto len = GetEnvironmentVariable((LPWSTR)name.data(), (LPWSTR)buf.data(), (DWORD)(buf.size()));
+        existed = (len > 0 || ::GetLastError() != ERROR_ENVVAR_NOT_FOUND);
         return Trim(buf.substr(0, len));
 #else
         auto cstr = std::getenv(ToString(name).c_str());
@@ -154,6 +161,7 @@ namespace shared
         {
             if (name.find(WStr("DD_")) != 0)
             {
+                existed = false;
                 return WStr("");
             }
             auto secondName = name.substr(3);
@@ -164,10 +172,12 @@ namespace shared
                 cstr = std::getenv(ToString(pyroscopeName).c_str());
                 if (cstr == nullptr)
                 {
+                    existed = false;
                     return WStr("");
                 }
             }
         }
+        existed = true;
         std::string str(cstr);
         auto wstr = ToWSTRING(str);
         return Trim(wstr);

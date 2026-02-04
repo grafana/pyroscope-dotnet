@@ -51,8 +51,10 @@ namespace shared
     bool EnvironmentExist(const WSTRING& name);
 
     // GetEnvironmentValue returns the environment variable value for the given
-    // name. Space is trimmed.
+    // name. Space is trimmed. If existed is provided, it will be set to true if
+    // the environment variable exists, false otherwise.
     WSTRING GetEnvironmentValue(const WSTRING& name);
+    WSTRING GetEnvironmentValue(const WSTRING& name, bool& existed);
 
     // GetEnvironmentValues returns environment variable values for the given name
     // split by the delimiter. Space is trimmed and empty values are ignored.
