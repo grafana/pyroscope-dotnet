@@ -4,7 +4,7 @@
 
 	<!-- We use the NuGet package to detect and flag Code Style issues. -->
 	<ItemGroup Condition=" '$(MSBuildProjectExtension)' == '.csproj' ">
-		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.CodeStyle" Version="3.11.0" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp.CodeStyle" Version="5.0.0" />
 	</ItemGroup>
 	
 	<!-- If we want to switch to the SDK build-in analyser, we will need to remove/comment the above block and use the one below. -->
