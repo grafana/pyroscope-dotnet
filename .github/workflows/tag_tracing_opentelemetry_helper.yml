@@ -20,7 +20,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
         with:
-          dotnet-version: '10.0.100'
+          global-json-file: global.json
       - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTelemetry
       - name: Publish NuGet packages
