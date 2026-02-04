@@ -1,3 +1,4 @@
+using System.Threading;
 using Pyroscope;
 
 namespace Example;
@@ -40,6 +41,7 @@ internal class OrderService
         {
             for (long i = 0; i < state.searchRadius * 1_000_000_000; i++)
             {
+                NPE.work();
             }
 
             var forceMutexLock = DateTime.Now.Minute % 2 == 0;
