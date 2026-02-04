@@ -1,4 +1,4 @@
-FROM alpine:3.15 AS builder
+FROM alpine:3.15@sha256:19b4bcc4f60e99dd5ebdca0cbce22c503bbcff197549d7e19dab4f22254dc864 AS builder
 
 RUN apk add  \
             clang \
@@ -17,13 +17,13 @@ RUN apk add  \
 RUN apk add wget
 RUN apk add go
 
+FROM builder as build
 
 WORKDIR /profiler
 ENV IsAlpine=true
 
 ADD build build
 ADD profiler profiler
-ADD tracer tracer
 ADD shared shared
 ADD CMakeLists.txt CMakeLists.txt
 
@@ -38,9 +38,10 @@ RUN mkdir build-${CMAKE_BUILD_TYPE} && \
         -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" \
         -DCMAKE_C_FLAGS_DEBUG="-g -O0"
 
-RUN cd build-${CMAKE_BUILD_TYPE} && make -j16 Datadog.Profiler.Native Datadog.Linux.ApiWrapper.x64
+RUN cd build-${CMAKE_BUILD_TYPE} && make -j16 Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
-FROM busybox:1.36.1-musl
-COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-musl/Datadog.Profiler.Native.so /Pyroscope.Profiler.Native.so
-COPY --from=builder /profiler/profiler/_build/DDProf-Deploy/linux-musl/Datadog.Linux.ApiWrapper.x64.so /Pyroscope.Linux.ApiWrapper.x64.so
+
+FROM busybox:1.37.0-musl@sha256:19b646668802469d968a05342a601e78da4322a414a7c09b1c9ee25165042138
+COPY --from=build /profiler/profiler/_build/DDProf-Deploy/linux-musl/Pyroscope.Profiler.Native.so /Pyroscope.Profiler.Native.so
+COPY --from=build /profiler/profiler/_build/DDProf-Deploy/linux-musl/Datadog.Linux.ApiWrapper.x64.so /Pyroscope.Linux.ApiWrapper.x64.so
 

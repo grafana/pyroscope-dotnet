@@ -1,9 +1,0 @@
-{
-  global:
-    DllMain;
-    DllCanUnloadNow;
-    DllGetClassObject;
-    GetRuntimeId;
-    GetCurrentAppDomainRuntimeId;
-  local: *;
-};

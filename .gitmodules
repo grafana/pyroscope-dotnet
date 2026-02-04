@@ -13,3 +13,6 @@
 [submodule "profiler/third_party/nlohmann_json"]
 	path = profiler/third_party/nlohmann_json
 	url = https://github.com/nlohmann/json.git
+[submodule "profiler/third_party/spdlog"]
+	path = profiler/third_party/spdlog
+	url = https://github.com/gabime/spdlog.git

@@ -20,6 +20,15 @@
 class IConfiguration
 {
 public:
+
+    virtual std::string PyroscopeServerAddress() const = 0;
+    virtual std::string PyroscopeApplicationName() const = 0;
+    virtual std::string PyroscopeAuthToken() const = 0;
+    virtual std::string PyroscopeHttpHeaders() const = 0;
+    virtual std::string PyroscopeTenantID() const = 0;
+    virtual std::string PyroscopeBasicAuthUser() const = 0;
+    virtual std::string PyroscopeBasicAuthPassword() const = 0;
+
     virtual ~IConfiguration() = default;
     virtual bool IsDebugLogEnabled() const = 0;
     virtual fs::path const& GetLogDirectory() const = 0;
@@ -56,7 +65,6 @@ public:
     virtual int32_t CodeHotspotsThreadsThreshold() const = 0;
     virtual bool IsGarbageCollectionProfilingEnabled() const = 0;
     virtual bool IsHeapProfilingEnabled() const = 0;
-    virtual bool UseBacktrace2() const = 0;
     virtual bool IsAllocationRecorderEnabled() const = 0;
     virtual bool IsDebugInfoEnabled() const = 0;
     virtual bool IsGcThreadsCpuTimeEnabled() const = 0;
@@ -75,15 +83,18 @@ public:
     virtual CpuProfilerType GetCpuProfilerType() const = 0;
     virtual std::chrono::milliseconds GetCpuProfilingInterval() const = 0;
     virtual std::chrono::milliseconds GetSsiLongLivedThreshold() const = 0;
-    virtual bool IsTelemetryToDiskEnabled() const = 0;
-    virtual bool IsSsiTelemetryEnabled() const = 0;
+    virtual bool IsHttpProfilingEnabled() const = 0;
+    virtual std::chrono::milliseconds GetHttpRequestDurationThreshold() const = 0;
+    virtual bool ForceHttpSampling() const = 0;
+    virtual bool IsWaitHandleProfilingEnabled() const = 0;
+    virtual bool IsManagedActivationEnabled() const = 0;
 
+    // this setter function is needed for Stable Configuration support
+    virtual void SetEnablementStatus(EnablementStatus status) = 0;
 
-    virtual std::string PyroscopeServerAddress() const = 0;
-    virtual std::string PyroscopeApplicationName() const = 0;
-    virtual std::string PyroscopeAuthToken() const = 0;
-    virtual std::string PyroscopeHttpHeaders() const = 0;
-    virtual std::string PyroscopeTenantID() const = 0;
-    virtual std::string PyroscopeBasicAuthUser() const = 0;
-    virtual std::string PyroscopeBasicAuthPassword() const = 0;
+    virtual bool IsHeapSnapshotEnabled() const = 0;
+    virtual std::chrono::minutes GetHeapSnapshotInterval() const = 0;
+    virtual std::chrono::milliseconds GetHeapSnapshotCheckInterval() const = 0;
+    virtual uint32_t GetHeapSnapshotMemoryPressureThreshold() const = 0;
+    virtual uint32_t GetHeapHandleLimit() const = 0;
 };

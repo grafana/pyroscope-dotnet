@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.8..3.19)
+cmake_minimum_required (VERSION 3.13.4)
 cmake_policy(SET CMP0015 NEW)
 
 if(POLICY CMP0135)
@@ -82,11 +82,15 @@ message(STATUS "Coreclr files ")
 find_package(Re2 REQUIRED)
 message(STATUS "Re2 library " ${RE2_VERSION})
 
-find_package(Spdlog REQUIRED)
-message(STATUS "Spdlog headers")
-
-find_package(ManagedLoader REQUIRED)
-message(STATUS "Tracer Managed Loader")
+# spdlog - header-only logging library (git submodule)
+set(SPDLOG_BUILD_EXAMPLE OFF CACHE INTERNAL "")
+set(SPDLOG_BUILD_TESTS OFF CACHE INTERNAL "")
+set(SPDLOG_INSTALL OFF CACHE INTERNAL "")
+add_subdirectory(profiler/third_party/spdlog)
+# Create compatibility alias for existing code that uses spdlog-headers target
+add_library(spdlog-headers INTERFACE)
+target_link_libraries(spdlog-headers INTERFACE spdlog::spdlog_header_only)
+message(STATUS "Spdlog library v" ${SPDLOG_VERSION})
 
 find_package(Libunwind REQUIRED)
 message(STATUS "Libunwind library " ${LIBUNWIND_VERSION})
@@ -100,9 +104,6 @@ message(STATUS "GoogleTest library")
 find_package(PPDB REQUIRED)
 message(STATUS "PPDB library")
 
-add_subdirectory(tracer)
-
 # profiler cannot be built on MacOS (yet)
 add_subdirectory(profiler)
 
-add_subdirectory(shared)

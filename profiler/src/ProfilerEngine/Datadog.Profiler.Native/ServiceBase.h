@@ -10,6 +10,12 @@
 class ServiceBase : public IService
 {
 public:
+    ServiceBase();
+
+    bool Start() final override;
+    bool Stop() final override;
+    bool IsStarted() final override;
+
     enum class State
     {
         Init,
@@ -18,19 +24,11 @@ public:
         Stopping,
         Stopped
     };
-    ServiceBase();
-
-    bool Start() final override;
-    bool Stop() final override;
-
-    // Like Stop, but allows to specify stopped state - either Stopped or Init. Init allows the service to be restarted.
-    bool StopWithState(State stoppedState);
+    bool StopWithState(State s);
 
 protected:
     virtual bool StartImpl() = 0;
     virtual bool StopImpl() = 0;
-
-
 
     State GetState() const;
 

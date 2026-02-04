@@ -9,48 +9,31 @@
 #include "IConfiguration.h"
 #include "LiveObjectsProvider.h"
 #include "OpSysTools.h"
+#include "RawSampleTransformer.h"
 #include "Sample.h"
 #include "SamplesEnumerator.h"
 #include "SampleValueTypeProvider.h"
 
 std::vector<SampleValueType> LiveObjectsProvider::SampleTypeDefinitions(
 {
-    {"inuse_objects", "count"},
-    {"inuse_space", "bytes"}
+    {"inuse_objects", "count", -1},
+    {"inuse_space", "bytes", -1}
 });
-
-const uint32_t MAX_LIVE_OBJECTS = 1024;
 
 const std::string LiveObjectsProvider::Gen1("1");
 const std::string LiveObjectsProvider::Gen2("2");
 
 LiveObjectsProvider::LiveObjectsProvider(
-    SampleValueTypeProvider& valueTypeProvider,
     ICorProfilerInfo13* pCorProfilerInfo,
-    IManagedThreadList* pManagedThreadList,
-    IFrameStore* pFrameStore,
-    IThreadsCpuManager* pThreadsCpuManager,
-    IAppDomainStore* pAppDomainStore,
-    IRuntimeIdStore* pRuntimeIdStore,
-    IConfiguration* pConfiguration,
-    MetricsRegistry& metricsRegistry)
+    SampleValueTypeProvider& valueTypeProvider,
+    RawSampleTransformer* rawSampleTransformer,
+    IConfiguration* pConfiguration)
     :
     _pCorProfilerInfo(pCorProfilerInfo),
-    _isTimestampsAsLabelEnabled(pConfiguration->IsTimestampsAsLabelEnabled())
+    _rawSampleTransformer{rawSampleTransformer},
+    _valueOffsets{valueTypeProvider.GetOrRegister(LiveObjectsProvider::SampleTypeDefinitions)}
 {
-    _pAllocationsProvider = std::make_unique<AllocationsProvider>(
-        valueTypeProvider.GetOrRegister(SampleTypeDefinitions),
-        pCorProfilerInfo,
-        pManagedThreadList,
-        pFrameStore,
-        pThreadsCpuManager,
-        pAppDomainStore,
-        pRuntimeIdStore,
-        pConfiguration,
-        nullptr,
-        metricsRegistry,
-        CallstackProvider(shared::pmr::null_memory_resource()), // safe to pass the null memory resource for the provider. This provider does not collect callstack
-        shared::pmr::null_memory_resource()); // safe to pass null memory resource for the provider. This provider is only used to transform RawSamples
+    _heapHandleLimit = pConfiguration->GetHeapHandleLimit();
 }
 
 const char* LiveObjectsProvider::GetName()
@@ -59,7 +42,7 @@ const char* LiveObjectsProvider::GetName()
 }
 
 void LiveObjectsProvider::OnGarbageCollectionStart(
-    uint64_t timestamp,
+    std::chrono::nanoseconds timestamp,
     int32_t number,
     uint32_t generation,
     GCReason reason,
@@ -78,12 +61,13 @@ void LiveObjectsProvider::OnGarbageCollectionEnd(
     GCReason reason,
     GCType type,
     bool isCompacting,
-    uint64_t pauseDuration,
-    uint64_t totalDuration,
-    uint64_t endTimestamp,
+    std::chrono::nanoseconds pauseDuration,
+    std::chrono::nanoseconds totalDuration,
+    std::chrono::nanoseconds endTimestamp,
     uint64_t gen2Size,
     uint64_t lohSize,
-    uint64_t pohSize)
+    uint64_t pohSize,
+    uint32_t memPressure)
 {
     std::lock_guard<std::mutex> lock(_liveObjectsLock);
 
@@ -139,7 +123,7 @@ std::unique_ptr<SamplesEnumerator> LiveObjectsProvider::GetSamples()
 {
     std::lock_guard<std::mutex> lock(_liveObjectsLock);
 
-    int64_t currentTimestamp = OpSysTools::GetHighPrecisionTimestamp();
+    auto currentTimestamp = OpSysTools::GetHighPrecisionTimestamp();
     std::size_t nbSamples = 0;
 
     // OPTIM maybe use an allocator
@@ -163,7 +147,7 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
 
     // Limit the number of handle to create until the next GC
     // If _monitoredObjects is already full, stop adding new objects
-    if (_monitoredObjects.size() < MAX_LIVE_OBJECTS)
+    if (_monitoredObjects.size() < _heapHandleLimit)
     {
         // When the AllocationTick event is received, the object is not already initialized.
         // To call CreateWeakHandle(), it is needed to patch the MethodTable in memory
@@ -173,7 +157,7 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
         if (handle != nullptr)
         {
             LiveObjectInfo info(
-                _pAllocationsProvider->TransformRawSample(rawSample),
+                _rawSampleTransformer->Transform(rawSample, _valueOffsets),
                 rawSample.Address,
                 rawSample.Timestamp);
             info.SetHandle(handle);

@@ -19,6 +19,13 @@
 #include <shared_mutex>
 #include <utility>
 
+#ifdef LINUX
+#include "SpinningMutex.hpp"
+using dd_mutex_t = SpinningMutex;
+#else
+using dd_mutex_t = std::mutex;
+#endif
+
 static constexpr int32_t MinFieldAlignRequirement = 8;
 static constexpr int32_t FieldAlignRequirement = (MinFieldAlignRequirement >= alignof(std::uint64_t)) ? MinFieldAlignRequirement : alignof(std::uint64_t);
 
@@ -28,6 +35,15 @@ public:
     std::uint64_t _writeGuard;
     std::uint64_t _currentLocalRootSpanId;
     std::uint64_t _currentSpanId;
+};
+
+
+enum class ContentionType {
+    Unknown = 0,
+    Lock = 1,
+    Wait = 2,
+
+    ContentionTypeCount = 3 // This is used to know the last element in the enum
 };
 
 struct ManagedThreadInfo : public IThreadInfo
@@ -55,18 +71,10 @@ public:
     inline const shared::WSTRING& GetThreadName() const override;
     inline void SetThreadName(shared::WSTRING pThreadName);
 
-    inline std::uint64_t GetLastSampleHighPrecisionTimestampNanoseconds() const;
-    inline std::uint64_t SetLastSampleHighPrecisionTimestampNanoseconds(std::uint64_t value);
-    inline std::uint64_t GetCpuConsumptionMilliseconds() const;
-    inline std::uint64_t SetCpuConsumptionMilliseconds(std::uint64_t value, std::int64_t timestamp);
-    inline std::int64_t GetCpuTimestamp() const;
-
-    inline void GetLastKnownSampleUnixTimestamp(std::uint64_t* realUnixTimeUtc, std::int64_t* highPrecisionNanosecsAtLastUnixTimeUpdate) const;
-    inline void SetLastKnownSampleUnixTimestamp(std::uint64_t realUnixTimeUtc, std::int64_t highPrecisionNanosecsAtThisUnixTimeUpdate);
-
-    inline std::uint64_t GetSnapshotsPerformedSuccessCount() const;
-    inline std::uint64_t GetSnapshotsPerformedFailureCount() const;
-    inline std::uint64_t IncSnapshotsPerformedCount(bool isStackSnapshotSuccessful);
+    inline std::chrono::nanoseconds SetLastSampleTimestamp(std::chrono::nanoseconds value);
+    inline std::chrono::milliseconds GetCpuConsumption() const;
+    inline std::chrono::milliseconds SetCpuConsumption(std::chrono::milliseconds value, std::chrono::nanoseconds timestamp);
+    inline std::chrono::nanoseconds GetCpuTimestamp() const;
 
     inline void GetOrResetDeadlocksCount(std::uint64_t deadlocksAggregationPeriodIndex,
                                          std::uint64_t* pPrevCount,
@@ -76,7 +84,6 @@ public:
                                   std::uint64_t* deadlockDetectionsInAggregationPeriodCount,
                                   std::uint64_t* usedDeadlockDetectionsAggregationPeriodIndex) const;
 
-    inline bool IsThreadDestroyed();
     inline bool IsDestroyed();
     inline void SetThreadDestroyed();
     inline std::pair<uint64_t, shared::WSTRING> SetBlockingThread(uint64_t osThreadId, shared::WSTRING name);
@@ -87,6 +94,7 @@ public:
     inline std::string GetProfileThreadId() override;
     inline std::string GetProfileThreadName() override;
     inline void AcquireLock();
+    inline bool TryAcquireLock();
     inline void ReleaseLock();
 
 #ifdef LINUX
@@ -97,11 +105,28 @@ public:
     inline bool CanBeInterrupted() const;
 #endif
 
+#ifdef DD_TEST
+    inline static std::unique_ptr<ManagedThreadInfo>CreateForTest(std::uint32_t osThreadId)
+    {
+        ManagedThreadInfo::s_nextProfilerThreadInfoId = 1;
+        auto threadInfo = std::make_unique<ManagedThreadInfo>(1, nullptr);
+        threadInfo->SetOsInfo(osThreadId, HANDLE());
+        return threadInfo;
+    }
+#endif
+
     inline AppDomainID GetAppDomainId();
 
     inline std::pair<std::uint64_t, std::uint64_t> GetTracingContext() const;
 
     inline google::javaprofiler::Tags& GetTags();
+
+    // TODO: check if we need to create a dedicated dictionary for WaitHandle profiling
+    //       --> this would reduce memory consumption
+    inline void SetWaitStart(std::chrono::nanoseconds timestamp) { _waitStartTimestamp = timestamp; }
+    inline std::chrono::nanoseconds GetWaitStart() { return _waitStartTimestamp; }
+    inline void SetContentionType(ContentionType contentionType) { _contentionType = contentionType; }
+    ContentionType GetContentionType() { return _contentionType; }
 
 private:
     inline std::string BuildProfileThreadId();
@@ -116,16 +141,13 @@ private:
     ThreadID _clrThreadId;
     DWORD _osThreadId;
     ScopedHandle _osThreadHandle;
-    shared::WSTRING _pThreadName;
+    shared::WSTRING _threadName;
+    std::once_flag _profileThreadIdOnceFlag;
+    std::once_flag _profileThreadNameOnceFlag;
 
-    std::uint64_t _lastSampleHighPrecisionTimestampNanoseconds;
-    std::uint64_t _cpuConsumptionMilliseconds;
-    std::int64_t _timestamp;
-    std::uint64_t _lastKnownSampleUnixTimeUtc;
-    std::int64_t _highPrecisionNanosecsAtLastUnixTimeUpdate;
-
-    std::uint64_t _snapshotsPerformedSuccessCount;
-    std::uint64_t _snapshotsPerformedFailureCount;
+    std::chrono::nanoseconds _lastSampleHighPrecisionTimestamp;
+    std::chrono::milliseconds _cpuConsumption;
+    std::chrono::nanoseconds _timestamp;
 
     std::uint64_t _deadlockTotalCount;
     std::uint64_t _deadlockInPeriodCount;
@@ -143,8 +165,6 @@ private:
     std::string _profileThreadName;
 
     ICorProfilerInfo4* _info;
-    std::shared_mutex _threadIdMutex;
-    std::shared_mutex _threadNameMutex;
 #ifdef LINUX
     // Linux only
     // This is pointer to a shared memory area coming from the Datadog.Linux.ApiWrapper library.
@@ -156,51 +176,46 @@ private:
 #endif
     uint64_t _blockingThreadId;
     shared::WSTRING _blockingThreadName;
-    std::mutex _objLock;
+    dd_mutex_t _objLock;
+
+    // for WaitHandle profiling, keep track of the wait start timestamp
+    std::chrono::nanoseconds _waitStartTimestamp;
+    ContentionType _contentionType;
 };
 
 std::string ManagedThreadInfo::GetProfileThreadId()
 {
-    {
-        auto l = std::shared_lock(_threadIdMutex);
-        if (!_profileThreadId.empty())
-        {
-            return _profileThreadId;
-        }
-    }
-
-    auto id = BuildProfileThreadId();
-    std::unique_lock l(_threadIdMutex);
-    if (_profileThreadId.empty())
-    {
-        _profileThreadId = std::move(id);
-    }
+    // PERF: use once flag to compute the profile thread id only once.
+    // This is safe in case of multiple threads calling this method.
+    // Only one thread will compute the profile thread id, and
+    // the other threads will wait for the thread id to be computed.
+    std::call_once(_profileThreadIdOnceFlag, [this]() {
+        _profileThreadId = BuildProfileThreadId();
+    });
 
     return _profileThreadId;
 }
 
 std::string ManagedThreadInfo::GetProfileThreadName()
 {
-    {
-        std::shared_lock l(_threadNameMutex);
-        if (!_profileThreadName.empty())
-        {
-            return _profileThreadName;
-        }
-    }
-
-    auto s = BuildProfileThreadName();
-    std::unique_lock l(_threadNameMutex);
-    if (_profileThreadName.empty())
-    {
-        _profileThreadName = std::move(s);
-    }
+    // PERF: use once flag to compute the profile thread name only once.
+    // This is safe in case of multiple threads calling this method.
+    // Only one thread will compute the profile thread name, and
+    // the other threads will wait for the thread name to be computed.
+    std::call_once(_profileThreadNameOnceFlag, [this]() {
+        _profileThreadName = BuildProfileThreadName();
+    });
     return _profileThreadName;
 }
 
 inline void ManagedThreadInfo::AcquireLock()
 {
     _objLock.lock();
+}
+
+inline bool ManagedThreadInfo::TryAcquireLock()
+{
+    return _objLock.try_lock();
 }
 
 inline void ManagedThreadInfo::ReleaseLock()
@@ -223,13 +238,14 @@ inline std::string ManagedThreadInfo::BuildProfileThreadId()
 inline std::string ManagedThreadInfo::BuildProfileThreadName()
 {
     std::stringstream nameBuilder;
-    if (GetThreadName().empty())
+    auto threadName = _threadName;
+    if (threadName.empty())
     {
         nameBuilder << "Managed thread (name unknown)";
     }
     else
     {
-        nameBuilder << shared::ToString(GetThreadName());
+        nameBuilder << shared::ToString(std::move(threadName));
     }
     nameBuilder << " [#" << _osThreadId << "]";
 
@@ -261,101 +277,47 @@ inline void ManagedThreadInfo::SetOsInfo(DWORD osThreadId, HANDLE osThreadHandle
     _osThreadId = osThreadId;
     _osThreadHandle = ScopedHandle(osThreadHandle);
 
-    auto id = BuildProfileThreadId();
-    std::unique_lock l(_threadIdMutex);
-    if (_profileThreadId.empty())
-    {
-        _profileThreadId = std::move(id);
-    }
+    // why do we compute the profile thread id here ?
+    GetProfileThreadId();
 }
 
 inline const shared::WSTRING& ManagedThreadInfo::GetThreadName() const
 {
-    return _pThreadName;
+    return _threadName;
 }
 
 inline void ManagedThreadInfo::SetThreadName(shared::WSTRING pThreadName)
 {
-    _pThreadName = std::move(pThreadName);
+    _threadName = std::move(pThreadName);
 
-    auto s = BuildProfileThreadName();
-    std::unique_lock l(_threadNameMutex);
-    if (_profileThreadName.empty())
-    {
-        _profileThreadName = std::move(s);
-    }
+    // why computing thread name here ?
+    GetProfileThreadName();
 }
 
-inline std::uint64_t ManagedThreadInfo::GetLastSampleHighPrecisionTimestampNanoseconds() const
+inline std::chrono::nanoseconds ManagedThreadInfo::SetLastSampleTimestamp(std::chrono::nanoseconds value)
 {
-    return _lastSampleHighPrecisionTimestampNanoseconds;
-}
-
-inline std::uint64_t ManagedThreadInfo::SetLastSampleHighPrecisionTimestampNanoseconds(std::uint64_t value)
-{
-    std::uint64_t prevValue = _lastSampleHighPrecisionTimestampNanoseconds;
-    _lastSampleHighPrecisionTimestampNanoseconds = value;
+    auto prevValue = _lastSampleHighPrecisionTimestamp;
+    _lastSampleHighPrecisionTimestamp = value;
     return prevValue;
 }
 
-inline std::uint64_t ManagedThreadInfo::GetCpuConsumptionMilliseconds() const
+inline std::chrono::milliseconds ManagedThreadInfo::GetCpuConsumption() const
 {
-    return _cpuConsumptionMilliseconds;
+    return _cpuConsumption;
 }
 
-inline std::int64_t ManagedThreadInfo::GetCpuTimestamp() const
+inline std::chrono::nanoseconds ManagedThreadInfo::GetCpuTimestamp() const
 {
     return _timestamp;
 }
 
-inline std::uint64_t ManagedThreadInfo::SetCpuConsumptionMilliseconds(std::uint64_t value, std::int64_t timestamp)
+inline std::chrono::milliseconds ManagedThreadInfo::SetCpuConsumption(std::chrono::milliseconds value, std::chrono::nanoseconds timestamp)
 {
     _timestamp = timestamp;
 
-    std::uint64_t prevValue = _cpuConsumptionMilliseconds;
-    _cpuConsumptionMilliseconds = value;
+    auto prevValue = _cpuConsumption;
+    _cpuConsumption = value;
     return prevValue;
-}
-
-inline void ManagedThreadInfo::GetLastKnownSampleUnixTimestamp(std::uint64_t* realUnixTimeUtc, std::int64_t* highPrecisionNanosecsAtLastUnixTimeUpdate) const
-{
-    if (realUnixTimeUtc != nullptr)
-    {
-        *realUnixTimeUtc = _lastKnownSampleUnixTimeUtc;
-    }
-
-    if (highPrecisionNanosecsAtLastUnixTimeUpdate != nullptr)
-    {
-        *highPrecisionNanosecsAtLastUnixTimeUpdate = _highPrecisionNanosecsAtLastUnixTimeUpdate;
-    }
-}
-
-inline void ManagedThreadInfo::SetLastKnownSampleUnixTimestamp(std::uint64_t realUnixTimeUtc, std::int64_t highPrecisionNanosecsAtThisUnixTimeUpdate)
-{
-    _lastKnownSampleUnixTimeUtc = realUnixTimeUtc;
-    _highPrecisionNanosecsAtLastUnixTimeUpdate = highPrecisionNanosecsAtThisUnixTimeUpdate;
-}
-
-inline std::uint64_t ManagedThreadInfo::GetSnapshotsPerformedSuccessCount() const
-{
-    return _snapshotsPerformedSuccessCount;
-}
-
-inline std::uint64_t ManagedThreadInfo::GetSnapshotsPerformedFailureCount() const
-{
-    return _snapshotsPerformedFailureCount;
-}
-
-inline std::uint64_t ManagedThreadInfo::IncSnapshotsPerformedCount(const bool isStackSnapshotSuccessful)
-{
-    if (isStackSnapshotSuccessful)
-    {
-        return _snapshotsPerformedSuccessCount++;
-    }
-    else
-    {
-        return _snapshotsPerformedFailureCount++;
-    }
 }
 
 inline void ManagedThreadInfo::GetOrResetDeadlocksCount(
@@ -398,13 +360,6 @@ inline void ManagedThreadInfo::GetDeadlocksCount(std::uint64_t* deadlockTotalCou
     {
         *deadlockDetectionPeriod = _deadlockDetectionPeriod;
     }
-}
-
-// TODO: this does not seem to be needed
-inline bool ManagedThreadInfo::IsThreadDestroyed()
-{
-    std::unique_lock l(_objLock);
-    return _isThreadDestroyed;
 }
 
 // This is not synchronized and must be called under the _stackWalkLock lock

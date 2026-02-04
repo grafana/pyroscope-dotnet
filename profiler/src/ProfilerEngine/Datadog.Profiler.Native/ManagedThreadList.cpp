@@ -308,6 +308,7 @@ HRESULT ManagedThreadList::TryGetCurrentThreadInfo(std::shared_ptr<ManagedThread
     }
 }
 
+
 bool ManagedThreadList::TryGetThreadInfo(uint32_t osThreadId, std::shared_ptr<ManagedThreadInfo>& ppThreadInfo)
 {
     std::lock_guard<std::recursive_mutex> lock(_mutex);

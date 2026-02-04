@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include "JavaProfilerTags.h"
+
 #include <stdint.h>
 #include <memory>
 #include <vector>
@@ -32,13 +34,13 @@ public:
     virtual void OnTransform(std::shared_ptr<Sample>& sample, std::vector<SampleValueTypeProvider::Offset> const& valueOffset) const = 0;
 
 public:
-    std::uint64_t Timestamp;        // _unixTimeUtc;
+    std::chrono::nanoseconds Timestamp;
     AppDomainID AppDomainId;
     std::uint64_t LocalRootSpanId;  // _localRootSpanId;
     std::uint64_t SpanId;           // _spanId;
     std::shared_ptr<IThreadInfo> ThreadInfo;
 
-    std::vector<std::pair<std::string_view, google::javaprofiler::AsyncRefCountedString>> Tags;
+    google::javaprofiler::Tags Tags;
 
 
     // array of instruction pointers (32 or 64 bit address)

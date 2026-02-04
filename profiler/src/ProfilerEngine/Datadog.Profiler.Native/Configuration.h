@@ -60,7 +60,6 @@ public:
     int32_t CodeHotspotsThreadsThreshold() const override;
     bool IsGarbageCollectionProfilingEnabled() const override;
     bool IsHeapProfilingEnabled() const override;
-    bool UseBacktrace2() const override;
     bool IsAllocationRecorderEnabled() const override;
     bool IsDebugInfoEnabled() const override;
     bool IsGcThreadsCpuTimeEnabled() const override;
@@ -77,10 +76,19 @@ public:
     EnablementStatus GetEnablementStatus() const override;
     DeploymentMode GetDeploymentMode() const override;
     std::chrono::milliseconds GetSsiLongLivedThreshold() const override;
-    bool IsTelemetryToDiskEnabled() const override;
-    bool IsSsiTelemetryEnabled() const override;
     CpuProfilerType GetCpuProfilerType() const override;
     std::chrono::milliseconds GetCpuProfilingInterval() const override;
+    bool IsHttpProfilingEnabled() const override;
+    std::chrono::milliseconds GetHttpRequestDurationThreshold() const override;
+    bool ForceHttpSampling() const override;
+    bool IsWaitHandleProfilingEnabled() const override;
+    bool IsManagedActivationEnabled() const override;
+    void SetEnablementStatus(EnablementStatus status) override;
+    bool IsHeapSnapshotEnabled() const override;
+    std::chrono::minutes GetHeapSnapshotInterval() const override;
+    std::chrono::milliseconds GetHeapSnapshotCheckInterval() const override;
+    uint32_t GetHeapSnapshotMemoryPressureThreshold() const override;
+    uint32_t GetHeapHandleLimit() const override;
 
     std::string PyroscopeServerAddress() const override;
     std::string PyroscopeApplicationName() const override;
@@ -102,7 +110,7 @@ private:
     static std::chrono::seconds GetDefaultUploadInterval();
     static bool GetDefaultDebugLogEnabled();
     template <typename T>
-    static T GetEnvironmentValue(shared::WSTRING const& name, T const& defaultValue);
+    static T GetEnvironmentValue(shared::WSTRING const& name, T const& defaultValue, bool shouldLog = false);
     template <typename T>
     static bool IsEnvironmentValueSet(shared::WSTRING const& name, T& value);
     static std::chrono::nanoseconds ExtractCpuWallTimeSamplingRate(int minimum = 5);
@@ -112,6 +120,12 @@ private:
     static bool GetContention();
     EnablementStatus ExtractEnablementStatus();
     std::chrono::milliseconds ExtractSsiLongLivedThreshold() const;
+    std::chrono::milliseconds ExtractHttpRequestDurationThreshold() const;
+    std::chrono::minutes ExtractHeapSnapshotInterval() const;
+    std::chrono::milliseconds ExtractHeapSnapshotCheckInterval() const;
+    std::chrono::minutes GetDefaultHeapSnapshotInterval() const;
+    int32_t ExtractHeapHandleLimit() const;
+
 
 private:
     static std::string const DefaultProdSite;
@@ -124,6 +138,9 @@ private:
     static std::chrono::seconds const DefaultDevUploadInterval;
     static std::chrono::seconds const DefaultProdUploadInterval;
     static std::chrono::milliseconds const DefaultCpuProfilingInterval;
+    static CpuProfilerType const DefaultCpuProfilerType;
+    static std::chrono::minutes const DefaultDevHeapSnapshotInterval;
+    static std::chrono::minutes const DefaultProdHeapSnapshotInterval;
 
 
     static std::string const DefaultPyroscopeServerAddress;
@@ -163,7 +180,7 @@ private:
     int32_t _walltimeThreadsThreshold;
     int32_t _cpuThreadsThreshold;
     int32_t _codeHotspotsThreadsThreshold;
-    bool _useBacktrace2;
+    uint32_t _heapHandleLimit;
     bool _isAllocationRecorderEnabled;
     bool _isGcThreadsCpuTimeEnabled;
     std::string _gitRepositoryUrl;
@@ -180,16 +197,14 @@ private:
     std::uint64_t _internalCIVisibilitySpanId;
     bool _isEtwEnabled;
     DeploymentMode _deploymentMode;
+    bool _isManagedActivationEnabled;
     bool _isEtwLoggingEnabled;
     std::string _etwReplayEndpoint;
     EnablementStatus _enablementStatus;
     std::chrono::milliseconds _ssiLongLivedThreshold;
-    bool _isTelemetryToDiskEnabled;
-    bool _isSsiTelemetryEnabled;
-
-    CpuProfilerType _cpuProfilerType;
-    std::chrono::milliseconds _cpuProfilingInterval;
-
+    bool _isHttpProfilingEnabled;
+    std::chrono::milliseconds _httpRequestDurationThreshold;
+    bool _forceHttpSampling;
 
     std::string _pyroscopeServerAddress;
     std::string _pyroscopeApplicationName;
@@ -199,4 +214,13 @@ private:
     std::string _pyroscopeBasicAuthUser;
     std::string _pyroscopeBasicAuthPassword;
     std::vector<std::pair<std::string, std::string>> _pyroscopeTags;
+
+    CpuProfilerType _cpuProfilerType;
+    std::chrono::milliseconds _cpuProfilingInterval;
+    bool _isWaitHandleProfilingEnabled;
+
+    bool _isHeapSnapshotEnabled;
+    std::chrono::minutes _heapSnapshotInterval;
+    std::chrono::milliseconds _heapSnapshotCheckInterval;
+    uint32_t _heapSnapshotMemoryPressureThreshold; // in % of used memory
 };
