@@ -558,64 +558,31 @@ int execve(const char* pathname, char* const argv[], char* const envp[])
 }
 
 static int (*__real_sigaction)(int signum, const struct sigaction* act, struct sigaction* oldact) = NULL;
-static int (*__real_pthread_sigmask)(int how, const sigset_t *set, sigset_t *oldset) = NULL;
 
-static int is_called_by_coreclr(void* caller_addr)
+static void patch_coreclr_sigsegv_sigaction(int signum, struct sigaction* act)
 {
     Dl_info dl_info;
-    if (!dladdr(caller_addr, &dl_info))
+    if (signum != SIGSEGV || act == NULL || !(act->sa_flags & SA_SIGINFO))
     {
-        return 0;
+        return;
+    }
+    if (!dladdr((void*)act->sa_sigaction, &dl_info))
+    {
+        return;
     }
     if (dl_info.dli_fname == NULL || strstr(dl_info.dli_fname, "/libcoreclr.so") == NULL)
     {
-        return 0;
+        return;
     }
-    return 1;
+    sigaddset(&act->sa_mask, SIGPROF);
+    sigaddset(&act->sa_mask, SIGUSR1);
 }
 
 int sigaction(int signum, const struct sigaction* act, struct sigaction* oldact)
 {
     check_init();
-    void* caller_addr = __builtin_return_address(0);
-    if (!is_called_by_coreclr(caller_addr))
-    {
-        return __real_sigaction(signum, act, oldact);
-    }
-    if (signum == SIGSEGV && act != NULL && (act->sa_flags & SA_SIGINFO))
-    {
-        sigaddset(&((struct sigaction*)act)->sa_mask, SIGPROF);
-    }
+    patch_coreclr_sigsegv_sigaction(signum, (struct sigaction*)act);
     return __real_sigaction(signum, act, oldact);
-}
-
-int pthread_sigmask(int how, const sigset_t *set, sigset_t *oldset)
-{
-    check_init();
-    void* caller_addr = __builtin_return_address(0);
-    if (!is_called_by_coreclr(caller_addr))
-    {
-        return __real_pthread_sigmask(how, set, oldset);
-    }
-    if (how == SIG_UNBLOCK && set != NULL && oldset == NULL)
-    {
-        // Check if SIGSEGV is the only signal in the set
-        int has_sigsegv = sigismember(set, SIGSEGV);
-        int other_signals = 0;
-        for (int sig = 1; sig < NSIG; sig++)
-        {
-            if (sig != SIGSEGV && sigismember(set, sig) == 1)
-            {
-                other_signals = 1;
-                break;
-            }
-        }
-        if (has_sigsegv && !other_signals)
-        {
-            sigaddset((sigset_t*)set, SIGPROF);
-        }
-    }
-    return __real_pthread_sigmask(how, set, oldset);
 }
 
 #ifdef DD_ALPINE
@@ -744,7 +711,6 @@ static void init()
     __real_dladdr = __dd_dlsym(RTLD_NEXT, "dladdr");
     __real_execve = __dd_dlsym(RTLD_NEXT, "execve");
     __real_sigaction = __dd_dlsym(RTLD_NEXT, "sigaction");
-    __real_pthread_sigmask = __dd_dlsym(RTLD_NEXT, "pthread_sigmask");
 #ifdef DD_ALPINE
     __real_pthread_create = __dd_dlsym(RTLD_NEXT, "pthread_create");
     __real_pthread_attr_init = __dd_dlsym(RTLD_NEXT, "pthread_attr_init");
