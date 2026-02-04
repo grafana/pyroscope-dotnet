@@ -15,17 +15,17 @@ jobs:
     runs-on: ubuntu-x64-small
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           submodules: 'true'
           persist-credentials: false
-      - uses: actions/setup-dotnet@baa11fbfe1d6520db94683bd5c7a3818018e4309
+      - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
         with:
-          dotnet-version: '10.0.100'
+          global-json-file: global.json
       - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTracing
       - name: Publish NuGet packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: packages-OpenTracing
           path: ./Pyroscope/artifacts/package/release
@@ -34,17 +34,17 @@ jobs:
     runs-on: ubuntu-x64-small
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           submodules: 'true'
           persist-credentials: false
-      - uses: actions/setup-dotnet@baa11fbfe1d6520db94683bd5c7a3818018e4309
+      - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
         with:
-          dotnet-version: '10.0.100'
+          global-json-file: global.json
       - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTelemetry
       - name: Publish NuGet packages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: packages-OpenTelemetry
           path: ./Pyroscope/artifacts/package/release

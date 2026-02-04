@@ -9,8 +9,6 @@ internal class CarService
         _orderService = orderService;
     }
 
-    public void Order(int searchRadius)
-    {
+    public void Order(int searchRadius) =>
         _orderService.FindNearestVehicle(searchRadius, "car");
-    }
 }

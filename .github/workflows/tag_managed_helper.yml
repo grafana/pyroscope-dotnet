@@ -18,34 +18,40 @@ jobs:
       RELEASE_VERSION: ${{  github.ref_name }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           submodules: 'true'
           persist-credentials: false
-      - uses: actions/setup-dotnet@baa11fbfe1d6520db94683bd5c7a3818018e4309
+      - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
         with:
-          dotnet-version: '10.0.100'
-      - run: make bump_version && git diff --exit-code
+          global-json-file: global.json
+      - run: make bump_version
+      - name: Check version matches committed version
+        if: ${{ !contains(github.ref_name, '-rc') }}
+        run: git diff --exit-code
       - run: dotnet build -c Release
         working-directory: Pyroscope
-      - name: Publish NuGet packages
-        uses: actions/upload-artifact@v4
+      - name: Upload NuGet packages
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: packages
           path: ./Pyroscope/artifacts/package/release
           if-no-files-found: error
-      - uses: grafana/shared-workflows/actions/get-vault-secrets@10ecff5fcf764bfa768d7a52b46feaade9c8a95b
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@ac5193564bb463032623a9a0ba23716f866f309c
+        if: ${{ !contains(github.ref_name, '-rc') }}
         with:
           repo_secrets: |
             NUGET_API_KEY=nuget:api_key
       - name: Publish the package to nuget.org
+        if: ${{ !contains(github.ref_name, '-rc') }}
         run: dotnet nuget push ./Pyroscope/artifacts/package/release/*.nupkg -k "${NUGET_API_KEY}" -s https://api.nuget.org/v3/index.json
         env:
           NUGET_API_KEY: ${{ env.NUGET_API_KEY }}
       - name: Release
-        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
             ./Pyroscope/artifacts/bin/Pyroscope/release/Pyroscope.dll
             ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg
+          make_latest: ${{ !contains(github.ref_name, '-rc') }}

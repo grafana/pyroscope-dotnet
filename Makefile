@@ -6,7 +6,7 @@ DOCKER_IMAGE ?= pyroscope/pyroscope-dotnet
 ifeq ($(RELEASE_VERSION),)
   $(error "no release version specified")
 endif
-RELEASE_VERSION_TMP := $(shell echo $(RELEASE_VERSION) | sed -E 's/^v([0-9]+\.[0-9]+\.[0-9]+)(-pyroscope)?$$/\1/')
+RELEASE_VERSION_TMP := $(shell echo $(RELEASE_VERSION) | sed -E 's/^v([0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?)(-pyroscope)?$$/\1/')
 #$(error "debug $(RELEASE_VERSION_TMP)")
 RELEASE_VERSION := $(RELEASE_VERSION_TMP)
 
@@ -45,13 +45,15 @@ docker/manifest:
 	docker manifest create \
 		$(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)                 \
 		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-x86_64   \
-		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-aarch64 
+		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-aarch64
 	docker manifest push $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)
 
+.phony: docker/manifest-latest
+docker/manifest-latest:
 	docker manifest create \
 		$(DOCKER_IMAGE):latest-$(LIBC)                 \
 		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-x86_64   \
-		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-aarch64 
+		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-aarch64
 	docker manifest push $(DOCKER_IMAGE):latest-$(LIBC)
 
 
