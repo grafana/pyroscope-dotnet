@@ -8,7 +8,7 @@ public class PyroscopeSpanBuilder : ISpanBuilder
     private const string ProfileIdSpanTagKey = "pyroscope.profile.id";
 
     private readonly ISpanBuilder _delegate;
-    private ISpanContext? _parent;
+    private readonly ISpanContext? _parent;
 
     internal PyroscopeSpanBuilder(ISpanBuilder spanBuilder, ISpanContext? parent)
     {
@@ -135,7 +135,7 @@ public class PyroscopeSpanBuilder : ISpanBuilder
         return this;
     }
 
-    class PyroscopeScope : IScope
+    private sealed class PyroscopeScope : IScope
     {
         private readonly IScope _delegate;
         private readonly ISpanContext? _parent;

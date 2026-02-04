@@ -11,14 +11,32 @@ public static class LabelsWrapper
         }
         finally
         {
-            if (labels.Previous == null)
-            {
-                Profiler.Instance.ClearDynamicTags();
-            }
-            else
-            {
-                labels.Previous.Activate();
-            }
+            ResetLabels(labels);
+        }
+    }
+
+    public static void Do<T>(LabelSet labels, Action<T> a, T state)
+    {
+        try
+        {
+            labels.Activate();
+            a.Invoke(state);
+        }
+        finally
+        {
+            ResetLabels(labels);
+        }
+    }
+
+    private static void ResetLabels(LabelSet labels)
+    {
+        if (labels.Previous == null)
+        {
+            Profiler.Instance.ClearDynamicTags();
+        }
+        else
+        {
+            labels.Previous.Activate();
         }
     }
 }

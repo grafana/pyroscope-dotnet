@@ -137,7 +137,7 @@ Configuration::Configuration()
         );
     _httpRequestDurationThreshold = ExtractHttpRequestDurationThreshold();
     _forceHttpSampling = GetEnvironmentValue(EnvironmentVariables::ForceHttpSampling, false);
-    _cpuProfilerType = GetEnvironmentValue(EnvironmentVariables::CpuProfilerType, DefaultCpuProfilerType);
+    _cpuProfilerType = DefaultCpuProfilerType;
     _isWaitHandleProfilingEnabled = GetEnvironmentValue(EnvironmentVariables::WaitHandleProfilingEnabled, false);
     _isHeapSnapshotEnabled = GetEnvironmentValue(EnvironmentVariables::HeapSnapshotEnabled, false);
     _heapSnapshotInterval = ExtractHeapSnapshotInterval();
@@ -703,11 +703,14 @@ static bool convert_to(shared::WSTRING const& s, DeploymentMode& result)
 template <typename T>
 T Configuration::GetEnvironmentValue(shared::WSTRING const& name, T const& defaultValue, bool shouldLog)
 {
-    // pyroscope: next line is removed because shared::GetEnvironmentValue has DD_ => PYROSCOPE_ fallback
-    // if (!shared::EnvironmentExist(name)) return defaultValue;
+    bool existed = false;
+    auto r = shared::GetEnvironmentValue(name, existed);
+    if (!existed)
+    {
+        return defaultValue;
+    }
 
     T result{};
-    auto r = shared::GetEnvironmentValue(name);
     if (!convert_to(r, result))
     {
         if (shouldLog)
