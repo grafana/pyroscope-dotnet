@@ -575,7 +575,7 @@ int sigaction(int signum, const struct sigaction* act, struct sigaction* oldact)
 int pthread_sigmask(int how, const sigset_t *set, sigset_t *oldset)
 {
     check_init();
-    if (how == SIG_UNBLOCK && set != NULL && sigismember(set, SIGSEGV))
+    if (how == SIG_UNBLOCK && set != NULL && 1 == sigismember(set, SIGSEGV))
     {
         sigset_t new_set = *set;
         sigaddset(&new_set, SIGPROF);
