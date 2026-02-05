@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using Example;
 
 var builder = WebApplication.CreateBuilder(args);
