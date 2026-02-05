@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Example;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,5 +27,15 @@ app.MapGet("/car", (CarService service) =>
     service.Order(3);
     return "Car ordered";
 });
+
+app.MapGet("/npe", (CarService service) =>
+{
+    for (var i = 0; i < 1_000_000; i++)
+    {
+        NPE.Work();
+    }
+    return "NPE work";
+});
+
 
 app.Run();

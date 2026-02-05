@@ -565,7 +565,9 @@ int sigaction(int signum, const struct sigaction* act, struct sigaction* oldact)
     check_init();
     if (signum == SIGSEGV && act != NULL)
     {
-        sigaddset(&((struct sigaction*)act)->sa_mask, SIGPROF);
+        struct sigaction new_act = *act;
+        sigaddset(&new_act.sa_mask, SIGPROF);
+        return __real_sigaction(signum, &new_act, oldact);
     }
     return __real_sigaction(signum, act, oldact);
 }
@@ -575,7 +577,9 @@ int pthread_sigmask(int how, const sigset_t *set, sigset_t *oldset)
     check_init();
     if (how == SIG_UNBLOCK && set != NULL && sigismember(set, SIGSEGV))
     {
-        sigaddset((sigset_t*)set, SIGPROF);
+        sigset_t new_set = *set;
+        sigaddset(&new_set, SIGPROF);
+        return __real_pthread_sigmask(how, &new_set, oldset);
     }
     return __real_pthread_sigmask(how, set, oldset);
 }
