@@ -82,10 +82,12 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
         }
     }
 
-    for (const auto& pprof : pprofs)
+    std::vector<PprofProfile> profiles;
+    for (auto& [pprof, type] : pprofs)
     {
-        _sink->Export(std::move(std::get<0>(pprof)), std::get<1>(pprof), startTime, endTime);
+        profiles.push_back({std::move(pprof), type});
     }
+    _sink->Export(std::move(profiles));
     return true;
 }
 

@@ -40,29 +40,18 @@ PyroscopePprofSink::PyroscopePprofSink(
 PyroscopePprofSink::~PyroscopePprofSink()
 {
     _running.store(false);
-    _queue.push(PyroscopeRequest{
-        .pprof = "",
-        .type = ProfileType::CPU,
-        .startTime = ProfileTime(),
-        .endTime = ProfileTime(),
-    });
+    _queue.push(std::vector<PprofProfile>{});
     _workerThread.join();
 }
 
-void PyroscopePprofSink::Export(Pprof pprof, ProfileType type, const ProfileTime& startTime, const ProfileTime& endTime)
+void PyroscopePprofSink::Export(std::vector<PprofProfile> pprofs)
 {
     if (_queue.size() >= 8)
     {
         Log::Warn("PyroscopePprofSink queue is too big. Dropping pprof data.");
         return;
     }
-    PyroscopeRequest req{
-        .pprof = std::move(pprof),
-        .type = type,
-        .startTime = startTime,
-        .endTime = endTime,
-    };
-    _queue.push(req);
+    _queue.push(std::move(pprofs));
 }
 
 void PyroscopePprofSink::SetAuthToken(std::string authToken)
@@ -86,13 +75,13 @@ void PyroscopePprofSink::work()
     OpSysTools::SetNativeThreadName(WStr("Pyroscope.Pprof.Uploader"));
     while (_running.load())
     {
-        PyroscopeRequest req = {};
-        _queue.waitAndPop(req);
-        if (req.pprof.empty())
+        std::vector<PprofProfile> batch;
+        _queue.waitAndPop(batch);
+        if (batch.empty())
         {
             continue;
         }
-        upload(std::move(req.pprof), req.type, req.startTime, req.endTime);
+        upload(std::move(batch));
     }
 }
 
@@ -113,32 +102,36 @@ const char* PyroscopePprofSink::ProfileTypeName(ProfileType type)
     }
 }
 
-void PyroscopePprofSink::upload(Pprof pprof, ProfileType type, ProfileTime& startTime, ProfileTime& endTime)
+void PyroscopePprofSink::upload(std::vector<PprofProfile> pprofs)
 {
     push::v1::PushRequest request;
-    auto* series = request.add_series();
 
-    auto* nameLabel = series->add_labels();
-    nameLabel->set_name("__name__");
-    nameLabel->set_value(ProfileTypeName(type));
-
-    auto* serviceLabel = series->add_labels();
-    serviceLabel->set_name("service_name");
-    serviceLabel->set_value(_appName);
-
-    auto* spyLabel = series->add_labels();
-    spyLabel->set_name("spy_name");
-    spyLabel->set_value("dotnetspy");
-
-    for (const auto& tag : _staticTags)
+    for (auto& profile : pprofs)
     {
-        auto* label = series->add_labels();
-        label->set_name(tag.first);
-        label->set_value(tag.second);
-    }
+        auto* series = request.add_series();
 
-    auto* sample = series->add_samples();
-    sample->set_raw_profile(std::move(pprof));
+        auto* nameLabel = series->add_labels();
+        nameLabel->set_name("__name__");
+        nameLabel->set_value(ProfileTypeName(profile.type));
+
+        auto* serviceLabel = series->add_labels();
+        serviceLabel->set_name("service_name");
+        serviceLabel->set_value(_appName);
+
+        auto* spyLabel = series->add_labels();
+        spyLabel->set_name("spy_name");
+        spyLabel->set_value("dotnetspy");
+
+        for (const auto& tag : _staticTags)
+        {
+            auto* label = series->add_labels();
+            label->set_name(tag.first);
+            label->set_value(tag.second);
+        }
+
+        auto* sample = series->add_samples();
+        sample->set_raw_profile(std::move(profile.pprof));
+    }
 
     std::string body = request.SerializeAsString();
     std::string path = _url.path() + "/push.v1.PusherService/Push";

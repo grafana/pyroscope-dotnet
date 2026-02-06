@@ -24,7 +24,7 @@ public:
                        std::map<std::string, std::string> extraHeaders,
                        const std::vector<std::pair<std::string, std::string>>& staticTags);
     ~PyroscopePprofSink() override;
-    void Export(Pprof pprof, ProfileType type, const ProfileTime& startTime, const ProfileTime& endTime) override;
+    void Export(std::vector<PprofProfile> pprofs) override;
     void SetAuthToken(std::string authToken);
     void SetBasicAuth(std::string user, std::string password);
     static std::map<std::string, std::string> ParseHeadersJSON(std::string headers);
@@ -32,16 +32,8 @@ public:
 private:
     static std::string SchemeHostPort(Url& url);
 
-    struct PyroscopeRequest
-    {
-        Pprof pprof;
-        ProfileType type;
-        ProfileTime startTime;
-        ProfileTime endTime;
-    };
-
     void work();
-    void upload(Pprof pprof, ProfileType type, ProfileTime& startTime, ProfileTime& endTime);
+    void upload(std::vector<PprofProfile> pprofs);
     static const char* ProfileTypeName(ProfileType type);
     httplib::Headers getHeaders();
 
@@ -50,7 +42,7 @@ private:
     Url _url;
     httplib::Client _client;
     std::atomic<bool> _running;
-    LockingQueue<PyroscopeRequest> _queue;
+    LockingQueue<std::vector<PprofProfile>> _queue;
     std::thread _workerThread;
 
     std::string _authToken;

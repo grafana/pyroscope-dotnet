@@ -23,10 +23,16 @@
 
 using Pprof = std::string;
 
+struct PprofProfile
+{
+    Pprof pprof;
+    ProfileType type;
+};
+
 class PProfExportSink
 {
 public:
-    virtual void Export(Pprof pprof, ProfileType type, const ProfileTime& startTime, const ProfileTime& endTime) = 0;
+    virtual void Export(std::vector<PprofProfile> pprofs) = 0;
     virtual ~PProfExportSink();
 };
 
