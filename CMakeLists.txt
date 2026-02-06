@@ -18,6 +18,8 @@ endif()
 
 project("Datadog.APM.Native" VERSION 2.18.0)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # ******************************************************
 # Environment detection
 # ******************************************************
