@@ -26,7 +26,7 @@ jobs:
         with:
           submodules: 'true'
           persist-credentials: false
-      - uses: grafana/shared-workflows/actions/get-vault-secrets@ac5193564bb463032623a9a0ba23716f866f309c
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@41f9dbc20abb20607f34f7076c079e3e3c17d333
         with:
           repo_secrets: |
             DOCKERHUB_USERNAME=dockerhub:user
@@ -67,7 +67,7 @@ jobs:
         with:
           submodules: 'true'
           persist-credentials: false
-      - uses: grafana/shared-workflows/actions/get-vault-secrets@ac5193564bb463032623a9a0ba23716f866f309c
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@41f9dbc20abb20607f34f7076c079e3e3c17d333
         with:
           repo_secrets: |
             DOCKERHUB_USERNAME=dockerhub:user
@@ -108,7 +108,7 @@ jobs:
         with:
           submodules: 'true'
           persist-credentials: false
-      - uses: grafana/shared-workflows/actions/get-vault-secrets@ac5193564bb463032623a9a0ba23716f866f309c
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@41f9dbc20abb20607f34f7076c079e3e3c17d333
         with:
           repo_secrets: |
             DOCKERHUB_USERNAME=dockerhub:user
