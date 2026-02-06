@@ -41,7 +41,8 @@ private:
     };
 
     void work();
-    void upload(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime);
+    void upload(Pprof pprof, ProfileType type, ProfileTime& startTime, ProfileTime& endTime);
+    static const char* ProfileTypeName(ProfileType type);
     httplib::Headers getHeaders();
 
     std::string _appName;

@@ -92,18 +92,35 @@ void PyroscopePprofSink::work()
         {
             continue;
         }
-        upload(std::move(req.pprof), req.startTime, req.endTime);
+        upload(std::move(req.pprof), req.type, req.startTime, req.endTime);
     }
 }
 
-void PyroscopePprofSink::upload(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime)
+const char* PyroscopePprofSink::ProfileTypeName(ProfileType type)
+{
+    switch (type)
+    {
+        case ProfileType::CPU: return "process_cpu";
+        case ProfileType::WALL: return "wall";
+        case ProfileType::EXCEPTION: return "exceptions";
+        case ProfileType::MEMORY: return "memory";
+        case ProfileType::LOCK: return "mutex";
+        case ProfileType::NETWORK: return "network";
+        case ProfileType::GC: return "process_cpu";
+        case ProfileType::TIMELINE: return "timeline";
+        case ProfileType::PROCESS: return "process_cpu";
+        default: return "process_cpu";
+    }
+}
+
+void PyroscopePprofSink::upload(Pprof pprof, ProfileType type, ProfileTime& startTime, ProfileTime& endTime)
 {
     push::v1::PushRequest request;
     auto* series = request.add_series();
 
     auto* nameLabel = series->add_labels();
     nameLabel->set_name("__name__");
-    nameLabel->set_value("process_cpu");
+    nameLabel->set_value(ProfileTypeName(type));
 
     auto* serviceLabel = series->add_labels();
     serviceLabel->set_name("service_name");
