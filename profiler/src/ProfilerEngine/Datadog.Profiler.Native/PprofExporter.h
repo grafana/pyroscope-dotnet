@@ -12,7 +12,7 @@
 
 #include "IApplicationStore.h"
 #include "PprofBuilder.h"
-#include "profile.pb.h"
+#include "google/v1/profile.pb.h"
 
 #include <forward_list>
 #include <memory>

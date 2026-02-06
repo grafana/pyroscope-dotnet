@@ -31,7 +31,6 @@ public:
 
 private:
     static std::string SchemeHostPort(Url& url);
-    static std::string AppNameWithLabels(const std::string& appName, const std::vector<std::pair<std::string, std::string>>& staticTags);
 
     struct PyroscopeRequest
     {
@@ -45,7 +44,7 @@ private:
     httplib::Headers getHeaders();
 
     std::string _appName;
-    std::string _appNameWithLabels;
+    std::vector<std::pair<std::string, std::string>> _staticTags;
     Url _url;
     httplib::Client _client;
     std::atomic<bool> _running;

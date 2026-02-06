@@ -6,7 +6,7 @@
 
 #include "Sample.h"
 #include "TagsHelper.h"
-#include "profile.pb.h"
+#include "google/v1/profile.pb.h"
 
 #include <memory>
 #include <mutex>
@@ -29,7 +29,7 @@ private:
 
     std::mutex _lock;
     int _samplesCount = 0;
-    perftools::profiles::Profile _profile;
+    google::v1::Profile _profile;
     std::map<std::string_view, int64_t> _strings;
     std::map<std::pair<int64_t, int64_t>, int64_t> _locations;
     std::vector<SampleValueType>& _sampleTypeDefinitions;
