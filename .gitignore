@@ -1,3 +1,5 @@
+.cache/clangd/
+compile_commands.json
 cmake-build-*
 build-*
 ## # C++ specific ignores:
