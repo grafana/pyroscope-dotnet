@@ -7,6 +7,8 @@
 #include "OpSysTools.h"
 #include "cppcodec/base64_rfc4648.hpp"
 #include "nlohmann/json.hpp"
+#include "gen/push/v1/push.pb.h"
+#include "gen/types/v1/types.pb.h"
 
 PyroscopePprofSink::PyroscopePprofSink(
     std::string server,
@@ -18,7 +20,7 @@ PyroscopePprofSink::PyroscopePprofSink(
     std::map<std::string, std::string> extraHeaders,
     const std::vector<std::pair<std::string, std::string>>& staticTags) :
     _appName(appName),
-    _appNameWithLabels(AppNameWithLabels(appName, staticTags)),
+    _staticTags(staticTags),
     _url(server),
     _authToken(authToken),
     _basicAuthUser(basicAuthUser),
@@ -93,68 +95,36 @@ void PyroscopePprofSink::work()
 
 void PyroscopePprofSink::upload(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime)
 {
-    httplib::MultipartFormDataItems data;
-    data.emplace_back(httplib::MultipartFormData{
-        .name = "profile",
-        .content = std::move(pprof),
-        .filename = "profile.pprof",
-    });
-    data.emplace_back(httplib::MultipartFormData{
-        .name = "sample_type_config",
-        .content = "{\n"
-                   "  \"alloc_samples\": {\n"
-                   "    \"units\": \"objects\",\n"
-                   "    \"display-name\": \"alloc_objects\"\n"
-                   "  },\n"
-                   "  \"alloc_size\": {\n"
-                   "    \"units\": \"bytes\",\n"
-                   "    \"display-name\": \"alloc_space\"\n"
-                   "  },\n"
-                   "  \"cpu\": {\n"
-                   "    \"units\": \"samples\",\n"
-                   "    \"sampled\": true\n"
-                   "  },\n"
-                   "  \"exception\": {\n"
-                   "    \"units\": \"exceptions\",\n"
-                   "    \"display-name\": \"exceptions\"\n"
-                   "  },\n"
-                   "  \"lock_count\": {\n"
-                   "    \"units\": \"lock_samples\",\n"
-                   "    \"display-name\": \"mutex_count\"\n"
-                   "  },\n"
-                   "  \"lock_time\": {\n"
-                   "    \"units\": \"lock_nanoseconds\",\n"
-                   "    \"display-name\": \"mutex_duration\"\n"
-                   "  },\n"
-                   "  \"wall\": {\n"
-                   "    \"units\": \"samples\",\n"
-                   "    \"sampled\": true\n"
-                   "  },\n"
-                   "  \"inuse_objects\": {\n"
-                   "    \"units\": \"objects\",\n"
-                   "    \"display-name\": \"inuse_objects\",\n"
-                   "    \"aggregation\": \"average\"\n"
-                   "  },\n"
-                   "  \"inuse_space\": {\n"
-                   "    \"units\": \"bytes\",\n"
-                   "    \"display-name\": \"inuse_space\",\n"
-                   "    \"aggregation\": \"average\"\n"
-                   "  }\n"
-                   "}",
-        .filename = "sample_type_config.json",
-    });
+    push::v1::PushRequest request;
+    auto* series = request.add_series();
 
-    std::string path = Url()
-                           .path(_url.path() + "/ingest")
-                           .add_query("name", _appNameWithLabels)
-                           .add_query("from", std::to_string(startTime.time_since_epoch().count()))
-                           .add_query("until", std::to_string(endTime.time_since_epoch().count()))
-                           .add_query("spyName", "dotnetspy")
-                           .add_query("spyVersion", PYROSCOPE_SPY_VERSION)
-                           .str();
+    auto* nameLabel = series->add_labels();
+    nameLabel->set_name("__name__");
+    nameLabel->set_value("process_cpu");
+
+    auto* serviceLabel = series->add_labels();
+    serviceLabel->set_name("service_name");
+    serviceLabel->set_value(_appName);
+
+    auto* spyLabel = series->add_labels();
+    spyLabel->set_name("spy_name");
+    spyLabel->set_value("dotnetspy");
+
+    for (const auto& tag : _staticTags)
+    {
+        auto* label = series->add_labels();
+        label->set_name(tag.first);
+        label->set_value(tag.second);
+    }
+
+    auto* sample = series->add_samples();
+    sample->set_raw_profile(std::move(pprof));
+
+    std::string body = request.SerializeAsString();
+    std::string path = _url.path() + "/push.v1.PusherService/Push";
 
     httplib::Headers headers = getHeaders();
-    auto res = _client.Post(path, headers, data);
+    auto res = _client.Post(path, headers, body, "application/proto");
     if (res)
     {
         Log::Debug("PyroscopePprofSink ", res->status);
@@ -186,6 +156,7 @@ httplib::Headers PyroscopePprofSink::getHeaders()
     {
         headers.emplace("X-Scope-OrgID", _tenantID);
     }
+    headers.emplace("User-Agent", "pyroscope-dotnet/" PYROSCOPE_SPY_VERSION " cpp-httplib");
     for (const auto& item : _extraHeaders)
     {
         headers.emplace(item.first, item.second);
@@ -220,23 +191,6 @@ std::string PyroscopePprofSink::SchemeHostPort(Url& url)
     return res;
 }
 
-std::string PyroscopePprofSink::AppNameWithLabels(const std::string& appName, const std::vector<std::pair<std::string, std::string>>& staticTags)
-{
-    std::stringstream app_name_builder;
-    app_name_builder << appName << "{";
-    int i = 0;
-    for (const auto& item : staticTags)
-    {
-        if (i != 0)
-        {
-            app_name_builder << ",";
-        }
-        app_name_builder << item.first << "=" << item.second;
-        i++;
-    }
-    app_name_builder << "}";
-    return app_name_builder.str();
-}
 
 std::map<std::string, std::string> PyroscopePprofSink::ParseHeadersJSON(std::string headers)
 {
