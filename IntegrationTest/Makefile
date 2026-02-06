@@ -17,4 +17,4 @@ run:
 	PYROSCOPE_SERVER_ADDRESS=http://localhost:4040 \
 	PYROSCOPE_APPLICATION_NAME=rideshare.dotnet.app \
 	ASPNETCORE_URLS=http://*:5000 \
-	$(DOTNET) run --project Rideshare.csproj --framework net8.0
+	$(DOTNET) run --project Rideshare.csproj --framework net8.0 --no-launch-profile

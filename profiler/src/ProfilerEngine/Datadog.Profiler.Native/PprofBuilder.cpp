@@ -100,7 +100,7 @@ void PprofBuilder::Reset()
     _samplesCount = 0;
     _locations.clear();
     _strings.clear();
-    _profile = perftools::profiles::Profile();
+    _profile = google::v1::Profile();
     AddString("");
     for (const auto& sampleType : _sampleTypeDefinitions)
     {
@@ -109,7 +109,7 @@ void PprofBuilder::Reset()
         pSample->set_type(AddString(sampleType.Name));
     }
     _profile.set_period(1);
-    auto* pPeriodType = new perftools::profiles::ValueType();
+    auto* pPeriodType = new google::v1::ValueType();
     pPeriodType->set_type(AddString("cpu"));
     pPeriodType->set_unit(AddString("nanoseconds"));
     _profile.set_allocated_period_type(pPeriodType);

@@ -91,6 +91,7 @@ SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${DEPLOY_DIR})
 FILE(GLOB LINUX_PROFILER_SRC CONFIGURE_DEPENDS "*.cpp")
 
 FILE(GLOB COMMON_PROFILER_SRC LIST_DIRECTORIES false "../Datadog.Profiler.Native/*.cpp")
+FILE(GLOB_RECURSE PROTO_PROFILER_SRC CONFIGURE_DEPENDS "../Datadog.Profiler.Native/gen/*.pb.cc")
 FILE(GLOB EXCLUDE_DLLMAIN "../Datadog.Profiler.Native/DllMain.cpp")
 
 list(REMOVE_ITEM COMMON_PROFILER_SRC "${EXCLUDE_DLLMAIN}")
@@ -101,6 +102,7 @@ list(REMOVE_ITEM COMMON_PROFILER_SRC "${EXCLUDE_DLLMAIN}")
 add_library(${PROFILER_STATIC_LIB_NAME} STATIC
     ${LINUX_PROFILER_SRC}
     ${COMMON_PROFILER_SRC}
+    ${PROTO_PROFILER_SRC}
     ${DOTNET_TRACER_REPO_ROOT_PATH}/shared/src/native-src/string.cpp
     ${DOTNET_TRACER_REPO_ROOT_PATH}/shared/src/native-src/util.cpp
     ${DOTNET_TRACER_REPO_ROOT_PATH}/shared/src/native-src/miniutf.cpp
@@ -112,6 +114,7 @@ set_target_properties(${PROFILER_STATIC_LIB_NAME} PROPERTIES PREFIX "")
 target_include_directories(${PROFILER_STATIC_LIB_NAME}
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../Datadog.Profiler.Native.Linux
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../Datadog.Profiler.Native
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../Datadog.Profiler.Native/gen
     PUBLIC ${DOTNET_TRACER_REPO_ROOT_PATH}
 )
 
