@@ -1,4 +1,4 @@
-FROM debian:11@sha256:a50c3ed0200d2f58736c3bb02b4a9f174f3d6d3bd866f2f640375f1e82c61348 AS builder
+FROM debian:13@sha256:2c91e484d93f0830a7e05a2b9d92a7b102be7cab562198b984a84fdbc7806d91 AS builder
 
 RUN apt-get update && apt-get -y install cmake make git curl golang libtool wget
 
