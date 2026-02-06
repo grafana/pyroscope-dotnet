@@ -4,9 +4,12 @@
 
 #include "PprofBuilder.h"
 #include "Log.h"
+#include "Sample.h"
+#include <tuple>
 
-PprofBuilder::PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions) :
-    _sampleTypeDefinitions(sampleTypeDefinitions)
+PprofBuilder::PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions, ProfileType type) :
+    _sampleTypeDefinitions(sampleTypeDefinitions),
+    _type(type)
 {
     Reset();
 }
@@ -45,13 +48,13 @@ int PprofBuilder::SamplesCount() {
     return _samplesCount;
 }
 
-std::string PprofBuilder::Build()
+std::tuple<std::string, ProfileType> PprofBuilder::Build()
 {
     std::lock_guard<std::mutex> lock(this->_lock);
     auto res = _profile.SerializeAsString();
     Log::Debug("PprofBuilder samples: ", _samplesCount, ", serialized bytes: ", res.size());
     Reset();
-    return std::move(res);
+    return std::tuple(std::move(res), _type);
 }
 
 int64_t PprofBuilder::AddString(const std::string_view& sv)

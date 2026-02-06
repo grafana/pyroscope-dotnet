@@ -10,6 +10,7 @@
 #include "Log.h"
 #include "OsSpecificApi.h"
 #include "RawSampleTransformer.h"
+#include "Sample.h"
 #include "ScopeFinalizer.h"
 #include "SampleValueTypeProvider.h"
 #include "shared/src/native-src/com_ptr.h"
@@ -18,7 +19,7 @@
 
 std::vector<SampleValueType> ExceptionsProvider::SampleTypeDefinitions(
     {
-        {"exception", "count", -1}
+        {"exception", "count", ProfileType::EXCEPTION}
     });
 
 ExceptionsProvider::ExceptionsProvider(

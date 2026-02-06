@@ -24,7 +24,7 @@ public:
                        std::map<std::string, std::string> extraHeaders,
                        const std::vector<std::pair<std::string, std::string>>& staticTags);
     ~PyroscopePprofSink() override;
-    void Export(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime) override;
+    void Export(Pprof pprof, ProfileType type, const ProfileTime& startTime, const ProfileTime& endTime) override;
     void SetAuthToken(std::string authToken);
     void SetBasicAuth(std::string user, std::string password);
     static std::map<std::string, std::string> ParseHeadersJSON(std::string headers);
@@ -36,6 +36,7 @@ private:
     struct PyroscopeRequest
     {
         Pprof pprof;
+        ProfileType type;
         ProfileTime startTime;
         ProfileTime endTime;
     };

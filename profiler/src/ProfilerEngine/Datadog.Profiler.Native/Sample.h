@@ -19,16 +19,26 @@
 
 #include "async_ref_counted_string.h"
 
+enum class ProfileType
+{
+    CPU,
+    MEMORY,
+    LOCK,
+    EXCEPTION,
+    GC,
+    WALL,
+    NETWORK,
+    TIMELINE,
+
+    PROCESS
+};
 
 struct SampleValueType
 {
     std::string Name;
     std::string Unit;
 
-    // Samples belonging to the same provider will share the same index
-    // For libdatadog, it means that they will be stored in the same profile
-    // This value will be set when registering the SampleValueType with SampleValueTypeProvider
-    int32_t Index; // -1 means not set
+    ProfileType ProfileType;
 };
 
 typedef std::vector<int64_t> Values;

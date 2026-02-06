@@ -9,12 +9,13 @@
 #include "RawCpuSample.h"
 #include "RawSampleTransformer.h"
 
+#include "Sample.h"
 #include "shared/src/native-src/dd_memory_resource.hpp"
 
 std::vector<SampleValueType> CpuTimeProvider::SampleTypeDefinitions(
 {
-    {"cpu", "nanoseconds", -1},
-    {"cpu-samples", "count", -1}}
+    {"cpu", "nanoseconds", ProfileType::CPU},
+    {"samples", "count", ProfileType::CPU}}
 );
 
 CpuTimeProvider::CpuTimeProvider(

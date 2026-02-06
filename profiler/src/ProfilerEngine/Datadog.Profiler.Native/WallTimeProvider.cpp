@@ -8,12 +8,13 @@
 #include "IRuntimeIdStore.h"
 #include "IThreadsCpuManager.h"
 #include "RawWallTimeSample.h"
+#include "Sample.h"
 
 class SampleValueTypeProvider;
 
 std::vector<SampleValueType> WallTimeProvider::SampleTypeDefinitions(
     {
-        {"wall", "nanoseconds", -1}
+        {"wall", "nanoseconds", ProfileType::WALL}
     }
     );
 

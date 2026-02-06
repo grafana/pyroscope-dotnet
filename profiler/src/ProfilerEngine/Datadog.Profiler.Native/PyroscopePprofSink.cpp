@@ -5,6 +5,7 @@
 #include "PyroscopePprofSink.h"
 #include "Log.h"
 #include "OpSysTools.h"
+#include "Sample.h"
 #include "cppcodec/base64_rfc4648.hpp"
 #include "nlohmann/json.hpp"
 
@@ -39,21 +40,23 @@ PyroscopePprofSink::~PyroscopePprofSink()
     _running.store(false);
     _queue.push(PyroscopeRequest{
         .pprof = "",
+        .type = ProfileType::CPU,
         .startTime = ProfileTime(),
         .endTime = ProfileTime(),
     });
     _workerThread.join();
 }
 
-void PyroscopePprofSink::Export(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime)
+void PyroscopePprofSink::Export(Pprof pprof, ProfileType type, const ProfileTime& startTime, const ProfileTime& endTime)
 {
-    if (_queue.size() >= 3)
+    if (_queue.size() >= 8)
     {
         Log::Warn("PyroscopePprofSink queue is too big. Dropping pprof data.");
         return;
     }
     PyroscopeRequest req{
         .pprof = std::move(pprof),
+        .type = type,
         .startTime = startTime,
         .endTime = endTime,
     };
@@ -98,50 +101,6 @@ void PyroscopePprofSink::upload(Pprof pprof, ProfileTime& startTime, ProfileTime
         .name = "profile",
         .content = std::move(pprof),
         .filename = "profile.pprof",
-    });
-    data.emplace_back(httplib::MultipartFormData{
-        .name = "sample_type_config",
-        .content = "{\n"
-                   "  \"alloc_samples\": {\n"
-                   "    \"units\": \"objects\",\n"
-                   "    \"display-name\": \"alloc_objects\"\n"
-                   "  },\n"
-                   "  \"alloc_size\": {\n"
-                   "    \"units\": \"bytes\",\n"
-                   "    \"display-name\": \"alloc_space\"\n"
-                   "  },\n"
-                   "  \"cpu\": {\n"
-                   "    \"units\": \"samples\",\n"
-                   "    \"sampled\": true\n"
-                   "  },\n"
-                   "  \"exception\": {\n"
-                   "    \"units\": \"exceptions\",\n"
-                   "    \"display-name\": \"exceptions\"\n"
-                   "  },\n"
-                   "  \"lock_count\": {\n"
-                   "    \"units\": \"lock_samples\",\n"
-                   "    \"display-name\": \"mutex_count\"\n"
-                   "  },\n"
-                   "  \"lock_time\": {\n"
-                   "    \"units\": \"lock_nanoseconds\",\n"
-                   "    \"display-name\": \"mutex_duration\"\n"
-                   "  },\n"
-                   "  \"wall\": {\n"
-                   "    \"units\": \"samples\",\n"
-                   "    \"sampled\": true\n"
-                   "  },\n"
-                   "  \"inuse_objects\": {\n"
-                   "    \"units\": \"objects\",\n"
-                   "    \"display-name\": \"inuse_objects\",\n"
-                   "    \"aggregation\": \"average\"\n"
-                   "  },\n"
-                   "  \"inuse_space\": {\n"
-                   "    \"units\": \"bytes\",\n"
-                   "    \"display-name\": \"inuse_space\",\n"
-                   "    \"aggregation\": \"average\"\n"
-                   "  }\n"
-                   "}",
-        .filename = "sample_type_config.json",
     });
 
     std::string path = Url()

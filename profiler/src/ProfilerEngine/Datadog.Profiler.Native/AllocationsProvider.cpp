@@ -17,6 +17,7 @@
 #include "MetricsRegistry.h"
 #include "OsSpecificApi.h"
 #include "RawSampleTransformer.h"
+#include "Sample.h"
 #include "SampleValueTypeProvider.h"
 
 #include <chrono>
@@ -26,14 +27,14 @@
 
 std::vector<SampleValueType> AllocationsProvider::SampleTypeDefinitions(
     {
-        {"alloc_samples", "count", -1},
-        {"alloc_size", "bytes", -1}
+        {"alloc_samples", "count", ProfileType::MEMORY},
+        {"alloc_size", "bytes", ProfileType::MEMORY}
     }
 );
 
 std::vector<SampleValueType> AllocationsProvider::FrameworkSampleTypeDefinitions(
     {
-        {"alloc_samples", "count", -1},
+        {"alloc_samples", "count", ProfileType::MEMORY},
     }
 );
 

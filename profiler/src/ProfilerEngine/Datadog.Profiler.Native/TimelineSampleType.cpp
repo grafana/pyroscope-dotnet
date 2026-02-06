@@ -2,6 +2,7 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2022 Datadog, Inc.
 
 #include "TimelineSampleType.h"
+#include "Sample.h"
 
 std::vector<SampleValueType> TimelineSampleType::Definitions(
-    {{"timeline", "nanoseconds", -1}});
+    {{"timeline", "nanoseconds", ProfileType::TIMELINE}});

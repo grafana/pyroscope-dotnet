@@ -8,12 +8,13 @@
 #include "Log.h"
 #include "OsSpecificApi.h"
 #include "RawSampleTransformer.h"
+#include "Sample.h"
 
 #include <chrono>
 
 std::vector<SampleValueType> NetworkProvider::SampleTypeDefinitions(
 {
-    {"request-time", "nanoseconds", -1}
+    {"request_time", "nanoseconds", ProfileType::NETWORK}
 });
 
 
@@ -575,4 +576,3 @@ bool NetworkProvider::MonitorRequest(NetworkRequestInfo*& pInfo, LPCGUID pActivi
 
     return true;
 }
-

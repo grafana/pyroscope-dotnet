@@ -17,6 +17,7 @@
 #include <forward_list>
 #include <memory>
 #include <string_view>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -25,7 +26,7 @@ using Pprof = std::string;
 class PProfExportSink
 {
 public:
-    virtual void Export(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime) = 0;
+    virtual void Export(Pprof pprof, ProfileType type, const ProfileTime& startTime, const ProfileTime& endTime) = 0;
     virtual ~PProfExportSink();
 };
 
@@ -33,8 +34,7 @@ class PprofExporter : public IExporter
 {
 
 public:
-    PprofExporter(IApplicationStore* _applicationStore,
-                  std::shared_ptr<PProfExportSink> sin,
+    PprofExporter(std::shared_ptr<PProfExportSink> sin,
                   std::vector<SampleValueType> sampleTypeDefinitions);
     void Add(std::shared_ptr<Sample> const& sample) override;
     void SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint) override;
@@ -45,14 +45,14 @@ public:
     void RegisterApplication(std::string_view runtimeId) override;
 
 private:
-    PprofBuilder& GetPprofBuilder(std::string_view runtimeId);
+    ProfileType GetPprofType(std::shared_ptr<Sample> const& sample, bool &found);
+    PprofBuilder& GetPprofBuilder(ProfileType type);
 
-    IApplicationStore* _applicationStore;
     std::shared_ptr<PProfExportSink> _sink;
     std::vector<SampleValueType> _sampleTypeDefinitions;
     std::vector<SampleValueType> _processSampleTypeDefinitions;
-    std::unordered_map<std::string_view, std::unique_ptr<PprofBuilder>> _perAppBuilder;
-    std::mutex _perAppBuilderLock;
+    std::unordered_map<ProfileType, std::unique_ptr<PprofBuilder>> _perProfileTypeBuilder;
+    std::mutex _perProfileTypeBuilderLock;
 
     std::vector<ISamplesProvider*> _processSamplesProviders;
     std::unique_ptr<PprofBuilder> _processSamplesBuilder;

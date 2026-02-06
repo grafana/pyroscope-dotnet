@@ -3,15 +3,16 @@
 //
 
 #include "PprofExporter.h"
+#include "IExporter.h"
 #include "ISamplesProvider.h"
+#include "Sample.h"
 #include "SamplesEnumerator.h"
 #include "Log.h"
 #include <signal.h>
+#include <tuple>
 
-PprofExporter::PprofExporter(IApplicationStore* applicationStore,
-                             std::shared_ptr<PProfExportSink> sink,
+PprofExporter::PprofExporter(std::shared_ptr<PProfExportSink> sink,
                              std::vector<SampleValueType> sampleTypeDefinitions) :
-    _applicationStore(applicationStore),
     _sink(std::move(sink)),
     _sampleTypeDefinitions(sampleTypeDefinitions),
     _processSampleTypeDefinitions(_sampleTypeDefinitions)
@@ -24,7 +25,7 @@ PprofExporter::PprofExporter(IApplicationStore* applicationStore,
         }
     }
 
-    _processSamplesBuilder = std::make_unique<PprofBuilder>(_processSampleTypeDefinitions);
+    _processSamplesBuilder = std::make_unique<PprofBuilder>(_processSampleTypeDefinitions, ProfileType::PROCESS);
     signal(SIGPIPE, SIG_IGN);
 }
 
@@ -34,7 +35,14 @@ PProfExportSink::~PProfExportSink()
 
 void PprofExporter::Add(std::shared_ptr<Sample> const& sample)
 {
-    GetPprofBuilder(sample->GetRuntimeId())
+    bool found = false;
+    ProfileType type = GetPprofType(sample, found);
+    if (!found)
+    {
+        Log::Error("unknown type");// todo do not commit/merge
+        return;
+    }
+    GetPprofBuilder(type)
         .AddSample(*sample);
 }
 
@@ -44,10 +52,10 @@ void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, 
 
 bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool lastCall)
 {
-    std::vector<std::string> pprofs;
+    std::vector<std::tuple<std::string, ProfileType>> pprofs;
     {
-        std::lock_guard lock(_perAppBuilderLock);
-        for (auto& builder : _perAppBuilder)
+        std::lock_guard lock(_perProfileTypeBuilderLock);
+        for (auto& builder : _perProfileTypeBuilder)
         {
             if (builder.second->SamplesCount() != 0)
             {
@@ -58,7 +66,7 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
 
     {
         std::lock_guard lock(_processSamplesLock);
-        for (auto provider : _processSamplesProviders)
+        for (auto* provider : _processSamplesProviders)
         {
             auto samplesEnumerator = provider->GetSamples();
             std::shared_ptr<Sample> sample;
@@ -76,21 +84,36 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
 
     for (const auto& pprof : pprofs)
     {
-        _sink->Export(std::move(pprof), startTime, endTime);
+        _sink->Export(std::move(std::get<0>(pprof)), std::get<1>(pprof), startTime, endTime);
     }
     return true;
 }
 
-PprofBuilder& PprofExporter::GetPprofBuilder(std::string_view runtimeId)
+ProfileType PprofExporter::GetPprofType(std::shared_ptr<Sample> const& sample, bool& found)
 {
-    std::lock_guard lock(_perAppBuilderLock);
-    auto it = _perAppBuilder.find(runtimeId);
-    if (it != _perAppBuilder.end())
+    assert(sample->GetValues().size() == this->_sampleTypeDefinitions.size());
+    if (sample->GetValues().size() != this->_sampleTypeDefinitions.size()) {
+        return ProfileType::CPU; // not found
+    }
+    for (int i = 0; i < _sampleTypeDefinitions.size(); ++i) {
+        if (sample->GetValues()[i] != 0) {
+            found = true;
+            return _sampleTypeDefinitions[i].ProfileType;
+        }
+    }
+    return ProfileType::CPU;// not found
+}
+
+PprofBuilder& PprofExporter::GetPprofBuilder(ProfileType type)
+{
+    std::lock_guard lock(_perProfileTypeBuilderLock);
+    auto it = _perProfileTypeBuilder.find(type);
+    if (it != _perProfileTypeBuilder.end())
     {
         return *it->second;
     }
-    auto instance = std::make_unique<PprofBuilder>(_sampleTypeDefinitions);
-    auto res = _perAppBuilder.emplace(runtimeId, std::move(instance));
+    auto instance = std::make_unique<PprofBuilder>(_sampleTypeDefinitions, type); // todo too many zeros - only pass and use subset of sample types
+    auto res = _perProfileTypeBuilder.emplace(type, std::move(instance));
     return *res.first->second;
 }
 

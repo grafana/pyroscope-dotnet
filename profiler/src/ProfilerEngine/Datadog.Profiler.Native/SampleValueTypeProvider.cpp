@@ -25,7 +25,7 @@ std::vector<SampleValueTypeProvider::Offset> SampleValueTypeProvider::GetOrRegis
         {
             incrementIndex = true;
             // set the same index for all
-            valueType.Index = _nextIndex;
+            // valueType.Index = _nextIndex;
 
             idx = _sampleTypeDefinitions.size();
             _sampleTypeDefinitions.push_back(valueType);
@@ -63,4 +63,3 @@ std::int8_t SampleValueTypeProvider::GetOffset(SampleValueType const& valueType)
     }
     return -1;
 }
-
