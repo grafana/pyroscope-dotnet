@@ -14,7 +14,7 @@
 std::vector<SampleValueType> CpuTimeProvider::SampleTypeDefinitions(
 {
     {"cpu", "nanoseconds", -1},
-    {"cpu-samples", "count", -1}}
+    {"cpu_samples", "count", -1}}
 );
 
 CpuTimeProvider::CpuTimeProvider(
