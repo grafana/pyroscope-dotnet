@@ -29,7 +29,7 @@ jobs:
       - name: Check version matches committed version
         if: ${{ !contains(github.ref_name, '-rc') }}
         run: git diff --exit-code
-      - run: dotnet build -c Release
+      - run: dotnet build -c Release ./Pyroscope
         working-directory: Pyroscope
       - name: Upload NuGet packages
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

@@ -21,7 +21,7 @@ jobs:
       - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
         with:
           global-json-file: global.json
-      - run: dotnet build -c Release
+      - run: dotnet build -c Release ./Pyroscope.OpenTracing
         working-directory: Pyroscope/Pyroscope.OpenTracing
       - name: Publish NuGet packages
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
