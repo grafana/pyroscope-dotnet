@@ -66,6 +66,7 @@ class IExporter;
 class RawSampleTransformer;
 class RuntimeIdStore;
 class CpuSampleProvider;
+class ManagedCodeCache;
 class NetworkProvider;
 
 #ifdef LINUX
@@ -312,6 +313,8 @@ private :
     std::unique_ptr<ISsiManager> _pSsiManager = nullptr;
     std::unique_ptr<RawSampleTransformer> _rawSampleTransformer;
 
+    std::unique_ptr<ManagedCodeCache> _managedCodeCache = nullptr;
+
 private:
     static void ConfigureDebugLog();
     static void InspectRuntimeCompatibility(IUnknown* corProfilerInfoUnk, uint16_t& runtimeMajor, uint16_t& runtimeMinor);
@@ -325,7 +328,7 @@ private:
     void GetFullFrameworkVersion(ModuleID moduleId);
 #endif
 
-void DisposeInternal();
+    void DisposeInternal();
     void InitializeServices();
     bool DisposeServices();
     bool StartServices();
