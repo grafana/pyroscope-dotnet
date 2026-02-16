@@ -17,6 +17,9 @@ determine it automatically:
 2. Take the highest version found and increment the minor version (e.g. `v3.34.0` → `v3.35.0`)
 3. **Always confirm with the user** before proceeding — show the previous version
    found and the proposed next version, and ask the user to confirm or provide a different tag.
+4. **Ask the user which branch to base the merge on.** Suggest `main` (recommended)
+   but also offer the current branch (`git branch --show-current`) as an option.
+   Use the chosen branch as `<base>` in step 3 below.
 
 ## Fork context
 
@@ -61,9 +64,9 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
    ```
    If the tag does not exist, **abort** — inform the user and stop. Do not proceed.
 
-3. **Create a merge branch from main**
+3. **Create a merge branch from the chosen base**
    ```
-   git checkout -b kk/fork-update-<version> main
+   git checkout -b kk/fork-update-<version> <base>
    ```
 
 4. **Start the merge (no commit, no fast-forward)**
