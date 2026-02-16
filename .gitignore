@@ -1,4 +1,5 @@
 cmake-build-*
+_merge_upstreamm_build/
 build-*
 ## # C++ specific ignores:
 # Uncomment as required, but be careful, as some binaries may be part of the repo on purpose.
