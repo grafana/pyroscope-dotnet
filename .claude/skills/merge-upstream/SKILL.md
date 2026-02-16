@@ -14,7 +14,13 @@ determine it automatically:
    ```
    .claude/skills/merge-upstream/find-previous-versions.sh
    ```
-2. Take the highest version found and increment the minor version (e.g. `v3.34.0` → `v3.35.0`)
+2. Take the highest version found and increment the minor version (e.g. `v3.34.0` → `v3.35.0`).
+   Then check upstream for the latest patch of that minor version by listing remote tags:
+   ```
+   git ls-remote --tags upstream 'refs/tags/v<major>.<next_minor>.*'
+   ```
+   Pick the highest patch version available (e.g. if `v3.35.0` and `v3.35.1` both exist,
+   suggest `v3.35.1`). If no tags exist for that minor version, the tag doesn't exist yet — abort.
 3. **Always confirm with the user** before proceeding — show the previous version
    found and the proposed next version, and ask the user to confirm or provide a different tag.
 4. **Ask the user which branch to base the merge on.** Suggest `main` (recommended)
