@@ -49,6 +49,8 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
   `--amend` and `--force-push` on the merge commit of the branch created in step 2.
 - Only push to the `kk/fork-update-*` branch created for this merge — never to `main`.
 
+The scripts bellow should be executed as is, as executable, without passing it to the bash.  `.claude/skills/merge-upstream/find-previous-versions.sh` instead of `bash .claude/skills/merge-upstream/find-previous-versions.sh`
+
 ## Steps
 
 1. **Ensure upstream remote exists and fetch tags**
