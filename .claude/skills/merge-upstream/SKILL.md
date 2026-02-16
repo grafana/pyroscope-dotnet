@@ -1,6 +1,6 @@
 ---
 description: Merge upstream dd-trace-dotnet changes into the pyroscope-dotnet fork
-allowed-tools: Bash(git *), Bash(cmake *), Bash(make *), Bash(rm -rf _merge_upstreamm_build), Bash(gh *), Bash(git add -A && git commit *), Bash(CXX=clang++ CC=clang cmake *), Bash(cmake --build *), Bash(.claude/skills/merge-upstream/*.sh), Read, Write, Edit, Glob, Grep
+allowed-tools: Bash(git *), Bash(cmake *), Bash(make *), Bash(rm -rf _merge_upstreamm_build), Bash(gh *), Bash(git add -A && git commit *), Bash(CXX=clang++ CC=clang cmake *), Bash(cmake --build *), Bash(*/.claude/skills/merge-upstream/*.sh), Read, Write, Edit, Glob, Grep
 ---
 
 # Merge Upstream
