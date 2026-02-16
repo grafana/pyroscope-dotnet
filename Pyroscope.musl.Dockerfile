@@ -1,4 +1,4 @@
-FROM alpine:3.15@sha256:19b4bcc4f60e99dd5ebdca0cbce22c503bbcff197549d7e19dab4f22254dc864 AS builder
+FROM alpine:3.18 AS builder
 
 RUN apk add  \
             clang \
