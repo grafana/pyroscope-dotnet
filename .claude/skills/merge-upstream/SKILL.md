@@ -1,6 +1,6 @@
 ---
 description: Merge upstream dd-trace-dotnet changes into the pyroscope-dotnet fork
-allowed-tools: Bash(git *), Bash(cmake *), Bash(rm -rf _merge_upstreamm_build), Read, Write, Edit, Glob, Grep
+allowed-tools: Bash(git *), Bash(cmake *), Bash(rm -rf _merge_upstreamm_build), Bash(gh *), Read, Write, Edit, Glob, Grep
 ---
 
 # Merge Upstream
@@ -138,4 +138,9 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
 
 13. **Commit the merge**
     - `git add -A && git commit` with message: `merge upstream <tag>`
-    - Do NOT push unless the user asks
+
+14. **Push and create a draft PR**
+    ```
+    git push -u origin kk/fork-update-<version>
+    gh pr create --draft --base <base> --title "merge upstream <tag>" --body "Merge upstream dd-trace-dotnet <tag> into the fork."
+    ```
