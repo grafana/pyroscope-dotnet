@@ -1,6 +1,6 @@
 ---
 description: Merge upstream dd-trace-dotnet changes into the pyroscope-dotnet fork
-allowed-tools: Bash(git *), Bash(cmake *), Bash(make *), Bash(rm -rf _merge_upstreamm_build), Bash(gh *), Bash(git log *), Bash(git status --porcelain *), Bash(git status --porcelain | *), Bash(git add -A && git commit *), Bash(CXX=clang++ CC=clang cmake *), Bash(cmake --build *), Bash(* | xargs *), Bash(* | cut * | xargs *), Bash(* | tail *), Bash(* 2>&1 | tail *), Bash(* ; echo *), Read, Write, Edit, Glob, Grep
+allowed-tools: Bash(git *), Bash(cmake *), Bash(make *), Bash(rm -rf _merge_upstreamm_build), Bash(gh *), Bash(git add -A && git commit *), Bash(CXX=clang++ CC=clang cmake *), Bash(cmake --build *), Bash(.claude/skills/merge-upstream/*.sh), Read, Write, Edit, Glob, Grep
 ---
 
 # Merge Upstream
@@ -12,7 +12,7 @@ determine it automatically:
 
 1. Find previously merged upstream versions:
    ```
-   git log --oneline main | grep -iE "merge (tag|upstream)" | grep -oP 'v\d+\.\d+\.\d+' | sort -V | tail -5
+   .claude/skills/merge-upstream/find-previous-versions.sh
    ```
 2. Take the highest version found and increment the minor version (e.g. `v3.34.0` → `v3.35.0`)
 3. **Always confirm with the user** before proceeding — show the previous version
@@ -102,12 +102,12 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
 
 7. **Clean up files deleted by us but modified upstream (DU conflicts)**
    ```
-   git status --porcelain | grep '^DU ' | cut -c4- | xargs -r git rm -f; echo "DU conflicts done"
+   .claude/skills/merge-upstream/resolve-du-conflicts.sh
    ```
 
 8. **Remove any upstream .github files that were added**
    ```
-   git status --porcelain | grep '^A ' | grep .github | cut -c4- | xargs -r git rm -f; echo "upstream .github additions removed"
+   .claude/skills/merge-upstream/remove-upstream-github.sh
    ```
 
 9. **Resolve `.github/CODEOWNERS` — always keep the fork version**
