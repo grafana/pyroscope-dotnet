@@ -96,4 +96,5 @@ public:
     inline static const shared::WSTRING PyroscopeBasicAuthPassword     = WStr("PYROSCOPE_BASIC_AUTH_PASSWORD");
 
     inline static const shared::WSTRING WaitHandleProfilingEnabled  = WStr("DD_INTERNAL_PROFILING_WAITHANDLE_ENABLED");
+    inline static const shared::WSTRING UseManagedCodeCache         = WStr("DD_INTERNAL_PROFILING_USE_MANAGED_CODE_CACHE");
 };
