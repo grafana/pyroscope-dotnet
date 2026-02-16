@@ -32,6 +32,8 @@ What we strip from upstream on every merge:
 - `shared/test/` — upstream shared test code
 - `.azure-pipelines/`, `.gitlab/` — upstream CI configs; we use GitHub Actions only
 - `.github/` additions from upstream — we keep only our own pyroscope-specific workflows
+- `.claude/` additions from upstream — we keep only our own claude configuration
+- `.gitlab-ci.yml` — upstream CI config; we use GitHub Actions only
 - `docs/` — upstream documentation
 - `shared/src/Datadog.Trace.ClrProfiler.Native` — not used in our fork
 - `build/cmake/FindSpdlog.cmake`, `shared/src/native-lib/spdlog`, `build/cmake/FindManagedLoader.cmake` — we use git submodules for these instead
@@ -91,6 +93,7 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
    git rm -rf docs
    git rm -rf profiler/test
    git rm -rf profiler/src/Tools
+   git rm -f .gitlab-ci.yml
    ```
 
 6. **Remove files we replace with git submodules**
@@ -105,7 +108,7 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
    .claude/skills/merge-upstream/resolve-du-conflicts.sh
    ```
 
-8. **Remove any upstream .github files that were added**
+8. **Remove any upstream .github and .claude files that were added**
    ```
    .claude/skills/merge-upstream/remove-upstream-github.sh
    ```
@@ -151,5 +154,5 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
 14. **Push and create a draft PR**
     ```
     git push -u origin kk/fork-update-<version>
-    gh pr create --draft --base <base> --title "merge upstream <tag>" --body "Merge upstream dd-trace-dotnet <tag> into the fork."
+    gh pr create --draft --repo grafana/pyroscope-dotnet --base <base> --title "merge upstream <tag>" --body "Merge upstream dd-trace-dotnet <tag> into the fork."
     ```
