@@ -1,5 +1,6 @@
 ---
 description: Merge upstream dd-trace-dotnet changes into the pyroscope-dotnet fork
+allowed-tools: Bash(git *), Bash(cmake *), Bash(rm -rf _merge_upstreamm_build), Read, Write, Edit, Glob, Grep
 ---
 
 # Merge Upstream
@@ -100,7 +101,16 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
    git status --porcelain | grep '^A ' | grep .github | cut -c4- | xargs -r git rm -f
    ```
 
-9. **Resolve conflicts in CMake files first**
+9. **Resolve `.github/CODEOWNERS` — always keep the fork version**
+   If `.github/CODEOWNERS` has a conflict, always resolve it to the fork (grafana/pyroscope)
+   version. The upstream CODEOWNERS contains DataDog-specific team ownership rules that are
+   irrelevant to the fork. Check out our side and stage it:
+   ```
+   git checkout --ours .github/CODEOWNERS
+   git add .github/CODEOWNERS
+   ```
+
+10. **Resolve conflicts in CMake files first**
    - List all conflicted files: `git diff --name-only --diff-filter=U`
    - Resolve CMake-related conflicts first (`CMakeLists.txt`, `*.cmake` files)
    - Then verify cmake configures successfully:
@@ -109,20 +119,20 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
      ```
      Fix any cmake errors before proceeding to other conflicts.
 
-10. **Resolve remaining conflicts**
+11. **Resolve remaining conflicts**
    - For version conflicts in binary/DLL/package references (e.g. NuGet versions,
      library versions, dependency pinning), always pick the **higher version**
    - Prefer our fork's changes for pyroscope-specific code
    - Ask the user when unsure which side to keep
 
-11. **Verify the build**
+12. **Verify the build** (only the targets we use)
 
     ```
-    cmake --build _merge_upstreamm_build -j$(nproc)
+    cmake --build _merge_upstreamm_build --target Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64 -j$(nproc)
     ```
 
     Report any build errors and fix them before committing.
 
-12. **Commit the merge**
+13. **Commit the merge**
     - `git add -A && git commit` with message: `merge upstream <tag>`
     - Do NOT push unless the user asks
