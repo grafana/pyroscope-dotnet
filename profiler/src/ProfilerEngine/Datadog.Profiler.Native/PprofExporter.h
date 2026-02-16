@@ -43,6 +43,7 @@ public:
     void RegisterUpscalePoissonProvider(IUpscalePoissonProvider* provider) override;
     void RegisterProcessSamplesProvider(ISamplesProvider* provider) override;
     void RegisterApplication(std::string_view runtimeId) override;
+    void RegisterGcSettingsProvider(IGcSettingsProvider* provider) override;
 
 private:
     PprofBuilder& GetPprofBuilder(std::string_view runtimeId);

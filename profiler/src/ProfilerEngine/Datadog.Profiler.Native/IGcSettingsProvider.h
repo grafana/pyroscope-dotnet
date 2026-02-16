@@ -3,4 +3,19 @@
 
 #pragma once
 
-constexpr auto PROFILER_VERSION = "3.36.0";
+
+enum class GCMode
+{
+    UnknownMode,
+    Server,
+    Workstation
+};
+
+
+class IGcSettingsProvider
+{
+public:
+    virtual ~IGcSettingsProvider() = default;
+
+    virtual GCMode GetMode() = 0;
+};

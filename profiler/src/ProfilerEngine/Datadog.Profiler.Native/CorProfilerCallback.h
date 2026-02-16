@@ -44,6 +44,7 @@
 #include "ISsiLifetime.h"
 #include "IUnwinder.h"
 #include "HeapSnapshotManager.h"
+#include "GCThreadsCpuProvider.h"
 #include "PInvoke.h"
 
 #include "shared/src/native-src/dd_memory_resource.hpp"
@@ -301,7 +302,8 @@ private :
     std::shared_ptr<ProxyMetric> _managedThreadsMetric;
     std::shared_ptr<ProxyMetric> _managedThreadsWithContextMetric;
 
-    std::unique_ptr<ISamplesProvider> _gcThreadsCpuProvider = nullptr;
+    // Note: can't use an interface because this class is implementing... 2 needed interfaces
+    std::unique_ptr<GCThreadsCpuProvider> _gcThreadsCpuProvider = nullptr;
     std::unique_ptr<IMetadataProvider> _pMetadataProvider = nullptr;
     std::unique_ptr<IEtwEventsManager> _pEtwEventsManager = nullptr;
     bool _isETWStarted = false;
