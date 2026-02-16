@@ -1,6 +1,6 @@
 ---
 description: Merge upstream dd-trace-dotnet changes into the pyroscope-dotnet fork
-allowed-tools: Bash(git *), Bash(cmake *), Bash(make *), Bash(rm -rf _merge_upstreamm_build), Bash(gh *), Bash(git log *), Bash(git status --porcelain *), Bash(git status --porcelain | *), Bash(git add -A && git commit *), Bash(CXX=clang++ CC=clang cmake *), Bash(cmake --build *), Bash(* | xargs *), Bash(* | cut * | xargs *), Bash(* | tail *), Bash(* 2>&1 | tail *), Read, Write, Edit, Glob, Grep
+allowed-tools: Bash(git *), Bash(cmake *), Bash(make *), Bash(rm -rf _merge_upstreamm_build), Bash(gh *), Bash(git log *), Bash(git status --porcelain *), Bash(git status --porcelain | *), Bash(git add -A && git commit *), Bash(CXX=clang++ CC=clang cmake *), Bash(cmake --build *), Bash(* | xargs *), Bash(* | cut * | xargs *), Bash(* | tail *), Bash(* 2>&1 | tail *), Bash(* ; echo *), Read, Write, Edit, Glob, Grep
 ---
 
 # Merge Upstream
@@ -67,6 +67,11 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
 
 3. **Create a merge branch from the chosen base**
    ```
+   git checkout -b kk/fork-update-<version> <base>
+   ```
+   If the branch already exists, delete it first and recreate:
+   ```
+   git branch -D kk/fork-update-<version>
    git checkout -b kk/fork-update-<version> <base>
    ```
 
