@@ -52,28 +52,9 @@ void RawSampleTransformer::Transform(const RawSample& rawSample, std::shared_ptr
 
 void RawSampleTransformer::SetAppDomainDetails(const RawSample& rawSample, std::shared_ptr<Sample>& sample)
 {
-    ProcessID pid;
-    std::string appDomainName;
-
-    // check for null AppDomainId (garbage collection for example)
-    if (rawSample.AppDomainId == 0)
-    {
-        sample->SetAppDomainName("CLR");
-        sample->SetPid(OpSysTools::GetProcId());
-
-        return;
-    }
-
-    if (!_pAppDomainStore->GetInfo(rawSample.AppDomainId, pid, appDomainName))
-    {
-        sample->SetAppDomainName("");
-        sample->SetPid(OpSysTools::GetProcId());
-
-        return;
-    }
-
-    sample->SetAppDomainName(std::move(appDomainName));
-    sample->SetPid(pid);
+    auto appDomainName = _pAppDomainStore->GetName(rawSample.AppDomainId);
+    sample->SetAppDomainName(std::string(appDomainName));
+    sample->SetPid(OpSysTools::GetProcId());
 }
 
 void RawSampleTransformer::SetThreadDetails(const RawSample& rawSample, std::shared_ptr<Sample>& sample)
@@ -90,13 +71,13 @@ void RawSampleTransformer::SetThreadDetails(const RawSample& rawSample, std::sha
             (rawSample.AppDomainId == 0) &&
             (rawSample.Stack.Size() == 0))
         {
-            sample->SetThreadId("GC");
-            sample->SetThreadName("CLR thread (garbage collector)");
+            sample->SetThreadId(std::string("GC"));
+            sample->SetThreadName(std::string("CLR thread (garbage collector)"));
             return;
         }
 
-        sample->SetThreadId("<0> [#0]");
-        sample->SetThreadName("Managed thread (name unknown) [#0]");
+        sample->SetThreadId(std::string("<0> [#0]"));
+        sample->SetThreadName(std::string("Managed thread (name unknown) [#0]"));
 
         return;
     }

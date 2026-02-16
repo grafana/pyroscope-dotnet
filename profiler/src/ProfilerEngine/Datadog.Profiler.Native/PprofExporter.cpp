@@ -103,3 +103,4 @@ void PprofExporter::RegisterProcessSamplesProvider(ISamplesProvider* provider)
     _processSamplesProviders.push_back(provider);
 };
 void PprofExporter::RegisterApplication(std::string_view runtimeId) {};
+void PprofExporter::RegisterGcSettingsProvider(IGcSettingsProvider* provider) {};
