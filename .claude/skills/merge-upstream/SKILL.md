@@ -1,6 +1,6 @@
 ---
 description: Merge upstream dd-trace-dotnet changes into the pyroscope-dotnet fork
-allowed-tools: Bash(git *), Bash(cmake *), Bash(make *), Bash(rm -rf _merge_upstreamm_build), Bash(gh *), Bash(git add -A && git commit *), Bash(CXX=clang++ CC=clang cmake *), Bash(*/.claude/skills/merge-upstream/*.sh), Read, Write, Edit, Glob, Grep
+allowed-tools: Bash(git *), Bash(cmake *), Bash(make *), Bash(gh *), Bash(git add -A && git commit *), Bash(*/.claude/skills/merge-upstream/*.sh), Read, Write, Edit, Glob, Grep
 ---
 
 # Merge Upstream
@@ -122,10 +122,9 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
 10. **Resolve conflicts in CMake files first**
    - List all conflicted files: `git diff --name-only --diff-filter=U`
    - Resolve CMake-related conflicts first (`CMakeLists.txt`, `*.cmake` files)
-   - Then remove any stale build directory and verify cmake configures successfully:
+   - Then verify cmake configures successfully:
      ```
-     rm -rf _merge_upstreamm_build
-     CXX=clang++ CC=clang cmake -G "Unix Makefiles" -S . -B _merge_upstreamm_build
+     .claude/skills/merge-upstream/cmake_configure.sh
      ```
      Fix any cmake errors before proceeding to other conflicts.
 
