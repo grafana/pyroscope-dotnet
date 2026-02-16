@@ -158,3 +158,7 @@ The scripts bellow should be executed as is, as executable, without passing it t
     git push -u origin kk/fork-update-<version>
     gh pr create --draft --repo grafana/pyroscope-dotnet --base <base> --label "upstream-merge" --title "merge upstream <tag>" --body "Merge upstream dd-trace-dotnet <tag> into the fork."
     ```
+
+15. **Generate PR summary**
+    After the PR is created, invoke the `merge-upstream-summary` skill to generate
+    a detailed summary and update the PR description.
