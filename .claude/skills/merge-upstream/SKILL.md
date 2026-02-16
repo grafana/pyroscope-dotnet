@@ -1,6 +1,6 @@
 ---
 description: Merge upstream dd-trace-dotnet changes into the pyroscope-dotnet fork
-allowed-tools: Bash(git *), Bash(cmake *), Bash(make *), Bash(rm -rf _merge_upstreamm_build), Bash(gh *), Bash(git add -A && git commit *), Bash(CXX=clang++ CC=clang cmake *), Bash(cmake --build *), Bash(*/.claude/skills/merge-upstream/*.sh), Read, Write, Edit, Glob, Grep
+allowed-tools: Bash(git *), Bash(cmake *), Bash(make *), Bash(rm -rf _merge_upstreamm_build), Bash(gh *), Bash(git add -A && git commit *), Bash(CXX=clang++ CC=clang cmake *), Bash(*/.claude/skills/merge-upstream/*.sh), Read, Write, Edit, Glob, Grep
 ---
 
 # Merge Upstream
@@ -122,8 +122,9 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
 10. **Resolve conflicts in CMake files first**
    - List all conflicted files: `git diff --name-only --diff-filter=U`
    - Resolve CMake-related conflicts first (`CMakeLists.txt`, `*.cmake` files)
-   - Then verify cmake configures successfully:
+   - Then remove any stale build directory and verify cmake configures successfully:
      ```
+     rm -rf _merge_upstreamm_build
      CXX=clang++ CC=clang cmake -G "Unix Makefiles" -S . -B _merge_upstreamm_build
      ```
      Fix any cmake errors before proceeding to other conflicts.
@@ -137,11 +138,10 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
 12. **Verify the build** (only the targets we use)
 
     **Note:** The build may take significant time (several minutes). Use a generous timeout
-    (e.g. 600000ms). If the build times out, retry the same command — it will resume from
-    where it left off since object files are cached.
+    (e.g. 600000ms). The script always removes the old build directory first.
 
     ```
-    cmake --build _merge_upstreamm_build --target Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64 -j$(nproc)
+    .claude/skills/merge-upstream/build.sh
     ```
 
     Report any build errors and fix them before committing.
