@@ -1,6 +1,6 @@
 ---
 description: Merge upstream dd-trace-dotnet changes into the pyroscope-dotnet fork
-allowed-tools: Bash(git *), Bash(cmake *), Bash(make *), Bash(gh *), Bash(git add -A && git commit *), Bash(*/.claude/skills/merge-upstream/*.sh), Read, Write, Edit, Glob, Grep
+allowed-tools: Bash(git *), Bash(cmake *), Bash(make *), Bash(gh *), Bash(gh pr create *), Bash(git add -A && git commit *), Bash(*/.claude/skills/merge-upstream/*.sh), Read, Write, Edit, Glob, Grep
 ---
 
 # Merge Upstream
@@ -156,5 +156,5 @@ The scripts bellow should be executed as is, as executable, without passing it t
 14. **Push and create a draft PR**
     ```
     git push -u origin kk/fork-update-<version>
-    gh pr create --draft --repo grafana/pyroscope-dotnet --base <base> --title "merge upstream <tag>" --body "Merge upstream dd-trace-dotnet <tag> into the fork."
+    gh pr create --draft --repo grafana/pyroscope-dotnet --base <base> --label "upstream-merge" --title "merge upstream <tag>" --body "Merge upstream dd-trace-dotnet <tag> into the fork."
     ```
