@@ -1,6 +1,6 @@
 ---
 description: Merge upstream dd-trace-dotnet changes into the pyroscope-dotnet fork
-allowed-tools: Bash(git *), Bash(cmake *), Bash(rm -rf _merge_upstreamm_build), Bash(gh *), Read, Write, Edit, Glob, Grep
+allowed-tools: Bash(git *), Bash(cmake *), Bash(make *), Bash(rm -rf _merge_upstreamm_build), Bash(gh *), Bash(git status --porcelain *), Read, Write, Edit, Glob, Grep
 ---
 
 # Merge Upstream
@@ -58,11 +58,12 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
    git fetch upstream --tags
    ```
 
-2. **Verify the target tag exists upstream**
+2. **Verify the target tag exists on the upstream remote**
    ```
-   git tag -l <tag>
+   git ls-remote --tags upstream refs/tags/<tag>
    ```
-   If the tag does not exist, **abort** — inform the user and stop. Do not proceed.
+   If the output is empty, the tag does not exist upstream — **abort** and inform the user.
+   Do not rely on `git tag -l` as it only checks local refs which may be stale or wrong.
 
 3. **Create a merge branch from the chosen base**
    ```
@@ -96,12 +97,12 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
 
 7. **Clean up files deleted by us but modified upstream (DU conflicts)**
    ```
-   git status --porcelain | grep '^DU ' | cut -c4- | xargs -r git rm -f
+   git status --porcelain | grep '^DU ' | cut -c4- | xargs -r git rm -f; echo "DU conflicts done"
    ```
 
 8. **Remove any upstream .github files that were added**
    ```
-   git status --porcelain | grep '^A ' | grep .github | cut -c4- | xargs -r git rm -f
+   git status --porcelain | grep '^A ' | grep .github | cut -c4- | xargs -r git rm -f; echo "upstream .github additions removed"
    ```
 
 9. **Resolve `.github/CODEOWNERS` — always keep the fork version**
@@ -118,7 +119,7 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
    - Resolve CMake-related conflicts first (`CMakeLists.txt`, `*.cmake` files)
    - Then verify cmake configures successfully:
      ```
-     CXX=clang++ CC=clang cmake -S . -B _merge_upstreamm_build
+     CXX=clang++ CC=clang cmake -G "Unix Makefiles" -S . -B _merge_upstreamm_build
      ```
      Fix any cmake errors before proceeding to other conflicts.
 
@@ -129,6 +130,10 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
    - Ask the user when unsure which side to keep
 
 12. **Verify the build** (only the targets we use)
+
+    **Note:** The build may take significant time (several minutes). Use a generous timeout
+    (e.g. 600000ms). If the build times out, retry the same command — it will resume from
+    where it left off since object files are cached.
 
     ```
     cmake --build _merge_upstreamm_build --target Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64 -j$(nproc)
