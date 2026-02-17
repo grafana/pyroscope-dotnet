@@ -19,8 +19,8 @@ class ManagedCodeCache;
 class FrameStore : public IFrameStore
 {
 private:
-    const std::string UnknownManagedFrame = "!Unknown-Type.Unknown-Method";
-    const std::string UnknownManagedType = "!Unknown-Type";
+    const std::string UnknownManagedFrame = "|lm:Unknown-Assembly |ns: |ct:Unknown-Type |cg: |fn:Unknown-Method |fg: |sg:(?)";
+    const std::string UnknownManagedType = "|lm:Unknown-Assembly |ns: |ct:Unknown-Type |cg: ";
     const std::string UnknownManagedAssembly = "Unknown-Assembly";
 
 private:
