@@ -93,12 +93,13 @@ public:
 
 public:
     RawSampleCollectorBase(
+        ProfileType type,
         const char* name,
         std::vector<SampleValueTypeProvider::Offset> valueOffsets,
         RawSampleTransformer* rawSampleTransformer,
         RingBuffer* ringBuffer,
         MetricsRegistry& metricsRegistry) :
-        ProviderBase(name),
+        ProviderBase(type, name),
         _valueOffsets{std::move(valueOffsets)},
         _rawSampleTransformer{rawSampleTransformer},
         _collectedSamples{ringBuffer},

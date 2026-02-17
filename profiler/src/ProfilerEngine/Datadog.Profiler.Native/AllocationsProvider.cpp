@@ -26,14 +26,14 @@
 
 std::vector<SampleValueType> AllocationsProvider::SampleTypeDefinitions(
     {
-        {"alloc_samples", "count", -1, SampleValueType::ProfileType::ALLOC},
-        {"alloc_size", "bytes", -1, SampleValueType::ProfileType::ALLOC}
+        {"alloc_samples", "count", -1},
+        {"alloc_size", "bytes", -1}
     }
 );
 
 std::vector<SampleValueType> AllocationsProvider::FrameworkSampleTypeDefinitions(
     {
-        {"alloc_samples", "count", -1, SampleValueType::ProfileType::ALLOC},
+        {"alloc_samples", "count", -1},
     }
 );
 
@@ -75,7 +75,7 @@ AllocationsProvider::AllocationsProvider(
     MetricsRegistry& metricsRegistry,
     CallstackProvider pool,
     shared::pmr::memory_resource* memoryResource) :
-    CollectorBase<RawAllocationSample>("AllocationsProvider", std::move(valueTypes), rawSampleTransformer, memoryResource),
+    CollectorBase<RawAllocationSample>(ProfileType::ALLOC, "AllocationsProvider", std::move(valueTypes), rawSampleTransformer, memoryResource),
     _pCorProfilerInfo(pCorProfilerInfo),
     _pManagedThreadList(pManagedThreadList),
     _pFrameStore(pFrameStore),

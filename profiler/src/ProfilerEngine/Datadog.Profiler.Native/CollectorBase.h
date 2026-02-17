@@ -53,12 +53,13 @@ class CollectorBase
 {
 public:
     CollectorBase<TRawSample>(
+        ProfileType type,
         const char* name,
         std::vector<SampleValueTypeProvider::Offset> valueOffsets,
         RawSampleTransformer* rawSampleTransformer,
         shared::pmr::memory_resource* memoryResource)
         :
-        ProviderBase(name),
+        ProviderBase(type, name),
         _valueOffsets{std::move(valueOffsets)},
         _rawSampleTransformer{rawSampleTransformer},
         _collectedSamples{memoryResource}

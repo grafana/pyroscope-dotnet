@@ -13,8 +13,8 @@
 
 std::vector<SampleValueType> CpuTimeProvider::SampleTypeDefinitions(
 {
-    {"cpu", "nanoseconds", -1, SampleValueType::ProfileType::PROCESS_CPU},
-    {"cpu_samples", "count", -1, SampleValueType::ProfileType::PROCESS_CPU}}
+    {"cpu", "nanoseconds", -1},
+    {"cpu_samples", "count", -1}}
 );
 
 CpuTimeProvider::CpuTimeProvider(
@@ -23,6 +23,6 @@ CpuTimeProvider::CpuTimeProvider(
     shared::pmr::memory_resource* memoryResource
     )
     :
-    CollectorBase<RawCpuSample>("CpuTimeProvider", valueTypeProvider.GetOrRegister(SampleTypeDefinitions), rawSampleTransformer, memoryResource)
+    CollectorBase<RawCpuSample>(ProfileType::PROCESS_CPU, "CpuTimeProvider", valueTypeProvider.GetOrRegister(SampleTypeDefinitions), rawSampleTransformer, memoryResource)
 {
 }

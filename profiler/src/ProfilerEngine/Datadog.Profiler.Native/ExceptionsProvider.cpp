@@ -18,7 +18,7 @@
 
 std::vector<SampleValueType> ExceptionsProvider::SampleTypeDefinitions(
     {
-        {"exception", "count", -1, SampleValueType::ProfileType::EXCEPTION}
+        {"exception", "count", -1}
     });
 
 ExceptionsProvider::ExceptionsProvider(
@@ -32,7 +32,7 @@ ExceptionsProvider::ExceptionsProvider(
     CallstackProvider callstackProvider,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawExceptionSample>("ExceptionsProvider", valueTypeProvider.GetOrRegister(SampleTypeDefinitions), rawSampleTransformer, memoryResource),
+    CollectorBase<RawExceptionSample>(ProfileType::EXCEPTION, "ExceptionsProvider", valueTypeProvider.GetOrRegister(SampleTypeDefinitions), rawSampleTransformer, memoryResource),
     _pCorProfilerInfo(pCorProfilerInfo),
     _pManagedThreadList(pManagedThreadList),
     _pFrameStore(pFrameStore),
