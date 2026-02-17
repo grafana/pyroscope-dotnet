@@ -29,6 +29,19 @@ struct SampleValueType
     // For libdatadog, it means that they will be stored in the same profile
     // This value will be set when registering the SampleValueType with SampleValueTypeProvider
     int32_t Index; // -1 means not set
+
+    enum class ProfileType
+    {
+        PROCESS_CPU,
+        HEAP,
+        ALLOC,
+        LOCK,
+        EXCEPTION,
+        NETWORK,
+        WALL,
+    };
+
+    ProfileType ProfileType;
 };
 
 typedef std::vector<int64_t> Values;

@@ -13,7 +13,7 @@
 
 std::vector<SampleValueType> NetworkProvider::SampleTypeDefinitions(
 {
-    {"request_time", "nanoseconds", -1}
+    {"request_time", "nanoseconds", -1, SampleValueType::ProfileType::NETWORK}
 });
 
 

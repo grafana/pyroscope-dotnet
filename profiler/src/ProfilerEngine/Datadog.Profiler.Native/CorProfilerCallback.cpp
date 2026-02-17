@@ -599,8 +599,7 @@ void CorProfilerCallback::InitializeServices()
         _pConfiguration->PyroscopeTenantID(),
         PyroscopePprofSink::ParseHeadersJSON(std::move(_pConfiguration->PyroscopeHttpHeaders())),
         _pConfiguration->GetUserTags());
-    _pExporter = std::make_unique<PprofExporter>(_pApplicationStore,
-                                                 _pyroscopePprofSink,
+    _pExporter = std::make_unique<PprofExporter>(_pyroscopePprofSink,
                                                  sampleTypeDefinitions);
 
     if (_pConfiguration->IsGcThreadsCpuTimeEnabled() &&

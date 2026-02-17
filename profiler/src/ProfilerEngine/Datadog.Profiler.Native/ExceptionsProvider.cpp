@@ -18,7 +18,7 @@
 
 std::vector<SampleValueType> ExceptionsProvider::SampleTypeDefinitions(
     {
-        {"exception", "count", -1}
+        {"exception", "count", -1, SampleValueType::ProfileType::EXCEPTION}
     });
 
 ExceptionsProvider::ExceptionsProvider(

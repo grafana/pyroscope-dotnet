@@ -26,14 +26,14 @@
 
 std::vector<SampleValueType> AllocationsProvider::SampleTypeDefinitions(
     {
-        {"alloc_samples", "count", -1},
-        {"alloc_size", "bytes", -1}
+        {"alloc_samples", "count", -1, SampleValueType::ProfileType::ALLOC},
+        {"alloc_size", "bytes", -1, SampleValueType::ProfileType::ALLOC}
     }
 );
 
 std::vector<SampleValueType> AllocationsProvider::FrameworkSampleTypeDefinitions(
     {
-        {"alloc_samples", "count", -1},
+        {"alloc_samples", "count", -1, SampleValueType::ProfileType::ALLOC},
     }
 );
 

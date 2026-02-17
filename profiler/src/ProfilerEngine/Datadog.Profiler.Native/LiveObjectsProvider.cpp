@@ -16,8 +16,8 @@
 
 std::vector<SampleValueType> LiveObjectsProvider::SampleTypeDefinitions(
 {
-    {"inuse_objects", "count", -1},
-    {"inuse_space", "bytes", -1}
+    {"inuse_objects", "count", -1, SampleValueType::ProfileType::HEAP},
+    {"inuse_space", "bytes", -1, SampleValueType::ProfileType::HEAP}
 });
 
 const std::string LiveObjectsProvider::Gen1("1");
