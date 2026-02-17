@@ -26,7 +26,7 @@ StopTheWorldGCProvider::StopTheWorldGCProvider(
     RawSampleTransformer* rawSampleTransformer,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawStopTheWorldSample>("StopTheWorldGCProvider", valueTypeProvider.GetOrRegister(TimelineSampleType::Definitions), rawSampleTransformer, memoryResource)
+    CollectorBase<RawStopTheWorldSample>(ProfileType::STOP_THE_WORLD_GC,"StopTheWorldGCProvider", valueTypeProvider.GetOrRegister(TimelineSampleType::Definitions), rawSampleTransformer, memoryResource)
 {
 }
 

@@ -13,7 +13,7 @@ ThreadLifetimeProvider::ThreadLifetimeProvider(
     shared::pmr::memory_resource* memoryResource)
     :
     CollectorBase<RawThreadLifetimeSample>(
-        "ThreadLifetimeProvider", valueTypeProvider.GetOrRegister(TimelineSampleType::Definitions), rawSampleTransformer, memoryResource)
+        ProfileType::THREAD_LIFETIME,"ThreadLifetimeProvider", valueTypeProvider.GetOrRegister(TimelineSampleType::Definitions), rawSampleTransformer, memoryResource)
 {
 }
 

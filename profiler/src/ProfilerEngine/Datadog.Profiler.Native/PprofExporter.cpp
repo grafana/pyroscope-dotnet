@@ -8,10 +8,8 @@
 #include "Log.h"
 #include <signal.h>
 
-PprofExporter::PprofExporter(IApplicationStore* applicationStore,
-                             std::shared_ptr<PProfExportSink> sink,
+PprofExporter::PprofExporter(std::shared_ptr<PProfExportSink> sink,
                              std::vector<SampleValueType> sampleTypeDefinitions) :
-    _applicationStore(applicationStore),
     _sink(std::move(sink)),
     _sampleTypeDefinitions(sampleTypeDefinitions),
     _processSampleTypeDefinitions(_sampleTypeDefinitions)

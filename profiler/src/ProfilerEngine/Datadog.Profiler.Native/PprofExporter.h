@@ -33,8 +33,7 @@ class PprofExporter : public IExporter
 {
 
 public:
-    PprofExporter(IApplicationStore* _applicationStore,
-                  std::shared_ptr<PProfExportSink> sin,
+    PprofExporter(std::shared_ptr<PProfExportSink> sin,
                   std::vector<SampleValueType> sampleTypeDefinitions);
     void Add(std::shared_ptr<Sample> const& sample) override;
     void SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint) override;
@@ -48,7 +47,6 @@ public:
 private:
     PprofBuilder& GetPprofBuilder(std::string_view runtimeId);
 
-    IApplicationStore* _applicationStore;
     std::shared_ptr<PProfExportSink> _sink;
     std::vector<SampleValueType> _sampleTypeDefinitions;
     std::vector<SampleValueType> _processSampleTypeDefinitions;

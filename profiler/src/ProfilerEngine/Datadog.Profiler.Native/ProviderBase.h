@@ -12,9 +12,10 @@
 class ProviderBase : public ISamplesProvider
 {
 public:
-    ProviderBase(const char* name);
+    ProviderBase(ProfileType type, const char* name);
     const char* GetName() override;
 
 protected:
     std::string _name;
+    ProfileType _type;
 };

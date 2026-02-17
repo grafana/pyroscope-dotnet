@@ -40,7 +40,7 @@ ContentionProvider::ContentionProvider(
     CallstackProvider callstackProvider,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawContentionSample>("ContentionProvider", valueTypeProvider.GetOrRegister(SampleTypeDefinitions), rawSampleTransformer, memoryResource),
+    CollectorBase<RawContentionSample>(ProfileType::LOCK, "ContentionProvider", valueTypeProvider.GetOrRegister(SampleTypeDefinitions), rawSampleTransformer, memoryResource),
     _pCorProfilerInfo{pCorProfilerInfo},
     _pManagedThreadList{pManagedThreadList},
     // keep at least 1 sampled lock contention per bucket so we will at least see long one if any

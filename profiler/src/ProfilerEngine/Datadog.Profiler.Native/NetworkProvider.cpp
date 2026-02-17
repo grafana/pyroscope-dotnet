@@ -28,6 +28,7 @@ NetworkProvider::NetworkProvider(
     shared::pmr::memory_resource* memoryResource)
     :
     CollectorBase<RawNetworkSample>(
+        ProfileType::NETWORK,
         "NetworkProvider",
         valueTypeProvider.GetOrRegister(SampleTypeDefinitions),
         rawSampleTransformer,

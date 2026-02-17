@@ -19,6 +19,21 @@
 
 #include "async_ref_counted_string.h"
 
+enum class ProfileType
+{
+    PROCESS_CPU,
+    GC,
+    HEAP,
+    ALLOC,
+    LOCK,
+    EXCEPTION,
+    NETWORK,
+    WALL,
+
+    THREAD_LIFETIME,
+    STOP_THE_WORLD_GC,
+};
+
 
 struct SampleValueType
 {
@@ -29,6 +44,7 @@ struct SampleValueType
     // For libdatadog, it means that they will be stored in the same profile
     // This value will be set when registering the SampleValueType with SampleValueTypeProvider
     int32_t Index; // -1 means not set
+
 };
 
 typedef std::vector<int64_t> Values;
@@ -142,6 +158,7 @@ public:
         _callstack.clear();
         _runtimeId = {};
         _allLabels.clear();
+        _profileType = ProfileType::PROCESS_CPU;
         std::fill(_values.begin(), _values.end(), 0);
     }
     // well known labels
@@ -194,4 +211,5 @@ private:
     Values _values;
     Labels _allLabels;
     std::string_view _runtimeId;
+    ProfileType _profileType;
 };

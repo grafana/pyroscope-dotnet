@@ -5,9 +5,10 @@
 #include "Log.h"
 #include "Sample.h"
 
-ProviderBase::ProviderBase(const char* name)
+ProviderBase::ProviderBase(ProfileType type, const char* name)
     :
-    _name {name}
+    _name{name},
+    _type{type}
 {
 }
 
