@@ -552,11 +552,6 @@ void CorProfilerCallback::InitializeServices()
         }
     }
 
-    // Avoid iterating twice on all providers in order to inject this value in each constructor
-    // and store it in CollectorBase so it can be used in TransformRawSample (where the sample is created)
-    auto const& sampleTypeDefinitions = valueTypeProvider.GetValueTypes();
-    Sample::ValuesCount = sampleTypeDefinitions.size();
-
     _pStackSamplerLoopManager = RegisterService<StackSamplerLoopManager>(
         _pCorProfilerInfo,
         _pConfiguration.get(),
@@ -600,8 +595,7 @@ void CorProfilerCallback::InitializeServices()
         PyroscopePprofSink::ParseHeadersJSON(std::move(_pConfiguration->PyroscopeHttpHeaders())),
         _pConfiguration->GetUserTags());
     _pExporter = std::make_unique<PprofExporter>(_pApplicationStore,
-                                                 _pyroscopePprofSink,
-                                                 sampleTypeDefinitions);
+                                                 _pyroscopePprofSink);
 
     if (_pConfiguration->IsGcThreadsCpuTimeEnabled() &&
         _pConfiguration->IsCpuProfilingEnabled() && // CPU profiling must be enabled

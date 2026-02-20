@@ -5,7 +5,7 @@
 #include "PprofBuilder.h"
 #include "Log.h"
 
-PprofBuilder::PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions) :
+PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions) :
     _sampleTypeDefinitions(sampleTypeDefinitions)
 {
     Reset();
@@ -14,7 +14,10 @@ PprofBuilder::PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions) 
 void PprofBuilder::AddSample(const Sample& sample)
 {
     auto& values = sample.GetValues();
+    auto sampleTypes = sample.GetSampleTypes();
+    assert(sampleTypes != nullptr);
     assert(values.size() == _sampleTypeDefinitions.size());
+    assert(*sampleTypes == _sampleTypeDefinitions);
     std::lock_guard<std::mutex> lock(this->_lock);
     auto* pSample = _profile.add_sample();
     for (auto const& frame : sample.GetCallstack())

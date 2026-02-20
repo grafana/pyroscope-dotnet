@@ -18,7 +18,7 @@ using namespace std::chrono_literals;
 NativeThreadsCpuProviderBase::NativeThreadsCpuProviderBase(SampleValueTypeProvider& valueTypeProvider, RawSampleTransformer* sampleTransformer) :
     _sampleTransformer{sampleTransformer},
     _previousTotalCpuTime{0},
-    _valueOffsets{valueTypeProvider.GetOrRegister(CpuTimeProvider::SampleTypeDefinitions)}
+    _sampleTypes{valueTypeProvider.GetOrRegister(SampleProfileType::ProcessCpu, std::vector<SampleValueType>{{"gc_cpu", "nanoseconds"}, {"gc_cpu_samples", "count"}})}
 {
 }
 
@@ -87,9 +87,9 @@ std::unique_ptr<SamplesEnumerator> NativeThreadsCpuProviderBase::GetSamples()
     RawCpuSample rawSample;
     rawSample.Duration = cpuTime;
 
-    // Cpu Time provider knows the offset of the Cpu value
-    // So leave the transformation to it
-    auto sample = _sampleTransformer->Transform(rawSample, _valueOffsets);
+    // CPU time process samples already have their explicit sample type definitions
+    // so the transformer can map values in-order
+    auto sample = _sampleTransformer->Transform(rawSample, _sampleTypes, SampleProfileType::ProcessCpu);
 
     // The resulting callstack of the transformation is empty
     // Add a fake "GC" frame to the sample

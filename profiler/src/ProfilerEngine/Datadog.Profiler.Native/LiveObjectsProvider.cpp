@@ -16,8 +16,8 @@
 
 std::vector<SampleValueType> LiveObjectsProvider::SampleTypeDefinitions(
 {
-    {"inuse_objects", "count", -1},
-    {"inuse_space", "bytes", -1}
+    {"inuse_objects", "count"},
+    {"inuse_space", "bytes"}
 });
 
 const std::string LiveObjectsProvider::Gen1("1");
@@ -31,7 +31,7 @@ LiveObjectsProvider::LiveObjectsProvider(
     :
     _pCorProfilerInfo(pCorProfilerInfo),
     _rawSampleTransformer{rawSampleTransformer},
-    _valueOffsets{valueTypeProvider.GetOrRegister(LiveObjectsProvider::SampleTypeDefinitions)}
+    _sampleTypes{valueTypeProvider.GetOrRegister(SampleProfileType::Heap, LiveObjectsProvider::SampleTypeDefinitions)}
 {
     _heapHandleLimit = pConfiguration->GetHeapHandleLimit();
 }
@@ -157,7 +157,7 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
         if (handle != nullptr)
         {
             LiveObjectInfo info(
-                _rawSampleTransformer->Transform(rawSample, _valueOffsets),
+                _rawSampleTransformer->Transform(rawSample, _sampleTypes, SampleProfileType::Heap),
                 rawSample.Address,
                 rawSample.Timestamp);
             info.SetHandle(handle);

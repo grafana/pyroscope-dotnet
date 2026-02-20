@@ -52,7 +52,7 @@ public:
         shared::pmr::memory_resource* memoryResource);
 
     AllocationsProvider(
-        std::vector<SampleValueTypeProvider::Offset> valueTypeProvider,
+        std::vector<SampleValueType> valueTypeProvider,
         ICorProfilerInfo4* pCorProfilerInfo,
         IManagedThreadList* pManagedThreadList,
         IFrameStore* pFrameStore,

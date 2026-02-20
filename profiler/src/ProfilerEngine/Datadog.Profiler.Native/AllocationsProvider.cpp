@@ -26,14 +26,14 @@
 
 std::vector<SampleValueType> AllocationsProvider::SampleTypeDefinitions(
     {
-        {"alloc_samples", "count", -1},
-        {"alloc_size", "bytes", -1}
+        {"alloc_samples", "count"},
+        {"alloc_size", "bytes"}
     }
 );
 
 std::vector<SampleValueType> AllocationsProvider::FrameworkSampleTypeDefinitions(
     {
-        {"alloc_samples", "count", -1},
+        {"alloc_samples", "count"},
     }
 );
 
@@ -52,8 +52,8 @@ AllocationsProvider::AllocationsProvider(
     :
     AllocationsProvider(
         isFramework
-            ? valueTypeProvider.GetOrRegister(FrameworkSampleTypeDefinitions)
-            : valueTypeProvider.GetOrRegister(SampleTypeDefinitions),
+            ? valueTypeProvider.GetOrRegister(SampleProfileType::Allocation, FrameworkSampleTypeDefinitions)
+            : valueTypeProvider.GetOrRegister(SampleProfileType::Allocation, SampleTypeDefinitions),
         pCorProfilerInfo, pManagedThreadList, pFrameStore,
         rawSampleTransformer,
         pConfiguration,
@@ -65,7 +65,7 @@ AllocationsProvider::AllocationsProvider(
 }
 
 AllocationsProvider::AllocationsProvider(
-    std::vector<SampleValueTypeProvider::Offset> valueTypes,
+    std::vector<SampleValueType> valueTypes,
     ICorProfilerInfo4* pCorProfilerInfo,
     IManagedThreadList* pManagedThreadList,
     IFrameStore* pFrameStore,
@@ -75,7 +75,7 @@ AllocationsProvider::AllocationsProvider(
     MetricsRegistry& metricsRegistry,
     CallstackProvider pool,
     shared::pmr::memory_resource* memoryResource) :
-    CollectorBase<RawAllocationSample>("AllocationsProvider", std::move(valueTypes), rawSampleTransformer, memoryResource),
+    CollectorBase<RawAllocationSample>("AllocationsProvider", std::move(valueTypes), SampleProfileType::Allocation, rawSampleTransformer, memoryResource),
     _pCorProfilerInfo(pCorProfilerInfo),
     _pManagedThreadList(pManagedThreadList),
     _pFrameStore(pFrameStore),
@@ -356,7 +356,7 @@ void AllocationsProvider::OnAllocation(std::chrono::nanoseconds timestamp,
 
 UpscalingPoissonInfo AllocationsProvider::GetPoissonInfo()
 {
-    auto const& offsets = GetValueOffsets(); //              sum(size)       count
+    static const std::vector<std::uintptr_t> offsets{0, 1};
     UpscalingPoissonInfo info{ offsets, AllocTickThreshold, offsets[1], offsets[0] };
     return info;
 }

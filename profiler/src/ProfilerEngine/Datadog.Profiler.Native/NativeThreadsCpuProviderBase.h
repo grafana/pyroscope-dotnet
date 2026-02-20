@@ -33,5 +33,5 @@ private:
 private:
     RawSampleTransformer* _sampleTransformer;
     std::chrono::milliseconds _previousTotalCpuTime;
-    std::vector<SampleValueTypeProvider::Offset> _valueOffsets;
+    std::vector<SampleValueType> _sampleTypes;
 };

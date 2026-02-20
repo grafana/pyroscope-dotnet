@@ -18,7 +18,7 @@
 
 std::vector<SampleValueType> ExceptionsProvider::SampleTypeDefinitions(
     {
-        {"exception", "count", -1}
+        {"exception", "count"}
     });
 
 ExceptionsProvider::ExceptionsProvider(
@@ -32,7 +32,7 @@ ExceptionsProvider::ExceptionsProvider(
     CallstackProvider callstackProvider,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawExceptionSample>("ExceptionsProvider", valueTypeProvider.GetOrRegister(SampleTypeDefinitions), rawSampleTransformer, memoryResource),
+    CollectorBase<RawExceptionSample>("ExceptionsProvider", valueTypeProvider.GetOrRegister(SampleProfileType::Exception, SampleTypeDefinitions), SampleProfileType::Exception, rawSampleTransformer, memoryResource),
     _pCorProfilerInfo(pCorProfilerInfo),
     _pManagedThreadList(pManagedThreadList),
     _pFrameStore(pFrameStore),
@@ -208,7 +208,7 @@ bool ExceptionsProvider::GetExceptionType(ClassID classId, std::string& exceptio
 
 std::list<UpscalingInfo> ExceptionsProvider::GetInfos()
 {
-    return {{GetValueOffsets(), Sample::ExceptionTypeLabel, _sampler.GetGroups()}};
+    return {{GetSampleTypes(), Sample::ExceptionTypeLabel, _sampler.GetGroups()}};
 }
 
 bool ExceptionsProvider::LoadExceptionMetadata()

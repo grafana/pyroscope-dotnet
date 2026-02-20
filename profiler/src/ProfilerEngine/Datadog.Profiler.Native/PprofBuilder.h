@@ -16,7 +16,7 @@ class PprofBuilder
 {
 
 public:
-    PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions);
+    PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions);
 
     void AddSample(const Sample& sample);
     int SamplesCount();
@@ -32,6 +32,6 @@ private:
     google::v1::Profile _profile;
     std::map<std::string_view, int64_t> _strings;
     std::map<std::pair<int64_t, int64_t>, int64_t> _locations;
-    std::vector<SampleValueType>& _sampleTypeDefinitions;
+    std::vector<SampleValueType> _sampleTypeDefinitions;
 
 };

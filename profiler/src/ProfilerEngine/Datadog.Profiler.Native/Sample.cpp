@@ -49,10 +49,6 @@ const std::string Sample::ResponseContentDurationLabel = "response_content.durat
 const std::string Sample::RequestResponseThreadIdLabel = "response.thread_id";
 const std::string Sample::RequestResponseThreadNameLabel = "response.thread_name";
 
-// TODO: update the values vector size if more than 16 slots are needed
-size_t Sample::ValuesCount = 16;  // should be set BEFORE any sample gets created
-
-
 Sample::Sample(std::chrono::nanoseconds timestamp, std::string_view runtimeId, size_t framesCount) :
     Sample(runtimeId)
 {
@@ -63,11 +59,13 @@ Sample::Sample(std::chrono::nanoseconds timestamp, std::string_view runtimeId, s
 }
 
 Sample::Sample(std::string_view runtimeId) :
-    _values(ValuesCount),
+    _values{},
     _timestamp{0},
     _allLabels{},
     _callstack{},
-    _runtimeId{runtimeId}
+    _runtimeId{runtimeId},
+    _sampleTypes{nullptr},
+    _profileType{SampleProfileType::Unknown}
 {
 }
 
@@ -87,21 +85,12 @@ const Values& Sample::GetValues() const
 /// <param name="value"></param>
 void Sample::SetValue(std::int64_t value)
 {
-    _values[0] = value;
+    _values = {value};
 }
 
-void Sample::AddValue(std::int64_t value, size_t index)
+void Sample::AddValue(std::int64_t value)
 {
-    if (index >= ValuesCount)
-    {
-        // TODO: fix compilation error about std::stringstream
-        // std::stringstream builder;
-        // builder << "\"index\" (=" << index << ") is greater than limit (=" << array_size << ")";
-        // throw std::invalid_argument(builder.str());
-        throw std::invalid_argument("index");
-    }
-
-    _values[index] = value;
+    _values.push_back(value);
 }
 
 void Sample::AddFrame(FrameInfoView const& frame)
@@ -122,4 +111,27 @@ std::string_view Sample::GetRuntimeId() const
 const Labels& Sample::GetLabels() const
 {
     return _allLabels;
+}
+
+void Sample::SetSampleTypes(std::vector<SampleValueType> const& sampleTypes)
+{
+    _sampleTypes = &sampleTypes;
+    _values.clear();
+    _values.reserve(sampleTypes.size());
+}
+
+std::vector<SampleValueType> const* Sample::GetSampleTypes() const
+{
+    return _sampleTypes;
+}
+
+
+void Sample::SetProfileType(SampleProfileType profileType)
+{
+    _profileType = profileType;
+}
+
+SampleProfileType Sample::GetProfileType() const
+{
+    return _profileType;
 }

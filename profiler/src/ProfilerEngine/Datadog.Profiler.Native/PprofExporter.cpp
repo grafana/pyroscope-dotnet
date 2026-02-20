@@ -9,22 +9,10 @@
 #include <signal.h>
 
 PprofExporter::PprofExporter(IApplicationStore* applicationStore,
-                             std::shared_ptr<PProfExportSink> sink,
-                             std::vector<SampleValueType> sampleTypeDefinitions) :
+                             std::shared_ptr<PProfExportSink> sink) :
     _applicationStore(applicationStore),
-    _sink(std::move(sink)),
-    _sampleTypeDefinitions(sampleTypeDefinitions),
-    _processSampleTypeDefinitions(_sampleTypeDefinitions)
+    _sink(std::move(sink))
 {
-    for (auto& sampleType : _processSampleTypeDefinitions)
-    {
-        if (sampleType.Name == "cpu")
-        {
-            sampleType.Name = "gc_cpu";
-        }
-    }
-
-    _processSamplesBuilder = std::make_unique<PprofBuilder>(_processSampleTypeDefinitions);
     signal(SIGPIPE, SIG_IGN);
 }
 
@@ -34,8 +22,8 @@ PProfExportSink::~PProfExportSink()
 
 void PprofExporter::Add(std::shared_ptr<Sample> const& sample)
 {
-    GetPprofBuilder(sample->GetRuntimeId())
-        .AddSample(*sample);
+    std::lock_guard lock(_appBuildersLock);
+    AddSample(sample, _appBuilders);
 }
 
 void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint)
@@ -44,10 +32,23 @@ void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, 
 
 bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool lastCall)
 {
+    {
+        std::lock_guard lock(_processSamplesLock);
+        for (auto provider : _processSamplesProviders)
+        {
+            auto samplesEnumerator = provider->GetSamples();
+            std::shared_ptr<Sample> sample;
+            while (samplesEnumerator->MoveNext(sample))
+            {
+                AddSample(sample, _processBuilders);
+            }
+        }
+    }
+
     std::vector<std::string> pprofs;
     {
-        std::lock_guard lock(_perAppBuilderLock);
-        for (auto& builder : _perAppBuilder)
+        std::lock_guard lock(_appBuildersLock);
+        for (auto& builder : _appBuilders)
         {
             if (builder.second->SamplesCount() != 0)
             {
@@ -58,19 +59,12 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
 
     {
         std::lock_guard lock(_processSamplesLock);
-        for (auto provider : _processSamplesProviders)
+        for (auto& builder : _processBuilders)
         {
-            auto samplesEnumerator = provider->GetSamples();
-            std::shared_ptr<Sample> sample;
-            while (samplesEnumerator->MoveNext(sample))
+            if (builder.second->SamplesCount() != 0)
             {
-                _processSamplesBuilder->AddSample(*sample);
+                pprofs.emplace_back(builder.second->Build());
             }
-        }
-
-        if (_processSamplesBuilder->SamplesCount() > 0)
-        {
-            pprofs.emplace_back(_processSamplesBuilder->Build());
         }
     }
 
@@ -81,17 +75,36 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
     return true;
 }
 
-PprofBuilder& PprofExporter::GetPprofBuilder(std::string_view runtimeId)
+void PprofExporter::AddSample(std::shared_ptr<Sample> const& sample, std::map<SampleProfileType, std::unique_ptr<PprofBuilder>>& builders)
 {
-    std::lock_guard lock(_perAppBuilderLock);
-    auto it = _perAppBuilder.find(runtimeId);
-    if (it != _perAppBuilder.end())
+    auto sampleTypes = sample->GetSampleTypes();
+    if (sampleTypes == nullptr)
+    {
+        return;
+    }
+
+    auto profileType = sample->GetProfileType();
+    if (profileType == SampleProfileType::Unknown)
+    {
+        return;
+    }
+
+    GetPprofBuilder(profileType, *sampleTypes, builders).AddSample(*sample);
+}
+
+PprofBuilder& PprofExporter::GetPprofBuilder(SampleProfileType profileType,
+                                             std::vector<SampleValueType> const& sampleTypes,
+                                             std::map<SampleProfileType, std::unique_ptr<PprofBuilder>>& builders)
+{
+    auto it = builders.find(profileType);
+    if (it != builders.end())
     {
         return *it->second;
     }
-    auto instance = std::make_unique<PprofBuilder>(_sampleTypeDefinitions);
-    auto res = _perAppBuilder.emplace(runtimeId, std::move(instance));
-    return *res.first->second;
+
+    auto instance = std::make_unique<PprofBuilder>(sampleTypes);
+    auto result = builders.emplace(profileType, std::move(instance));
+    return *result.first->second;
 }
 
 void PprofExporter::RegisterUpscaleProvider(IUpscaleProvider* provider) {};

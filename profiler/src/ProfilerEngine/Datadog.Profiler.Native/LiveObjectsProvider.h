@@ -87,7 +87,7 @@ private:
     std::mutex _liveObjectsLock;
     std::list<LiveObjectInfo> _monitoredObjects;
     // WeakHandle are checked after each GC
-    std::vector<SampleValueTypeProvider::Offset> _valueOffsets;
+    std::vector<SampleValueType> _sampleTypes;
 
     static const std::string Gen1;
     static const std::string Gen2;

@@ -62,10 +62,9 @@ public:
         return *this;
     }
 
-    inline void OnTransform(std::shared_ptr<Sample>& sample, std::vector<SampleValueTypeProvider::Offset> const& valueOffsets) const override
+    inline void OnTransform(std::shared_ptr<Sample>& sample, std::vector<SampleValueType> const& sampleTypes) const override
     {
-        auto networkCountIndex = valueOffsets[0];
-        sample->AddValue((Timestamp - StartTimestamp).count(), networkCountIndex);
+        sample->AddValue((Timestamp - StartTimestamp).count());
         // Note: we don't need to add the start timestamp as a label because it is computed
         // by the backend from the end timestamp and the duration; i.e. the value of this sample
 

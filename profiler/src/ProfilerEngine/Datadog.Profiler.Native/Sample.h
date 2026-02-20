@@ -20,15 +20,29 @@
 #include "async_ref_counted_string.h"
 
 
+enum class SampleProfileType
+{
+    Unknown,
+    Cpu,
+    Wall,
+    Allocation,
+    Heap,
+    Contention,
+    Exception,
+    Timeline,
+    Network,
+    ProcessCpu
+};
+
 struct SampleValueType
 {
     std::string Name;
     std::string Unit;
 
-    // Samples belonging to the same provider will share the same index
-    // For libdatadog, it means that they will be stored in the same profile
-    // This value will be set when registering the SampleValueType with SampleValueTypeProvider
-    int32_t Index; // -1 means not set
+    bool operator==(SampleValueType const& other) const
+    {
+        return Name == other.Name && Unit == other.Unit;
+    }
 };
 
 typedef std::vector<int64_t> Values;
@@ -47,9 +61,6 @@ using namespace std::chrono_literals;
 
 class Sample final
 {
-public:
-    static size_t ValuesCount;
-
 public:
     Sample(std::chrono::nanoseconds timestamp, std::string_view runtimeId, size_t framesCount);
     Sample(std::string_view runtimeId); // only for tests
@@ -76,7 +87,11 @@ public:
     // should be protected if we want to derive classes from Sample such as WallTimeSample
     // but it seems better for encapsulation to do the transformation between collected raw data
     // and a Sample in each Provider (this is behind CollectorBase template class)
-    void AddValue(std::int64_t value, size_t index);
+    void AddValue(std::int64_t value);
+    void SetSampleTypes(std::vector<SampleValueType> const& sampleTypes);
+    std::vector<SampleValueType> const* GetSampleTypes() const;
+    void SetProfileType(SampleProfileType profileType);
+    SampleProfileType GetProfileType() const;
     void AddFrame(FrameInfoView const& frame);
 
     template <typename T>
@@ -142,7 +157,9 @@ public:
         _callstack.clear();
         _runtimeId = {};
         _allLabels.clear();
-        std::fill(_values.begin(), _values.end(), 0);
+        _values.clear();
+        _sampleTypes = nullptr;
+        _profileType = SampleProfileType::Unknown;
     }
     // well known labels
 public:
@@ -194,4 +211,6 @@ private:
     Values _values;
     Labels _allLabels;
     std::string_view _runtimeId;
+    std::vector<SampleValueType> const* _sampleTypes;
+    SampleProfileType _profileType;
 };

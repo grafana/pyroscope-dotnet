@@ -46,14 +46,11 @@ public:
         return *this;
     }
 
-    void OnTransform(std::shared_ptr<Sample>& sample, std::vector<SampleValueTypeProvider::Offset> const& valueOffsets) const override
+    void OnTransform(std::shared_ptr<Sample>& sample, std::vector<SampleValueType> const& sampleTypes) const override
     {
-        assert(valueOffsets.size() == 2);
-        auto contentionCountIndex = valueOffsets[0];
-        auto contentionDurationIndex = valueOffsets[1];
-
-        sample->AddValue(1, contentionCountIndex);
-        sample->AddValue(ContentionDuration.count(), contentionDurationIndex);
+        assert(sampleTypes.size() == 2);
+        sample->AddValue(1);
+        sample->AddValue(ContentionDuration.count());
     }
 
     std::chrono::nanoseconds ContentionDuration;

@@ -13,7 +13,7 @@
 
 std::vector<SampleValueType> NetworkProvider::SampleTypeDefinitions(
 {
-    {"request_time", "nanoseconds", -1}
+    {"request_time", "nanoseconds"}
 });
 
 
@@ -29,7 +29,8 @@ NetworkProvider::NetworkProvider(
     :
     CollectorBase<RawNetworkSample>(
         "NetworkProvider",
-        valueTypeProvider.GetOrRegister(SampleTypeDefinitions),
+        valueTypeProvider.GetOrRegister(SampleProfileType::Network, SampleTypeDefinitions),
+        SampleProfileType::Network,
         rawSampleTransformer,
         memoryResource),
     _pCorProfilerInfo{ pCorProfilerInfo },

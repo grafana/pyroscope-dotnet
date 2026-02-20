@@ -46,7 +46,7 @@ public:
         return TotalDuration.count();
     }
 
-    inline void DoAdditionalTransform(std::shared_ptr<Sample> sample, std::vector<SampleValueTypeProvider::Offset> const& valueOffsets) const override
+    inline void DoAdditionalTransform(std::shared_ptr<Sample> sample, std::vector<SampleValueType> const& sampleTypes) const override
     {
         sample->AddLabel(StringLabel(Sample::GarbageCollectionReasonLabel, GetReasonText()));
         sample->AddLabel(StringLabel(Sample::GarbageCollectionTypeLabel, GetTypeText()));

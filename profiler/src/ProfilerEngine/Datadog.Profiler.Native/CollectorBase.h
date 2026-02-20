@@ -54,12 +54,14 @@ class CollectorBase
 public:
     CollectorBase<TRawSample>(
         const char* name,
-        std::vector<SampleValueTypeProvider::Offset> valueOffsets,
+        std::vector<SampleValueType> sampleTypes,
+        SampleProfileType profileType,
         RawSampleTransformer* rawSampleTransformer,
         shared::pmr::memory_resource* memoryResource)
         :
         ProviderBase(name),
-        _valueOffsets{std::move(valueOffsets)},
+        _sampleTypes{std::move(sampleTypes)},
+        _profileType{profileType},
         _rawSampleTransformer{rawSampleTransformer},
         _collectedSamples{memoryResource}
     {
@@ -79,7 +81,7 @@ public:
 
     std::unique_ptr<SamplesEnumerator> GetSamples() override
     {
-        return std::make_unique<SamplesEnumeratorImpl>(_collectedSamples.Move(), _rawSampleTransformer, _valueOffsets);
+        return std::make_unique<SamplesEnumeratorImpl>(_collectedSamples.Move(), _rawSampleTransformer, _sampleTypes, _profileType);
     }
 
 protected:
@@ -88,9 +90,9 @@ protected:
         return OpSysTools::GetHighPrecisionTimestamp();
     }
 
-    std::vector<SampleValueTypeProvider::Offset> const& GetValueOffsets() const
+    std::vector<SampleValueType> const& GetSampleTypes() const
     {
-        return _valueOffsets;
+        return _sampleTypes;
     }
 
 private:
@@ -99,12 +101,14 @@ private:
     public:
         SamplesEnumeratorImpl(RawSamples<TRawSample> rawSamples,
             RawSampleTransformer* rawSampleTransformer,
-            std::vector<SampleValueTypeProvider::Offset> const & valueOffsets)
+            std::vector<SampleValueType> const & sampleTypes,
+            SampleProfileType profileType)
             :
             _rawSamples{std::move(rawSamples)},
             _rawSampleTransformer{rawSampleTransformer},
             _currentRawSample{_rawSamples.begin()},
-            _valueOffsets{valueOffsets}
+            _sampleTypes{sampleTypes},
+            _profileType{profileType}
         {
         }
 
@@ -119,7 +123,7 @@ private:
             if (_currentRawSample == _rawSamples.end())
                 return false;
 
-            _rawSampleTransformer->Transform(*_currentRawSample, sample, _valueOffsets);
+            _rawSampleTransformer->Transform(*_currentRawSample, sample, _sampleTypes, _profileType);
             _currentRawSample++;
 
             return true;
@@ -129,7 +133,8 @@ private:
         RawSamples<TRawSample> _rawSamples;
         RawSampleTransformer* _rawSampleTransformer;
         typename RawSamples<TRawSample>::iterator _currentRawSample;
-        std::vector<SampleValueTypeProvider::Offset> const & _valueOffsets;
+        std::vector<SampleValueType> const & _sampleTypes;
+        SampleProfileType _profileType;
     };
 
     bool StartImpl() override
@@ -143,7 +148,8 @@ private:
     }
 
 private:
-    std::vector<SampleValueTypeProvider::Offset> _valueOffsets;
+    std::vector<SampleValueType> _sampleTypes;
+    SampleProfileType _profileType;
     RawSamples<TRawSample> _collectedSamples;
     RawSampleTransformer* _rawSampleTransformer;
 };

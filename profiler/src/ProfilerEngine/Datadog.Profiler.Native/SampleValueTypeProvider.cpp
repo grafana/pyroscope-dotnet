@@ -3,64 +3,8 @@
 
 #include "SampleValueTypeProvider.h"
 
-#include <cassert>
-#include <tuple>
-
-
-SampleValueTypeProvider::SampleValueTypeProvider()
+std::vector<SampleValueType> SampleValueTypeProvider::GetOrRegister(SampleProfileType profileType, std::vector<SampleValueType> const& valueTypes)
 {
-    _sampleTypeDefinitions.reserve(16);
+    (void) profileType;
+    return valueTypes;
 }
-
-std::vector<SampleValueTypeProvider::Offset> SampleValueTypeProvider::GetOrRegister(std::vector<SampleValueType>& valueTypes)
-{
-    std::vector<Offset> offsets;
-    offsets.reserve(valueTypes.size());
-    bool incrementIndex = false;
-
-    for (auto& valueType : valueTypes)
-    {
-        size_t idx = GetOffset(valueType);
-        if (idx == -1)
-        {
-            incrementIndex = true;
-            // set the same index for all
-            valueType.Index = _nextIndex;
-
-            idx = _sampleTypeDefinitions.size();
-            _sampleTypeDefinitions.push_back(valueType);
-        }
-        offsets.push_back(idx);
-    }
-
-    if (incrementIndex)
-    {
-        // the next set of SampleValueType will have a different index
-        _nextIndex++;
-    }
-
-    return offsets;
-}
-
-std::vector<SampleValueType> const& SampleValueTypeProvider::GetValueTypes()
-{
-    return _sampleTypeDefinitions;
-}
-
-std::int8_t SampleValueTypeProvider::GetOffset(SampleValueType const& valueType)
-{
-    for (auto i = 0; i < _sampleTypeDefinitions.size(); i++)
-    {
-        auto const& current = _sampleTypeDefinitions[i];
-        if (valueType.Name == current.Name)
-        {
-            if (valueType.Unit != current.Unit)
-            {
-                throw std::runtime_error("Cannot have the value type name with different unit: " + valueType.Unit + " != " + current.Unit);
-            }
-            return i;
-        }
-    }
-    return -1;
-}
-

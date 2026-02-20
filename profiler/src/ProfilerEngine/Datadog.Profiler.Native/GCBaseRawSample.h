@@ -35,12 +35,10 @@ public:
     // This base class is in charge of storing garbage collection number and generation as labels
     // and fill up the callstack based on generation.
     // The default value is the Duration field; derived class could override by implementing GetValue()
-    inline void OnTransform(std::shared_ptr<Sample>& sample, std::vector<SampleValueTypeProvider::Offset> const& valueOffsets) const override
+    inline void OnTransform(std::shared_ptr<Sample>& sample, std::vector<SampleValueType> const& sampleTypes) const override
     {
-        assert(valueOffsets.size() == 1);
-        auto durationIndex = valueOffsets[0];
-
-        sample->AddValue(GetValue(), durationIndex);
+        assert(sampleTypes.size() == 1);
+        sample->AddValue(GetValue());
 
         sample->AddLabel(NumericLabel(Sample::GarbageCollectionNumberLabel, Number));
         AddGenerationLabel(sample, Generation);
@@ -48,7 +46,7 @@ public:
         BuildCallStack(sample, Generation);
 
         // let child classes transform additional fields if needed
-        DoAdditionalTransform(sample, valueOffsets);
+        DoAdditionalTransform(sample, sampleTypes);
     }
 
     // Each derived class provides the duration to store as the value for this sample
@@ -59,7 +57,7 @@ public:
     }
 
     // Derived classes are expected to set the event type + any additional field as label
-    virtual void DoAdditionalTransform(std::shared_ptr<Sample> sample, std::vector<SampleValueTypeProvider::Offset> const& valueOffset) const = 0;
+    virtual void DoAdditionalTransform(std::shared_ptr<Sample> sample, std::vector<SampleValueType> const& sampleTypes) const = 0;
 
 public:
     int32_t Number;

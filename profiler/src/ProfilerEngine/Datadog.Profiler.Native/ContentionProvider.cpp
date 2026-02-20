@@ -26,8 +26,8 @@ std::vector<uintptr_t> ContentionProvider::_emptyStack;
 
 std::vector<SampleValueType> ContentionProvider::SampleTypeDefinitions(
     {
-        {"lock_count", "count", -1},
-        {"lock_time", "nanoseconds", -1}
+        {"lock_count", "count"},
+        {"lock_time", "nanoseconds"}
     });
 
 ContentionProvider::ContentionProvider(
@@ -40,7 +40,7 @@ ContentionProvider::ContentionProvider(
     CallstackProvider callstackProvider,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawContentionSample>("ContentionProvider", valueTypeProvider.GetOrRegister(SampleTypeDefinitions), rawSampleTransformer, memoryResource),
+    CollectorBase<RawContentionSample>("ContentionProvider", valueTypeProvider.GetOrRegister(SampleProfileType::Contention, SampleTypeDefinitions), SampleProfileType::Contention, rawSampleTransformer, memoryResource),
     _pCorProfilerInfo{pCorProfilerInfo},
     _pManagedThreadList{pManagedThreadList},
     // keep at least 1 sampled lock contention per bucket so we will at least see long one if any
@@ -297,7 +297,7 @@ void ContentionProvider::AddContentionSample(
 std::list<UpscalingInfo> ContentionProvider::GetInfos()
 {
     return {
-        {GetValueOffsets(), RawContentionSample::BucketLabelName, _samplerLock.GetGroups()},
-        {GetValueOffsets(), RawContentionSample::WaitBucketLabelName, _samplerWait.GetGroups()}
+        {GetSampleTypes(), RawContentionSample::BucketLabelName, _samplerLock.GetGroups()},
+        {GetSampleTypes(), RawContentionSample::WaitBucketLabelName, _samplerWait.GetGroups()}
         };
 }
