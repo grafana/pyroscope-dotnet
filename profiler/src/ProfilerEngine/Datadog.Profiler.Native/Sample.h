@@ -29,7 +29,9 @@ enum class SampleProfileType
     Heap,
     Contention,
     Exception,
-    Timeline,
+    TimelineGarbageCollection,
+    TimelineStopTheWorld,
+    TimelineThreadLifetime,
     Network,
     ProcessCpu
 };
