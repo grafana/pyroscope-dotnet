@@ -52,85 +52,31 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
 - Never create PRs or push to the upstream DataDog repo. All PRs must target
   `grafana/pyroscope-dotnet` with `--base main`.
 - Never rebase or rewrite history. The only allowed destructive operations are
-  `--amend` and `--force-push` on the merge commit of the branch created in step 2.
+  `--amend` and `--force-push` on the merge commit of the branch created in step 1.
 - Only push to the `kk/fork-update-*` branch created for this merge — never to `main`.
 
 The scripts bellow should be executed as is, as executable, without passing it to the bash.  `.claude/skills/merge-upstream/find-previous-versions.sh` instead of `bash .claude/skills/merge-upstream/find-previous-versions.sh`
 
 ## Steps
 
-1. **Ensure upstream remote exists and fetch tags**
+1. **Run the prepare-merge script (steps 1-9)**
    ```
-   git remote add upstream https://github.com/DataDog/dd-trace-dotnet.git
+   .claude/skills/merge-upstream/prepare-merge.sh <tag> <base>
    ```
-   Skip if already present. Fetch upstream tags:
-   ```
-   git fetch upstream --tags
-   ```
+   This single script handles everything up through step 9:
+   - Adds upstream remote (if missing) and fetches tags
+   - Verifies the tag exists upstream (aborts if not)
+   - Creates the branch `kk/fork-update-<version>` from `<base>` (re-creates if it already exists)
+   - Starts the merge (`--no-commit --no-ff`)
+   - Removes directories not carried in the fork (tracer, demos, tests, CI configs, docs, etc.)
+   - Removes files replaced by git submodules (spdlog, ManagedLoader, etc.)
+   - Resolves DU conflicts (deleted-by-us / updated-by-upstream)
+   - Removes upstream `.github` and `.claude` additions
+   - Resolves `.github/CODEOWNERS` to the fork version
 
-2. **Verify the target tag exists on the upstream remote**
-   ```
-   git ls-remote --tags upstream refs/tags/<tag>
-   ```
-   If the output is empty, the tag does not exist upstream — **abort** and inform the user.
-   Do not rely on `git tag -l` as it only checks local refs which may be stale or wrong.
+   At the end the script prints the list of remaining conflicts, if any.
 
-3. **Create a merge branch from the chosen base**
-   ```
-   git checkout -b kk/fork-update-<version> <base>
-   ```
-   If the branch already exists, delete it first and recreate:
-   ```
-   git branch -D kk/fork-update-<version>
-   git checkout -b kk/fork-update-<version> <base>
-   ```
-
-4. **Start the merge (no commit, no fast-forward)**
-   ```
-   git merge <tag> --no-commit --no-ff
-   ```
-
-5. **Remove directories we don't carry in the fork**
-   ```
-   git rm -rf tracer
-   git rm -rf profiler/src/Demos/
-   git rm -rf shared/src/Datadog.Trace.ClrProfiler.Native
-   git rm -rf shared/test
-   git rm -rf .azure-pipelines
-   git rm -rf .gitlab
-   git rm -rf docs
-   git rm -rf profiler/test
-   git rm -rf profiler/src/Tools
-   git rm -f .gitlab-ci.yml
-   ```
-
-6. **Remove files we replace with git submodules**
-   ```
-   git rm -rf build/cmake/FindSpdlog.cmake
-   git rm -rf shared/src/native-lib/spdlog
-   git rm -rf build/cmake/FindManagedLoader.cmake
-   ```
-
-7. **Clean up files deleted by us but modified upstream (DU conflicts)**
-   ```
-   .claude/skills/merge-upstream/resolve-du-conflicts.sh
-   ```
-
-8. **Remove any upstream .github and .claude files that were added**
-   ```
-   .claude/skills/merge-upstream/remove-upstream-github.sh
-   ```
-
-9. **Resolve `.github/CODEOWNERS` — always keep the fork version**
-   If `.github/CODEOWNERS` has a conflict, always resolve it to the fork (grafana/pyroscope)
-   version. The upstream CODEOWNERS contains DataDog-specific team ownership rules that are
-   irrelevant to the fork. Check out our side and stage it:
-   ```
-   git checkout --ours .github/CODEOWNERS
-   git add .github/CODEOWNERS
-   ```
-
-10. **Resolve conflicts in CMake files first**
+2. **Resolve conflicts in CMake files first**
    - List all conflicted files: `git diff --name-only --diff-filter=U`
    - Resolve CMake-related conflicts first (`CMakeLists.txt`, `*.cmake` files)
    - Then verify cmake configures successfully:
@@ -139,13 +85,13 @@ The scripts bellow should be executed as is, as executable, without passing it t
      ```
      Fix any cmake errors before proceeding to other conflicts.
 
-11. **Resolve remaining conflicts**
+3. **Resolve remaining conflicts**
    - For version conflicts in binary/DLL/package references (e.g. NuGet versions,
      library versions, dependency pinning), always pick the **higher version**
    - Prefer our fork's changes for pyroscope-specific code
    - Ask the user when unsure which side to keep
 
-12. **Verify the build** (only the targets we use)
+4. **Verify the build** (only the targets we use)
 
     **Note:** The build may take significant time (several minutes). Use a generous timeout
     (e.g. 600000ms). The script always removes the old build directory first.
@@ -156,15 +102,15 @@ The scripts bellow should be executed as is, as executable, without passing it t
 
     Report any build errors and fix them before committing.
 
-13. **Commit the merge**
+5. **Commit the merge**
     - `git add -A && git commit` with message: `merge upstream <tag>`
 
-14. **Push and create a draft PR**
+6. **Push and create a draft PR**
     ```
     git push -u origin kk/fork-update-<version>
     gh pr create --draft --repo grafana/pyroscope-dotnet --base <base> --label "upstream-merge" --title "merge upstream <tag>" --body "Merge upstream dd-trace-dotnet <tag> into the fork."
     ```
 
-15. **Generate PR summary**
+7. **Generate PR summary**
     After the PR is created, invoke the `merge-upstream-summary` skill to generate
     a detailed summary and update the PR description.
