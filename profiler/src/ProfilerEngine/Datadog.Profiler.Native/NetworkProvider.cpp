@@ -18,7 +18,6 @@ std::vector<SampleValueType> NetworkProvider::SampleTypeDefinitions(
 
 
 NetworkProvider::NetworkProvider(
-    SampleValueTypeProvider& valueTypeProvider,
     ICorProfilerInfo4* pCorProfilerInfo,
     IManagedThreadList* pManagedThreadList,
     RawSampleTransformer* rawSampleTransformer,
@@ -29,7 +28,7 @@ NetworkProvider::NetworkProvider(
     :
     CollectorBase<RawNetworkSample>(
         "NetworkProvider",
-        valueTypeProvider.GetOrRegister(SampleProfileType::Network, SampleTypeDefinitions),
+        SampleTypeDefinitions,
         SampleProfileType::Network,
         rawSampleTransformer,
         memoryResource),

@@ -5,7 +5,6 @@
 
 #include "RawSample.h"
 
-class SampleValueTypeProvider;
 
 enum class ThreadEventKind
 {

@@ -11,7 +11,6 @@
 #include "OsSpecificApi.h"
 #include "RawSampleTransformer.h"
 #include "ScopeFinalizer.h"
-#include "SampleValueTypeProvider.h"
 #include "shared/src/native-src/com_ptr.h"
 #include "shared/src/native-src/string.h"
 
@@ -22,7 +21,6 @@ std::vector<SampleValueType> ExceptionsProvider::SampleTypeDefinitions(
     });
 
 ExceptionsProvider::ExceptionsProvider(
-    SampleValueTypeProvider& valueTypeProvider,
     ICorProfilerInfo4* pCorProfilerInfo,
     IManagedThreadList* pManagedThreadList,
     IFrameStore* pFrameStore,
@@ -32,7 +30,7 @@ ExceptionsProvider::ExceptionsProvider(
     CallstackProvider callstackProvider,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawExceptionSample>("ExceptionsProvider", valueTypeProvider.GetOrRegister(SampleProfileType::Exception, SampleTypeDefinitions), SampleProfileType::Exception, rawSampleTransformer, memoryResource),
+    CollectorBase<RawExceptionSample>("ExceptionsProvider", SampleTypeDefinitions, SampleProfileType::Exception, rawSampleTransformer, memoryResource),
     _pCorProfilerInfo(pCorProfilerInfo),
     _pManagedThreadList(pManagedThreadList),
     _pFrameStore(pFrameStore),

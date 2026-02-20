@@ -19,7 +19,6 @@ class IManagedThreadList;
 class IConfiguration;
 class ISampledAllocationsListener;
 class RawSampleTransformer;
-class SampleValueTypeProvider;
 
 class LiveObjectsProvider : public ServiceBase,
                             public IBatchedSamplesProvider,
@@ -29,7 +28,6 @@ class LiveObjectsProvider : public ServiceBase,
 public:
     LiveObjectsProvider(
         ICorProfilerInfo13* pCorProfilerInfo,
-        SampleValueTypeProvider& valueTypeProvider,
         RawSampleTransformer* rawSampleTransformer,
         IConfiguration* pConfiguration);
 

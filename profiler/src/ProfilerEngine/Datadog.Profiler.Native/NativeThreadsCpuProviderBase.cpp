@@ -11,14 +11,13 @@
 #include "RawCpuSample.h"
 #include "RawSampleTransformer.h"
 #include "SamplesEnumerator.h"
-#include "SampleValueTypeProvider.h"
 
 using namespace std::chrono_literals;
 
-NativeThreadsCpuProviderBase::NativeThreadsCpuProviderBase(SampleValueTypeProvider& valueTypeProvider, RawSampleTransformer* sampleTransformer) :
+NativeThreadsCpuProviderBase::NativeThreadsCpuProviderBase(RawSampleTransformer* sampleTransformer) :
     _sampleTransformer{sampleTransformer},
     _previousTotalCpuTime{0},
-    _sampleTypes{valueTypeProvider.GetOrRegister(SampleProfileType::ProcessCpu, std::vector<SampleValueType>{{"gc_cpu", "nanoseconds"}, {"gc_cpu_samples", "count"}})}
+    _sampleTypes{std::vector<SampleValueType>{{"gc_cpu", "nanoseconds"}, {"gc_cpu_samples", "count"}}}
 {
 }
 

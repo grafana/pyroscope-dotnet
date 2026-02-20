@@ -2,18 +2,16 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2022 Datadog, Inc.
 
 #include "ThreadLifetimeProvider.h"
-#include "SampleValueTypeProvider.h"
 #include "OpSysTools.h"
 #include "RawSampleTransformer.h"
 #include "TimelineSampleType.h"
 
 ThreadLifetimeProvider::ThreadLifetimeProvider(
-    SampleValueTypeProvider& valueTypeProvider,
     RawSampleTransformer* rawSampleTransformer,
     shared::pmr::memory_resource* memoryResource)
     :
     CollectorBase<RawThreadLifetimeSample>(
-        "ThreadLifetimeProvider", valueTypeProvider.GetOrRegister(SampleProfileType::Timeline, TimelineSampleType::Definitions), SampleProfileType::Timeline, rawSampleTransformer, memoryResource)
+        "ThreadLifetimeProvider", TimelineSampleType::Definitions, SampleProfileType::Timeline, rawSampleTransformer, memoryResource)
 {
 }
 

@@ -29,7 +29,6 @@ class IThreadsCpuManager;
 class IAppDomainStore;
 class IRuntimeIdStore;
 class RawSampleTransformer;
-class SampleValueTypeProvider;
 
 
 class ContentionProvider : public CollectorBase<RawContentionSample>,
@@ -38,7 +37,6 @@ class ContentionProvider : public CollectorBase<RawContentionSample>,
 {
 public:
     ContentionProvider(
-        SampleValueTypeProvider& valueTypeProvider,
         ICorProfilerInfo4* pCorProfilerInfo,
         IManagedThreadList* pManagedThreadList,
         RawSampleTransformer* rawSampleTransformer,

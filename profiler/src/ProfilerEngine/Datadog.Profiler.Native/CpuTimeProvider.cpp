@@ -18,11 +18,10 @@ std::vector<SampleValueType> CpuTimeProvider::SampleTypeDefinitions(
 );
 
 CpuTimeProvider::CpuTimeProvider(
-    SampleValueTypeProvider& valueTypeProvider,
     RawSampleTransformer* rawSampleTransformer,
     shared::pmr::memory_resource* memoryResource
     )
     :
-    CollectorBase<RawCpuSample>("CpuTimeProvider", valueTypeProvider.GetOrRegister(SampleProfileType::Cpu, SampleTypeDefinitions), SampleProfileType::Cpu, rawSampleTransformer, memoryResource)
+    CollectorBase<RawCpuSample>("CpuTimeProvider", SampleTypeDefinitions, SampleProfileType::Cpu, rawSampleTransformer, memoryResource)
 {
 }

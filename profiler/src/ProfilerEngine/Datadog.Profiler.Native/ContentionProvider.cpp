@@ -16,7 +16,6 @@
 #include "OsSpecificApi.h"
 #include "RawSampleTransformer.h"
 #include "Sample.h"
-#include "SampleValueTypeProvider.h"
 
 #include <math.h>
 
@@ -31,7 +30,6 @@ std::vector<SampleValueType> ContentionProvider::SampleTypeDefinitions(
     });
 
 ContentionProvider::ContentionProvider(
-    SampleValueTypeProvider& valueTypeProvider,
     ICorProfilerInfo4* pCorProfilerInfo,
     IManagedThreadList* pManagedThreadList,
     RawSampleTransformer* rawSampleTransformer,
@@ -40,7 +38,7 @@ ContentionProvider::ContentionProvider(
     CallstackProvider callstackProvider,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawContentionSample>("ContentionProvider", valueTypeProvider.GetOrRegister(SampleProfileType::Contention, SampleTypeDefinitions), SampleProfileType::Contention, rawSampleTransformer, memoryResource),
+    CollectorBase<RawContentionSample>("ContentionProvider", SampleTypeDefinitions, SampleProfileType::Contention, rawSampleTransformer, memoryResource),
     _pCorProfilerInfo{pCorProfilerInfo},
     _pManagedThreadList{pManagedThreadList},
     // keep at least 1 sampled lock contention per bucket so we will at least see long one if any

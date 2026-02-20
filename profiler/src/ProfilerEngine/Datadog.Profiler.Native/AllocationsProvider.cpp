@@ -17,7 +17,6 @@
 #include "MetricsRegistry.h"
 #include "OsSpecificApi.h"
 #include "RawSampleTransformer.h"
-#include "SampleValueTypeProvider.h"
 
 #include <chrono>
 
@@ -39,7 +38,6 @@ std::vector<SampleValueType> AllocationsProvider::FrameworkSampleTypeDefinitions
 
 AllocationsProvider::AllocationsProvider(
     bool isFramework,
-    SampleValueTypeProvider& valueTypeProvider,
     ICorProfilerInfo4* pCorProfilerInfo,
     IManagedThreadList* pManagedThreadList,
     IFrameStore* pFrameStore,
@@ -52,8 +50,8 @@ AllocationsProvider::AllocationsProvider(
     :
     AllocationsProvider(
         isFramework
-            ? valueTypeProvider.GetOrRegister(SampleProfileType::Allocation, FrameworkSampleTypeDefinitions)
-            : valueTypeProvider.GetOrRegister(SampleProfileType::Allocation, SampleTypeDefinitions),
+            ? FrameworkSampleTypeDefinitions
+            : SampleTypeDefinitions,
         pCorProfilerInfo, pManagedThreadList, pFrameStore,
         rawSampleTransformer,
         pConfiguration,

@@ -27,7 +27,6 @@ class IAppDomainStore;
 class IRuntimeIdStore;
 class ISampledAllocationsListener;
 class RawSampleTransformer;
-class SampleValueTypeProvider;
 
 
 class AllocationsProvider
@@ -40,7 +39,6 @@ class AllocationsProvider
 public:
     AllocationsProvider(
         bool isFramework,
-        SampleValueTypeProvider& valueTypeProvider,
         ICorProfilerInfo4* pCorProfilerInfo,
         IManagedThreadList* pManagedThreadList,
         IFrameStore* pFrameStore,
@@ -52,7 +50,7 @@ public:
         shared::pmr::memory_resource* memoryResource);
 
     AllocationsProvider(
-        std::vector<SampleValueType> valueTypeProvider,
+        std::vector<SampleValueType> sampleTypes,
         ICorProfilerInfo4* pCorProfilerInfo,
         IManagedThreadList* pManagedThreadList,
         IFrameStore* pFrameStore,

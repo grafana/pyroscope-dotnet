@@ -12,7 +12,6 @@
 #include "RawSampleTransformer.h"
 #include "Sample.h"
 #include "SamplesEnumerator.h"
-#include "SampleValueTypeProvider.h"
 
 std::vector<SampleValueType> LiveObjectsProvider::SampleTypeDefinitions(
 {
@@ -25,13 +24,12 @@ const std::string LiveObjectsProvider::Gen2("2");
 
 LiveObjectsProvider::LiveObjectsProvider(
     ICorProfilerInfo13* pCorProfilerInfo,
-    SampleValueTypeProvider& valueTypeProvider,
     RawSampleTransformer* rawSampleTransformer,
     IConfiguration* pConfiguration)
     :
     _pCorProfilerInfo(pCorProfilerInfo),
     _rawSampleTransformer{rawSampleTransformer},
-    _sampleTypes{valueTypeProvider.GetOrRegister(SampleProfileType::Heap, LiveObjectsProvider::SampleTypeDefinitions)}
+    _sampleTypes{LiveObjectsProvider::SampleTypeDefinitions}
 {
     _heapHandleLimit = pConfiguration->GetHeapHandleLimit();
 }

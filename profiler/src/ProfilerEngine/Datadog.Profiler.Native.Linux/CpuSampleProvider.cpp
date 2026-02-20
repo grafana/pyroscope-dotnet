@@ -9,12 +9,11 @@
 #include "RawSampleTransformer.h"
 
 CpuSampleProvider::CpuSampleProvider(
-    SampleValueTypeProvider& valueTypeProvider,
     RawSampleTransformer* rawSampleTransformer,
     RingBuffer* ringBuffer,
     MetricsRegistry& metricsRegistry
     )
     :
-    RawSampleCollectorBase<RawCpuSample>("CpuSampleProvider", valueTypeProvider.GetOrRegister(CpuTimeProvider::SampleTypeDefinitions), rawSampleTransformer, ringBuffer, metricsRegistry)
+    RawSampleCollectorBase<RawCpuSample>("CpuSampleProvider", CpuTimeProvider::SampleTypeDefinitions, SampleProfileType::Cpu, rawSampleTransformer, ringBuffer, metricsRegistry)
 {
 }

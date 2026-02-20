@@ -16,7 +16,6 @@
 #include "RawSampleTransformer.h"
 #include "RawSamples.hpp"
 #include "SamplesEnumerator.h"
-#include "SampleValueTypeProvider.h"
 #include "ServiceBase.h"
 
 #include "shared/src/native-src/dd_memory_resource.hpp"

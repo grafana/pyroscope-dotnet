@@ -14,7 +14,6 @@ class IThreadsCpuManager;
 class IAppDomainStore;
 class IRuntimeIdStore;
 class IConfiguration;
-class SampleValueTypeProvider;
 
 class StopTheWorldGCProvider
     : public CollectorBase<RawStopTheWorldSample>,
@@ -24,7 +23,6 @@ class StopTheWorldGCProvider
 
 public:
     StopTheWorldGCProvider(
-        SampleValueTypeProvider& valueTypeProvider,
         RawSampleTransformer* rawSampleTransformer,
         shared::pmr::memory_resource* memoryResource);
 
