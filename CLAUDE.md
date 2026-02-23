@@ -12,7 +12,7 @@ git submodule update --init --recursive
 
 ## Build the profiler (Debug)
 
-Requires clang/clang++ and cmake.
+Requires clang/clang++ and cmake. Uses `build-claude-Debug` as the build directory.
 
 ```bash
 mkdir build-claude-Debug
