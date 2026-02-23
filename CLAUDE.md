@@ -15,8 +15,8 @@ git submodule update --init --recursive
 Requires clang/clang++ and cmake.
 
 ```bash
-mkdir build-Debug
-cd build-Debug
+mkdir build-claude-Debug
+cd build-claude-Debug
 cmake .. \
     -DCMAKE_C_COMPILER=clang \
     -DCMAKE_CXX_COMPILER=clang++ \
