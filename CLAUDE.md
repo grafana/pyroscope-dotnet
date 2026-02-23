@@ -2,45 +2,32 @@
 
 Fork of [dd-trace-dotnet](https://github.com/DataDog/dd-trace-dotnet). The upstream tracer has been removed — only the **profiler** remains. This repo builds and ships the Pyroscope .NET profiler (`Pyroscope.Profiler.Native.so` and `Pyroscope.Linux.ApiWrapper.x64.so`).
 
-## Build the profiler (Debug, glibc/Debian)
+## Setup
+
+The repo uses git submodules for third-party dependencies. Check them out before doing any work:
 
 ```bash
-docker build -f Pyroscope.Dockerfile \
-  --build-arg CMAKE_BUILD_TYPE=Debug \
-  -t pyroscope-dotnet-debug .
+git submodule update --init --recursive
 ```
 
-Output artifacts inside the image:
-- `/Pyroscope.Profiler.Native.so`
-- `/Pyroscope.Linux.ApiWrapper.x64.so`
+## Build the profiler (Debug)
 
-Extract them:
-```bash
-id=$(docker create pyroscope-dotnet-debug)
-docker cp $id:/Pyroscope.Profiler.Native.so .
-docker cp $id:/Pyroscope.Linux.ApiWrapper.x64.so .
-docker rm $id
-```
-
-## Build the profiler (Debug, musl/Alpine)
+Requires clang/clang++ and cmake.
 
 ```bash
-docker build -f Pyroscope.musl.Dockerfile \
-  --build-arg CMAKE_BUILD_TYPE=Debug \
-  -t pyroscope-dotnet-debug-musl .
+mkdir build-Debug
+cd build-Debug
+cmake .. \
+    -DCMAKE_C_COMPILER=clang \
+    -DCMAKE_CXX_COMPILER=clang++ \
+    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" \
+    -DCMAKE_C_FLAGS_DEBUG="-g -O0"
+make -j$(nproc) Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64
 ```
 
-Same extraction steps as above.
+Output artifacts:
+- `profiler/_build/DDProf-Deploy/linux/Pyroscope.Profiler.Native.so`
+- `profiler/_build/DDProf-Deploy/linux/Datadog.Linux.ApiWrapper.x64.so`
 
-## Key files
-
-| Path | Description |
-|------|-------------|
-| `profiler/` | Native profiler source (C++) |
-| `shared/` | Shared native code |
-| `build/` | CMake build scripts |
-| `Pyroscope/` | Managed (.NET) SDK |
-| `IntegrationTest/` | Integration test app (rideshare) |
-| `Pyroscope.Dockerfile` | glibc build (Debian 11 + LLVM 18) |
-| `Pyroscope.musl.Dockerfile` | musl build (Alpine 3.18) |
-| `itest.Dockerfile` | Integration test image |
+For musl/Alpine builds, set `IsAlpine=true` and artifacts will be under `profiler/_build/DDProf-Deploy/linux-musl/`.
