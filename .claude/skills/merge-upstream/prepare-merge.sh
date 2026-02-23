@@ -5,6 +5,9 @@
 # <base-branch> is the local branch to base the merge on (e.g. main).
 set -euo pipefail
 
+# run CMD … — print the command then execute it
+run() { echo "    + $*"; "$@"; }
+
 REF="${1:-}"
 BASE="${2:-}"
 
@@ -26,12 +29,12 @@ BRANCH="kk/fork-update-${VERSION}"
 step1_ensure_upstream() {
   echo "==> Step 1: Ensuring upstream remote and fetching..."
   if ! git remote get-url upstream &>/dev/null; then
-    git remote add upstream https://github.com/DataDog/dd-trace-dotnet.git
+    run git remote add upstream https://github.com/DataDog/dd-trace-dotnet.git
     echo "    upstream remote added"
   else
     echo "    upstream remote already exists"
   fi
-  git fetch upstream --tags
+  run git fetch upstream --tags
 }
 
 # ── Step 2: Verify the ref resolves to a commit ──────────────────────────────
@@ -50,17 +53,17 @@ step2_verify_ref() {
 step3_create_branch() {
   echo "==> Step 3: Creating branch ${BRANCH} from ${BASE}..."
   if git rev-parse --verify "${BRANCH}" &>/dev/null; then
-    git branch -D "${BRANCH}"
+    run git branch -D "${BRANCH}"
     echo "    Deleted existing branch ${BRANCH}"
   fi
-  git checkout -b "${BRANCH}" "${BASE}"
+  run git checkout -b "${BRANCH}" "${BASE}"
 }
 
 # ── Step 4: Start the merge ───────────────────────────────────────────────────
 step4_start_merge() {
   echo "==> Step 4: Starting merge of '${REF}' (--no-commit --no-ff)..."
   # Conflicts are expected; we handle them in subsequent steps.
-  git merge "${REF}" --no-commit --no-ff || true
+  run git merge "${REF}" --no-commit --no-ff || true
 }
 
 # ── Step 5: Remove directories we don't carry in the fork ────────────────────
@@ -78,23 +81,23 @@ step5_remove_fork_dirs() {
     "profiler/src/Tools"
   )
   for d in "${dirs[@]}"; do
-    git rm -rf --ignore-unmatch "${d}"
+    run git rm -rf --ignore-unmatch "${d}"
   done
-  git rm -f --ignore-unmatch .gitlab-ci.yml
+  run git rm -f --ignore-unmatch .gitlab-ci.yml
 }
 
 # ── Step 6: Remove files we replace with git submodules ──────────────────────
 step6_remove_submodule_files() {
   echo "==> Step 6: Removing files replaced by git submodules..."
-  git rm -rf --ignore-unmatch build/cmake/FindSpdlog.cmake
-  git rm -rf --ignore-unmatch shared/src/native-lib/spdlog
-  git rm -rf --ignore-unmatch build/cmake/FindManagedLoader.cmake
+  run git rm -rf --ignore-unmatch build/cmake/FindSpdlog.cmake
+  run git rm -rf --ignore-unmatch shared/src/native-lib/spdlog
+  run git rm -rf --ignore-unmatch build/cmake/FindManagedLoader.cmake
 }
 
 # ── Step 7: Resolve DU conflicts (deleted-by-us / updated-by-upstream) ───────
 step7_resolve_du_conflicts() {
   echo "==> Step 7: Resolving DU (deleted-by-us) conflicts..."
-  git status --porcelain | grep '^DU ' | cut -c4- | xargs -r git rm -f
+  git status --porcelain | grep '^DU ' | cut -c4- | xargs -r -I{} run git rm -f "{}"
   echo "    DU conflicts done"
 }
 
@@ -105,7 +108,7 @@ step8_remove_upstream_additions() {
   local files
   files=$(git status --porcelain | grep '^A ' | grep '\.github' | cut -c4- || true)
   if [ -n "$files" ]; then
-    echo "$files" | xargs -r git rm -f
+    echo "$files" | xargs -r -I{} run git rm -f "{}"
     echo "    upstream .github additions removed"
   else
     echo "    no upstream .github additions found"
@@ -114,7 +117,7 @@ step8_remove_upstream_additions() {
   local claude_files
   claude_files=$(git status --porcelain | grep '^A ' | grep '\.claude' | cut -c4- || true)
   if [ -n "$claude_files" ]; then
-    echo "$claude_files" | xargs -r git rm -f
+    echo "$claude_files" | xargs -r -I{} run git rm -f "{}"
     echo "    upstream .claude additions removed"
   else
     echo "    no upstream .claude additions found"
@@ -125,8 +128,8 @@ step8_remove_upstream_additions() {
 step9_resolve_codeowners() {
   echo "==> Step 9: Resolving .github/CODEOWNERS..."
   if [ -f .github/CODEOWNERS ]; then
-    git checkout --ours .github/CODEOWNERS 2>/dev/null || true
-    git add .github/CODEOWNERS 2>/dev/null || true
+    run git checkout --ours .github/CODEOWNERS
+    run git add .github/CODEOWNERS
     echo "    .github/CODEOWNERS resolved to our fork version"
   else
     echo "    .github/CODEOWNERS not present, nothing to do"
@@ -147,6 +150,6 @@ step9_resolve_codeowners
 echo ""
 echo "==> Steps 1-9 complete. Branch: ${BRANCH}"
 echo "    Remaining conflicts (if any):"
-git diff --name-only --diff-filter=U || true
+run git diff --name-only --diff-filter=U || true
 echo ""
 echo "    Next: resolve remaining conflicts (steps 2-3 in SKILL.md), then build (step 4)."
