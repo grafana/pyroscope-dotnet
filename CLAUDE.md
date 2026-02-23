@@ -29,5 +29,3 @@ make -j$(nproc) Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64
 Output artifacts:
 - `profiler/_build/DDProf-Deploy/linux/Pyroscope.Profiler.Native.so`
 - `profiler/_build/DDProf-Deploy/linux/Datadog.Linux.ApiWrapper.x64.so`
-
-For musl/Alpine builds, set `IsAlpine=true` and artifacts will be under `profiler/_build/DDProf-Deploy/linux-musl/`.
