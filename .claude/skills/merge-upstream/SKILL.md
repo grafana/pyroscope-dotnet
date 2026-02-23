@@ -52,7 +52,7 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
 - Never create PRs or push to the upstream DataDog repo. All PRs must target
   `grafana/pyroscope-dotnet` with `--base main`.
 - Never rebase or rewrite history. The only allowed destructive operations are
-  `--amend` and `--force-push` on the merge commit of the branch created in step 1.
+  `--amend` and `--force-push` on the merge commit of the branch created in step 5.
 - Only push to the `kk/fork-update-*` branch created for this merge — never to `main`.
 
 The scripts bellow should be executed as is, as executable, without passing it to the bash.  `.claude/skills/merge-upstream/find-previous-versions.sh` instead of `bash .claude/skills/merge-upstream/find-previous-versions.sh`
@@ -97,7 +97,7 @@ The scripts bellow should be executed as is, as executable, without passing it t
 4. **Verify the build** (only the targets we use)
 
     **Note:** The build may take significant time (several minutes). Use a generous timeout
-    (e.g. 600000ms). The script always removes the old build directory first.
+    (e.g. 600000ms). Run cmake_configure.sh first if the build directory does not exist yet.
 
     ```
     .claude/skills/merge-upstream/build.sh
