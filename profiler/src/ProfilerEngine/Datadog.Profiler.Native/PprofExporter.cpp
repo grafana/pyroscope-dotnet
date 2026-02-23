@@ -56,9 +56,8 @@ PprofExporter::PprofExporter(IApplicationStore* applicationStore,
     for (auto& [key, pair] : groups)
     {
         ProfileTypeEntry entry;
-        entry.sampleTypes = std::move(pair.first);
         entry.globalOffset = pair.second;
-        entry.builder = std::make_unique<PprofBuilder>(entry.sampleTypes, entry.globalOffset);
+        entry.builder = std::make_unique<PprofBuilder>(std::move(pair.first), entry.globalOffset);
         _perProfileTypeBuilder.emplace(key, std::move(entry));
     }
 

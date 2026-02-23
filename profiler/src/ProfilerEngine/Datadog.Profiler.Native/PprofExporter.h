@@ -48,7 +48,6 @@ public:
 private:
     struct ProfileTypeEntry
     {
-        std::vector<SampleValueType> sampleTypes;
         size_t globalOffset;
         std::unique_ptr<PprofBuilder> builder;
     };

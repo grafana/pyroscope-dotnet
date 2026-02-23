@@ -5,8 +5,8 @@
 #include "PprofBuilder.h"
 #include "Log.h"
 
-PprofBuilder::PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions, size_t globalOffset) :
-    _sampleTypeDefinitions(sampleTypeDefinitions),
+PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions, size_t globalOffset) :
+    _sampleTypeDefinitions(std::move(sampleTypeDefinitions)),
     _globalOffset(globalOffset)
 {
     Reset();
