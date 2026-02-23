@@ -76,8 +76,8 @@ void RawSampleTransformer::SetThreadDetails(const RawSample& rawSample, std::sha
             return;
         }
 
-        sample->SetThreadId(std::string("<0> [#0]"));
-        sample->SetThreadName(std::string("Managed thread (name unknown) [#0]"));
+        sample->SetThreadId("0");
+        sample->SetThreadName("");
 
         return;
     }
