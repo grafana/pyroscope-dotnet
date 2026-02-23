@@ -97,7 +97,7 @@ The scripts bellow should be executed as is, as executable, without passing it t
 4. **Verify the build** (only the targets we use)
 
     **Note:** The build may take significant time (several minutes). Use a generous timeout
-    (e.g. 600000ms). Run cmake_configure.sh first if the build directory does not exist yet.
+    (e.g. 600000ms).
 
     ```
     .claude/skills/merge-upstream/build.sh
