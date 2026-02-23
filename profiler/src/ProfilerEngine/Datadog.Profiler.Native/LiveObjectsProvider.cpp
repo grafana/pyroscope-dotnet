@@ -156,8 +156,10 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
         auto handle = CreateWeakHandle(rawSample.Address);
         if (handle != nullptr)
         {
-            LiveObjectInfo info(
-                _rawSampleTransformer->Transform(rawSample, _valueOffsets),
+            auto liveObjectSample = _rawSampleTransformer->Transform(rawSample, _valueOffsets);
+        liveObjectSample->SetProfileType(ProfileType::Heap);
+        LiveObjectInfo info(
+                std::move(liveObjectSample),
                 rawSample.Address,
                 rawSample.Timestamp);
             info.SetHandle(handle);

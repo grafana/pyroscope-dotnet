@@ -8,7 +8,7 @@
 #include "TimelineSampleType.h"
 
 static std::vector<SampleValueType> GarbageCollectionSampleTypeDefinitions(
-    {{"gc_time", "nanoseconds", -1, ProfileType::GarbageCollection}});
+    {{"gc_time", "nanoseconds", -1, ProfileType::GC}});
 
 GarbageCollectionProvider::GarbageCollectionProvider(
     SampleValueTypeProvider& valueTypeProvider,
@@ -16,7 +16,7 @@ GarbageCollectionProvider::GarbageCollectionProvider(
     MetricsRegistry& metricsRegistry,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawGarbageCollectionSample>("GarbageCollectorProvider", valueTypeProvider.GetOrRegister(GarbageCollectionSampleTypeDefinitions), rawSampleTransformer, memoryResource)
+    CollectorBase<RawGarbageCollectionSample>("GarbageCollectorProvider", valueTypeProvider.GetOrRegister(GarbageCollectionSampleTypeDefinitions), rawSampleTransformer, memoryResource, ProfileType::GC)
 {
 
     _gen0CountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_gc_gen0");

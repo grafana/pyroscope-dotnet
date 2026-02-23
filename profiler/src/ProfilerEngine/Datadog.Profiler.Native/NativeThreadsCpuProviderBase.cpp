@@ -95,6 +95,7 @@ std::unique_ptr<SamplesEnumerator> NativeThreadsCpuProviderBase::GetSamples()
     // Cpu Time provider knows the offset of the Cpu value
     // So leave the transformation to it
     auto sample = _sampleTransformer->Transform(rawSample, _valueOffsets);
+    sample->SetProfileType(ProfileType::GcCpu);
 
     // The resulting callstack of the transformation is empty
     // Add a fake "GC" frame to the sample

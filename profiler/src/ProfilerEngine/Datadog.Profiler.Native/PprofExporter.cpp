@@ -12,17 +12,17 @@ static std::string ProfileTypeToName(ProfileType pt)
 {
     switch (pt)
     {
-        case ProfileType::Cpu:               return "process_cpu";
-        case ProfileType::Wall:              return "wall";
-        case ProfileType::Alloc:             return "alloc";
-        case ProfileType::Heap:              return "memory";
-        case ProfileType::Lock:              return "mutex";
-        case ProfileType::Exception:         return "exceptions";
-        case ProfileType::GcCpu:             return "gc_cpu";
-        case ProfileType::GarbageCollection: return "goroutine";
-        case ProfileType::StopTheWorld:      return "block";
-        case ProfileType::ThreadLifetime:    return "threadtime";
-        default:                             return "unknown";
+        case ProfileType::Cpu:            return "process_cpu";
+        case ProfileType::Wall:           return "wall";
+        case ProfileType::Alloc:          return "alloc";
+        case ProfileType::Heap:           return "memory";
+        case ProfileType::Lock:           return "mutex";
+        case ProfileType::Exception:      return "exceptions";
+        case ProfileType::GcCpu:          return "gc_cpu";
+        case ProfileType::GC:             return "goroutine";
+        case ProfileType::GCStopTheWorld: return "block";
+        case ProfileType::ThreadLifetime: return "threadtime";
+        default:                          return "unknown";
     }
 }
 
@@ -71,10 +71,12 @@ PProfExportSink::~PProfExportSink()
 
 void PprofExporter::Add(std::shared_ptr<Sample> const& sample)
 {
+    int32_t key = static_cast<int32_t>(sample->GetProfileType());
     std::lock_guard lock(_perProfileTypeBuilderLock);
-    for (auto& [key, entry] : _perProfileTypeBuilder)
+    auto it = _perProfileTypeBuilder.find(key);
+    if (it != _perProfileTypeBuilder.end())
     {
-        entry.builder->AddSample(*sample);
+        it->second.builder->AddSample(*sample);
     }
 }
 
@@ -93,10 +95,12 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
             std::shared_ptr<Sample> sample;
             while (samplesEnumerator->MoveNext(sample))
             {
+                int32_t key = static_cast<int32_t>(sample->GetProfileType());
                 std::lock_guard lock2(_perProfileTypeBuilderLock);
-                for (auto& [key, entry] : _perProfileTypeBuilder)
+                auto it = _perProfileTypeBuilder.find(key);
+                if (it != _perProfileTypeBuilder.end())
                 {
-                    entry.builder->AddSample(*sample);
+                    it->second.builder->AddSample(*sample);
                 }
             }
         }

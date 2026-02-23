@@ -18,7 +18,7 @@
 #include "TimelineSampleType.h"
 
 static std::vector<SampleValueType> StopTheWorldSampleTypeDefinitions(
-    {{"stw_time", "nanoseconds", -1, ProfileType::StopTheWorld}});
+    {{"stw_time", "nanoseconds", -1, ProfileType::GCStopTheWorld}});
 
 #include "shared/src/native-src/com_ptr.h"
 #include "shared/src/native-src/string.h"
@@ -29,7 +29,7 @@ StopTheWorldGCProvider::StopTheWorldGCProvider(
     RawSampleTransformer* rawSampleTransformer,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawStopTheWorldSample>("StopTheWorldGCProvider", valueTypeProvider.GetOrRegister(StopTheWorldSampleTypeDefinitions), rawSampleTransformer, memoryResource)
+    CollectorBase<RawStopTheWorldSample>("StopTheWorldGCProvider", valueTypeProvider.GetOrRegister(StopTheWorldSampleTypeDefinitions), rawSampleTransformer, memoryResource, ProfileType::GCStopTheWorld)
 {
 }
 

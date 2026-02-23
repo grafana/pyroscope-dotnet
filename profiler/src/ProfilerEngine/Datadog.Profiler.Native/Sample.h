@@ -30,8 +30,8 @@ enum class ProfileType : int32_t
     Lock              = 5,
     Exception         = 6,
     GcCpu             = 7,
-    GarbageCollection = 8,
-    StopTheWorld      = 9,
+    GC                = 8,
+    GCStopTheWorld    = 9,
     ThreadLifetime    = 10,
 };
 
@@ -153,12 +153,23 @@ public:
         _runtimeId = runtimeId;
     }
 
+    ProfileType GetProfileType() const
+    {
+        return _profileType;
+    }
+
+    void SetProfileType(ProfileType profileType)
+    {
+        _profileType = profileType;
+    }
+
     void Reset()
     {
         _timestamp = 0ns;
         _callstack.clear();
         _runtimeId = {};
         _allLabels.clear();
+        _profileType = ProfileType::Unknown;
         std::fill(_values.begin(), _values.end(), 0);
     }
     // well known labels
@@ -211,4 +222,5 @@ private:
     Values _values;
     Labels _allLabels;
     std::string_view _runtimeId;
+    ProfileType _profileType = ProfileType::Unknown;
 };
