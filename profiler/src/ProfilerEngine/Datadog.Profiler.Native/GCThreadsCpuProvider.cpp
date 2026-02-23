@@ -13,8 +13,8 @@
 
 static std::vector<SampleValueType> GcCpuSampleTypeDefinitions(
 {
-    {"cpu", "nanoseconds", -1, ProfileType::GcCpu},
-    {"cpu_samples", "count", -1, ProfileType::GcCpu}
+    {"gc_cpu", "nanoseconds", -1, ProfileType::GcCpu},
+    {"gc_cpu_samples", "count", -1, ProfileType::GcCpu}
 });
 
 GCThreadsCpuProvider::GCThreadsCpuProvider(SampleValueTypeProvider& valueTypeProvider, RawSampleTransformer* cpuSampleTransformer, MetricsRegistry& metricsRegistry) :
