@@ -5,6 +5,9 @@
 #include "PprofBuilder.h"
 #include "Log.h"
 
+// Aborts in both debug and release builds, unlike assert() which is a no-op in release.
+#define CHECK(cond) do { if (!(cond)) { ::abort(); } } while (0)
+
 PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions, size_t globalOffset) :
     _sampleTypeDefinitions(std::move(sampleTypeDefinitions)),
     _globalOffset(globalOffset)
@@ -15,7 +18,7 @@ PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions, s
 void PprofBuilder::AddSample(const Sample& sample)
 {
     auto& values = sample.GetValues();
-    assert(values.size() >= _globalOffset + _sampleTypeDefinitions.size());
+    CHECK(values.size() >= _globalOffset + _sampleTypeDefinitions.size());
     std::lock_guard<std::mutex> lock(this->_lock);
     auto* pSample = _profile.add_sample();
     for (auto const& frame : sample.GetCallstack())

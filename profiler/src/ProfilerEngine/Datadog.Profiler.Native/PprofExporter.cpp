@@ -56,8 +56,7 @@ PprofExporter::PprofExporter(IApplicationStore* applicationStore,
     for (auto& [key, pair] : groups)
     {
         ProfileTypeEntry entry;
-        entry.globalOffset = pair.second;
-        entry.builder = std::make_unique<PprofBuilder>(std::move(pair.first), entry.globalOffset);
+        entry.builder = std::make_unique<PprofBuilder>(std::move(pair.first), pair.second);
         _perProfileTypeBuilder.emplace(key, std::move(entry));
     }
 
@@ -68,7 +67,7 @@ PProfExportSink::~PProfExportSink()
 {
 }
 
-void PprofExporter::Add(std::shared_ptr<Sample> const& sample)
+void PprofExporter::AddSampleToBuilder(std::shared_ptr<Sample> const& sample)
 {
     int32_t key = static_cast<int32_t>(sample->GetProfileType());
     std::lock_guard lock(_perProfileTypeBuilderLock);
@@ -77,6 +76,11 @@ void PprofExporter::Add(std::shared_ptr<Sample> const& sample)
     {
         it->second.builder->AddSample(*sample);
     }
+}
+
+void PprofExporter::Add(std::shared_ptr<Sample> const& sample)
+{
+    AddSampleToBuilder(sample);
 }
 
 void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint)
@@ -94,13 +98,7 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
             std::shared_ptr<Sample> sample;
             while (samplesEnumerator->MoveNext(sample))
             {
-                int32_t key = static_cast<int32_t>(sample->GetProfileType());
-                std::lock_guard lock2(_perProfileTypeBuilderLock);
-                auto it = _perProfileTypeBuilder.find(key);
-                if (it != _perProfileTypeBuilder.end())
-                {
-                    it->second.builder->AddSample(*sample);
-                }
+                AddSampleToBuilder(sample);
             }
         }
     }

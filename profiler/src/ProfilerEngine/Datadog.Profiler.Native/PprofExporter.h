@@ -45,10 +45,11 @@ public:
     void RegisterApplication(std::string_view runtimeId) override;
     void RegisterGcSettingsProvider(IGcSettingsProvider* provider) override;
 
+    void AddSampleToBuilder(std::shared_ptr<Sample> const& sample);
+
 private:
     struct ProfileTypeEntry
     {
-        size_t globalOffset;
         std::unique_ptr<PprofBuilder> builder;
     };
 
