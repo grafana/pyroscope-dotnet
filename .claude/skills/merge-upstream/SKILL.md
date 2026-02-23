@@ -61,12 +61,15 @@ The scripts bellow should be executed as is, as executable, without passing it t
 
 1. **Run the prepare-merge script (steps 1-9)**
    ```
-   .claude/skills/merge-upstream/prepare-merge.sh <tag> <base>
+   .claude/skills/merge-upstream/prepare-merge.sh <ref> <base>
    ```
+   `<ref>` can be a tag (`v3.38.0`), a commit hash, or a remote ref (`upstream/main`).
+   `<base>` is the local branch to build on (e.g. `main`).
+
    This single script handles everything up through step 9:
-   - Adds upstream remote (if missing) and fetches tags
-   - Verifies the tag exists upstream (aborts if not)
-   - Creates the branch `kk/fork-update-<version>` from `<base>` (re-creates if it already exists)
+   - Adds upstream remote (if missing) and fetches
+   - Verifies `<ref>` resolves to a commit (aborts if not)
+   - Creates the branch `kk/fork-update-<ref>` from `<base>` (re-creates if it already exists)
    - Starts the merge (`--no-commit --no-ff`)
    - Removes directories not carried in the fork (tracer, demos, tests, CI configs, docs, etc.)
    - Removes files replaced by git submodules (spdlog, ManagedLoader, etc.)

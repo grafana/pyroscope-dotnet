@@ -1,111 +1,152 @@
 #!/usr/bin/env bash
-# prepare-merge.sh <tag> <base-branch>
-# Steps 1-9 of the merge-upstream skill:
-#   1. Ensure upstream remote exists and fetch tags
-#   2. Verify the target tag exists on the upstream remote
-#   3. Create merge branch from <base-branch>
-#   4. Start the merge (--no-commit --no-ff)
-#   5. Remove directories we don't carry in the fork
-#   6. Remove files we replace with git submodules
-#   7. Resolve DU conflicts (deleted-by-us / updated-by-upstream)
-#   8. Remove upstream .github and .claude additions
-#   9. Resolve .github/CODEOWNERS — always keep the fork version
+# prepare-merge.sh <ref> <base-branch>
+# Steps 1-9 of the merge-upstream skill.
+# <ref> can be a tag (v3.38.0), a commit hash, or a remote ref (upstream/main).
+# <base-branch> is the local branch to base the merge on (e.g. main).
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-TAG="${1:-}"
+REF="${1:-}"
 BASE="${2:-}"
 
-if [ -z "$TAG" ] || [ -z "$BASE" ]; then
-  echo "Usage: $0 <tag> <base-branch>"
+if [ -z "$REF" ] || [ -z "$BASE" ]; then
+  echo "Usage: $0 <ref> <base-branch>"
   echo "  e.g. $0 v3.38.0 main"
+  echo "  e.g. $0 upstream/main main"
+  echo "  e.g. $0 abc1234 main"
   exit 1
 fi
 
-VERSION="${TAG#v}"
+# Derive a clean version string for the branch name.
+# Strip leading 'v', replace '/' with '-' so remote refs like upstream/main become upstream-main.
+VERSION="${REF#v}"
+VERSION="${VERSION//\//-}"
 BRANCH="kk/fork-update-${VERSION}"
 
-# ── Step 1: Ensure upstream remote exists and fetch tags ─────────────────────
-echo "==> Step 1: Ensuring upstream remote and fetching tags..."
-if ! git remote get-url upstream &>/dev/null; then
-  git remote add upstream https://github.com/DataDog/dd-trace-dotnet.git
-  echo "    upstream remote added"
-else
-  echo "    upstream remote already exists"
-fi
-git fetch upstream --tags
+# ── Step 1: Ensure upstream remote exists and fetch ──────────────────────────
+step1_ensure_upstream() {
+  echo "==> Step 1: Ensuring upstream remote and fetching..."
+  if ! git remote get-url upstream &>/dev/null; then
+    git remote add upstream https://github.com/DataDog/dd-trace-dotnet.git
+    echo "    upstream remote added"
+  else
+    echo "    upstream remote already exists"
+  fi
+  git fetch upstream --tags
+}
 
-# ── Step 2: Verify the target tag exists on the upstream remote ──────────────
-echo "==> Step 2: Verifying tag ${TAG} exists upstream..."
-result=$(git ls-remote --tags upstream "refs/tags/${TAG}")
-if [ -z "$result" ]; then
-  echo "ERROR: Tag ${TAG} not found on upstream remote. Aborting."
-  exit 1
-fi
-echo "    Tag ${TAG} confirmed."
+# ── Step 2: Verify the ref resolves to a commit ──────────────────────────────
+step2_verify_ref() {
+  echo "==> Step 2: Verifying ref '${REF}' resolves to a commit..."
+  if ! git rev-parse --verify "${REF}^{commit}" &>/dev/null; then
+    echo "ERROR: '${REF}' does not resolve to a commit. Aborting."
+    exit 1
+  fi
+  local commit
+  commit=$(git rev-parse "${REF}^{commit}")
+  echo "    Ref '${REF}' resolved to ${commit}."
+}
 
 # ── Step 3: Create merge branch from <base> ──────────────────────────────────
-echo "==> Step 3: Creating branch ${BRANCH} from ${BASE}..."
-if git rev-parse --verify "${BRANCH}" &>/dev/null; then
-  git branch -D "${BRANCH}"
-  echo "    Deleted existing branch ${BRANCH}"
-fi
-git checkout -b "${BRANCH}" "${BASE}"
+step3_create_branch() {
+  echo "==> Step 3: Creating branch ${BRANCH} from ${BASE}..."
+  if git rev-parse --verify "${BRANCH}" &>/dev/null; then
+    git branch -D "${BRANCH}"
+    echo "    Deleted existing branch ${BRANCH}"
+  fi
+  git checkout -b "${BRANCH}" "${BASE}"
+}
 
 # ── Step 4: Start the merge ───────────────────────────────────────────────────
-echo "==> Step 4: Starting merge of ${TAG} (--no-commit --no-ff)..."
-git merge "${TAG}" --no-commit --no-ff || true
-# 'true' because conflicts are expected; we handle them in subsequent steps.
+step4_start_merge() {
+  echo "==> Step 4: Starting merge of '${REF}' (--no-commit --no-ff)..."
+  # Conflicts are expected; we handle them in subsequent steps.
+  git merge "${REF}" --no-commit --no-ff || true
+}
 
 # ── Step 5: Remove directories we don't carry in the fork ────────────────────
-echo "==> Step 5: Removing directories not carried in the fork..."
-DIRS_TO_REMOVE=(
-  tracer
-  "profiler/src/Demos"
-  "shared/src/Datadog.Trace.ClrProfiler.Native"
-  "shared/test"
-  ".azure-pipelines"
-  ".gitlab"
-  docs
-  "profiler/test"
-  "profiler/src/Tools"
-)
-for d in "${DIRS_TO_REMOVE[@]}"; do
-  if git ls-files --error-unmatch "${d}" &>/dev/null 2>&1 || \
-     git status --porcelain -- "${d}" | grep -q .; then
+step5_remove_fork_dirs() {
+  echo "==> Step 5: Removing directories not carried in the fork..."
+  local dirs=(
+    tracer
+    "profiler/src/Demos"
+    "shared/src/Datadog.Trace.ClrProfiler.Native"
+    "shared/test"
+    ".azure-pipelines"
+    ".gitlab"
+    docs
+    "profiler/test"
+    "profiler/src/Tools"
+  )
+  for d in "${dirs[@]}"; do
     git rm -rf --ignore-unmatch "${d}"
-  fi
-done
-git rm -f --ignore-unmatch .gitlab-ci.yml
+  done
+  git rm -f --ignore-unmatch .gitlab-ci.yml
+}
 
 # ── Step 6: Remove files we replace with git submodules ──────────────────────
-echo "==> Step 6: Removing files replaced by git submodules..."
-git rm -rf --ignore-unmatch build/cmake/FindSpdlog.cmake
-git rm -rf --ignore-unmatch shared/src/native-lib/spdlog
-git rm -rf --ignore-unmatch build/cmake/FindManagedLoader.cmake
+step6_remove_submodule_files() {
+  echo "==> Step 6: Removing files replaced by git submodules..."
+  git rm -rf --ignore-unmatch build/cmake/FindSpdlog.cmake
+  git rm -rf --ignore-unmatch shared/src/native-lib/spdlog
+  git rm -rf --ignore-unmatch build/cmake/FindManagedLoader.cmake
+}
 
-# ── Step 7: Resolve DU conflicts ─────────────────────────────────────────────
-echo "==> Step 7: Resolving DU (deleted-by-us) conflicts..."
-"${SCRIPT_DIR}/resolve-du-conflicts.sh"
+# ── Step 7: Resolve DU conflicts (deleted-by-us / updated-by-upstream) ───────
+step7_resolve_du_conflicts() {
+  echo "==> Step 7: Resolving DU (deleted-by-us) conflicts..."
+  git status --porcelain | grep '^DU ' | cut -c4- | xargs -r git rm -f
+  echo "    DU conflicts done"
+}
 
 # ── Step 8: Remove upstream .github and .claude additions ────────────────────
-echo "==> Step 8: Removing upstream .github and .claude additions..."
-"${SCRIPT_DIR}/remove-upstream-github.sh"
+step8_remove_upstream_additions() {
+  echo "==> Step 8: Removing upstream .github and .claude additions..."
 
-# ── Step 9: Resolve .github/CODEOWNERS — always keep our fork version ────────
-echo "==> Step 9: Resolving .github/CODEOWNERS..."
-if [ -f .github/CODEOWNERS ]; then
-  git checkout --ours .github/CODEOWNERS 2>/dev/null || true
-  git add .github/CODEOWNERS 2>/dev/null || true
-  echo "    .github/CODEOWNERS resolved to our fork version"
-else
-  echo "    .github/CODEOWNERS not present, nothing to do"
-fi
+  local files
+  files=$(git status --porcelain | grep '^A ' | grep '\.github' | cut -c4- || true)
+  if [ -n "$files" ]; then
+    echo "$files" | xargs -r git rm -f
+    echo "    upstream .github additions removed"
+  else
+    echo "    no upstream .github additions found"
+  fi
+
+  local claude_files
+  claude_files=$(git status --porcelain | grep '^A ' | grep '\.claude' | cut -c4- || true)
+  if [ -n "$claude_files" ]; then
+    echo "$claude_files" | xargs -r git rm -f
+    echo "    upstream .claude additions removed"
+  else
+    echo "    no upstream .claude additions found"
+  fi
+}
+
+# ── Step 9: Resolve .github/CODEOWNERS to our fork version ───────────────────
+step9_resolve_codeowners() {
+  echo "==> Step 9: Resolving .github/CODEOWNERS..."
+  if [ -f .github/CODEOWNERS ]; then
+    git checkout --ours .github/CODEOWNERS 2>/dev/null || true
+    git add .github/CODEOWNERS 2>/dev/null || true
+    echo "    .github/CODEOWNERS resolved to our fork version"
+  else
+    echo "    .github/CODEOWNERS not present, nothing to do"
+  fi
+}
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+step1_ensure_upstream
+step2_verify_ref
+step3_create_branch
+step4_start_merge
+step5_remove_fork_dirs
+step6_remove_submodule_files
+step7_resolve_du_conflicts
+step8_remove_upstream_additions
+step9_resolve_codeowners
 
 echo ""
 echo "==> Steps 1-9 complete. Branch: ${BRANCH}"
 echo "    Remaining conflicts (if any):"
 git diff --name-only --diff-filter=U || true
 echo ""
-echo "    Next: resolve remaining conflicts (step 10-11), then build (step 12)."
+echo "    Next: resolve remaining conflicts (steps 2-3 in SKILL.md), then build (step 4)."
