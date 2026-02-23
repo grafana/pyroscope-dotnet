@@ -19,11 +19,9 @@ class WallTimeProvider
 {
 public:
     WallTimeProvider(
-        SampleValueTypeProvider& sampleTypeProvider,
         RawSampleTransformer* rawSampleTransformer,
         shared::pmr::memory_resource* memoryResource
         );
 
-private:
     static std::vector<SampleValueType> SampleTypeDefinitions;
 };

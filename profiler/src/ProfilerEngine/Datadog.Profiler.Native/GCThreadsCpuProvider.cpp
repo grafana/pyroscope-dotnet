@@ -10,8 +10,14 @@
 #include "shared/src/native-src/string.h"
 #include "shared/src/native-src/util.h"
 
-GCThreadsCpuProvider::GCThreadsCpuProvider(SampleValueTypeProvider& valueTypeProvider, RawSampleTransformer* cpuSampleTransformer, MetricsRegistry& metricsRegistry) :
-    NativeThreadsCpuProviderBase(valueTypeProvider, cpuSampleTransformer)
+std::vector<SampleValueType> GCThreadsCpuProvider::SampleTypeDefinitions(
+{
+    {"cpu", "nanoseconds"},
+    {"cpu_samples", "count"}
+});
+
+GCThreadsCpuProvider::GCThreadsCpuProvider(RawSampleTransformer* cpuSampleTransformer, MetricsRegistry& metricsRegistry) :
+    NativeThreadsCpuProviderBase(cpuSampleTransformer)
 {
     _cpuDurationMetric = metricsRegistry.GetOrRegister<MeanMaxMetric>("dotnet_gc_cpu_duration");
 }

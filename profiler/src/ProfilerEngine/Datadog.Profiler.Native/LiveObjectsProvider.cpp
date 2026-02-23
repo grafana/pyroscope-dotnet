@@ -12,12 +12,11 @@
 #include "RawSampleTransformer.h"
 #include "Sample.h"
 #include "SamplesEnumerator.h"
-#include "SampleValueTypeProvider.h"
 
 std::vector<SampleValueType> LiveObjectsProvider::SampleTypeDefinitions(
 {
-    {"inuse_objects", "count", -1},
-    {"inuse_space", "bytes", -1}
+    {"inuse_objects", "count"},
+    {"inuse_space", "bytes"}
 });
 
 const std::string LiveObjectsProvider::Gen1("1");
@@ -25,13 +24,11 @@ const std::string LiveObjectsProvider::Gen2("2");
 
 LiveObjectsProvider::LiveObjectsProvider(
     ICorProfilerInfo13* pCorProfilerInfo,
-    SampleValueTypeProvider& valueTypeProvider,
     RawSampleTransformer* rawSampleTransformer,
     IConfiguration* pConfiguration)
     :
     _pCorProfilerInfo(pCorProfilerInfo),
-    _rawSampleTransformer{rawSampleTransformer},
-    _valueOffsets{valueTypeProvider.GetOrRegister(LiveObjectsProvider::SampleTypeDefinitions)}
+    _rawSampleTransformer{rawSampleTransformer}
 {
     _heapHandleLimit = pConfiguration->GetHeapHandleLimit();
 }
@@ -157,7 +154,7 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
         if (handle != nullptr)
         {
             LiveObjectInfo info(
-                _rawSampleTransformer->Transform(rawSample, _valueOffsets),
+                _rawSampleTransformer->Transform(rawSample, ProfileType::Heap),
                 rawSample.Address,
                 rawSample.Timestamp);
             info.SetHandle(handle);

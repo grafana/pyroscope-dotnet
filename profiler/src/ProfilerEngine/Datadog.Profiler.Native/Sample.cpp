@@ -49,8 +49,8 @@ const std::string Sample::ResponseContentDurationLabel = "response_content.durat
 const std::string Sample::RequestResponseThreadIdLabel = "response.thread_id";
 const std::string Sample::RequestResponseThreadNameLabel = "response.thread_name";
 
-// TODO: update the values vector size if more than 16 slots are needed
-size_t Sample::ValuesCount = 16;  // should be set BEFORE any sample gets created
+// Maximum number of value slots needed by any single profile type (all have at most 2 values)
+size_t Sample::ValuesCount = 4;
 
 
 Sample::Sample(std::chrono::nanoseconds timestamp, std::string_view runtimeId, size_t framesCount) :
@@ -117,6 +117,11 @@ const std::vector<FrameInfoView>& Sample::GetCallstack() const
 std::string_view Sample::GetRuntimeId() const
 {
     return _runtimeId;
+}
+
+ProfileType Sample::GetProfileType() const
+{
+    return _profileType;
 }
 
 const Labels& Sample::GetLabels() const

@@ -33,9 +33,9 @@ class PprofExporter : public IExporter
 {
 
 public:
-    PprofExporter(IApplicationStore* _applicationStore,
-                  std::shared_ptr<PProfExportSink> sin,
-                  std::vector<SampleValueType> sampleTypeDefinitions);
+    PprofExporter(IApplicationStore* applicationStore,
+                  std::shared_ptr<PProfExportSink> sink,
+                  std::unordered_map<ProfileType, std::vector<SampleValueType>> profileTypeDefinitions);
     void Add(std::shared_ptr<Sample> const& sample) override;
     void SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint) override;
     bool Export(ProfileTime& startTime, ProfileTime& endTime, bool lastCall = false) override;
@@ -46,16 +46,11 @@ public:
     void RegisterGcSettingsProvider(IGcSettingsProvider* provider) override;
 
 private:
-    PprofBuilder& GetPprofBuilder(std::string_view runtimeId);
+    PprofBuilder* GetOrCreateBuilder(ProfileType profileType);
 
     IApplicationStore* _applicationStore;
     std::shared_ptr<PProfExportSink> _sink;
-    std::vector<SampleValueType> _sampleTypeDefinitions;
-    std::vector<SampleValueType> _processSampleTypeDefinitions;
-    std::unordered_map<std::string_view, std::unique_ptr<PprofBuilder>> _perAppBuilder;
-    std::mutex _perAppBuilderLock;
-
-    std::vector<ISamplesProvider*> _processSamplesProviders;
-    std::unique_ptr<PprofBuilder> _processSamplesBuilder;
-    std::mutex _processSamplesLock;
+    std::unordered_map<ProfileType, std::vector<SampleValueType>> _profileTypeDefinitions;
+    std::unordered_map<ProfileType, std::unique_ptr<PprofBuilder>> _perProfileTypeBuilder;
+    std::mutex _buildersLock;
 };

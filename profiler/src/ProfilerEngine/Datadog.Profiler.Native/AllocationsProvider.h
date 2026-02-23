@@ -27,7 +27,6 @@ class IAppDomainStore;
 class IRuntimeIdStore;
 class ISampledAllocationsListener;
 class RawSampleTransformer;
-class SampleValueTypeProvider;
 
 
 class AllocationsProvider
@@ -40,19 +39,6 @@ class AllocationsProvider
 public:
     AllocationsProvider(
         bool isFramework,
-        SampleValueTypeProvider& valueTypeProvider,
-        ICorProfilerInfo4* pCorProfilerInfo,
-        IManagedThreadList* pManagedThreadList,
-        IFrameStore* pFrameStore,
-        RawSampleTransformer* rawSampleTransformer,
-        IConfiguration* pConfiguration,
-        ISampledAllocationsListener* pListener,
-        MetricsRegistry& metricsRegistry,
-        CallstackProvider callstackProvider,
-        shared::pmr::memory_resource* memoryResource);
-
-    AllocationsProvider(
-        std::vector<SampleValueTypeProvider::Offset> valueTypeProvider,
         ICorProfilerInfo4* pCorProfilerInfo,
         IManagedThreadList* pManagedThreadList,
         IFrameStore* pFrameStore,
@@ -89,17 +75,17 @@ public:
     // IUpscalePoissonProvider
     UpscalingPoissonInfo GetPoissonInfo() override;
 
-private:
-    uint64_t AllocTickThreshold = 100 * 1024; // this is also used for AllocationSampled as the mean of the distribution
-
-private:
     static std::vector<SampleValueType> SampleTypeDefinitions;
     static std::vector<SampleValueType> FrameworkSampleTypeDefinitions;
+
+private:
+    uint64_t AllocTickThreshold = 100 * 1024; // this is also used for AllocationSampled as the mean of the distribution
 
     ICorProfilerInfo4* _pCorProfilerInfo;
     IManagedThreadList* _pManagedThreadList;
     IFrameStore* _pFrameStore;
     ISampledAllocationsListener* _pListener = nullptr;
+    bool _isFramework;
     GenericSampler _sampler;
     int32_t _sampleLimit;
     IConfiguration const* const _pConfiguration;

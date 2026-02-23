@@ -23,7 +23,6 @@
 #include <memory>
 
 class IConfiguration;
-class SampleValueTypeProvider;
 class RawSampleTransformer;
 
 class ExceptionsProvider :
@@ -32,7 +31,6 @@ class ExceptionsProvider :
 {
 public:
     ExceptionsProvider(
-        SampleValueTypeProvider& valueTypeProvider,
         ICorProfilerInfo4* pCorProfilerInfo,
         IManagedThreadList* pManagedThreadList,
         IFrameStore* pFrameStore,
@@ -47,6 +45,8 @@ public:
 
     std::list<UpscalingInfo> GetInfos() override;
 
+    static std::vector<SampleValueType> SampleTypeDefinitions;
+
 private:
     struct ExceptionBucket
     {
@@ -58,9 +58,6 @@ private:
     bool LoadExceptionMetadata();
     bool GetExceptionType(ClassID classId, std::string& exceptionType);
 
-
-private:
-    static std::vector<SampleValueType> SampleTypeDefinitions;
 
     ICorProfilerInfo4* _pCorProfilerInfo;
     IManagedThreadList* _pManagedThreadList;

@@ -30,10 +30,9 @@ public:
         return *this;
     }
 
-    inline void OnTransform(std::shared_ptr<Sample>& sample, std::vector<SampleValueTypeProvider::Offset> const& valueOffsets) const override
+    inline void OnTransform(std::shared_ptr<Sample>& sample) const override
     {
-        assert(valueOffsets.size() == 1);
-        sample->AddValue(Duration.count(), valueOffsets[0]);
+        sample->AddValue(Duration.count(), 0);
     }
 
     std::chrono::nanoseconds Duration;

@@ -13,14 +13,14 @@
 #include <string_view>
 #include <utility>
 
-std::shared_ptr<Sample> RawSampleTransformer::Transform(const RawSample& rawSample, std::vector<SampleValueTypeProvider::Offset> const& offsets)
+std::shared_ptr<Sample> RawSampleTransformer::Transform(const RawSample& rawSample, ProfileType profileType)
 {
     auto sample = std::make_shared<Sample>(rawSample.Timestamp, std::string_view(), rawSample.Stack.Size());
-    Transform(rawSample, sample, offsets);
+    Transform(rawSample, sample, profileType);
     return sample;
 }
 
-void RawSampleTransformer::Transform(const RawSample& rawSample, std::shared_ptr<Sample>& sample, std::vector<SampleValueTypeProvider::Offset> const& offsets)
+void RawSampleTransformer::Transform(const RawSample& rawSample, std::shared_ptr<Sample>& sample, ProfileType profileType)
 {
     sample->Reset();
 
@@ -28,6 +28,7 @@ void RawSampleTransformer::Transform(const RawSample& rawSample, std::shared_ptr
 
     sample->SetRuntimeId(runtimeId == nullptr ? std::string_view() : std::string_view(runtimeId));
     sample->SetTimestamp(rawSample.Timestamp);
+    sample->SetProfileType(profileType);
 
     if (rawSample.LocalRootSpanId != 0)
     {
@@ -47,7 +48,7 @@ void RawSampleTransformer::Transform(const RawSample& rawSample, std::shared_ptr
     SetStack(rawSample, sample);
 
     // allow inherited classes to add values and specific labels
-    rawSample.OnTransform(sample, offsets);
+    rawSample.OnTransform(sample);
 }
 
 void RawSampleTransformer::SetAppDomainDetails(const RawSample& rawSample, std::shared_ptr<Sample>& sample)

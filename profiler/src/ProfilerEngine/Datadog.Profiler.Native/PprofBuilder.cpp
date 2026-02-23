@@ -5,8 +5,8 @@
 #include "PprofBuilder.h"
 #include "Log.h"
 
-PprofBuilder::PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions) :
-    _sampleTypeDefinitions(sampleTypeDefinitions)
+PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions) :
+    _sampleTypeDefinitions(std::move(sampleTypeDefinitions))
 {
     Reset();
 }
@@ -14,7 +14,7 @@ PprofBuilder::PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions) 
 void PprofBuilder::AddSample(const Sample& sample)
 {
     auto& values = sample.GetValues();
-    assert(values.size() == _sampleTypeDefinitions.size());
+    assert(values.size() >= _sampleTypeDefinitions.size());
     std::lock_guard<std::mutex> lock(this->_lock);
     auto* pSample = _profile.add_sample();
     for (auto const& frame : sample.GetCallstack())
@@ -24,9 +24,9 @@ void PprofBuilder::AddSample(const Sample& sample)
         auto locId = AddLocation(functionName, moduleName);
         pSample->add_location_id(locId);
     }
-    for (const auto& value : values)
+    for (size_t i = 0; i < _sampleTypeDefinitions.size(); i++)
     {
-        pSample->add_value(value);
+        pSample->add_value(values[i]);
     }
     for (const auto& label : sample.GetLabels())
     {

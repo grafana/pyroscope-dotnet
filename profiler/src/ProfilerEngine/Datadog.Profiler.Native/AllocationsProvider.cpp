@@ -17,7 +17,6 @@
 #include "MetricsRegistry.h"
 #include "OsSpecificApi.h"
 #include "RawSampleTransformer.h"
-#include "SampleValueTypeProvider.h"
 
 #include <chrono>
 
@@ -26,46 +25,19 @@
 
 std::vector<SampleValueType> AllocationsProvider::SampleTypeDefinitions(
     {
-        {"alloc_samples", "count", -1},
-        {"alloc_size", "bytes", -1}
+        {"alloc_samples", "count"},
+        {"alloc_size", "bytes"}
     }
 );
 
 std::vector<SampleValueType> AllocationsProvider::FrameworkSampleTypeDefinitions(
     {
-        {"alloc_samples", "count", -1},
+        {"alloc_samples", "count"},
     }
 );
 
 AllocationsProvider::AllocationsProvider(
     bool isFramework,
-    SampleValueTypeProvider& valueTypeProvider,
-    ICorProfilerInfo4* pCorProfilerInfo,
-    IManagedThreadList* pManagedThreadList,
-    IFrameStore* pFrameStore,
-    RawSampleTransformer* rawSampleTransformer,
-    IConfiguration* pConfiguration,
-    ISampledAllocationsListener* pListener,
-    MetricsRegistry& metricsRegistry,
-    CallstackProvider pool,
-    shared::pmr::memory_resource* memoryResource)
-    :
-    AllocationsProvider(
-        isFramework
-            ? valueTypeProvider.GetOrRegister(FrameworkSampleTypeDefinitions)
-            : valueTypeProvider.GetOrRegister(SampleTypeDefinitions),
-        pCorProfilerInfo, pManagedThreadList, pFrameStore,
-        rawSampleTransformer,
-        pConfiguration,
-        pListener,
-        metricsRegistry,
-        std::move(pool),
-        memoryResource)
-{
-}
-
-AllocationsProvider::AllocationsProvider(
-    std::vector<SampleValueTypeProvider::Offset> valueTypes,
     ICorProfilerInfo4* pCorProfilerInfo,
     IManagedThreadList* pManagedThreadList,
     IFrameStore* pFrameStore,
@@ -75,11 +47,12 @@ AllocationsProvider::AllocationsProvider(
     MetricsRegistry& metricsRegistry,
     CallstackProvider pool,
     shared::pmr::memory_resource* memoryResource) :
-    CollectorBase<RawAllocationSample>("AllocationsProvider", std::move(valueTypes), rawSampleTransformer, memoryResource),
+    CollectorBase<RawAllocationSample>("AllocationsProvider", ProfileType::Alloc, rawSampleTransformer, memoryResource),
     _pCorProfilerInfo(pCorProfilerInfo),
     _pManagedThreadList(pManagedThreadList),
     _pFrameStore(pFrameStore),
     _pListener(pListener),
+    _isFramework(isFramework),
     _sampler(pConfiguration->AllocationSampleLimit(), pConfiguration->GetUploadInterval()),
     _sampleLimit(pConfiguration->AllocationSampleLimit()),
     _pConfiguration(pConfiguration),
@@ -286,6 +259,7 @@ void AllocationsProvider::OnAllocation(std::chrono::nanoseconds timestamp,
 
     // create a sample from the allocation
     RawAllocationSample rawSample;
+    rawSample.HasSize = false; // .NET Framework: no allocation size available
 
     // We know that we don't have any span ID nor end point details
 
@@ -356,7 +330,5 @@ void AllocationsProvider::OnAllocation(std::chrono::nanoseconds timestamp,
 
 UpscalingPoissonInfo AllocationsProvider::GetPoissonInfo()
 {
-    auto const& offsets = GetValueOffsets(); //              sum(size)       count
-    UpscalingPoissonInfo info{ offsets, AllocTickThreshold, offsets[1], offsets[0] };
-    return info;
+    return { {}, AllocTickThreshold, 1, 0 };
 }

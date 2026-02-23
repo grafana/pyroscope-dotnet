@@ -10,6 +10,9 @@
 #include "NativeThreadsCpuProviderBase.h"
 #include "MetricsRegistry.h"
 #include "MeanMaxMetric.h"
+#include "Sample.h"
+
+#include <vector>
 
 class RawSampleTransformer;
 
@@ -19,7 +22,9 @@ class GCThreadsCpuProvider
     public IGcSettingsProvider
 {
 public:
-    GCThreadsCpuProvider(SampleValueTypeProvider& valueTypeProvider, RawSampleTransformer* cpuSampleTransformer, MetricsRegistry& metricsRegistry);
+    GCThreadsCpuProvider(RawSampleTransformer* cpuSampleTransformer, MetricsRegistry& metricsRegistry);
+
+    static std::vector<SampleValueType> SampleTypeDefinitions;
 
     // Inherited via ISamplesProvider
     const char* GetName() override;

@@ -18,7 +18,6 @@
 #include <memory>
 #include <unordered_map>
 
-class SampleValueTypeProvider;
 class IManagedThreadList;
 class IThreadsCpuManager;
 class IConfiguration;
@@ -31,7 +30,6 @@ class NetworkProvider :
 {
 public:
     NetworkProvider(
-        SampleValueTypeProvider& valueTypeProvider,
         ICorProfilerInfo4* pCorProfilerInfo,
         IManagedThreadList* pManagedThreadList,
         RawSampleTransformer* rawSampleTransformer,
@@ -59,6 +57,8 @@ public:
     void OnResponseContentStart(std::chrono::nanoseconds timestamp, LPCGUID pActivityId) override;
     void OnResponseContentStop(std::chrono::nanoseconds timestamp, LPCGUID pActivityId) override;
 
+    static std::vector<SampleValueType> SampleTypeDefinitions;
+
 private:
     bool MonitorRequest(NetworkRequestInfo*& info, LPCGUID pActivityId, bool isRoot = true);
     bool CaptureThreadInfo(NetworkRequestInfo& info);
@@ -66,9 +66,6 @@ private:
     void UpdateHandshakeDuration(NetworkRequestInfo* pInfo, std::chrono::nanoseconds timestamp);
     void UpdateHandshakeWait(NetworkRequestInfo* pInfo);
     bool TryGetActivity(LPCGUID pActivityId, NetworkActivity& activity, bool isRoot = true);
-
-private:
-    static std::vector<SampleValueType> SampleTypeDefinitions;
 
     ICorProfilerInfo4* _pCorProfilerInfo;
     IManagedThreadList* _pManagedThreadList;

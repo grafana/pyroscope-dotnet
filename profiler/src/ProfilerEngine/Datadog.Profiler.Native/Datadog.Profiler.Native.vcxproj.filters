@@ -328,9 +328,7 @@
     <ClInclude Include="ManagedThreadInfo.h">
       <Filter>Threads</Filter>
     </ClInclude>
-    <ClInclude Include="SampleValueTypeProvider.h">
-      <Filter>Profiler-Driver</Filter>
-    </ClInclude>
+
     <ClInclude Include="ApplicationInfo.h">
       <Filter>CorProfiler-Infrastructure</Filter>
     </ClInclude>
@@ -656,9 +654,7 @@
     <ClCompile Include="ManagedThreadInfo.cpp">
       <Filter>Threads</Filter>
     </ClCompile>
-    <ClCompile Include="SampleValueTypeProvider.cpp">
-      <Filter>Profiler-Driver</Filter>
-    </ClCompile>
+
     <ClCompile Include="ApplicationStore.cpp">
       <Filter>CorProfiler-Infrastructure</Filter>
     </ClCompile>

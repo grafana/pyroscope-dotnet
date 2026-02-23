@@ -10,21 +10,11 @@
 
 PprofExporter::PprofExporter(IApplicationStore* applicationStore,
                              std::shared_ptr<PProfExportSink> sink,
-                             std::vector<SampleValueType> sampleTypeDefinitions) :
+                             std::unordered_map<ProfileType, std::vector<SampleValueType>> profileTypeDefinitions) :
     _applicationStore(applicationStore),
     _sink(std::move(sink)),
-    _sampleTypeDefinitions(sampleTypeDefinitions),
-    _processSampleTypeDefinitions(_sampleTypeDefinitions)
+    _profileTypeDefinitions(std::move(profileTypeDefinitions))
 {
-    for (auto& sampleType : _processSampleTypeDefinitions)
-    {
-        if (sampleType.Name == "cpu")
-        {
-            sampleType.Name = "gc_cpu";
-        }
-    }
-
-    _processSamplesBuilder = std::make_unique<PprofBuilder>(_processSampleTypeDefinitions);
     signal(SIGPIPE, SIG_IGN);
 }
 
@@ -34,8 +24,11 @@ PProfExportSink::~PProfExportSink()
 
 void PprofExporter::Add(std::shared_ptr<Sample> const& sample)
 {
-    GetPprofBuilder(sample->GetRuntimeId())
-        .AddSample(*sample);
+    auto* builder = GetOrCreateBuilder(sample->GetProfileType());
+    if (builder != nullptr)
+    {
+        builder->AddSample(*sample);
+    }
 }
 
 void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint)
@@ -46,31 +39,13 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
 {
     std::vector<std::string> pprofs;
     {
-        std::lock_guard lock(_perAppBuilderLock);
-        for (auto& builder : _perAppBuilder)
+        std::lock_guard lock(_buildersLock);
+        for (auto& kv : _perProfileTypeBuilder)
         {
-            if (builder.second->SamplesCount() != 0)
+            if (kv.second->SamplesCount() != 0)
             {
-                pprofs.emplace_back(builder.second->Build());
+                pprofs.emplace_back(kv.second->Build());
             }
-        }
-    }
-
-    {
-        std::lock_guard lock(_processSamplesLock);
-        for (auto provider : _processSamplesProviders)
-        {
-            auto samplesEnumerator = provider->GetSamples();
-            std::shared_ptr<Sample> sample;
-            while (samplesEnumerator->MoveNext(sample))
-            {
-                _processSamplesBuilder->AddSample(*sample);
-            }
-        }
-
-        if (_processSamplesBuilder->SamplesCount() > 0)
-        {
-            pprofs.emplace_back(_processSamplesBuilder->Build());
         }
     }
 
@@ -81,26 +56,29 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
     return true;
 }
 
-PprofBuilder& PprofExporter::GetPprofBuilder(std::string_view runtimeId)
+PprofBuilder* PprofExporter::GetOrCreateBuilder(ProfileType profileType)
 {
-    std::lock_guard lock(_perAppBuilderLock);
-    auto it = _perAppBuilder.find(runtimeId);
-    if (it != _perAppBuilder.end())
+    std::lock_guard lock(_buildersLock);
+    auto it = _perProfileTypeBuilder.find(profileType);
+    if (it != _perProfileTypeBuilder.end())
     {
-        return *it->second;
+        return it->second.get();
     }
-    auto instance = std::make_unique<PprofBuilder>(_sampleTypeDefinitions);
-    auto res = _perAppBuilder.emplace(runtimeId, std::move(instance));
-    return *res.first->second;
+
+    auto defIt = _profileTypeDefinitions.find(profileType);
+    if (defIt == _profileTypeDefinitions.end())
+    {
+        return nullptr;
+    }
+
+    auto instance = std::make_unique<PprofBuilder>(defIt->second);
+    auto* ptr = instance.get();
+    _perProfileTypeBuilder.emplace(profileType, std::move(instance));
+    return ptr;
 }
 
 void PprofExporter::RegisterUpscaleProvider(IUpscaleProvider* provider) {};
 void PprofExporter::RegisterUpscalePoissonProvider(IUpscalePoissonProvider* provider) {};
-
-void PprofExporter::RegisterProcessSamplesProvider(ISamplesProvider* provider)
-{
-    std::lock_guard lock(_processSamplesLock);
-    _processSamplesProviders.push_back(provider);
-};
+void PprofExporter::RegisterProcessSamplesProvider(ISamplesProvider* provider) {};
 void PprofExporter::RegisterApplication(std::string_view runtimeId) {};
 void PprofExporter::RegisterGcSettingsProvider(IGcSettingsProvider* provider) {};

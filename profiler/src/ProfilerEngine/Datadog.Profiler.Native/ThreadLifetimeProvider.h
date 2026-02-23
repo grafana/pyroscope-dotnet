@@ -20,7 +20,6 @@ class ThreadLifetimeProvider
 {
 public:
     ThreadLifetimeProvider(
-        SampleValueTypeProvider& valueTypeProvider,
         RawSampleTransformer* rawSampleTransformer,
         shared::pmr::memory_resource* memoryResource);
 

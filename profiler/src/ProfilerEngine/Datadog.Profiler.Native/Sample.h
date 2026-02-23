@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <functional>
 #include <iostream>
 #include <list>
 #include <string>
@@ -20,16 +21,36 @@
 #include "async_ref_counted_string.h"
 
 
+enum class ProfileType : int
+{
+    ProcessCpu, // CpuTimeProvider / CpuSampleProvider
+    WallTime,   // WallTimeProvider
+    Alloc,      // AllocationsProvider
+    Heap,       // LiveObjectsProvider
+    Lock,       // ContentionProvider
+    Exception,  // ExceptionsProvider
+    Network,    // NetworkProvider
+    Timeline,   // GarbageCollectionProvider, StopTheWorldGCProvider, ThreadLifetimeProvider
+    GcCpu,      // GCThreadsCpuProvider
+};
+
 struct SampleValueType
 {
     std::string Name;
     std::string Unit;
-
-    // Samples belonging to the same provider will share the same index
-    // For libdatadog, it means that they will be stored in the same profile
-    // This value will be set when registering the SampleValueType with SampleValueTypeProvider
-    int32_t Index; // -1 means not set
 };
+
+namespace std
+{
+template <>
+struct hash<ProfileType>
+{
+    size_t operator()(ProfileType pt) const noexcept
+    {
+        return std::hash<int>{}(static_cast<int>(pt));
+    }
+};
+}
 
 typedef std::vector<int64_t> Values;
 typedef std::pair<std::string_view, google::javaprofiler::AsyncRefCountedString> StringLabel;
@@ -69,6 +90,7 @@ public:
     const std::vector<FrameInfoView>& GetCallstack() const;
     const Labels& GetLabels() const;
     std::string_view GetRuntimeId() const;
+    ProfileType GetProfileType() const;
 
     // Since this class is not finished, this method is only for test purposes
     void SetValue(std::int64_t value);
@@ -136,12 +158,18 @@ public:
         _runtimeId = runtimeId;
     }
 
+    void SetProfileType(ProfileType profileType)
+    {
+        _profileType = profileType;
+    }
+
     void Reset()
     {
         _timestamp = 0ns;
         _callstack.clear();
         _runtimeId = {};
         _allLabels.clear();
+        _profileType = ProfileType::ProcessCpu;
         std::fill(_values.begin(), _values.end(), 0);
     }
     // well known labels
@@ -194,4 +222,5 @@ private:
     Values _values;
     Labels _allLabels;
     std::string_view _runtimeId;
+    ProfileType _profileType = ProfileType::ProcessCpu;
 };
