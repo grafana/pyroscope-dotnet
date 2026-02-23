@@ -5,7 +5,6 @@
 
 #include <chrono>
 
-#include "CpuTimeProvider.h"
 #include "Log.h"
 #include "OsSpecificApi.h"
 #include "RawCpuSample.h"
@@ -15,10 +14,16 @@
 
 using namespace std::chrono_literals;
 
+static std::vector<SampleValueType> GcCpuSampleTypeDefinitions(
+{
+    {"gc_cpu", "nanoseconds", -1, ProfileType::GcCpu},
+    {"gc_cpu_samples", "count", -1, ProfileType::GcCpu}
+});
+
 NativeThreadsCpuProviderBase::NativeThreadsCpuProviderBase(SampleValueTypeProvider& valueTypeProvider, RawSampleTransformer* sampleTransformer) :
     _sampleTransformer{sampleTransformer},
     _previousTotalCpuTime{0},
-    _valueOffsets{valueTypeProvider.GetOrRegister(CpuTimeProvider::SampleTypeDefinitions)}
+    _valueOffsets{valueTypeProvider.GetOrRegister(GcCpuSampleTypeDefinitions)}
 {
 }
 

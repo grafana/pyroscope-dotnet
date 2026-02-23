@@ -3,6 +3,10 @@
 
 #include "ThreadLifetimeProvider.h"
 #include "SampleValueTypeProvider.h"
+#include "TimelineSampleType.h"
+
+static std::vector<SampleValueType> ThreadLifetimeSampleTypeDefinitions(
+    {{"thread_time", "nanoseconds", -1, ProfileType::ThreadLifetime}});
 #include "OpSysTools.h"
 #include "RawSampleTransformer.h"
 #include "TimelineSampleType.h"
@@ -13,7 +17,7 @@ ThreadLifetimeProvider::ThreadLifetimeProvider(
     shared::pmr::memory_resource* memoryResource)
     :
     CollectorBase<RawThreadLifetimeSample>(
-        "ThreadLifetimeProvider", valueTypeProvider.GetOrRegister(TimelineSampleType::Definitions), rawSampleTransformer, memoryResource)
+        "ThreadLifetimeProvider", valueTypeProvider.GetOrRegister(ThreadLifetimeSampleTypeDefinitions), rawSampleTransformer, memoryResource)
 {
 }
 

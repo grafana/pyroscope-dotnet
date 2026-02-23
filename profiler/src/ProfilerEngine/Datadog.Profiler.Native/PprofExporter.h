@@ -25,7 +25,7 @@ using Pprof = std::string;
 class PProfExportSink
 {
 public:
-    virtual void Export(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime) = 0;
+    virtual void Export(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime, const std::string& profileTypeName) = 0;
     virtual ~PProfExportSink();
 };
 
@@ -46,16 +46,19 @@ public:
     void RegisterGcSettingsProvider(IGcSettingsProvider* provider) override;
 
 private:
-    PprofBuilder& GetPprofBuilder(std::string_view runtimeId);
+    struct ProfileTypeEntry
+    {
+        std::vector<SampleValueType> sampleTypes;
+        size_t globalOffset;
+        std::unique_ptr<PprofBuilder> builder;
+    };
 
     IApplicationStore* _applicationStore;
     std::shared_ptr<PProfExportSink> _sink;
     std::vector<SampleValueType> _sampleTypeDefinitions;
-    std::vector<SampleValueType> _processSampleTypeDefinitions;
-    std::unordered_map<std::string_view, std::unique_ptr<PprofBuilder>> _perAppBuilder;
-    std::mutex _perAppBuilderLock;
+    std::unordered_map<int32_t, ProfileTypeEntry> _perProfileTypeBuilder;
+    std::mutex _perProfileTypeBuilderLock;
 
     std::vector<ISamplesProvider*> _processSamplesProviders;
-    std::unique_ptr<PprofBuilder> _processSamplesBuilder;
     std::mutex _processSamplesLock;
 };

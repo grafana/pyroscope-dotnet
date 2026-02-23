@@ -13,7 +13,7 @@ class SampleValueTypeProvider;
 
 std::vector<SampleValueType> WallTimeProvider::SampleTypeDefinitions(
     {
-        {"wall", "nanoseconds", -1}
+        {"wall", "nanoseconds", -1, ProfileType::Wall}
     }
     );
 

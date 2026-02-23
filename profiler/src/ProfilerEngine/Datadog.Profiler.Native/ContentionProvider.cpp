@@ -26,8 +26,8 @@ std::vector<uintptr_t> ContentionProvider::_emptyStack;
 
 std::vector<SampleValueType> ContentionProvider::SampleTypeDefinitions(
     {
-        {"lock_count", "count", -1},
-        {"lock_time", "nanoseconds", -1}
+        {"lock_count", "count", -1, ProfileType::Lock},
+        {"lock_time", "nanoseconds", -1, ProfileType::Lock}
     });
 
 ContentionProvider::ContentionProvider(

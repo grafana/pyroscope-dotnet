@@ -8,23 +8,60 @@
 #include "Log.h"
 #include <signal.h>
 
+static std::string ProfileTypeToName(ProfileType pt)
+{
+    switch (pt)
+    {
+        case ProfileType::Cpu:               return "process_cpu";
+        case ProfileType::Wall:              return "wall";
+        case ProfileType::Alloc:             return "alloc";
+        case ProfileType::Heap:              return "memory";
+        case ProfileType::Lock:              return "mutex";
+        case ProfileType::Exception:         return "exceptions";
+        case ProfileType::GcCpu:             return "gc_cpu";
+        case ProfileType::GarbageCollection: return "goroutine";
+        case ProfileType::StopTheWorld:      return "block";
+        case ProfileType::ThreadLifetime:    return "threadtime";
+        default:                             return "unknown";
+    }
+}
+
 PprofExporter::PprofExporter(IApplicationStore* applicationStore,
                              std::shared_ptr<PProfExportSink> sink,
                              std::vector<SampleValueType> sampleTypeDefinitions) :
     _applicationStore(applicationStore),
     _sink(std::move(sink)),
-    _sampleTypeDefinitions(sampleTypeDefinitions),
-    _processSampleTypeDefinitions(_sampleTypeDefinitions)
+    _sampleTypeDefinitions(std::move(sampleTypeDefinitions))
 {
-    for (auto& sampleType : _processSampleTypeDefinitions)
+    // Build per-ProfileType builders: group sampleTypeDefinitions by profileType.
+    // Each group gets a PprofBuilder with only its subset of types, and a globalOffset
+    // so it reads the right slice from the full values vector.
+    std::unordered_map<int32_t, std::pair<std::vector<SampleValueType>, size_t>> groups; // profileType -> (types, firstOffset)
+
+    for (size_t i = 0; i < _sampleTypeDefinitions.size(); i++)
     {
-        if (sampleType.Name == "cpu")
+        auto const& st = _sampleTypeDefinitions[i];
+        int32_t key = static_cast<int32_t>(st.profileType);
+        auto it = groups.find(key);
+        if (it == groups.end())
         {
-            sampleType.Name = "gc_cpu";
+            groups.emplace(key, std::make_pair(std::vector<SampleValueType>{st}, i));
+        }
+        else
+        {
+            it->second.first.push_back(st);
         }
     }
 
-    _processSamplesBuilder = std::make_unique<PprofBuilder>(_processSampleTypeDefinitions);
+    for (auto& [key, pair] : groups)
+    {
+        ProfileTypeEntry entry;
+        entry.sampleTypes = std::move(pair.first);
+        entry.globalOffset = pair.second;
+        entry.builder = std::make_unique<PprofBuilder>(entry.sampleTypes, entry.globalOffset);
+        _perProfileTypeBuilder.emplace(key, std::move(entry));
+    }
+
     signal(SIGPIPE, SIG_IGN);
 }
 
@@ -34,8 +71,11 @@ PProfExportSink::~PProfExportSink()
 
 void PprofExporter::Add(std::shared_ptr<Sample> const& sample)
 {
-    GetPprofBuilder(sample->GetRuntimeId())
-        .AddSample(*sample);
+    std::lock_guard lock(_perProfileTypeBuilderLock);
+    for (auto& [key, entry] : _perProfileTypeBuilder)
+    {
+        entry.builder->AddSample(*sample);
+    }
 }
 
 void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint)
@@ -44,18 +84,7 @@ void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, 
 
 bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool lastCall)
 {
-    std::vector<std::string> pprofs;
-    {
-        std::lock_guard lock(_perAppBuilderLock);
-        for (auto& builder : _perAppBuilder)
-        {
-            if (builder.second->SamplesCount() != 0)
-            {
-                pprofs.emplace_back(builder.second->Build());
-            }
-        }
-    }
-
+    // Drain process samples providers into their respective per-ProfileType builders.
     {
         std::lock_guard lock(_processSamplesLock);
         for (auto provider : _processSamplesProviders)
@@ -64,34 +93,32 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
             std::shared_ptr<Sample> sample;
             while (samplesEnumerator->MoveNext(sample))
             {
-                _processSamplesBuilder->AddSample(*sample);
+                std::lock_guard lock2(_perProfileTypeBuilderLock);
+                for (auto& [key, entry] : _perProfileTypeBuilder)
+                {
+                    entry.builder->AddSample(*sample);
+                }
             }
         }
+    }
 
-        if (_processSamplesBuilder->SamplesCount() > 0)
+    std::vector<std::pair<std::string, ProfileType>> pprofs;
+    {
+        std::lock_guard lock(_perProfileTypeBuilderLock);
+        for (auto& [key, entry] : _perProfileTypeBuilder)
         {
-            pprofs.emplace_back(_processSamplesBuilder->Build());
+            if (entry.builder->SamplesCount() != 0)
+            {
+                pprofs.emplace_back(entry.builder->Build(), static_cast<ProfileType>(key));
+            }
         }
     }
 
-    for (const auto& pprof : pprofs)
+    for (auto& [pprof, profileType] : pprofs)
     {
-        _sink->Export(std::move(pprof), startTime, endTime);
+        _sink->Export(std::move(pprof), startTime, endTime, ProfileTypeToName(profileType));
     }
     return true;
-}
-
-PprofBuilder& PprofExporter::GetPprofBuilder(std::string_view runtimeId)
-{
-    std::lock_guard lock(_perAppBuilderLock);
-    auto it = _perAppBuilder.find(runtimeId);
-    if (it != _perAppBuilder.end())
-    {
-        return *it->second;
-    }
-    auto instance = std::make_unique<PprofBuilder>(_sampleTypeDefinitions);
-    auto res = _perAppBuilder.emplace(runtimeId, std::move(instance));
-    return *res.first->second;
 }
 
 void PprofExporter::RegisterUpscaleProvider(IUpscaleProvider* provider) {};

@@ -20,6 +20,21 @@
 #include "async_ref_counted_string.h"
 
 
+enum class ProfileType : int32_t
+{
+    Unknown           = 0,
+    Cpu               = 1,
+    Wall              = 2,
+    Alloc             = 3,
+    Heap              = 4,
+    Lock              = 5,
+    Exception         = 6,
+    GcCpu             = 7,
+    GarbageCollection = 8,
+    StopTheWorld      = 9,
+    ThreadLifetime    = 10,
+};
+
 struct SampleValueType
 {
     std::string Name;
@@ -29,6 +44,8 @@ struct SampleValueType
     // For libdatadog, it means that they will be stored in the same profile
     // This value will be set when registering the SampleValueType with SampleValueTypeProvider
     int32_t Index; // -1 means not set
+
+    ProfileType profileType = ProfileType::Unknown;
 };
 
 typedef std::vector<int64_t> Values;

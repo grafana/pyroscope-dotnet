@@ -47,7 +47,7 @@ PyroscopePprofSink::~PyroscopePprofSink()
     _workerThread.join();
 }
 
-void PyroscopePprofSink::Export(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime)
+void PyroscopePprofSink::Export(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime, const std::string& profileTypeName)
 {
     if (_queue.size() >= 3)
     {
@@ -58,6 +58,7 @@ void PyroscopePprofSink::Export(Pprof pprof, ProfileTime& startTime, ProfileTime
         .pprof = std::move(pprof),
         .startTime = startTime,
         .endTime = endTime,
+        .profileTypeName = profileTypeName,
     };
     _queue.push(req);
 }
@@ -89,18 +90,18 @@ void PyroscopePprofSink::work()
         {
             continue;
         }
-        upload(std::move(req.pprof), req.startTime, req.endTime);
+        upload(std::move(req.pprof), req.startTime, req.endTime, req.profileTypeName);
     }
 }
 
-void PyroscopePprofSink::upload(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime)
+void PyroscopePprofSink::upload(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime, const std::string& profileTypeName)
 {
     push::v1::PushRequest request;
     auto* series = request.add_series();
 
     auto* nameLabel = series->add_labels();
     nameLabel->set_name("__name__");
-    nameLabel->set_value("process_cpu");
+    nameLabel->set_value(profileTypeName);
 
     auto* serviceLabel = series->add_labels();
     serviceLabel->set_name("service_name");
