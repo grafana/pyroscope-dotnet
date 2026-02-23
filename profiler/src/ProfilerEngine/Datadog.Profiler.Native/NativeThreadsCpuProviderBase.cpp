@@ -10,20 +10,14 @@
 #include "RawCpuSample.h"
 #include "RawSampleTransformer.h"
 #include "SamplesEnumerator.h"
-#include "SampleValueTypeProvider.h"
 
 using namespace std::chrono_literals;
 
-static std::vector<SampleValueType> GcCpuSampleTypeDefinitions(
-{
-    {"cpu", "nanoseconds", -1, ProfileType::GcCpu},
-    {"cpu_samples", "count", -1, ProfileType::GcCpu}
-});
-
-NativeThreadsCpuProviderBase::NativeThreadsCpuProviderBase(SampleValueTypeProvider& valueTypeProvider, RawSampleTransformer* sampleTransformer) :
+NativeThreadsCpuProviderBase::NativeThreadsCpuProviderBase(std::vector<SampleValueTypeProvider::Offset> valueOffsets, RawSampleTransformer* sampleTransformer, ProfileType profileType) :
     _sampleTransformer{sampleTransformer},
     _previousTotalCpuTime{0},
-    _valueOffsets{valueTypeProvider.GetOrRegister(GcCpuSampleTypeDefinitions)}
+    _valueOffsets{std::move(valueOffsets)},
+    _profileType{profileType}
 {
 }
 
@@ -95,7 +89,7 @@ std::unique_ptr<SamplesEnumerator> NativeThreadsCpuProviderBase::GetSamples()
     // Cpu Time provider knows the offset of the Cpu value
     // So leave the transformation to it
     auto sample = _sampleTransformer->Transform(rawSample, _valueOffsets);
-    sample->SetProfileType(ProfileType::GcCpu);
+    sample->SetProfileType(_profileType);
 
     // The resulting callstack of the transformation is empty
     // Add a fake "GC" frame to the sample

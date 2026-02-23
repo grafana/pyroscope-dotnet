@@ -6,12 +6,19 @@
 #include "Log.h"
 #include "OsSpecificApi.h"
 #include "RawSampleTransformer.h"
+#include "SampleValueTypeProvider.h"
 
 #include "shared/src/native-src/string.h"
 #include "shared/src/native-src/util.h"
 
+static std::vector<SampleValueType> GcCpuSampleTypeDefinitions(
+{
+    {"cpu", "nanoseconds", -1, ProfileType::GcCpu},
+    {"cpu_samples", "count", -1, ProfileType::GcCpu}
+});
+
 GCThreadsCpuProvider::GCThreadsCpuProvider(SampleValueTypeProvider& valueTypeProvider, RawSampleTransformer* cpuSampleTransformer, MetricsRegistry& metricsRegistry) :
-    NativeThreadsCpuProviderBase(valueTypeProvider, cpuSampleTransformer)
+    NativeThreadsCpuProviderBase(valueTypeProvider.GetOrRegister(GcCpuSampleTypeDefinitions), cpuSampleTransformer, ProfileType::GcCpu)
 {
     _cpuDurationMetric = metricsRegistry.GetOrRegister<MeanMaxMetric>("dotnet_gc_cpu_duration");
 }
