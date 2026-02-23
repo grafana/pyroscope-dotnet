@@ -1,6 +1,7 @@
 .cache/clangd/
 compile_commands.json
 cmake-build-*
+_cmake_build/
 _merge_upstreamm_build/
 build-*
 ## # C++ specific ignores:
