@@ -57,7 +57,7 @@ public:
         std::vector<SampleValueTypeProvider::Offset> valueOffsets,
         RawSampleTransformer* rawSampleTransformer,
         shared::pmr::memory_resource* memoryResource,
-        ProfileType profileType = ProfileType::Unknown)
+        ProfileType profileType)
         :
         ProviderBase(name),
         _valueOffsets{std::move(valueOffsets)},

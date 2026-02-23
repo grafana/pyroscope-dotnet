@@ -98,7 +98,7 @@ public:
         RawSampleTransformer* rawSampleTransformer,
         RingBuffer* ringBuffer,
         MetricsRegistry& metricsRegistry,
-        ProfileType profileType = ProfileType::Unknown) :
+        ProfileType profileType) :
         ProviderBase(name),
         _valueOffsets{std::move(valueOffsets)},
         _rawSampleTransformer{rawSampleTransformer},
