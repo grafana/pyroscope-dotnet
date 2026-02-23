@@ -16,7 +16,7 @@ class PprofBuilder
 {
 
 public:
-    PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions, size_t globalOffset = 0);
+    PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions, size_t globalOffset);
 
     void AddSample(const Sample& sample);
     int SamplesCount();

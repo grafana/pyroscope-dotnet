@@ -18,7 +18,7 @@
 #include "TimelineSampleType.h"
 
 static std::vector<SampleValueType> StopTheWorldSampleTypeDefinitions(
-    {{"stw_time", "nanoseconds", -1, ProfileType::GCStopTheWorld}});
+    {{"gc_stw_time", "nanoseconds", -1, ProfileType::GCStopTheWorld}});
 
 #include "shared/src/native-src/com_ptr.h"
 #include "shared/src/native-src/string.h"

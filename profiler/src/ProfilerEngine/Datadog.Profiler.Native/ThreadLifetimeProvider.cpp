@@ -6,7 +6,7 @@
 #include "TimelineSampleType.h"
 
 static std::vector<SampleValueType> ThreadLifetimeSampleTypeDefinitions(
-    {{"thread_time", "nanoseconds", -1, ProfileType::ThreadLifetime}});
+    {{"thread_lifetime", "nanoseconds", -1, ProfileType::ThreadLifetime}});
 #include "OpSysTools.h"
 #include "RawSampleTransformer.h"
 #include "TimelineSampleType.h"

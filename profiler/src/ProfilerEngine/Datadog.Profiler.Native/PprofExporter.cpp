@@ -19,9 +19,9 @@ static std::string ProfileTypeToName(ProfileType pt)
         case ProfileType::Lock:           return "mutex";
         case ProfileType::Exception:      return "exceptions";
         case ProfileType::GcCpu:          return "gc_cpu";
-        case ProfileType::GC:             return "goroutine";
-        case ProfileType::GCStopTheWorld: return "block";
-        case ProfileType::ThreadLifetime: return "threadtime";
+        case ProfileType::GC:             return "gc";
+        case ProfileType::GCStopTheWorld: return "gc_stw";
+        case ProfileType::ThreadLifetime: return "thread_lifetime";
         default:                          return "unknown";
     }
 }
