@@ -29,11 +29,7 @@ PprofExporter::PprofExporter(IApplicationStore* applicationStore,
             ++i;
         }
 
-        auto entry       = std::make_unique<ProfileTypeEntry>();
-        entry->startIndex = startIndex;
-        entry->count      = groupTypes.size();
-        entry->builder    = std::make_unique<PprofBuilder>(std::move(groupTypes));
-        _entries.push_back(std::move(entry));
+        _entries.push_back(std::make_unique<ProfileTypeEntry>(startIndex, groupTypes.size(), std::move(groupTypes)));
     }
 
     signal(SIGPIPE, SIG_IGN);
@@ -59,7 +55,7 @@ void PprofExporter::AddSampleToEntries(const Sample& sample)
         auto slice = std::span<const int64_t>(allValues.data() + entry->startIndex, entry->count);
         if (AllZero(slice)) continue;
         std::lock_guard lock(entry->lock);
-        entry->builder->AddSample(sample, slice);
+        entry->builder.AddSample(sample, slice);
     }
 }
 
@@ -89,8 +85,8 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
     for (auto& entry : _entries)
     {
         std::lock_guard lock(entry->lock);
-        if (entry->builder->SamplesCount() != 0)
-            pprofs.emplace_back(entry->builder->Build());
+        if (entry->builder.SamplesCount() != 0)
+            pprofs.emplace_back(entry->builder.Build());
     }
 
     for (const auto& pprof : pprofs)

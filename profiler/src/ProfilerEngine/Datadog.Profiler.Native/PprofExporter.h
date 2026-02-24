@@ -30,9 +30,12 @@ public:
 
 struct ProfileTypeEntry
 {
+    ProfileTypeEntry(size_t startIndex, size_t count, std::vector<SampleValueType> sampleTypes) :
+        startIndex(startIndex), count(count), builder(std::move(sampleTypes)) {}
+
     size_t startIndex;                 // offset into Sample::GetValues()
     size_t count;                      // number of values for this profile type
-    std::unique_ptr<PprofBuilder> builder;
+    PprofBuilder builder;
     std::mutex lock;
 };
 
