@@ -93,9 +93,6 @@ private:
     uint64_t AllocTickThreshold = 100 * 1024; // this is also used for AllocationSampled as the mean of the distribution
 
 private:
-    static std::vector<SampleValueType> SampleTypeDefinitions;
-    static std::vector<SampleValueType> FrameworkSampleTypeDefinitions;
-
     ICorProfilerInfo4* _pCorProfilerInfo;
     IManagedThreadList* _pManagedThreadList;
     IFrameStore* _pFrameStore;

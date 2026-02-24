@@ -24,6 +24,4 @@ public:
         shared::pmr::memory_resource* memoryResource
         );
 
-private:
-    static std::vector<SampleValueType> SampleTypeDefinitions;
 };

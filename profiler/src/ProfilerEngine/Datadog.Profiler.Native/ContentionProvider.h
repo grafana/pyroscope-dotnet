@@ -64,7 +64,6 @@ public:
 
 private:
     static std::string GetBucket(std::chrono::nanoseconds contentionDuration);
-    static std::vector<SampleValueType> SampleTypeDefinitions;
     void AddContentionSample(std::chrono::nanoseconds timestamp, uint32_t threadId, ContentionType contentionType, std::chrono::nanoseconds contentionDuration, uint64_t blockingThreadId, shared::WSTRING blockingThreadName, const std::vector<uintptr_t>& stack);
 
 private:

@@ -60,8 +60,6 @@ private:
 
 
 private:
-    static std::vector<SampleValueType> SampleTypeDefinitions;
-
     ICorProfilerInfo4* _pCorProfilerInfo;
     IManagedThreadList* _pManagedThreadList;
     IFrameStore* _pFrameStore;

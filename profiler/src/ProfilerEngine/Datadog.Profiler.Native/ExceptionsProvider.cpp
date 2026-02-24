@@ -16,11 +16,6 @@
 #include "shared/src/native-src/string.h"
 
 
-std::vector<SampleValueType> ExceptionsProvider::SampleTypeDefinitions(
-    {
-        {"exception", "count", -1}
-    });
-
 ExceptionsProvider::ExceptionsProvider(
     SampleValueTypeProvider& valueTypeProvider,
     ICorProfilerInfo4* pCorProfilerInfo,
@@ -32,7 +27,7 @@ ExceptionsProvider::ExceptionsProvider(
     CallstackProvider callstackProvider,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawExceptionSample>("ExceptionsProvider", valueTypeProvider.GetOrRegister(SampleTypeDefinitions), rawSampleTransformer, memoryResource),
+    CollectorBase<RawExceptionSample>("ExceptionsProvider", valueTypeProvider.GetOrRegister(SampleValueTypeProvider::ExceptionDefinitions), rawSampleTransformer, memoryResource),
     _pCorProfilerInfo(pCorProfilerInfo),
     _pManagedThreadList(pManagedThreadList),
     _pFrameStore(pFrameStore),

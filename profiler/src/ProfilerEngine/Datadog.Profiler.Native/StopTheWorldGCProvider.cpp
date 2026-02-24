@@ -15,7 +15,6 @@
 #include "OsSpecificApi.h"
 #include "RawSampleTransformer.h"
 #include "SampleValueTypeProvider.h"
-#include "TimelineSampleType.h"
 
 #include "shared/src/native-src/com_ptr.h"
 #include "shared/src/native-src/string.h"
@@ -26,7 +25,7 @@ StopTheWorldGCProvider::StopTheWorldGCProvider(
     RawSampleTransformer* rawSampleTransformer,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawStopTheWorldSample>("StopTheWorldGCProvider", valueTypeProvider.GetOrRegister(TimelineSampleType::Definitions), rawSampleTransformer, memoryResource)
+    CollectorBase<RawStopTheWorldSample>("StopTheWorldGCProvider", valueTypeProvider.GetOrRegister(SampleValueTypeProvider::StopTheWorldDefinitions), rawSampleTransformer, memoryResource)
 {
 }
 

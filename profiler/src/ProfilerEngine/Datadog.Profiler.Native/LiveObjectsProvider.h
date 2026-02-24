@@ -35,8 +35,6 @@ public:
 
 public:
 
-    static std::vector<SampleValueType> SampleTypeDefinitions;
-
     // Inherited via IBatchedSamplesProvider
     std::unique_ptr<SamplesEnumerator> GetSamples() override;
 

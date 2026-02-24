@@ -24,19 +24,6 @@
 #include "shared/src/native-src/com_ptr.h"
 #include "shared/src/native-src/string.h"
 
-std::vector<SampleValueType> AllocationsProvider::SampleTypeDefinitions(
-    {
-        {"alloc_samples", "count", -1},
-        {"alloc_size", "bytes", -1}
-    }
-);
-
-std::vector<SampleValueType> AllocationsProvider::FrameworkSampleTypeDefinitions(
-    {
-        {"alloc_samples", "count", -1},
-    }
-);
-
 AllocationsProvider::AllocationsProvider(
     bool isFramework,
     SampleValueTypeProvider& valueTypeProvider,
@@ -52,8 +39,8 @@ AllocationsProvider::AllocationsProvider(
     :
     AllocationsProvider(
         isFramework
-            ? valueTypeProvider.GetOrRegister(FrameworkSampleTypeDefinitions)
-            : valueTypeProvider.GetOrRegister(SampleTypeDefinitions),
+            ? valueTypeProvider.GetOrRegister(SampleValueTypeProvider::AllocFrameworkDefinitions)
+            : valueTypeProvider.GetOrRegister(SampleValueTypeProvider::AllocDefinitions),
         pCorProfilerInfo, pManagedThreadList, pFrameStore,
         rawSampleTransformer,
         pConfiguration,

@@ -8,14 +8,9 @@
 #include "IRuntimeIdStore.h"
 #include "RawCpuSample.h"
 #include "RawSampleTransformer.h"
+#include "SampleValueTypeProvider.h"
 
 #include "shared/src/native-src/dd_memory_resource.hpp"
-
-std::vector<SampleValueType> CpuTimeProvider::SampleTypeDefinitions(
-{
-    {"cpu", "nanoseconds", -1},
-    {"cpu_samples", "count", -1}}
-);
 
 CpuTimeProvider::CpuTimeProvider(
     SampleValueTypeProvider& valueTypeProvider,
@@ -23,6 +18,6 @@ CpuTimeProvider::CpuTimeProvider(
     shared::pmr::memory_resource* memoryResource
     )
     :
-    CollectorBase<RawCpuSample>("CpuTimeProvider", valueTypeProvider.GetOrRegister(SampleTypeDefinitions), rawSampleTransformer, memoryResource)
+    CollectorBase<RawCpuSample>("CpuTimeProvider", valueTypeProvider.GetOrRegister(SampleValueTypeProvider::CpuTimeDefinitions), rawSampleTransformer, memoryResource)
 {
 }

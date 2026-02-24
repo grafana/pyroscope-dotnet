@@ -5,7 +5,6 @@
 
 #include "RawSampleTransformer.h"
 #include "SampleValueTypeProvider.h"
-#include "TimelineSampleType.h"
 
 GarbageCollectionProvider::GarbageCollectionProvider(
     SampleValueTypeProvider& valueTypeProvider,
@@ -13,7 +12,7 @@ GarbageCollectionProvider::GarbageCollectionProvider(
     MetricsRegistry& metricsRegistry,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawGarbageCollectionSample>("GarbageCollectorProvider", valueTypeProvider.GetOrRegister(TimelineSampleType::Definitions), rawSampleTransformer, memoryResource)
+    CollectorBase<RawGarbageCollectionSample>("GarbageCollectorProvider", valueTypeProvider.GetOrRegister(SampleValueTypeProvider::GarbageCollectionDefinitions), rawSampleTransformer, memoryResource)
 {
 
     _gen0CountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_gc_gen0");
