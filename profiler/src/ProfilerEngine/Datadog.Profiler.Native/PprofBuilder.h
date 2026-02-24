@@ -10,6 +10,7 @@
 
 #include <memory>
 #include <mutex>
+#include <span>
 #include <string_view>
 
 class PprofBuilder
@@ -18,7 +19,7 @@ class PprofBuilder
 public:
     PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions);
 
-    void AddSample(const Sample& sample);
+    void AddSample(const Sample& sample, std::span<const int64_t> values);
     int SamplesCount();
     std::string Build();
 

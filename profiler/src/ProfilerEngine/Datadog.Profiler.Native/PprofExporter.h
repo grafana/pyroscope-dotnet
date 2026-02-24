@@ -15,7 +15,9 @@
 #include "google/v1/profile.pb.h"
 
 #include <forward_list>
+#include <map>
 #include <memory>
+#include <span>
 #include <vector>
 
 using Pprof = std::string;
@@ -25,6 +27,14 @@ class PProfExportSink
 public:
     virtual void Export(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime) = 0;
     virtual ~PProfExportSink();
+};
+
+struct ProfileTypeEntry
+{
+    std::vector<SampleValueType> sampleTypes; // subset of types for this profile type group
+    size_t startIndex;                         // offset into Sample::GetValues()
+    size_t count;                              // == sampleTypes.size()
+    std::unique_ptr<PprofBuilder> builder;     // holds reference to sampleTypes — must not move after init
 };
 
 class PprofExporter : public IExporter
@@ -44,14 +54,12 @@ public:
     void RegisterGcSettingsProvider(IGcSettingsProvider* provider) override;
 
 private:
+    static bool AllZero(std::span<const int64_t> values);
+
     IApplicationStore* _applicationStore;
     std::shared_ptr<PProfExportSink> _sink;
-    std::vector<SampleValueType> _sampleTypeDefinitions;
-    std::vector<SampleValueType> _processSampleTypeDefinitions;
-    std::unique_ptr<PprofBuilder> _builder;
+    std::vector<ProfileTypeEntry> _entries;
     std::mutex _builderLock;
 
     std::vector<ISamplesProvider*> _processSamplesProviders;
-    std::unique_ptr<PprofBuilder> _processSamplesBuilder;
-    std::mutex _processSamplesLock;
 };

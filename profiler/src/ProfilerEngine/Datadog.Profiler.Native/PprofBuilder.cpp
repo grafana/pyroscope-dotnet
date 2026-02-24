@@ -11,9 +11,8 @@ PprofBuilder::PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions) 
     Reset();
 }
 
-void PprofBuilder::AddSample(const Sample& sample)
+void PprofBuilder::AddSample(const Sample& sample, std::span<const int64_t> values)
 {
-    auto& values = sample.GetValues();
     assert(values.size() == _sampleTypeDefinitions.size());
     std::lock_guard<std::mutex> lock(this->_lock);
     auto* pSample = _profile.add_sample();

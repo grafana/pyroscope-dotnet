@@ -12,20 +12,38 @@ PprofExporter::PprofExporter(IApplicationStore* applicationStore,
                              std::shared_ptr<PProfExportSink> sink,
                              std::vector<SampleValueType> sampleTypeDefinitions) :
     _applicationStore(applicationStore),
-    _sink(std::move(sink)),
-    _sampleTypeDefinitions(sampleTypeDefinitions),
-    _processSampleTypeDefinitions(_sampleTypeDefinitions)
+    _sink(std::move(sink))
 {
-    for (auto& sampleType : _processSampleTypeDefinitions)
+    // Group sampleTypeDefinitions by ProfileType, preserving first-occurrence order.
+    struct GroupAcc { std::vector<SampleValueType> types; size_t startIndex; };
+    std::map<ProfileType, GroupAcc> groups;
+    std::vector<ProfileType> order;
+
+    for (size_t i = 0; i < sampleTypeDefinitions.size(); ++i)
     {
-        if (sampleType.Name == "cpu")
+        const auto& svt = sampleTypeDefinitions[i];
+        if (groups.find(svt.Type) == groups.end())
         {
-            sampleType.Name = "gc_cpu";
+            order.push_back(svt.Type);
+            groups[svt.Type] = GroupAcc{{}, i};
         }
+        groups[svt.Type].types.push_back(svt);
     }
 
-    _builder = std::make_unique<PprofBuilder>(_sampleTypeDefinitions);
-    _processSamplesBuilder = std::make_unique<PprofBuilder>(_processSampleTypeDefinitions);
+    // Reserve before push_back: PprofBuilder holds a reference to ProfileTypeEntry::sampleTypes,
+    // so _entries must never reallocate after builders are created.
+    _entries.reserve(order.size());
+    for (auto pt : order)
+    {
+        auto& acc = groups[pt];
+        ProfileTypeEntry entry;
+        entry.startIndex  = acc.startIndex;
+        entry.count       = acc.types.size();
+        entry.sampleTypes = std::move(acc.types);
+        entry.builder     = std::make_unique<PprofBuilder>(entry.sampleTypes);
+        _entries.push_back(std::move(entry));
+    }
+
     signal(SIGPIPE, SIG_IGN);
 }
 
@@ -33,10 +51,25 @@ PProfExportSink::~PProfExportSink()
 {
 }
 
+// static
+bool PprofExporter::AllZero(std::span<const int64_t> values)
+{
+    for (auto v : values)
+        if (v != 0) return false;
+    return true;
+}
+
 void PprofExporter::Add(std::shared_ptr<Sample> const& sample)
 {
+    auto const& allValues = sample->GetValues();
     std::lock_guard lock(_builderLock);
-    _builder->AddSample(*sample);
+
+    for (auto& entry : _entries)
+    {
+        auto slice = std::span<const int64_t>(allValues.data() + entry.startIndex, entry.count);
+        if (AllZero(slice)) continue;
+        entry.builder->AddSample(*sample, slice);
+    }
 }
 
 void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint)
@@ -45,31 +78,30 @@ void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, 
 
 bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool lastCall)
 {
-    std::vector<std::string> pprofs;
+    std::lock_guard lock(_builderLock);
+
+    // Collect process samples (e.g. GcThreadsCpu) through the same per-entry loop.
+    for (auto provider : _processSamplesProviders)
     {
-        std::lock_guard lock(_builderLock);
-        if (_builder->SamplesCount() != 0)
+        auto samplesEnumerator = provider->GetSamples();
+        std::shared_ptr<Sample> sample;
+        while (samplesEnumerator->MoveNext(sample))
         {
-            pprofs.emplace_back(_builder->Build());
+            auto const& allValues = sample->GetValues();
+            for (auto& entry : _entries)
+            {
+                auto slice = std::span<const int64_t>(allValues.data() + entry.startIndex, entry.count);
+                if (AllZero(slice)) continue;
+                entry.builder->AddSample(*sample, slice);
+            }
         }
     }
 
+    std::vector<std::string> pprofs;
+    for (auto& entry : _entries)
     {
-        std::lock_guard lock(_processSamplesLock);
-        for (auto provider : _processSamplesProviders)
-        {
-            auto samplesEnumerator = provider->GetSamples();
-            std::shared_ptr<Sample> sample;
-            while (samplesEnumerator->MoveNext(sample))
-            {
-                _processSamplesBuilder->AddSample(*sample);
-            }
-        }
-
-        if (_processSamplesBuilder->SamplesCount() > 0)
-        {
-            pprofs.emplace_back(_processSamplesBuilder->Build());
-        }
+        if (entry.builder->SamplesCount() != 0)
+            pprofs.emplace_back(entry.builder->Build());
     }
 
     for (const auto& pprof : pprofs)
@@ -84,7 +116,6 @@ void PprofExporter::RegisterUpscalePoissonProvider(IUpscalePoissonProvider* prov
 
 void PprofExporter::RegisterProcessSamplesProvider(ISamplesProvider* provider)
 {
-    std::lock_guard lock(_processSamplesLock);
     _processSamplesProviders.push_back(provider);
 };
 void PprofExporter::RegisterApplication(std::string_view runtimeId) {};
