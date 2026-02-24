@@ -30,8 +30,8 @@ SampleValueTypeProvider::SampleValueTypeProvider() :
         {"request_time", "nanoseconds", ProfileType::Network, -1}
     },
     LiveObjectsDefinitions{
-        {"inuse_objects", "count", ProfileType::LiveObjects, -1},
-        {"inuse_space", "bytes", ProfileType::LiveObjects, -1}
+        {"inuse_objects", "count", ProfileType::Heap, -1},
+        {"inuse_space", "bytes", ProfileType::Heap, -1}
     },
     GarbageCollectionDefinitions{
         {"gc_cpu_timeline", "nanoseconds", ProfileType::GcCpu, -1}

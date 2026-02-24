@@ -29,7 +29,7 @@ enum class ProfileType
     Lock,
     Exception,
     Network,
-    LiveObjects,
+    Heap,
     GcCpu,
     GcStw,
     ThreadLifetime,
