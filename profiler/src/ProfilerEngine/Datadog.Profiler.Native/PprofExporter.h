@@ -64,4 +64,5 @@ private:
     std::vector<std::unique_ptr<ProfileTypeEntry>> _entries;
 
     std::vector<ISamplesProvider*> _processSamplesProviders;
+    std::mutex _processSamplesLock;
 };

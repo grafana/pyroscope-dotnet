@@ -71,13 +71,16 @@ void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, 
 bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool lastCall)
 {
     // Collect process samples (e.g. GcThreadsCpu) through the same per-entry dispatch.
-    for (auto provider : _processSamplesProviders)
     {
-        auto samplesEnumerator = provider->GetSamples();
-        std::shared_ptr<Sample> sample;
-        while (samplesEnumerator->MoveNext(sample))
+        std::lock_guard lock(_processSamplesLock);
+        for (auto provider : _processSamplesProviders)
         {
-            AddSampleToEntries(*sample);
+            auto samplesEnumerator = provider->GetSamples();
+            std::shared_ptr<Sample> sample;
+            while (samplesEnumerator->MoveNext(sample))
+            {
+                AddSampleToEntries(*sample);
+            }
         }
     }
 
@@ -101,6 +104,7 @@ void PprofExporter::RegisterUpscalePoissonProvider(IUpscalePoissonProvider* prov
 
 void PprofExporter::RegisterProcessSamplesProvider(ISamplesProvider* provider)
 {
+    std::lock_guard lock(_processSamplesLock);
     _processSamplesProviders.push_back(provider);
 };
 void PprofExporter::RegisterApplication(std::string_view runtimeId) {};
