@@ -74,7 +74,7 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
 
     for (const auto& pprof : pprofs)
     {
-        _sink->Export(std::move(pprof), startTime, endTime);
+        _sink->Export(std::move(pprof));
     }
     return true;
 }
