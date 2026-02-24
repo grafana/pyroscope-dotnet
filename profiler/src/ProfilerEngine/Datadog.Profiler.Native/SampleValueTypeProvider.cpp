@@ -34,13 +34,13 @@ SampleValueTypeProvider::SampleValueTypeProvider() :
         {"inuse_space", "bytes", ProfileType::LiveObjects, -1}
     },
     GarbageCollectionDefinitions{
-        {"timeline", "nanoseconds", ProfileType::GcCpu, -1}
+        {"gc_cpu_timeline", "nanoseconds", ProfileType::GcCpu, -1}
     },
     StopTheWorldDefinitions{
-        {"timeline", "nanoseconds", ProfileType::GcStw, -1}
+        {"gc_stw_timeline", "nanoseconds", ProfileType::GcStw, -1}
     },
     ThreadLifetimeDefinitions{
-        {"timeline", "nanoseconds", ProfileType::ThreadLifetime, -1}
+        {"thread_lifetime_timeline", "nanoseconds", ProfileType::ThreadLifetime, -1}
     }
 {
     _sampleTypeDefinitions.reserve(16);
