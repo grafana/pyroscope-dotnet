@@ -33,6 +33,7 @@ PprofExporter::PprofExporter(IApplicationStore* applicationStore,
         entry.startIndex = startIndex;
         entry.count      = groupTypes.size();
         entry.builder    = std::make_unique<PprofBuilder>(std::move(groupTypes));
+        entry.lock       = std::make_unique<std::mutex>();
         _entries.push_back(std::move(entry));
     }
 
@@ -51,17 +52,21 @@ bool PprofExporter::AllZero(std::span<const int64_t> values)
     return true;
 }
 
-void PprofExporter::Add(std::shared_ptr<Sample> const& sample)
+void PprofExporter::AddSampleToEntries(const Sample& sample)
 {
-    auto const& allValues = sample->GetValues();
-    std::lock_guard lock(_builderLock);
-
+    auto const& allValues = sample.GetValues();
     for (auto& entry : _entries)
     {
         auto slice = std::span<const int64_t>(allValues.data() + entry.startIndex, entry.count);
         if (AllZero(slice)) continue;
-        entry.builder->AddSample(*sample, slice);
+        std::lock_guard lock(*entry.lock);
+        entry.builder->AddSample(sample, slice);
     }
+}
+
+void PprofExporter::Add(std::shared_ptr<Sample> const& sample)
+{
+    AddSampleToEntries(*sample);
 }
 
 void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint)
@@ -70,28 +75,21 @@ void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, 
 
 bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool lastCall)
 {
-    std::lock_guard lock(_builderLock);
-
-    // Collect process samples (e.g. GcThreadsCpu) through the same per-entry loop.
+    // Collect process samples (e.g. GcThreadsCpu) through the same per-entry dispatch.
     for (auto provider : _processSamplesProviders)
     {
         auto samplesEnumerator = provider->GetSamples();
         std::shared_ptr<Sample> sample;
         while (samplesEnumerator->MoveNext(sample))
         {
-            auto const& allValues = sample->GetValues();
-            for (auto& entry : _entries)
-            {
-                auto slice = std::span<const int64_t>(allValues.data() + entry.startIndex, entry.count);
-                if (AllZero(slice)) continue;
-                entry.builder->AddSample(*sample, slice);
-            }
+            AddSampleToEntries(*sample);
         }
     }
 
     std::vector<std::string> pprofs;
     for (auto& entry : _entries)
     {
+        std::lock_guard lock(*entry.lock);
         if (entry.builder->SamplesCount() != 0)
             pprofs.emplace_back(entry.builder->Build());
     }

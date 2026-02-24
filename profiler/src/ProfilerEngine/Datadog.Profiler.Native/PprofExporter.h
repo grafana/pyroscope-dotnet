@@ -33,6 +33,7 @@ struct ProfileTypeEntry
     size_t startIndex;                 // offset into Sample::GetValues()
     size_t count;                      // number of values for this profile type
     std::unique_ptr<PprofBuilder> builder;
+    std::unique_ptr<std::mutex> lock;
 };
 
 class PprofExporter : public IExporter
@@ -53,11 +54,11 @@ public:
 
 private:
     static bool AllZero(std::span<const int64_t> values);
+    void AddSampleToEntries(const Sample& sample);
 
     IApplicationStore* _applicationStore;
     std::shared_ptr<PProfExportSink> _sink;
     std::vector<ProfileTypeEntry> _entries;
-    std::mutex _builderLock;
 
     std::vector<ISamplesProvider*> _processSamplesProviders;
 };
