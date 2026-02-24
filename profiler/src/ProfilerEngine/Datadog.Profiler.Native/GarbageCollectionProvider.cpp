@@ -12,7 +12,7 @@ GarbageCollectionProvider::GarbageCollectionProvider(
     MetricsRegistry& metricsRegistry,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawGarbageCollectionSample>("GarbageCollectorProvider", valueTypeProvider.GetOrRegister2(valueTypeProvider.GarbageCollectionDefinitions), rawSampleTransformer, memoryResource)
+    CollectorBase<RawGarbageCollectionSample>("GarbageCollectorProvider", valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.GarbageCollectionDefinitions), rawSampleTransformer, memoryResource)
 {
 
     _gen0CountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_gc_gen0");

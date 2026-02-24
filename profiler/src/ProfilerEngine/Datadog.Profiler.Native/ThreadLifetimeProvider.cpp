@@ -12,7 +12,7 @@ ThreadLifetimeProvider::ThreadLifetimeProvider(
     shared::pmr::memory_resource* memoryResource)
     :
     CollectorBase<RawThreadLifetimeSample>(
-        "ThreadLifetimeProvider", valueTypeProvider.GetOrRegister2(valueTypeProvider.ThreadLifetimeDefinitions), rawSampleTransformer, memoryResource)
+        "ThreadLifetimeProvider", valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.ThreadLifetimeDefinitions), rawSampleTransformer, memoryResource)
 {
 }
 

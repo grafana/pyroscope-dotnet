@@ -23,7 +23,7 @@ NetworkProvider::NetworkProvider(
     :
     CollectorBase<RawNetworkSample>(
         "NetworkProvider",
-        valueTypeProvider.GetOrRegister2(valueTypeProvider.NetworkDefinitions),
+        valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.NetworkDefinitions),
         rawSampleTransformer,
         memoryResource),
     _pCorProfilerInfo{ pCorProfilerInfo },

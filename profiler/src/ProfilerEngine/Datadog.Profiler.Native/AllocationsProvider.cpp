@@ -39,8 +39,8 @@ AllocationsProvider::AllocationsProvider(
     :
     AllocationsProvider(
         isFramework
-            ? valueTypeProvider.GetOrRegister2(valueTypeProvider.AllocFrameworkDefinitions)
-            : valueTypeProvider.GetOrRegister2(valueTypeProvider.AllocDefinitions),
+            ? valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.AllocFrameworkDefinitions)
+            : valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.AllocDefinitions),
         pCorProfilerInfo, pManagedThreadList, pFrameStore,
         rawSampleTransformer,
         pConfiguration,

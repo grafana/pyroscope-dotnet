@@ -46,32 +46,26 @@ SampleValueTypeProvider::SampleValueTypeProvider() :
     _sampleTypeDefinitions.reserve(16);
 }
 
-std::vector<SampleValueTypeProvider::Offset> SampleValueTypeProvider::GetOrRegister2(std::vector<SampleValueType>& valueTypes)
+// Pyroscope patch: upstream deduplicates by name+type and shares a single Index across callers.
+// We always register a fresh entry so each profiler gets its own independent index and offset,
+// which is required because Pyroscope sends separate pprof profiles per profiler.
+std::vector<SampleValueTypeProvider::Offset> SampleValueTypeProvider::RegisterPyroscopeSampleType(std::vector<SampleValueType>& valueTypes)
 {
     std::vector<Offset> offsets;
     offsets.reserve(valueTypes.size());
-    bool incrementIndex = false;
 
     for (auto& valueType : valueTypes)
     {
-        size_t idx = GetOffset(valueType);
-        if (idx == -1)
-        {
-            incrementIndex = true;
-            // set the same index for all
-            valueType.Index = _nextIndex;
+        // set the same index for all value types in this group
+        valueType.Index = _nextIndex;
 
-            idx = _sampleTypeDefinitions.size();
-            _sampleTypeDefinitions.push_back(valueType);
-        }
+        size_t idx = _sampleTypeDefinitions.size();
+        _sampleTypeDefinitions.push_back(valueType);
         offsets.push_back(idx);
     }
 
-    if (incrementIndex)
-    {
-        // the next set of SampleValueType will have a different index
-        _nextIndex++;
-    }
+    // the next set of SampleValueType will have a different index
+    _nextIndex++;
 
     return offsets;
 }

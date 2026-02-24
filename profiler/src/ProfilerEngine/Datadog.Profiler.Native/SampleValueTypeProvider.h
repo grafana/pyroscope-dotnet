@@ -19,7 +19,7 @@ public:
 
     SampleValueTypeProvider();
 
-    std::vector<Offset> GetOrRegister2(std::vector<SampleValueType>& valueTypes);
+    std::vector<Offset> RegisterPyroscopeSampleType(std::vector<SampleValueType>& valueTypes);
     std::vector<SampleValueType> const& GetValueTypes();
 
     std::vector<SampleValueType> CpuTimeDefinitions;
@@ -39,6 +39,6 @@ private:
 
     std::vector<SampleValueType> _sampleTypeDefinitions;
 
-    // Incremented each time a new vector of SampleValueType is registered via GetOrRegister2
+    // Incremented each time a new vector of SampleValueType is registered via RegisterPyroscopeSampleType
     uint32_t _nextIndex = 0;
 };
