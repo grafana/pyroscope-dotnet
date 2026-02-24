@@ -86,8 +86,9 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
     std::vector<Pprof> pprofs;
     for (auto& entry : _entries)
     {
-        if (auto pprof = entry->builder.Build())
-            pprofs.emplace_back(std::move(*pprof));
+        auto pprof = entry->builder.Build();
+        if (!pprof.empty())
+            pprofs.emplace_back(std::move(pprof));
     }
 
     if (!pprofs.empty())
