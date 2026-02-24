@@ -5,7 +5,6 @@
 #include "SampleValueTypeProvider.h"
 #include "OpSysTools.h"
 #include "RawSampleTransformer.h"
-#include "TimelineSampleType.h"
 
 ThreadLifetimeProvider::ThreadLifetimeProvider(
     SampleValueTypeProvider& valueTypeProvider,
@@ -13,7 +12,7 @@ ThreadLifetimeProvider::ThreadLifetimeProvider(
     shared::pmr::memory_resource* memoryResource)
     :
     CollectorBase<RawThreadLifetimeSample>(
-        "ThreadLifetimeProvider", valueTypeProvider.GetOrRegister(TimelineSampleType::Definitions), rawSampleTransformer, memoryResource)
+        "ThreadLifetimeProvider", valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.ThreadLifetimeDefinitions), rawSampleTransformer, memoryResource)
 {
 }
 

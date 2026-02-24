@@ -24,12 +24,6 @@ using namespace std::chrono_literals;
 
 std::vector<uintptr_t> ContentionProvider::_emptyStack;
 
-std::vector<SampleValueType> ContentionProvider::SampleTypeDefinitions(
-    {
-        {"lock_count", "count", -1},
-        {"lock_time", "nanoseconds", -1}
-    });
-
 ContentionProvider::ContentionProvider(
     SampleValueTypeProvider& valueTypeProvider,
     ICorProfilerInfo4* pCorProfilerInfo,
@@ -40,7 +34,7 @@ ContentionProvider::ContentionProvider(
     CallstackProvider callstackProvider,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawContentionSample>("ContentionProvider", valueTypeProvider.GetOrRegister(SampleTypeDefinitions), rawSampleTransformer, memoryResource),
+    CollectorBase<RawContentionSample>("ContentionProvider", valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.ContentionDefinitions), rawSampleTransformer, memoryResource),
     _pCorProfilerInfo{pCorProfilerInfo},
     _pManagedThreadList{pManagedThreadList},
     // keep at least 1 sampled lock contention per bucket so we will at least see long one if any

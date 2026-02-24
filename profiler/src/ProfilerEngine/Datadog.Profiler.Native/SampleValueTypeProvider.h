@@ -19,14 +19,26 @@ public:
 
     SampleValueTypeProvider();
 
-    std::vector<Offset> GetOrRegister(std::vector<SampleValueType>& valueType);
+    std::vector<Offset> RegisterPyroscopeSampleType(std::vector<SampleValueType>& valueTypes);
     std::vector<SampleValueType> const& GetValueTypes();
 
-private:
-    std::int8_t GetOffset(SampleValueType const& valueType);
+    std::vector<SampleValueType> CpuTimeDefinitions;        // managed threads CPU (CpuTimeProvider)
+    std::vector<SampleValueType> CpuSampleDefinitions;      // Linux perf-based CPU sampling (CpuSampleProvider)
+    std::vector<SampleValueType> GcThreadsCpuDefinitions;   // GC threads CPU (GCThreadsCpuProvider)
+    std::vector<SampleValueType> WallTimeDefinitions;
+    std::vector<SampleValueType> AllocDefinitions;
+    std::vector<SampleValueType> AllocFrameworkDefinitions;
+    std::vector<SampleValueType> ContentionDefinitions;
+    std::vector<SampleValueType> ExceptionDefinitions;
+    std::vector<SampleValueType> NetworkDefinitions;
+    std::vector<SampleValueType> LiveObjectsDefinitions;
+    std::vector<SampleValueType> GarbageCollectionDefinitions;
+    std::vector<SampleValueType> StopTheWorldDefinitions;
+    std::vector<SampleValueType> ThreadLifetimeDefinitions;
 
+private:
     std::vector<SampleValueType> _sampleTypeDefinitions;
 
-    // Incremented each time a new vector of SampleValueType is registered via GetOrRegister
+    // Incremented each time a new vector of SampleValueType is registered via RegisterPyroscopeSampleType
     uint32_t _nextIndex = 0;
 };

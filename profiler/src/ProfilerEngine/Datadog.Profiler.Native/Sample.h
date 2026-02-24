@@ -20,10 +20,28 @@
 #include "async_ref_counted_string.h"
 
 
+enum class ProfileType
+{
+    ProcessCpu,
+    CpuSample,
+    GcThreadsCpu,
+    WallTime,
+    Alloc,
+    AllocFramework,
+    Lock,
+    Exception,
+    Network,
+    Heap,
+    GcCpu,
+    GcStw,
+    ThreadLifetime,
+};
+
 struct SampleValueType
 {
     std::string Name;
     std::string Unit;
+    ProfileType Type;
 
     // Samples belonging to the same provider will share the same index
     // For libdatadog, it means that they will be stored in the same profile

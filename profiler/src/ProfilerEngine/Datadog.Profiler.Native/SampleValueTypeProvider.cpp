@@ -3,41 +3,76 @@
 
 #include "SampleValueTypeProvider.h"
 
-#include <cassert>
-#include <tuple>
 
-
-SampleValueTypeProvider::SampleValueTypeProvider()
+SampleValueTypeProvider::SampleValueTypeProvider() :
+    CpuTimeDefinitions{
+        {"cpu", "nanoseconds", ProfileType::ProcessCpu, -1},
+        {"cpu_samples", "count", ProfileType::ProcessCpu, -1}
+    },
+    CpuSampleDefinitions{
+        {"cpu", "nanoseconds", ProfileType::CpuSample, -1},
+        {"cpu_samples", "count", ProfileType::CpuSample, -1}
+    },
+    GcThreadsCpuDefinitions{
+        {"cpu", "nanoseconds", ProfileType::GcThreadsCpu, -1},
+        {"cpu_samples", "count", ProfileType::GcThreadsCpu, -1}
+    },
+    WallTimeDefinitions{
+        {"wall", "nanoseconds", ProfileType::WallTime, -1}
+    },
+    AllocDefinitions{
+        {"alloc_samples", "count", ProfileType::Alloc, -1},
+        {"alloc_size", "bytes", ProfileType::Alloc, -1}
+    },
+    AllocFrameworkDefinitions{
+        {"alloc_samples", "count", ProfileType::AllocFramework, -1}
+    },
+    ContentionDefinitions{
+        {"lock_count", "count", ProfileType::Lock, -1},
+        {"lock_time", "nanoseconds", ProfileType::Lock, -1}
+    },
+    ExceptionDefinitions{
+        {"exception", "count", ProfileType::Exception, -1}
+    },
+    NetworkDefinitions{
+        {"request_time", "nanoseconds", ProfileType::Network, -1}
+    },
+    LiveObjectsDefinitions{
+        {"inuse_objects", "count", ProfileType::Heap, -1},
+        {"inuse_space", "bytes", ProfileType::Heap, -1}
+    },
+    GarbageCollectionDefinitions{
+        {"gc_cpu_timeline", "nanoseconds", ProfileType::GcCpu, -1}
+    },
+    StopTheWorldDefinitions{
+        {"gc_stw_timeline", "nanoseconds", ProfileType::GcStw, -1}
+    },
+    ThreadLifetimeDefinitions{
+        {"thread_lifetime_timeline", "nanoseconds", ProfileType::ThreadLifetime, -1}
+    }
 {
     _sampleTypeDefinitions.reserve(16);
 }
 
-std::vector<SampleValueTypeProvider::Offset> SampleValueTypeProvider::GetOrRegister(std::vector<SampleValueType>& valueTypes)
+// Pyroscope patch: upstream deduplicates by name+type and shares a single Index across callers.
+// We always register a fresh entry so each profiler gets its own independent index and offset.
+std::vector<SampleValueTypeProvider::Offset> SampleValueTypeProvider::RegisterPyroscopeSampleType(std::vector<SampleValueType>& valueTypes)
 {
     std::vector<Offset> offsets;
     offsets.reserve(valueTypes.size());
-    bool incrementIndex = false;
 
     for (auto& valueType : valueTypes)
     {
-        size_t idx = GetOffset(valueType);
-        if (idx == -1)
-        {
-            incrementIndex = true;
-            // set the same index for all
-            valueType.Index = _nextIndex;
+        // set the same index for all value types in this group
+        valueType.Index = _nextIndex;
 
-            idx = _sampleTypeDefinitions.size();
-            _sampleTypeDefinitions.push_back(valueType);
-        }
+        size_t idx = _sampleTypeDefinitions.size();
+        _sampleTypeDefinitions.push_back(valueType);
         offsets.push_back(idx);
     }
 
-    if (incrementIndex)
-    {
-        // the next set of SampleValueType will have a different index
-        _nextIndex++;
-    }
+    // the next set of SampleValueType will have a different index
+    _nextIndex++;
 
     return offsets;
 }
@@ -45,22 +80,5 @@ std::vector<SampleValueTypeProvider::Offset> SampleValueTypeProvider::GetOrRegis
 std::vector<SampleValueType> const& SampleValueTypeProvider::GetValueTypes()
 {
     return _sampleTypeDefinitions;
-}
-
-std::int8_t SampleValueTypeProvider::GetOffset(SampleValueType const& valueType)
-{
-    for (auto i = 0; i < _sampleTypeDefinitions.size(); i++)
-    {
-        auto const& current = _sampleTypeDefinitions[i];
-        if (valueType.Name == current.Name)
-        {
-            if (valueType.Unit != current.Unit)
-            {
-                throw std::runtime_error("Cannot have the value type name with different unit: " + valueType.Unit + " != " + current.Unit);
-            }
-            return i;
-        }
-    }
-    return -1;
 }
 

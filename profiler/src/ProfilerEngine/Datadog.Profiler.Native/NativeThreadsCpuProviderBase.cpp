@@ -18,7 +18,7 @@ using namespace std::chrono_literals;
 NativeThreadsCpuProviderBase::NativeThreadsCpuProviderBase(SampleValueTypeProvider& valueTypeProvider, RawSampleTransformer* sampleTransformer) :
     _sampleTransformer{sampleTransformer},
     _previousTotalCpuTime{0},
-    _valueOffsets{valueTypeProvider.GetOrRegister(CpuTimeProvider::SampleTypeDefinitions)}
+    _valueOffsets{valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.GcThreadsCpuDefinitions)}
 {
 }
 

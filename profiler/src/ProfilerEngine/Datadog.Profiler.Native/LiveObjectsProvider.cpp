@@ -14,12 +14,6 @@
 #include "SamplesEnumerator.h"
 #include "SampleValueTypeProvider.h"
 
-std::vector<SampleValueType> LiveObjectsProvider::SampleTypeDefinitions(
-{
-    {"inuse_objects", "count", -1},
-    {"inuse_space", "bytes", -1}
-});
-
 const std::string LiveObjectsProvider::Gen1("1");
 const std::string LiveObjectsProvider::Gen2("2");
 
@@ -31,7 +25,7 @@ LiveObjectsProvider::LiveObjectsProvider(
     :
     _pCorProfilerInfo(pCorProfilerInfo),
     _rawSampleTransformer{rawSampleTransformer},
-    _valueOffsets{valueTypeProvider.GetOrRegister(LiveObjectsProvider::SampleTypeDefinitions)}
+    _valueOffsets{valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.LiveObjectsDefinitions)}
 {
     _heapHandleLimit = pConfiguration->GetHeapHandleLimit();
 }
