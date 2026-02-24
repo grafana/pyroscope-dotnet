@@ -14,7 +14,7 @@
 
 #include "Callstack.h"
 #include "IThreadInfo.h"
-class Sample;
+#include "Sample.h"
 
 class RawSample
 {
@@ -29,7 +29,7 @@ public:
     RawSample& operator=(RawSample&& other) noexcept;
 
     // set values and additional labels on target sample
-    virtual void OnTransform(std::shared_ptr<Sample>& sample) const = 0;
+    virtual void OnTransform(std::shared_ptr<Sample>& sample, const std::vector<SampleValueType>* sampleValueTypes) const = 0;
 
 public:
     std::chrono::nanoseconds Timestamp;

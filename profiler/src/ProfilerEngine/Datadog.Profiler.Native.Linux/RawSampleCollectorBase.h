@@ -97,14 +97,12 @@ public:
         const std::vector<SampleValueType>* sampleValueTypes,
         RawSampleTransformer* rawSampleTransformer,
         RingBuffer* ringBuffer,
-        MetricsRegistry& metricsRegistry,
-        ProfileType profileType) :
+        MetricsRegistry& metricsRegistry) :
         ProviderBase(name),
         _sampleValueTypes{sampleValueTypes},
         _rawSampleTransformer{rawSampleTransformer},
         _collectedSamples{ringBuffer},
-        _failedReservationMetric{metricsRegistry.GetOrRegister<DiscardMetrics>("dotnet_raw_sample_failed_allocation")},
-        _profileType{profileType}
+        _failedReservationMetric{metricsRegistry.GetOrRegister<DiscardMetrics>("dotnet_raw_sample_failed_allocation")}
     {
     }
 
@@ -122,7 +120,7 @@ public:
 
     std::unique_ptr<SamplesEnumerator> GetSamples() override
     {
-        return std::make_unique<SamplesEnumeratorImpl>(std::move(_collectedSamples->GetReader()), _rawSampleTransformer, _sampleValueTypes, _profileType);
+        return std::make_unique<SamplesEnumeratorImpl>(std::move(_collectedSamples->GetReader()), _rawSampleTransformer, _sampleValueTypes);
     }
 
 private:
@@ -131,12 +129,10 @@ private:
     public:
         SamplesEnumeratorImpl(RingBuffer::Reader&& reader,
                               RawSampleTransformer* rawSampleTransformer,
-                              const std::vector<SampleValueType>* sampleValueTypes,
-                              ProfileType profileType) :
+                              const std::vector<SampleValueType>* sampleValueTypes) :
             _reader{std::move(reader)},
             _rawSampleTransformer{rawSampleTransformer},
-            _sampleValueTypes{sampleValueTypes},
-            _profileType{profileType}
+            _sampleValueTypes{sampleValueTypes}
         {
         }
 
@@ -164,7 +160,9 @@ private:
                 reinterpret_cast<TRawSample const*>(buffer.data()));
 
             _rawSampleTransformer->Transform(*rawSample, sample, _sampleValueTypes);
-            sample->SetProfileType(_profileType);
+            auto* svt = sample->GetSampleValueTypes();
+            if (svt != nullptr && !svt->empty())
+                sample->SetProfileType((*svt)[0].profileType);
             std::destroy_at(rawSample);
             return true;
         }
@@ -173,7 +171,6 @@ private:
         RingBuffer::Reader _reader;
         RawSampleTransformer* _rawSampleTransformer;
         const std::vector<SampleValueType>* _sampleValueTypes;
-        ProfileType _profileType;
     };
 
     bool StartImpl() override
@@ -190,5 +187,4 @@ private:
     RawSampleTransformer* _rawSampleTransformer;
     RingBuffer* _collectedSamples;
     std::shared_ptr<DiscardMetrics> _failedReservationMetric;
-    ProfileType _profileType;
 };

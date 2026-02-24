@@ -19,7 +19,7 @@ public:
 
 public:
     // Inherited via RawSample
-    void OnTransform(std::shared_ptr<Sample>& sample) const override;
+    void OnTransform(std::shared_ptr<Sample>& sample, const std::vector<SampleValueType>* sampleValueTypes) const override;
 
 private:
     // each thread lifetime event will share the same root frame and the second one will show the collected generation

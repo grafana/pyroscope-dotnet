@@ -15,7 +15,7 @@ ThreadLifetimeProvider::ThreadLifetimeProvider(
     shared::pmr::memory_resource* memoryResource)
     :
     CollectorBase<RawThreadLifetimeSample>(
-        "ThreadLifetimeProvider", &ThreadLifetimeSampleTypeDefinitions, rawSampleTransformer, memoryResource, ProfileType::ThreadLifetime)
+        "ThreadLifetimeProvider", &ThreadLifetimeSampleTypeDefinitions, rawSampleTransformer, memoryResource)
 {
 }
 

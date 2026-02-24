@@ -49,7 +49,7 @@ AllocationsProvider::AllocationsProvider(
     shared::pmr::memory_resource* memoryResource) :
     CollectorBase<RawAllocationSample>("AllocationsProvider",
         isFramework ? &FrameworkSampleTypeDefinitions : &SampleTypeDefinitions,
-        rawSampleTransformer, memoryResource, ProfileType::Alloc),
+        rawSampleTransformer, memoryResource),
     _pCorProfilerInfo(pCorProfilerInfo),
     _pManagedThreadList(pManagedThreadList),
     _pFrameStore(pFrameStore),

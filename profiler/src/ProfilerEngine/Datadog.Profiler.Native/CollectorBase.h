@@ -56,14 +56,12 @@ public:
         const char* name,
         const std::vector<SampleValueType>* sampleValueTypes,
         RawSampleTransformer* rawSampleTransformer,
-        shared::pmr::memory_resource* memoryResource,
-        ProfileType profileType)
+        shared::pmr::memory_resource* memoryResource)
         :
         ProviderBase(name),
         _sampleValueTypes{sampleValueTypes},
         _rawSampleTransformer{rawSampleTransformer},
-        _collectedSamples{memoryResource},
-        _profileType{profileType}
+        _collectedSamples{memoryResource}
     {
     }
 
@@ -81,7 +79,7 @@ public:
 
     std::unique_ptr<SamplesEnumerator> GetSamples() override
     {
-        return std::make_unique<SamplesEnumeratorImpl>(_collectedSamples.Move(), _rawSampleTransformer, _sampleValueTypes, _profileType);
+        return std::make_unique<SamplesEnumeratorImpl>(_collectedSamples.Move(), _rawSampleTransformer, _sampleValueTypes);
     }
 
 protected:
@@ -101,14 +99,12 @@ private:
     public:
         SamplesEnumeratorImpl(RawSamples<TRawSample> rawSamples,
             RawSampleTransformer* rawSampleTransformer,
-            const std::vector<SampleValueType>* sampleValueTypes,
-            ProfileType profileType)
+            const std::vector<SampleValueType>* sampleValueTypes)
             :
             _rawSamples{std::move(rawSamples)},
             _rawSampleTransformer{rawSampleTransformer},
             _currentRawSample{_rawSamples.begin()},
-            _sampleValueTypes{sampleValueTypes},
-            _profileType{profileType}
+            _sampleValueTypes{sampleValueTypes}
         {
         }
 
@@ -124,7 +120,9 @@ private:
                 return false;
 
             _rawSampleTransformer->Transform(*_currentRawSample, sample, _sampleValueTypes);
-            sample->SetProfileType(_profileType);
+            auto* svt = sample->GetSampleValueTypes();
+            if (svt != nullptr && !svt->empty())
+                sample->SetProfileType((*svt)[0].profileType);
             _currentRawSample++;
 
             return true;
@@ -135,7 +133,6 @@ private:
         RawSampleTransformer* _rawSampleTransformer;
         typename RawSamples<TRawSample>::iterator _currentRawSample;
         const std::vector<SampleValueType>* _sampleValueTypes;
-        ProfileType _profileType;
     };
 
     bool StartImpl() override
@@ -152,5 +149,4 @@ private:
     const std::vector<SampleValueType>* _sampleValueTypes;
     RawSamples<TRawSample> _collectedSamples;
     RawSampleTransformer* _rawSampleTransformer;
-    ProfileType _profileType;
 };

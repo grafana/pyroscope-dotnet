@@ -17,12 +17,6 @@ void RawSampleTransformer::Transform(const RawSample& rawSample, std::shared_ptr
 {
     sample->Reset();
 
-    // Set value types after Reset() so values vector is correctly sized for OnTransform
-    if (sampleValueTypes != nullptr)
-    {
-        sample->SetSampleValueTypes(sampleValueTypes);
-    }
-
     auto runtimeId = _pRuntimeIdStore->GetId(rawSample.AppDomainId);
 
     sample->SetRuntimeId(runtimeId == nullptr ? std::string_view() : std::string_view(runtimeId));
@@ -46,7 +40,7 @@ void RawSampleTransformer::Transform(const RawSample& rawSample, std::shared_ptr
     SetStack(rawSample, sample);
 
     // allow inherited classes to add values and specific labels
-    rawSample.OnTransform(sample);
+    rawSample.OnTransform(sample, sampleValueTypes);
 }
 
 void RawSampleTransformer::SetAppDomainDetails(const RawSample& rawSample, std::shared_ptr<Sample>& sample)

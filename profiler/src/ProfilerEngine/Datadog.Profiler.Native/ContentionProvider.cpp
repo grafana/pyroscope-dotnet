@@ -37,7 +37,7 @@ ContentionProvider::ContentionProvider(
     CallstackProvider callstackProvider,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawContentionSample>("ContentionProvider", &SampleTypeDefinitions, rawSampleTransformer, memoryResource, ProfileType::Lock),
+    CollectorBase<RawContentionSample>("ContentionProvider", &SampleTypeDefinitions, rawSampleTransformer, memoryResource),
     _pCorProfilerInfo{pCorProfilerInfo},
     _pManagedThreadList{pManagedThreadList},
     // keep at least 1 sampled lock contention per bucket so we will at least see long one if any

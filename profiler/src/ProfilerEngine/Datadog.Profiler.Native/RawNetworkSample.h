@@ -62,8 +62,9 @@ public:
         return *this;
     }
 
-    inline void OnTransform(std::shared_ptr<Sample>& sample) const override
+    inline void OnTransform(std::shared_ptr<Sample>& sample, const std::vector<SampleValueType>* sampleValueTypes) const override
     {
+        sample->SetSampleValueTypes(sampleValueTypes);
         sample->AddValue((Timestamp - StartTimestamp).count(), 0);
         // Note: we don't need to add the start timestamp as a label because it is computed
         // by the backend from the end timestamp and the duration; i.e. the value of this sample

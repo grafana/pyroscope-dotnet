@@ -30,7 +30,7 @@ ExceptionsProvider::ExceptionsProvider(
     CallstackProvider callstackProvider,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawExceptionSample>("ExceptionsProvider", &SampleTypeDefinitions, rawSampleTransformer, memoryResource, ProfileType::Exception),
+    CollectorBase<RawExceptionSample>("ExceptionsProvider", &SampleTypeDefinitions, rawSampleTransformer, memoryResource),
     _pCorProfilerInfo(pCorProfilerInfo),
     _pManagedThreadList(pManagedThreadList),
     _pFrameStore(pFrameStore),

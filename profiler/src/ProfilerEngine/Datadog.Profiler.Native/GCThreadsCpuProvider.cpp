@@ -17,7 +17,7 @@ static std::vector<SampleValueType> GcCpuSampleTypeDefinitions(
 });
 
 GCThreadsCpuProvider::GCThreadsCpuProvider(RawSampleTransformer* cpuSampleTransformer, MetricsRegistry& metricsRegistry) :
-    NativeThreadsCpuProviderBase(&GcCpuSampleTypeDefinitions, cpuSampleTransformer, ProfileType::GcCpu)
+    NativeThreadsCpuProviderBase(&GcCpuSampleTypeDefinitions, cpuSampleTransformer)
 {
     _cpuDurationMetric = metricsRegistry.GetOrRegister<MeanMaxMetric>("dotnet_gc_cpu_duration");
 }

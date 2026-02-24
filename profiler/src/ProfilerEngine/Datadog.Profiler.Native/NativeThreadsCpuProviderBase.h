@@ -17,7 +17,7 @@ class RawSampleTransformer;
 class NativeThreadsCpuProviderBase : public ISamplesProvider
 {
 public:
-    NativeThreadsCpuProviderBase(const std::vector<SampleValueType>* sampleValueTypes, RawSampleTransformer* sampleTransformer, ProfileType profileType);
+    NativeThreadsCpuProviderBase(const std::vector<SampleValueType>* sampleValueTypes, RawSampleTransformer* sampleTransformer);
 
 protected:
     virtual void OnCpuDuration(std::chrono::milliseconds cpuTime);
@@ -33,5 +33,4 @@ private:
     RawSampleTransformer* _sampleTransformer;
     std::chrono::milliseconds _previousTotalCpuTime;
     const std::vector<SampleValueType>* _sampleValueTypes;
-    ProfileType _profileType;
 };

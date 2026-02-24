@@ -22,6 +22,6 @@ CpuTimeProvider::CpuTimeProvider(
     shared::pmr::memory_resource* memoryResource
     )
     :
-    CollectorBase<RawCpuSample>("CpuTimeProvider", &SampleTypeDefinitions, rawSampleTransformer, memoryResource, ProfileType::Cpu)
+    CollectorBase<RawCpuSample>("CpuTimeProvider", &SampleTypeDefinitions, rawSampleTransformer, memoryResource)
 {
 }

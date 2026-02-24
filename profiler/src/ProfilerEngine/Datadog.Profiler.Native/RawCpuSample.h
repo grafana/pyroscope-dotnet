@@ -30,8 +30,9 @@ public:
         return *this;
     }
 
-    inline void OnTransform(std::shared_ptr<Sample>& sample) const override
+    inline void OnTransform(std::shared_ptr<Sample>& sample, const std::vector<SampleValueType>* sampleValueTypes) const override
     {
+        sample->SetSampleValueTypes(sampleValueTypes);
         sample->AddValue(Duration.count(), 0);
         sample->AddValue(1, 1);
     }
