@@ -84,9 +84,10 @@ std::unique_ptr<SamplesEnumerator> NativeThreadsCpuProviderBase::GetSamples()
 
     RawCpuSample rawSample;
     rawSample.Duration = cpuTime;
+    rawSample.SampleValueTypes = _sampleValueTypes;
 
     auto sample = std::make_shared<Sample>(rawSample.Timestamp, std::string_view(), rawSample.Stack.Size());
-    _sampleTransformer->Transform(rawSample, sample, _sampleValueTypes);
+    _sampleTransformer->Transform(rawSample, sample);
     auto* svt = sample->GetSampleValueTypes();
     if (svt != nullptr && !svt->empty())
         sample->SetProfileType((*svt)[0].profileType);

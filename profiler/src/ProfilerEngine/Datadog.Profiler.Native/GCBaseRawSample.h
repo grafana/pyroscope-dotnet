@@ -35,9 +35,9 @@ public:
     // This base class is in charge of storing garbage collection number and generation as labels
     // and fill up the callstack based on generation.
     // The default value is the Duration field; derived class could override by implementing GetValue()
-    inline void OnTransform(std::shared_ptr<Sample>& sample, const std::vector<SampleValueType>* sampleValueTypes) const override
+    inline void OnTransform(std::shared_ptr<Sample>& sample) const override
     {
-        sample->SetSampleValueTypes(sampleValueTypes);
+        sample->SetSampleValueTypes(SampleValueTypes);
         sample->AddValue(GetValue(), 0);
 
         sample->AddLabel(NumericLabel(Sample::GarbageCollectionNumberLabel, Number));

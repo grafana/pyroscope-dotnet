@@ -13,7 +13,7 @@
 #include <string_view>
 #include <utility>
 
-void RawSampleTransformer::Transform(const RawSample& rawSample, std::shared_ptr<Sample>& sample, const std::vector<SampleValueType>* sampleValueTypes)
+void RawSampleTransformer::Transform(const RawSample& rawSample, std::shared_ptr<Sample>& sample)
 {
     sample->Reset();
 
@@ -40,7 +40,7 @@ void RawSampleTransformer::Transform(const RawSample& rawSample, std::shared_ptr
     SetStack(rawSample, sample);
 
     // allow inherited classes to add values and specific labels
-    rawSample.OnTransform(sample, sampleValueTypes);
+    rawSample.OnTransform(sample);
 }
 
 void RawSampleTransformer::SetAppDomainDetails(const RawSample& rawSample, std::shared_ptr<Sample>& sample)

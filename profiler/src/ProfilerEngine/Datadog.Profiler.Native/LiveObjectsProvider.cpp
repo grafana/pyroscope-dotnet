@@ -28,8 +28,7 @@ LiveObjectsProvider::LiveObjectsProvider(
     IConfiguration* pConfiguration)
     :
     _pCorProfilerInfo(pCorProfilerInfo),
-    _rawSampleTransformer{rawSampleTransformer},
-    _sampleValueTypes{&LiveObjectsProvider::SampleTypeDefinitions}
+    _rawSampleTransformer{rawSampleTransformer}
 {
     _heapHandleLimit = pConfiguration->GetHeapHandleLimit();
 }
@@ -154,8 +153,9 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
         auto handle = CreateWeakHandle(rawSample.Address);
         if (handle != nullptr)
         {
+            rawSample.SampleValueTypes = &LiveObjectsProvider::SampleTypeDefinitions;
             auto liveObjectSample = std::make_shared<Sample>(rawSample.Timestamp, std::string_view(), rawSample.Stack.Size());
-            _rawSampleTransformer->Transform(rawSample, liveObjectSample, _sampleValueTypes);
+            _rawSampleTransformer->Transform(rawSample, liveObjectSample);
             auto* svt = liveObjectSample->GetSampleValueTypes();
             if (svt != nullptr && !svt->empty())
                 liveObjectSample->SetProfileType((*svt)[0].profileType);

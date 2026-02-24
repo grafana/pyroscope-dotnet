@@ -15,7 +15,7 @@ ThreadLifetimeProvider::ThreadLifetimeProvider(
     shared::pmr::memory_resource* memoryResource)
     :
     CollectorBase<RawThreadLifetimeSample>(
-        "ThreadLifetimeProvider", &ThreadLifetimeSampleTypeDefinitions, rawSampleTransformer, memoryResource)
+        "ThreadLifetimeProvider", rawSampleTransformer, memoryResource)
 {
 }
 
@@ -38,6 +38,7 @@ RawThreadLifetimeSample ThreadLifetimeProvider::CreateSample(std::shared_ptr<Man
     rawSample.AppDomainId = pThreadInfo->GetAppDomainId();
     rawSample.ThreadInfo = std::move(pThreadInfo);
     rawSample.Kind = kind;
+    rawSample.SampleValueTypes = &ThreadLifetimeSampleTypeDefinitions;
 
     return rawSample;
 }

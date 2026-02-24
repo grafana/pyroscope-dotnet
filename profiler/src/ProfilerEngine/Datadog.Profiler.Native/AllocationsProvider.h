@@ -90,6 +90,7 @@ private:
     int32_t _sampleLimit;
     IConfiguration const* const _pConfiguration;
     bool _shouldSubSample;
+    const std::vector<SampleValueType>* _sampleValueTypes;
     std::shared_ptr<CounterMetric> _allocationsCountMetric;
     std::shared_ptr<MeanMaxMetric> _allocationsSizeMetric;
     std::shared_ptr<CounterMetric> _sampledAllocationsCountMetric;

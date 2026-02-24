@@ -29,7 +29,7 @@ public:
     RawSample& operator=(RawSample&& other) noexcept;
 
     // set values and additional labels on target sample
-    virtual void OnTransform(std::shared_ptr<Sample>& sample, const std::vector<SampleValueType>* sampleValueTypes) const = 0;
+    virtual void OnTransform(std::shared_ptr<Sample>& sample) const = 0;
 
 public:
     std::chrono::nanoseconds Timestamp;
@@ -43,4 +43,7 @@ public:
 
     // array of instruction pointers (32 or 64 bit address)
     Callstack Stack;
+
+    // set by the provider before transformation; used by OnTransform to call SetSampleValueTypes
+    const std::vector<SampleValueType>* SampleValueTypes = nullptr;
 };

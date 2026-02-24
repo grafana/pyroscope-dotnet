@@ -14,7 +14,7 @@ GarbageCollectionProvider::GarbageCollectionProvider(
     MetricsRegistry& metricsRegistry,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawGarbageCollectionSample>("GarbageCollectorProvider", &GarbageCollectionSampleTypeDefinitions, rawSampleTransformer, memoryResource)
+    CollectorBase<RawGarbageCollectionSample>("GarbageCollectorProvider", rawSampleTransformer, memoryResource)
 {
 
     _gen0CountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_gc_gen0");
@@ -114,6 +114,7 @@ void GarbageCollectionProvider::OnGarbageCollectionEnd(
     rawSample.Reason = reason;
     rawSample.Type = type;
     rawSample.IsCompacting = isCompacting;
+    rawSample.SampleValueTypes = &GarbageCollectionSampleTypeDefinitions;
     Add(std::move(rawSample));
 }
 

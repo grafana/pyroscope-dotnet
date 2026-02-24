@@ -20,6 +20,6 @@ WallTimeProvider::WallTimeProvider(
     shared::pmr::memory_resource* memoryResource
     )
     :
-    CollectorBase<RawWallTimeSample>("WallTimeProvider", &SampleTypeDefinitions, rawSampleTransformer, memoryResource)
+    CollectorBase<RawWallTimeSample>("WallTimeProvider", rawSampleTransformer, memoryResource)
 {
 }

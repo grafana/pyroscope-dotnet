@@ -37,7 +37,7 @@ ContentionProvider::ContentionProvider(
     CallstackProvider callstackProvider,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawContentionSample>("ContentionProvider", &SampleTypeDefinitions, rawSampleTransformer, memoryResource),
+    CollectorBase<RawContentionSample>("ContentionProvider", rawSampleTransformer, memoryResource),
     _pCorProfilerInfo{pCorProfilerInfo},
     _pManagedThreadList{pManagedThreadList},
     // keep at least 1 sampled lock contention per bucket so we will at least see long one if any
@@ -285,6 +285,7 @@ void ContentionProvider::AddContentionSample(
     rawSample.BlockingThreadName = std::move(blockingThreadName);
     rawSample.Type = waitType;
 
+    rawSample.SampleValueTypes = &SampleTypeDefinitions;
     Add(std::move(rawSample));
     _sampledLockContentionsCountMetric->Incr();
     _sampledLockContentionsDurationMetric->Add(static_cast<double>(contentionDuration.count()));

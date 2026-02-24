@@ -28,7 +28,6 @@ NetworkProvider::NetworkProvider(
     :
     CollectorBase<RawNetworkSample>(
         "NetworkProvider",
-        &SampleTypeDefinitions,
         rawSampleTransformer,
         memoryResource),
     _pCorProfilerInfo{ pCorProfilerInfo },
@@ -174,6 +173,7 @@ void NetworkProvider::OnRequestStop(std::chrono::nanoseconds timestamp, LPCGUID 
         _redirectionRequestsCountMetric->Incr();
     }
 
+    rawSample.SampleValueTypes = &SampleTypeDefinitions;
     Add(std::move(rawSample));
 
     _requests.erase(activity);

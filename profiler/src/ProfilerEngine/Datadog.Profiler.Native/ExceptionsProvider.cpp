@@ -30,7 +30,7 @@ ExceptionsProvider::ExceptionsProvider(
     CallstackProvider callstackProvider,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawExceptionSample>("ExceptionsProvider", &SampleTypeDefinitions, rawSampleTransformer, memoryResource),
+    CollectorBase<RawExceptionSample>("ExceptionsProvider", rawSampleTransformer, memoryResource),
     _pCorProfilerInfo(pCorProfilerInfo),
     _pManagedThreadList(pManagedThreadList),
     _pFrameStore(pFrameStore),
@@ -172,6 +172,7 @@ bool ExceptionsProvider::OnExceptionThrown(ObjectID thrownObjectId)
     rawSample.ExceptionMessage = std::move(message);
     rawSample.ExceptionType = std::move(name);
     rawSample.Tags.AsyncSafeCopy(threadInfo->GetTags());
+    rawSample.SampleValueTypes = &SampleTypeDefinitions;
     Add(std::move(rawSample));
     _sampledExceptionsCountMetric->Incr();
 

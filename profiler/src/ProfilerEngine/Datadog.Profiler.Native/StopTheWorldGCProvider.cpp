@@ -27,7 +27,7 @@ StopTheWorldGCProvider::StopTheWorldGCProvider(
     RawSampleTransformer* rawSampleTransformer,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawStopTheWorldSample>("StopTheWorldGCProvider", &StopTheWorldSampleTypeDefinitions, rawSampleTransformer, memoryResource)
+    CollectorBase<RawStopTheWorldSample>("StopTheWorldGCProvider", rawSampleTransformer, memoryResource)
 {
 }
 
@@ -44,5 +44,6 @@ void StopTheWorldGCProvider::OnSuspension(std::chrono::nanoseconds timestamp, in
     rawSample.Generation = generation;
     rawSample.Duration = pauseDuration;
 
+    rawSample.SampleValueTypes = &StopTheWorldSampleTypeDefinitions;
     Add(std::move(rawSample));
 }

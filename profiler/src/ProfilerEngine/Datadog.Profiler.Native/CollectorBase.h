@@ -54,12 +54,10 @@ class CollectorBase
 public:
     CollectorBase<TRawSample>(
         const char* name,
-        const std::vector<SampleValueType>* sampleValueTypes,
         RawSampleTransformer* rawSampleTransformer,
         shared::pmr::memory_resource* memoryResource)
         :
         ProviderBase(name),
-        _sampleValueTypes{sampleValueTypes},
         _rawSampleTransformer{rawSampleTransformer},
         _collectedSamples{memoryResource}
     {
@@ -79,7 +77,7 @@ public:
 
     std::unique_ptr<SamplesEnumerator> GetSamples() override
     {
-        return std::make_unique<SamplesEnumeratorImpl>(_collectedSamples.Move(), _rawSampleTransformer, _sampleValueTypes);
+        return std::make_unique<SamplesEnumeratorImpl>(_collectedSamples.Move(), _rawSampleTransformer);
     }
 
 protected:
@@ -88,23 +86,16 @@ protected:
         return OpSysTools::GetHighPrecisionTimestamp();
     }
 
-    const std::vector<SampleValueType>* GetSampleValueTypes() const
-    {
-        return _sampleValueTypes;
-    }
-
 private:
     class SamplesEnumeratorImpl : public SamplesEnumerator
     {
     public:
         SamplesEnumeratorImpl(RawSamples<TRawSample> rawSamples,
-            RawSampleTransformer* rawSampleTransformer,
-            const std::vector<SampleValueType>* sampleValueTypes)
+            RawSampleTransformer* rawSampleTransformer)
             :
             _rawSamples{std::move(rawSamples)},
             _rawSampleTransformer{rawSampleTransformer},
-            _currentRawSample{_rawSamples.begin()},
-            _sampleValueTypes{sampleValueTypes}
+            _currentRawSample{_rawSamples.begin()}
         {
         }
 
@@ -119,7 +110,7 @@ private:
             if (_currentRawSample == _rawSamples.end())
                 return false;
 
-            _rawSampleTransformer->Transform(*_currentRawSample, sample, _sampleValueTypes);
+            _rawSampleTransformer->Transform(*_currentRawSample, sample);
             auto* svt = sample->GetSampleValueTypes();
             if (svt != nullptr && !svt->empty())
                 sample->SetProfileType((*svt)[0].profileType);
@@ -132,7 +123,6 @@ private:
         RawSamples<TRawSample> _rawSamples;
         RawSampleTransformer* _rawSampleTransformer;
         typename RawSamples<TRawSample>::iterator _currentRawSample;
-        const std::vector<SampleValueType>* _sampleValueTypes;
     };
 
     bool StartImpl() override
@@ -146,7 +136,6 @@ private:
     }
 
 private:
-    const std::vector<SampleValueType>* _sampleValueTypes;
     RawSamples<TRawSample> _collectedSamples;
     RawSampleTransformer* _rawSampleTransformer;
 };

@@ -4,6 +4,7 @@
 #include "TimerCreateCpuProfiler.h"
 
 #include "CpuSampleProvider.h"
+#include "CpuTimeProvider.h"
 #include "DiscardMetrics.h"
 #include "IManagedThreadList.h"
 #include "IUnwinder.h"
@@ -275,6 +276,7 @@ bool TimerCreateCpuProfiler::Collect(void* ctx)
     rawCpuSample->Tags.AsyncSafeCopy(threadInfo->GetTags());
     rawCpuSample->ThreadInfo = std::move(threadInfo);
     rawCpuSample->Duration = _samplingInterval;
+    rawCpuSample->SampleValueTypes = &CpuTimeProvider::SampleTypeDefinitions;
     _nbThreadsInSignalHandler--;
     return true;
 }

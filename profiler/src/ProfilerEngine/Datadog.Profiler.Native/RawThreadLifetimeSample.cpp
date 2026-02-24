@@ -4,11 +4,11 @@
 #include "RawThreadLifetimeSample.h"
 #include "Sample.h"
 
-void RawThreadLifetimeSample::OnTransform(std::shared_ptr<Sample>& sample, const std::vector<SampleValueType>* sampleValueTypes) const
+void RawThreadLifetimeSample::OnTransform(std::shared_ptr<Sample>& sample) const
 {
     // There is no value for threads lifetime events
     // but it could be interesting to compute the life duration of a thread to detect too short lived threads
-    sample->SetSampleValueTypes(sampleValueTypes);
+    sample->SetSampleValueTypes(SampleValueTypes);
 
     if (Kind == ThreadEventKind::Start)
     {

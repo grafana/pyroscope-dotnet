@@ -20,7 +20,9 @@
 #include "ManagedThreadList.h"
 #include "OsSpecificApi.h"
 #include "OpSysTools.h"
+#include "CpuTimeProvider.h"
 #include "RawCpuSample.h"
+#include "WallTimeProvider.h"
 #include "RawWallTimeSample.h"
 #include "ScopeFinalizer.h"
 #include "StackFramesCollectorBase.h"
@@ -580,6 +582,7 @@ void StackSamplerLoop::PersistStackSnapshotResults(
         rawSample.ThreadInfo = pThreadInfo;
         rawSample.Duration = pSnapshotResult->GetRepresentedDuration();
         rawSample.Tags.AsyncSafeCopy(pSnapshotResult->GetTags());
+        rawSample.SampleValueTypes = &WallTimeProvider::SampleTypeDefinitions;
         _pWallTimeCollector->Add(std::move(rawSample));
     }
     else
@@ -595,6 +598,7 @@ void StackSamplerLoop::PersistStackSnapshotResults(
         rawCpuSample.ThreadInfo = pThreadInfo;
         rawCpuSample.Duration = pSnapshotResult->GetRepresentedDuration();
         rawCpuSample.Tags.AsyncSafeCopy(pSnapshotResult->GetTags());
+        rawCpuSample.SampleValueTypes = &CpuTimeProvider::SampleTypeDefinitions;
         _pCpuTimeCollector->Add(std::move(rawCpuSample));
     }
 }

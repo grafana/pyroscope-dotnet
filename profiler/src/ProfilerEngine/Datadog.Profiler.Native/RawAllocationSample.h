@@ -34,13 +34,13 @@ public:
         return *this;
     }
 
-    inline void OnTransform(std::shared_ptr<Sample>& sample, const std::vector<SampleValueType>* sampleValueTypes) const override
+    inline void OnTransform(std::shared_ptr<Sample>& sample) const override
     {
-        sample->SetSampleValueTypes(sampleValueTypes);
+        sample->SetSampleValueTypes(SampleValueTypes);
         sample->AddValue(1, 0);
 
         // in .NET Framework, no size is available
-        if (sampleValueTypes != nullptr && sampleValueTypes->size() >= 2)
+        if (SampleValueTypes != nullptr && SampleValueTypes->size() >= 2)
         {
             sample->AddValue(AllocationSize, 1);
         }

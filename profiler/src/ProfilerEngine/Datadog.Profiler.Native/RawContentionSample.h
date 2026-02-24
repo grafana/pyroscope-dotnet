@@ -46,9 +46,9 @@ public:
         return *this;
     }
 
-    void OnTransform(std::shared_ptr<Sample>& sample, const std::vector<SampleValueType>* sampleValueTypes) const override
+    void OnTransform(std::shared_ptr<Sample>& sample) const override
     {
-        sample->SetSampleValueTypes(sampleValueTypes);
+        sample->SetSampleValueTypes(SampleValueTypes);
         sample->AddValue(1, 0);
         sample->AddValue(ContentionDuration.count(), 1);
     }

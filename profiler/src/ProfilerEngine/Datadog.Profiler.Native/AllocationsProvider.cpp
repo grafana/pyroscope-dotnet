@@ -48,7 +48,6 @@ AllocationsProvider::AllocationsProvider(
     CallstackProvider pool,
     shared::pmr::memory_resource* memoryResource) :
     CollectorBase<RawAllocationSample>("AllocationsProvider",
-        isFramework ? &FrameworkSampleTypeDefinitions : &SampleTypeDefinitions,
         rawSampleTransformer, memoryResource),
     _pCorProfilerInfo(pCorProfilerInfo),
     _pManagedThreadList(pManagedThreadList),
@@ -58,7 +57,8 @@ AllocationsProvider::AllocationsProvider(
     _sampleLimit(pConfiguration->AllocationSampleLimit()),
     _pConfiguration(pConfiguration),
     _callstackProvider{std::move(pool)},
-    _metricsRegistry{metricsRegistry}
+    _metricsRegistry{metricsRegistry},
+    _sampleValueTypes{isFramework ? &FrameworkSampleTypeDefinitions : &SampleTypeDefinitions}
 {
     _allocationsCountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_allocations");
     _allocationsSizeMetric = metricsRegistry.GetOrRegister<MeanMaxMetric>("dotnet_allocations_size");
@@ -138,6 +138,7 @@ void AllocationsProvider::OnAllocation(uint32_t allocationKind,
         _pListener->OnAllocation(rawSample);
     }
 
+    rawSample.SampleValueTypes = _sampleValueTypes;
     Add(std::move(rawSample));
     _sampledAllocationsCountMetric->Incr();
     _sampledAllocationsSizeMetric->Add((double_t)objectSize);
@@ -321,6 +322,7 @@ void AllocationsProvider::OnAllocation(std::chrono::nanoseconds timestamp,
         _pListener->OnAllocation(rawSample);
     }
 
+    rawSample.SampleValueTypes = _sampleValueTypes;
     Add(std::move(rawSample));
     _sampledAllocationsCountMetric->Incr();
 
