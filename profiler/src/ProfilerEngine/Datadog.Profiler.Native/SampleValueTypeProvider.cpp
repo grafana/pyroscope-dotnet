@@ -47,8 +47,7 @@ SampleValueTypeProvider::SampleValueTypeProvider() :
 }
 
 // Pyroscope patch: upstream deduplicates by name+type and shares a single Index across callers.
-// We always register a fresh entry so each profiler gets its own independent index and offset,
-// which is required because Pyroscope sends separate pprof profiles per profiler.
+// We always register a fresh entry so each profiler gets its own independent index and offset.
 std::vector<SampleValueTypeProvider::Offset> SampleValueTypeProvider::RegisterPyroscopeSampleType(std::vector<SampleValueType>& valueTypes)
 {
     std::vector<Offset> offsets;
