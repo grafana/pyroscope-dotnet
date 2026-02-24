@@ -16,8 +16,6 @@
 
 #include <forward_list>
 #include <memory>
-#include <string_view>
-#include <unordered_map>
 #include <vector>
 
 using Pprof = std::string;
@@ -46,14 +44,12 @@ public:
     void RegisterGcSettingsProvider(IGcSettingsProvider* provider) override;
 
 private:
-    PprofBuilder& GetPprofBuilder(std::string_view runtimeId);
-
     IApplicationStore* _applicationStore;
     std::shared_ptr<PProfExportSink> _sink;
     std::vector<SampleValueType> _sampleTypeDefinitions;
     std::vector<SampleValueType> _processSampleTypeDefinitions;
-    std::unordered_map<std::string_view, std::unique_ptr<PprofBuilder>> _perAppBuilder;
-    std::mutex _perAppBuilderLock;
+    std::unique_ptr<PprofBuilder> _builder;
+    std::mutex _builderLock;
 
     std::vector<ISamplesProvider*> _processSamplesProviders;
     std::unique_ptr<PprofBuilder> _processSamplesBuilder;
