@@ -40,14 +40,14 @@ PyroscopePprofSink::~PyroscopePprofSink()
 {
     _running.store(false);
     _queue.push(PyroscopeRequest{
-        .pprof = "",
+        .pprofs = {},
         .startTime = ProfileTime(),
         .endTime = ProfileTime(),
     });
     _workerThread.join();
 }
 
-void PyroscopePprofSink::Export(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime)
+void PyroscopePprofSink::Export(std::vector<Pprof> pprofs, ProfileTime& startTime, ProfileTime& endTime)
 {
     if (_queue.size() >= 3)
     {
@@ -55,11 +55,11 @@ void PyroscopePprofSink::Export(Pprof pprof, ProfileTime& startTime, ProfileTime
         return;
     }
     PyroscopeRequest req{
-        .pprof = std::move(pprof),
+        .pprofs = std::move(pprofs),
         .startTime = startTime,
         .endTime = endTime,
     };
-    _queue.push(req);
+    _queue.push(std::move(req));
 }
 
 void PyroscopePprofSink::SetAuthToken(std::string authToken)
@@ -85,11 +85,10 @@ void PyroscopePprofSink::work()
     {
         PyroscopeRequest req = {};
         _queue.waitAndPop(req);
-        if (req.pprof.empty())
+        for (auto& pprof : req.pprofs)
         {
-            continue;
+            upload(std::move(pprof), req.startTime, req.endTime);
         }
-        upload(std::move(req.pprof), req.startTime, req.endTime);
     }
 }
 

@@ -81,7 +81,7 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
         }
     }
 
-    std::vector<std::string> pprofs;
+    std::vector<Pprof> pprofs;
     for (auto& entry : _entries)
     {
         std::lock_guard lock(entry->lock);
@@ -89,9 +89,9 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
             pprofs.emplace_back(entry->builder.Build());
     }
 
-    for (const auto& pprof : pprofs)
+    if (!pprofs.empty())
     {
-        _sink->Export(std::move(pprof), startTime, endTime);
+        _sink->Export(std::move(pprofs), startTime, endTime);
     }
     return true;
 }
