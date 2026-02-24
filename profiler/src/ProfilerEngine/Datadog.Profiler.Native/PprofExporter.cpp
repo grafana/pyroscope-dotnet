@@ -50,7 +50,7 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
         std::lock_guard lock(_builderLock);
         if (_builder->SamplesCount() != 0)
         {
-            pprofs.emplace_back(_builder->Build());
+            pprofs.emplace_back(_builder->Build(startTime, endTime));
         }
     }
 
@@ -68,7 +68,7 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
 
         if (_processSamplesBuilder->SamplesCount() > 0)
         {
-            pprofs.emplace_back(_processSamplesBuilder->Build());
+            pprofs.emplace_back(_processSamplesBuilder->Build(startTime, endTime));
         }
     }
 
