@@ -3,9 +3,6 @@
 
 #include "SampleValueTypeProvider.h"
 
-#include <cassert>
-#include <tuple>
-
 
 SampleValueTypeProvider::SampleValueTypeProvider() :
     CpuTimeDefinitions{
@@ -47,44 +44,6 @@ SampleValueTypeProvider::SampleValueTypeProvider() :
     }
 {
     _sampleTypeDefinitions.reserve(16);
-
-    // Validate that no two definitions share the same (Name, Type) with different units,
-    // catching inconsistencies at startup rather than at registration time.
-    std::vector<std::vector<SampleValueType>*> allDefinitions = {
-        &CpuTimeDefinitions,
-        &WallTimeDefinitions,
-        &AllocDefinitions,
-        &AllocFrameworkDefinitions,
-        &ContentionDefinitions,
-        &ExceptionDefinitions,
-        &NetworkDefinitions,
-        &LiveObjectsDefinitions,
-        &GarbageCollectionDefinitions,
-        &StopTheWorldDefinitions,
-        &ThreadLifetimeDefinitions,
-    };
-
-    for (auto* definitions : allDefinitions)
-    {
-        for (auto const& valueType : *definitions)
-        {
-            for (auto* otherDefinitions : allDefinitions)
-            {
-                for (auto const& other : *otherDefinitions)
-                {
-                    if (valueType.Name == other.Name && valueType.Type == other.Type)
-                    {
-                        if (valueType.Unit != other.Unit)
-                        {
-                            throw std::runtime_error(
-                                "Inconsistent unit for sample value type '" + valueType.Name +
-                                "': '" + valueType.Unit + "' vs '" + other.Unit + "'");
-                        }
-                    }
-                }
-            }
-        }
-    }
 }
 
 std::vector<SampleValueTypeProvider::Offset> SampleValueTypeProvider::GetOrRegister(std::vector<SampleValueType>& valueTypes)
