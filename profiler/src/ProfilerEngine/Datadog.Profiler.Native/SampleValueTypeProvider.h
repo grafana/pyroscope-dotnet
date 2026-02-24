@@ -35,8 +35,6 @@ public:
     std::vector<SampleValueType> ThreadLifetimeDefinitions;
 
 private:
-    std::int8_t GetOffset(SampleValueType const& valueType);
-
     std::vector<SampleValueType> _sampleTypeDefinitions;
 
     // Incremented each time a new vector of SampleValueType is registered via RegisterPyroscopeSampleType
