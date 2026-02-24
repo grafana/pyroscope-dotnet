@@ -5,7 +5,14 @@
 class RawExceptionSample : public RawSample
 {
 public:
-    RawExceptionSample() = default;
+    inline static std::vector<SampleValueType> TypeDefinitions = {
+        {"exception", "count", ProfileType::Exception}
+    };
+
+    RawExceptionSample()
+    {
+        SampleValueTypes = &TypeDefinitions;
+    }
 
     RawExceptionSample(RawExceptionSample&& other) noexcept
         :

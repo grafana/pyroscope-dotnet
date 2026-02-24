@@ -144,16 +144,6 @@ public:
         _runtimeId = runtimeId;
     }
 
-    ProfileType GetProfileType() const
-    {
-        return _profileType;
-    }
-
-    void SetProfileType(ProfileType profileType)
-    {
-        _profileType = profileType;
-    }
-
     void SetSampleValueTypes(const std::vector<SampleValueType>* types)
     {
         _sampleValueTypes = types;
@@ -172,7 +162,6 @@ public:
         _callstack.clear();
         _runtimeId = {};
         _allLabels.clear();
-        _profileType = ProfileType::Unknown;
         _sampleValueTypes = nullptr;
         _values.clear();
     }
@@ -226,6 +215,5 @@ private:
     Values _values;
     Labels _allLabels;
     std::string_view _runtimeId;
-    ProfileType _profileType = ProfileType::Unknown;
     const std::vector<SampleValueType>* _sampleValueTypes = nullptr;
 };

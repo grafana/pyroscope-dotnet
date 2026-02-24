@@ -6,9 +6,6 @@
 #include "RawSampleTransformer.h"
 #include "TimelineSampleType.h"
 
-static std::vector<SampleValueType> GarbageCollectionSampleTypeDefinitions(
-    {{"gc_time", "nanoseconds", ProfileType::GC}});
-
 GarbageCollectionProvider::GarbageCollectionProvider(
     RawSampleTransformer* rawSampleTransformer,
     MetricsRegistry& metricsRegistry,
@@ -114,7 +111,6 @@ void GarbageCollectionProvider::OnGarbageCollectionEnd(
     rawSample.Reason = reason;
     rawSample.Type = type;
     rawSample.IsCompacting = isCompacting;
-    rawSample.SampleValueTypes = &GarbageCollectionSampleTypeDefinitions;
     Add(std::move(rawSample));
 }
 

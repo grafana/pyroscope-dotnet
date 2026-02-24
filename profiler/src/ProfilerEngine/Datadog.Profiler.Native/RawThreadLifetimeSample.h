@@ -15,6 +15,15 @@ enum class ThreadEventKind
 class RawThreadLifetimeSample : public RawSample
 {
 public:
+    inline static std::vector<SampleValueType> TypeDefinitions = {
+        {"thread_lifetime", "nanoseconds", ProfileType::ThreadLifetime}
+    };
+
+    RawThreadLifetimeSample()
+    {
+        SampleValueTypes = &TypeDefinitions;
+    }
+
     ThreadEventKind Kind;
 
 public:

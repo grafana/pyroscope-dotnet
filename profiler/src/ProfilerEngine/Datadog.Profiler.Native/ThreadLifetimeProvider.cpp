@@ -2,13 +2,9 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2022 Datadog, Inc.
 
 #include "ThreadLifetimeProvider.h"
-#include "TimelineSampleType.h"
 
-static std::vector<SampleValueType> ThreadLifetimeSampleTypeDefinitions(
-    {{"thread_lifetime", "nanoseconds", ProfileType::ThreadLifetime}});
 #include "OpSysTools.h"
 #include "RawSampleTransformer.h"
-#include "TimelineSampleType.h"
 
 ThreadLifetimeProvider::ThreadLifetimeProvider(
     RawSampleTransformer* rawSampleTransformer,
@@ -38,7 +34,5 @@ RawThreadLifetimeSample ThreadLifetimeProvider::CreateSample(std::shared_ptr<Man
     rawSample.AppDomainId = pThreadInfo->GetAppDomainId();
     rawSample.ThreadInfo = std::move(pThreadInfo);
     rawSample.Kind = kind;
-    rawSample.SampleValueTypes = &ThreadLifetimeSampleTypeDefinitions;
-
     return rawSample;
 }

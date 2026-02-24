@@ -111,9 +111,6 @@ private:
                 return false;
 
             _rawSampleTransformer->Transform(*_currentRawSample, sample);
-            auto* svt = sample->GetSampleValueTypes();
-            if (svt != nullptr && !svt->empty())
-                sample->SetProfileType((*svt)[0].profileType);
             _currentRawSample++;
 
             return true;

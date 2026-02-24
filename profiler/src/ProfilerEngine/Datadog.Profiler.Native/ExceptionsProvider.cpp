@@ -15,10 +15,6 @@
 #include "shared/src/native-src/string.h"
 
 
-std::vector<SampleValueType> ExceptionsProvider::SampleTypeDefinitions(
-    {
-        {"exception", "count", ProfileType::Exception}
-    });
 
 ExceptionsProvider::ExceptionsProvider(
     ICorProfilerInfo4* pCorProfilerInfo,
@@ -172,7 +168,6 @@ bool ExceptionsProvider::OnExceptionThrown(ObjectID thrownObjectId)
     rawSample.ExceptionMessage = std::move(message);
     rawSample.ExceptionType = std::move(name);
     rawSample.Tags.AsyncSafeCopy(threadInfo->GetTags());
-    rawSample.SampleValueTypes = &SampleTypeDefinitions;
     Add(std::move(rawSample));
     _sampledExceptionsCountMetric->Incr();
 

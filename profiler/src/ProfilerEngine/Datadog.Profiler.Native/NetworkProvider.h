@@ -66,8 +66,6 @@ private:
     bool TryGetActivity(LPCGUID pActivityId, NetworkActivity& activity, bool isRoot = true);
 
 private:
-    static std::vector<SampleValueType> SampleTypeDefinitions;
-
     ICorProfilerInfo4* _pCorProfilerInfo;
     IManagedThreadList* _pManagedThreadList;
     IFrameStore* _pFrameStore;

@@ -156,9 +156,6 @@ private:
                 reinterpret_cast<TRawSample const*>(buffer.data()));
 
             _rawSampleTransformer->Transform(*rawSample, sample);
-            auto* svt = sample->GetSampleValueTypes();
-            if (svt != nullptr && !svt->empty())
-                sample->SetProfileType((*svt)[0].profileType);
             std::destroy_at(rawSample);
             return true;
         }

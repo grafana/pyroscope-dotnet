@@ -290,7 +290,6 @@ void CorProfilerCallback::InitializeServices()
                     _pConfiguration.get());
 
                 _pAllocationsProvider = RegisterService<AllocationsProvider>(
-                    false, // not .NET Framework
                     _pCorProfilerInfo,
                     _pManagedThreadList,
                     _pFrameStore.get(),
@@ -317,7 +316,6 @@ void CorProfilerCallback::InitializeServices()
         if (_pConfiguration->IsAllocationProfilingEnabled() && (_pAllocationsProvider == nullptr))
         {
             _pAllocationsProvider = RegisterService<AllocationsProvider>(
-                false, // not .NET Framework
                 _pCorProfilerInfo,
                 _pManagedThreadList,
                 _pFrameStore.get(),
@@ -429,7 +427,6 @@ void CorProfilerCallback::InitializeServices()
         if (_pConfiguration->IsAllocationProfilingEnabled())
         {
             _pAllocationsProvider = RegisterService<AllocationsProvider>(
-                true, // is .NET Framework
                 _pCorProfilerInfo,
                 _pManagedThreadList,
                 _pFrameStore.get(),

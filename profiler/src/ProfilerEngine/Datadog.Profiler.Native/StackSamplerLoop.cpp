@@ -582,7 +582,6 @@ void StackSamplerLoop::PersistStackSnapshotResults(
         rawSample.ThreadInfo = pThreadInfo;
         rawSample.Duration = pSnapshotResult->GetRepresentedDuration();
         rawSample.Tags.AsyncSafeCopy(pSnapshotResult->GetTags());
-        rawSample.SampleValueTypes = &WallTimeProvider::SampleTypeDefinitions;
         _pWallTimeCollector->Add(std::move(rawSample));
     }
     else

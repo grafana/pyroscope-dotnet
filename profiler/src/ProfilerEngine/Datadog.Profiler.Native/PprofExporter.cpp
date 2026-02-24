@@ -40,14 +40,14 @@ PProfExportSink::~PProfExportSink()
 
 void PprofExporter::AddSampleToBuilder(std::shared_ptr<Sample> const& sample)
 {
-    int32_t key = static_cast<int32_t>(sample->GetProfileType());
+    auto const* sampleValueTypes = sample->GetSampleValueTypes();
+    if (sampleValueTypes == nullptr || sampleValueTypes->empty())
+        return;
+    int32_t key = static_cast<int32_t>((*sampleValueTypes)[0].profileType);
     std::lock_guard lock(_perProfileTypeBuilderLock);
     auto it = _perProfileTypeBuilder.find(key);
     if (it == _perProfileTypeBuilder.end())
     {
-        auto const* sampleValueTypes = sample->GetSampleValueTypes();
-        if (sampleValueTypes == nullptr)
-            return;
         std::vector<SampleValueType> types(*sampleValueTypes);
         ProfileTypeEntry entry;
         entry.builder = std::make_unique<PprofBuilder>(std::move(types));

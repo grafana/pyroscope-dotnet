@@ -10,7 +10,14 @@
 class RawStopTheWorldSample : public GCBaseRawSample
 {
 public:
-    RawStopTheWorldSample() = default;
+    inline static std::vector<SampleValueType> TypeDefinitions = {
+        {"gc_stw_time", "nanoseconds", ProfileType::GCStopTheWorld}
+    };
+
+    RawStopTheWorldSample()
+    {
+        SampleValueTypes = &TypeDefinitions;
+    }
 
     RawStopTheWorldSample(RawStopTheWorldSample&& other) = default;
     RawStopTheWorldSample& operator=(RawStopTheWorldSample&& other) noexcept = default;

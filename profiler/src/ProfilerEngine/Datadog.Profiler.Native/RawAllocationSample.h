@@ -9,7 +9,15 @@
 class RawAllocationSample : public RawSample
 {
 public:
-    RawAllocationSample() = default;
+    inline static std::vector<SampleValueType> TypeDefinitions = {
+        {"alloc_samples", "count", ProfileType::Alloc},
+        {"alloc_size", "bytes", ProfileType::Alloc}
+    };
+
+    RawAllocationSample()
+    {
+        SampleValueTypes = &TypeDefinitions;
+    }
 
     RawAllocationSample(RawAllocationSample&& other) noexcept
         :
@@ -38,12 +46,7 @@ public:
     {
         sample->SetSampleValueTypes(SampleValueTypes);
         sample->AddValue(1, 0);
-
-        // in .NET Framework, no size is available
-        if (SampleValueTypes != nullptr && SampleValueTypes->size() >= 2)
-        {
-            sample->AddValue(AllocationSize, 1);
-        }
+        sample->AddValue(AllocationSize, 1);
     }
 
     std::string AllocationClass;

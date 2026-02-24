@@ -16,9 +16,6 @@
 #include "RawSampleTransformer.h"
 #include "TimelineSampleType.h"
 
-static std::vector<SampleValueType> StopTheWorldSampleTypeDefinitions(
-    {{"gc_stw_time", "nanoseconds", ProfileType::GCStopTheWorld}});
-
 #include "shared/src/native-src/com_ptr.h"
 #include "shared/src/native-src/string.h"
 
@@ -44,6 +41,5 @@ void StopTheWorldGCProvider::OnSuspension(std::chrono::nanoseconds timestamp, in
     rawSample.Generation = generation;
     rawSample.Duration = pauseDuration;
 
-    rawSample.SampleValueTypes = &StopTheWorldSampleTypeDefinitions;
     Add(std::move(rawSample));
 }

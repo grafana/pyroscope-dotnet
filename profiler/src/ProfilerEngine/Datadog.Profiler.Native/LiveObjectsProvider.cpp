@@ -156,9 +156,6 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
             rawSample.SampleValueTypes = &LiveObjectsProvider::SampleTypeDefinitions;
             auto liveObjectSample = std::make_shared<Sample>(rawSample.Timestamp, std::string_view(), rawSample.Stack.Size());
             _rawSampleTransformer->Transform(rawSample, liveObjectSample);
-            auto* svt = liveObjectSample->GetSampleValueTypes();
-            if (svt != nullptr && !svt->empty())
-                liveObjectSample->SetProfileType((*svt)[0].profileType);
         LiveObjectInfo info(
                 std::move(liveObjectSample),
                 rawSample.Address,

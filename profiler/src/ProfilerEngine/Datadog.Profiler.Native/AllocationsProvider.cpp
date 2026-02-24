@@ -23,21 +23,7 @@
 #include "shared/src/native-src/com_ptr.h"
 #include "shared/src/native-src/string.h"
 
-std::vector<SampleValueType> AllocationsProvider::SampleTypeDefinitions(
-    {
-        {"alloc_samples", "count", ProfileType::Alloc},
-        {"alloc_size", "bytes", ProfileType::Alloc}
-    }
-);
-
-std::vector<SampleValueType> AllocationsProvider::FrameworkSampleTypeDefinitions(
-    {
-        {"alloc_samples", "count", ProfileType::Alloc},
-    }
-);
-
 AllocationsProvider::AllocationsProvider(
-    bool isFramework,
     ICorProfilerInfo4* pCorProfilerInfo,
     IManagedThreadList* pManagedThreadList,
     IFrameStore* pFrameStore,
@@ -57,8 +43,7 @@ AllocationsProvider::AllocationsProvider(
     _sampleLimit(pConfiguration->AllocationSampleLimit()),
     _pConfiguration(pConfiguration),
     _callstackProvider{std::move(pool)},
-    _metricsRegistry{metricsRegistry},
-    _sampleValueTypes{isFramework ? &FrameworkSampleTypeDefinitions : &SampleTypeDefinitions}
+    _metricsRegistry{metricsRegistry}
 {
     _allocationsCountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_allocations");
     _allocationsSizeMetric = metricsRegistry.GetOrRegister<MeanMaxMetric>("dotnet_allocations_size");
@@ -138,7 +123,6 @@ void AllocationsProvider::OnAllocation(uint32_t allocationKind,
         _pListener->OnAllocation(rawSample);
     }
 
-    rawSample.SampleValueTypes = _sampleValueTypes;
     Add(std::move(rawSample));
     _sampledAllocationsCountMetric->Incr();
     _sampledAllocationsSizeMetric->Add((double_t)objectSize);
@@ -322,7 +306,6 @@ void AllocationsProvider::OnAllocation(std::chrono::nanoseconds timestamp,
         _pListener->OnAllocation(rawSample);
     }
 
-    rawSample.SampleValueTypes = _sampleValueTypes;
     Add(std::move(rawSample));
     _sampledAllocationsCountMetric->Incr();
 

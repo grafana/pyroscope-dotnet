@@ -9,12 +9,6 @@
 #include "IThreadsCpuManager.h"
 #include "RawWallTimeSample.h"
 
-std::vector<SampleValueType> WallTimeProvider::SampleTypeDefinitions(
-    {
-        {"wall", "nanoseconds", ProfileType::Wall}
-    }
-    );
-
 WallTimeProvider::WallTimeProvider(
     RawSampleTransformer* rawSampleTransformer,
     shared::pmr::memory_resource* memoryResource

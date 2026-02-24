@@ -11,12 +11,6 @@
 
 #include <chrono>
 
-std::vector<SampleValueType> NetworkProvider::SampleTypeDefinitions(
-{
-    {"request_time", "nanoseconds", ProfileType::Unknown}
-});
-
-
 NetworkProvider::NetworkProvider(
     ICorProfilerInfo4* pCorProfilerInfo,
     IManagedThreadList* pManagedThreadList,
@@ -173,7 +167,6 @@ void NetworkProvider::OnRequestStop(std::chrono::nanoseconds timestamp, LPCGUID 
         _redirectionRequestsCountMetric->Incr();
     }
 
-    rawSample.SampleValueTypes = &SampleTypeDefinitions;
     Add(std::move(rawSample));
 
     _requests.erase(activity);

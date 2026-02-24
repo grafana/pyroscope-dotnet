@@ -22,7 +22,4 @@ public:
         RawSampleTransformer* rawSampleTransformer,
         shared::pmr::memory_resource* memoryResource
         );
-
-public:
-    static std::vector<SampleValueType> SampleTypeDefinitions;
 };

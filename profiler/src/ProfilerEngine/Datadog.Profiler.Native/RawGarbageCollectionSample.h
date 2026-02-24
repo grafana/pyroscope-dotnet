@@ -14,7 +14,14 @@
 class RawGarbageCollectionSample : public GCBaseRawSample
 {
 public:
-    RawGarbageCollectionSample() = default;
+    inline static std::vector<SampleValueType> TypeDefinitions = {
+        {"gc_time", "nanoseconds", ProfileType::GC}
+    };
+
+    RawGarbageCollectionSample()
+    {
+        SampleValueTypes = &TypeDefinitions;
+    }
 
     RawGarbageCollectionSample(RawGarbageCollectionSample&& other) noexcept
         :

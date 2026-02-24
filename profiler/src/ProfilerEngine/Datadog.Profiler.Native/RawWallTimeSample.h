@@ -11,7 +11,14 @@
 class RawWallTimeSample : public RawSample
 {
 public:
-    RawWallTimeSample() = default;
+    inline static std::vector<SampleValueType> TypeDefinitions = {
+        {"wall", "nanoseconds", ProfileType::Wall}
+    };
+
+    RawWallTimeSample()
+    {
+        SampleValueTypes = &TypeDefinitions;
+    }
 
     RawWallTimeSample(RawWallTimeSample&& other) noexcept
         :

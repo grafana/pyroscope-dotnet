@@ -22,12 +22,6 @@ using namespace std::chrono_literals;
 
 std::vector<uintptr_t> ContentionProvider::_emptyStack;
 
-std::vector<SampleValueType> ContentionProvider::SampleTypeDefinitions(
-    {
-        {"lock_count", "count", ProfileType::Lock},
-        {"lock_time", "nanoseconds", ProfileType::Lock}
-    });
-
 ContentionProvider::ContentionProvider(
     ICorProfilerInfo4* pCorProfilerInfo,
     IManagedThreadList* pManagedThreadList,
@@ -285,7 +279,6 @@ void ContentionProvider::AddContentionSample(
     rawSample.BlockingThreadName = std::move(blockingThreadName);
     rawSample.Type = waitType;
 
-    rawSample.SampleValueTypes = &SampleTypeDefinitions;
     Add(std::move(rawSample));
     _sampledLockContentionsCountMetric->Incr();
     _sampledLockContentionsDurationMetric->Add(static_cast<double>(contentionDuration.count()));

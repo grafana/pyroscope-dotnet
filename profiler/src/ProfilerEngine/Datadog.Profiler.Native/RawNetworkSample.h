@@ -11,7 +11,14 @@
 class RawNetworkSample : public RawSample
 {
 public:
-    RawNetworkSample() = default;
+    inline static std::vector<SampleValueType> TypeDefinitions = {
+        {"request_time", "nanoseconds", ProfileType::Unknown}
+    };
+
+    RawNetworkSample()
+    {
+        SampleValueTypes = &TypeDefinitions;
+    }
 
     RawNetworkSample(RawNetworkSample&& other) noexcept
         :

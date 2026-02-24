@@ -88,9 +88,6 @@ std::unique_ptr<SamplesEnumerator> NativeThreadsCpuProviderBase::GetSamples()
 
     auto sample = std::make_shared<Sample>(rawSample.Timestamp, std::string_view(), rawSample.Stack.Size());
     _sampleTransformer->Transform(rawSample, sample);
-    auto* svt = sample->GetSampleValueTypes();
-    if (svt != nullptr && !svt->empty())
-        sample->SetProfileType((*svt)[0].profileType);
 
     // The resulting callstack of the transformation is empty
     // Add a fake "GC" frame to the sample

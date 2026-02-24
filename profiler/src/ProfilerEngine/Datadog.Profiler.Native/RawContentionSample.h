@@ -19,7 +19,15 @@ public:
     inline static const std::string ContentionTypeLabelName = "contention type";
 
 public:
-    RawContentionSample() = default;
+    inline static std::vector<SampleValueType> TypeDefinitions = {
+        {"lock_count", "count", ProfileType::Lock},
+        {"lock_time", "nanoseconds", ProfileType::Lock}
+    };
+
+    RawContentionSample()
+    {
+        SampleValueTypes = &TypeDefinitions;
+    }
 
     RawContentionSample(RawContentionSample&& other) noexcept
         :

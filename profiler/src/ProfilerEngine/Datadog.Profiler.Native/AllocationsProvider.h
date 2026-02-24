@@ -38,7 +38,6 @@ class AllocationsProvider
 {
 public:
     AllocationsProvider(
-        bool isFramework,
         ICorProfilerInfo4* pCorProfilerInfo,
         IManagedThreadList* pManagedThreadList,
         IFrameStore* pFrameStore,
@@ -79,9 +78,6 @@ private:
     uint64_t AllocTickThreshold = 100 * 1024; // this is also used for AllocationSampled as the mean of the distribution
 
 private:
-    static std::vector<SampleValueType> SampleTypeDefinitions;
-    static std::vector<SampleValueType> FrameworkSampleTypeDefinitions;
-
     ICorProfilerInfo4* _pCorProfilerInfo;
     IManagedThreadList* _pManagedThreadList;
     IFrameStore* _pFrameStore;
@@ -90,7 +86,6 @@ private:
     int32_t _sampleLimit;
     IConfiguration const* const _pConfiguration;
     bool _shouldSubSample;
-    const std::vector<SampleValueType>* _sampleValueTypes;
     std::shared_ptr<CounterMetric> _allocationsCountMetric;
     std::shared_ptr<MeanMaxMetric> _allocationsSizeMetric;
     std::shared_ptr<CounterMetric> _sampledAllocationsCountMetric;
