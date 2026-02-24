@@ -40,7 +40,7 @@ private:
     };
 
     void work();
-    void upload(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime);
+    void upload(Pprof pprof);
     httplib::Headers getHeaders();
 
     std::string _appName;

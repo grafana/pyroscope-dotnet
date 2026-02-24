@@ -7,6 +7,7 @@
 #include "Sample.h"
 #include "TagsHelper.h"
 #include "google/v1/profile.pb.h"
+#include "IExporter.h"
 
 #include <memory>
 #include <mutex>
@@ -20,7 +21,7 @@ public:
     PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions);
 
     void AddSample(const Sample& sample, std::span<const int64_t> values);
-    std::string Build();
+    std::string Build(ProfileTime& startTime, ProfileTime& endTime);
 
 private:
     int64_t AddString(const std::string_view& sv);

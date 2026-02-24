@@ -3,6 +3,7 @@
 //
 
 #include "PprofBuilder.h"
+#include "IExporter.h"
 #include "Log.h"
 
 PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions) :
@@ -40,13 +41,17 @@ void PprofBuilder::AddSample(const Sample& sample, std::span<const int64_t> valu
     _samplesCount++;
 }
 
-std::string PprofBuilder::Build()
+std::string PprofBuilder::Build(ProfileTime& startTime, ProfileTime& endTime)
 {
     std::lock_guard<std::mutex> lock(this->_lock);
     if (_samplesCount == 0)
     {
         return {};
     }
+    auto startNanos = std::chrono::duration_cast<std::chrono::nanoseconds>(startTime.time_since_epoch()).count();
+    auto durationNanos = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();
+    _profile.set_time_nanos(startNanos);
+    _profile.set_duration_nanos(durationNanos);
     auto res = _profile.SerializeAsString();
     Log::Debug("PprofBuilder samples: ", _samplesCount, ", serialized bytes: ", res.size());
     Reset();

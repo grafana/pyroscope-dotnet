@@ -92,7 +92,7 @@ void PyroscopePprofSink::work()
     }
 }
 
-void PyroscopePprofSink::upload(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime)
+void PyroscopePprofSink::upload(Pprof pprof)
 {
     push::v1::PushRequest request;
     auto* series = request.add_series();
