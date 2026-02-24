@@ -4,4 +4,4 @@
 #include "TimelineSampleType.h"
 
 std::vector<SampleValueType> TimelineSampleType::Definitions(
-    {{"timeline", "nanoseconds", -1}});
+    {{"timeline", "nanoseconds", ProfileType::Unknown}});

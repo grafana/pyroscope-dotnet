@@ -8,9 +8,8 @@
 // Aborts in both debug and release builds, unlike assert() which is a no-op in release.
 #define CHECK(cond) do { if (!(cond)) { ::abort(); } } while (0)
 
-PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions, size_t globalOffset) :
-    _sampleTypeDefinitions(std::move(sampleTypeDefinitions)),
-    _globalOffset(globalOffset)
+PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions) :
+    _sampleTypeDefinitions(std::move(sampleTypeDefinitions))
 {
     Reset();
 }
@@ -18,7 +17,7 @@ PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions, s
 void PprofBuilder::AddSample(const Sample& sample)
 {
     auto& values = sample.GetValues();
-    CHECK(values.size() >= _globalOffset + _sampleTypeDefinitions.size());
+    CHECK(values.size() >= _sampleTypeDefinitions.size());
     std::lock_guard<std::mutex> lock(this->_lock);
     auto* pSample = _profile.add_sample();
     for (auto const& frame : sample.GetCallstack())
@@ -30,7 +29,7 @@ void PprofBuilder::AddSample(const Sample& sample)
     }
     for (size_t i = 0; i < _sampleTypeDefinitions.size(); i++)
     {
-        pSample->add_value(values[_globalOffset + i]);
+        pSample->add_value(values[i]);
     }
     for (const auto& label : sample.GetLabels())
     {

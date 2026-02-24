@@ -11,18 +11,16 @@
 #include "OsSpecificApi.h"
 #include "RawSampleTransformer.h"
 #include "ScopeFinalizer.h"
-#include "SampleValueTypeProvider.h"
 #include "shared/src/native-src/com_ptr.h"
 #include "shared/src/native-src/string.h"
 
 
 std::vector<SampleValueType> ExceptionsProvider::SampleTypeDefinitions(
     {
-        {"exception", "count", -1, ProfileType::Exception}
+        {"exception", "count", ProfileType::Exception}
     });
 
 ExceptionsProvider::ExceptionsProvider(
-    SampleValueTypeProvider& valueTypeProvider,
     ICorProfilerInfo4* pCorProfilerInfo,
     IManagedThreadList* pManagedThreadList,
     IFrameStore* pFrameStore,
@@ -32,7 +30,7 @@ ExceptionsProvider::ExceptionsProvider(
     CallstackProvider callstackProvider,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawExceptionSample>("ExceptionsProvider", valueTypeProvider.GetOrRegister(SampleTypeDefinitions), rawSampleTransformer, memoryResource, ProfileType::Exception),
+    CollectorBase<RawExceptionSample>("ExceptionsProvider", &SampleTypeDefinitions, rawSampleTransformer, memoryResource, ProfileType::Exception),
     _pCorProfilerInfo(pCorProfilerInfo),
     _pManagedThreadList(pManagedThreadList),
     _pFrameStore(pFrameStore),
@@ -208,7 +206,8 @@ bool ExceptionsProvider::GetExceptionType(ClassID classId, std::string& exceptio
 
 std::list<UpscalingInfo> ExceptionsProvider::GetInfos()
 {
-    return {{GetValueOffsets(), Sample::ExceptionTypeLabel, _sampler.GetGroups()}};
+    static const std::vector<size_t> offsets = {0};
+    return {{offsets, Sample::ExceptionTypeLabel, _sampler.GetGroups()}};
 }
 
 bool ExceptionsProvider::LoadExceptionMetadata()

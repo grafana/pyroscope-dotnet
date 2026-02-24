@@ -2,22 +2,20 @@
 // This product includes software developed at Datadog (https://www.datadoghq.com/). Copyright 2022 Datadog, Inc.
 
 #include "ThreadLifetimeProvider.h"
-#include "SampleValueTypeProvider.h"
 #include "TimelineSampleType.h"
 
 static std::vector<SampleValueType> ThreadLifetimeSampleTypeDefinitions(
-    {{"thread_lifetime", "nanoseconds", -1, ProfileType::ThreadLifetime}});
+    {{"thread_lifetime", "nanoseconds", ProfileType::ThreadLifetime}});
 #include "OpSysTools.h"
 #include "RawSampleTransformer.h"
 #include "TimelineSampleType.h"
 
 ThreadLifetimeProvider::ThreadLifetimeProvider(
-    SampleValueTypeProvider& valueTypeProvider,
     RawSampleTransformer* rawSampleTransformer,
     shared::pmr::memory_resource* memoryResource)
     :
     CollectorBase<RawThreadLifetimeSample>(
-        "ThreadLifetimeProvider", valueTypeProvider.GetOrRegister(ThreadLifetimeSampleTypeDefinitions), rawSampleTransformer, memoryResource, ProfileType::ThreadLifetime)
+        "ThreadLifetimeProvider", &ThreadLifetimeSampleTypeDefinitions, rawSampleTransformer, memoryResource, ProfileType::ThreadLifetime)
 {
 }
 

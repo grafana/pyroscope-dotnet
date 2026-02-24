@@ -12,12 +12,11 @@
 #include "RawSampleTransformer.h"
 #include "Sample.h"
 #include "SamplesEnumerator.h"
-#include "SampleValueTypeProvider.h"
 
 std::vector<SampleValueType> LiveObjectsProvider::SampleTypeDefinitions(
 {
-    {"inuse_objects", "count", -1, ProfileType::Heap},
-    {"inuse_space", "bytes", -1, ProfileType::Heap}
+    {"inuse_objects", "count", ProfileType::Heap},
+    {"inuse_space", "bytes", ProfileType::Heap}
 });
 
 const std::string LiveObjectsProvider::Gen1("1");
@@ -25,13 +24,12 @@ const std::string LiveObjectsProvider::Gen2("2");
 
 LiveObjectsProvider::LiveObjectsProvider(
     ICorProfilerInfo13* pCorProfilerInfo,
-    SampleValueTypeProvider& valueTypeProvider,
     RawSampleTransformer* rawSampleTransformer,
     IConfiguration* pConfiguration)
     :
     _pCorProfilerInfo(pCorProfilerInfo),
     _rawSampleTransformer{rawSampleTransformer},
-    _valueOffsets{valueTypeProvider.GetOrRegister(LiveObjectsProvider::SampleTypeDefinitions)}
+    _sampleValueTypes{&LiveObjectsProvider::SampleTypeDefinitions}
 {
     _heapHandleLimit = pConfiguration->GetHeapHandleLimit();
 }
@@ -156,8 +154,9 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
         auto handle = CreateWeakHandle(rawSample.Address);
         if (handle != nullptr)
         {
-            auto liveObjectSample = _rawSampleTransformer->Transform(rawSample, _valueOffsets);
-        liveObjectSample->SetProfileType(ProfileType::Heap);
+            auto liveObjectSample = std::make_shared<Sample>(rawSample.Timestamp, std::string_view(), rawSample.Stack.Size());
+            _rawSampleTransformer->Transform(rawSample, liveObjectSample, _sampleValueTypes);
+            liveObjectSample->SetProfileType(ProfileType::Heap);
         LiveObjectInfo info(
                 std::move(liveObjectSample),
                 rawSample.Address,

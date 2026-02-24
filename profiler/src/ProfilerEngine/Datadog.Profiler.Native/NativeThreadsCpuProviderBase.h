@@ -9,7 +9,6 @@
 #include "ISamplesProvider.h"
 #include "IThreadInfo.h"
 #include "Sample.h"
-#include "SampleValueTypeProvider.h"
 
 #include <vector>
 
@@ -18,7 +17,7 @@ class RawSampleTransformer;
 class NativeThreadsCpuProviderBase : public ISamplesProvider
 {
 public:
-    NativeThreadsCpuProviderBase(std::vector<SampleValueTypeProvider::Offset> valueOffsets, RawSampleTransformer* sampleTransformer, ProfileType profileType);
+    NativeThreadsCpuProviderBase(const std::vector<SampleValueType>* sampleValueTypes, RawSampleTransformer* sampleTransformer, ProfileType profileType);
 
 protected:
     virtual void OnCpuDuration(std::chrono::milliseconds cpuTime);
@@ -33,6 +32,6 @@ private:
 private:
     RawSampleTransformer* _sampleTransformer;
     std::chrono::milliseconds _previousTotalCpuTime;
-    std::vector<SampleValueTypeProvider::Offset> _valueOffsets;
+    const std::vector<SampleValueType>* _sampleValueTypes;
     ProfileType _profileType;
 };

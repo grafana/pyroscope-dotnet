@@ -19,7 +19,7 @@ class GCThreadsCpuProvider
     public IGcSettingsProvider
 {
 public:
-    GCThreadsCpuProvider(SampleValueTypeProvider& valueTypeProvider, RawSampleTransformer* cpuSampleTransformer, MetricsRegistry& metricsRegistry);
+    GCThreadsCpuProvider(RawSampleTransformer* cpuSampleTransformer, MetricsRegistry& metricsRegistry);
 
     // Inherited via ISamplesProvider
     const char* GetName() override;

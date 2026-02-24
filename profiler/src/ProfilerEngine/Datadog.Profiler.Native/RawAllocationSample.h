@@ -34,16 +34,14 @@ public:
         return *this;
     }
 
-    inline void OnTransform(std::shared_ptr<Sample>& sample, std::vector<SampleValueTypeProvider::Offset> const& valueOffsets) const override
+    inline void OnTransform(std::shared_ptr<Sample>& sample) const override
     {
-        auto allocationCountIndex = valueOffsets[0];
-        sample->AddValue(1, allocationCountIndex);
+        sample->AddValue(1, 0);
 
         // in .NET Framework, no size is available
-        if (valueOffsets.size() == 2)
+        if (sample->GetValues().size() >= 2)
         {
-            auto allocationSizeIndex = valueOffsets[1];
-            sample->AddValue(AllocationSize, allocationSizeIndex);
+            sample->AddValue(AllocationSize, 1);
         }
     }
 

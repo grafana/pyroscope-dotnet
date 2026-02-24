@@ -18,7 +18,6 @@
 #include <memory>
 #include <unordered_map>
 
-class SampleValueTypeProvider;
 class IManagedThreadList;
 class IThreadsCpuManager;
 class IConfiguration;
@@ -31,7 +30,6 @@ class NetworkProvider :
 {
 public:
     NetworkProvider(
-        SampleValueTypeProvider& valueTypeProvider,
         ICorProfilerInfo4* pCorProfilerInfo,
         IManagedThreadList* pManagedThreadList,
         RawSampleTransformer* rawSampleTransformer,

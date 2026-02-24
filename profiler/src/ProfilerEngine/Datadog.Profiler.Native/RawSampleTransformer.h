@@ -34,9 +34,7 @@ public:
     RawSampleTransformer(RawSampleTransformer&&) = delete;
     RawSampleTransformer& operator=(RawSampleTransformer&&) = delete;
 
-    std::shared_ptr<Sample> Transform(const RawSample& rawSample, std::vector<SampleValueTypeProvider::Offset> const& offsets);
-
-    void Transform(const RawSample& rawSample, std::shared_ptr<Sample>& sample, std::vector<SampleValueTypeProvider::Offset> const& offsets);
+    void Transform(const RawSample& rawSample, std::shared_ptr<Sample>& sample, const std::vector<SampleValueType>* sampleValueTypes = nullptr);
 
 private:
     void SetAppDomainDetails(const RawSample& rawSample, std::shared_ptr<Sample>& sample);

@@ -49,10 +49,6 @@ const std::string Sample::ResponseContentDurationLabel = "response_content.durat
 const std::string Sample::RequestResponseThreadIdLabel = "response.thread_id";
 const std::string Sample::RequestResponseThreadNameLabel = "response.thread_name";
 
-// TODO: update the values vector size if more than 16 slots are needed
-size_t Sample::ValuesCount = 16;  // should be set BEFORE any sample gets created
-
-
 Sample::Sample(std::chrono::nanoseconds timestamp, std::string_view runtimeId, size_t framesCount) :
     Sample(runtimeId)
 {
@@ -63,7 +59,7 @@ Sample::Sample(std::chrono::nanoseconds timestamp, std::string_view runtimeId, s
 }
 
 Sample::Sample(std::string_view runtimeId) :
-    _values(ValuesCount),
+    _values{},
     _timestamp{0},
     _allLabels{},
     _callstack{},
@@ -92,12 +88,8 @@ void Sample::SetValue(std::int64_t value)
 
 void Sample::AddValue(std::int64_t value, size_t index)
 {
-    if (index >= ValuesCount)
+    if (index >= _values.size())
     {
-        // TODO: fix compilation error about std::stringstream
-        // std::stringstream builder;
-        // builder << "\"index\" (=" << index << ") is greater than limit (=" << array_size << ")";
-        // throw std::invalid_argument(builder.str());
         throw std::invalid_argument("index");
     }
 

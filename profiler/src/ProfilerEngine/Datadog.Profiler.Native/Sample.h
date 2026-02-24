@@ -39,12 +39,6 @@ struct SampleValueType
 {
     std::string Name;
     std::string Unit;
-
-    // Samples belonging to the same provider will share the same index
-    // For libdatadog, it means that they will be stored in the same profile
-    // This value will be set when registering the SampleValueType with SampleValueTypeProvider
-    int32_t Index; // -1 means not set
-
     ProfileType profileType = ProfileType::Unknown;
 };
 
@@ -64,9 +58,6 @@ using namespace std::chrono_literals;
 
 class Sample final
 {
-public:
-    static size_t ValuesCount;
-
 public:
     Sample(std::chrono::nanoseconds timestamp, std::string_view runtimeId, size_t framesCount);
     Sample(std::string_view runtimeId); // only for tests
@@ -163,6 +154,18 @@ public:
         _profileType = profileType;
     }
 
+    void SetSampleValueTypes(const std::vector<SampleValueType>* types)
+    {
+        _sampleValueTypes = types;
+        size_t count = (types != nullptr) ? types->size() : 0;
+        _values.assign(count, 0);
+    }
+
+    const std::vector<SampleValueType>* GetSampleValueTypes() const
+    {
+        return _sampleValueTypes;
+    }
+
     void Reset()
     {
         _timestamp = 0ns;
@@ -170,7 +173,8 @@ public:
         _runtimeId = {};
         _allLabels.clear();
         _profileType = ProfileType::Unknown;
-        std::fill(_values.begin(), _values.end(), 0);
+        _sampleValueTypes = nullptr;
+        _values.clear();
     }
     // well known labels
 public:
@@ -223,4 +227,5 @@ private:
     Labels _allLabels;
     std::string_view _runtimeId;
     ProfileType _profileType = ProfileType::Unknown;
+    const std::vector<SampleValueType>* _sampleValueTypes = nullptr;
 };

@@ -34,8 +34,7 @@ class PprofExporter : public IExporter
 
 public:
     PprofExporter(IApplicationStore* _applicationStore,
-                  std::shared_ptr<PProfExportSink> sin,
-                  std::vector<SampleValueType> sampleTypeDefinitions);
+                  std::shared_ptr<PProfExportSink> sin);
     void Add(std::shared_ptr<Sample> const& sample) override;
     void SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint) override;
     bool Export(ProfileTime& startTime, ProfileTime& endTime, bool lastCall = false) override;
@@ -55,7 +54,6 @@ private:
 
     IApplicationStore* _applicationStore;
     std::shared_ptr<PProfExportSink> _sink;
-    std::vector<SampleValueType> _sampleTypeDefinitions;
     std::unordered_map<int32_t, ProfileTypeEntry> _perProfileTypeBuilder;
     std::mutex _perProfileTypeBuilderLock;
 

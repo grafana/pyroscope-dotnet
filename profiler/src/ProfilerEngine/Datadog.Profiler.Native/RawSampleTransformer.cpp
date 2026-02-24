@@ -13,16 +13,15 @@
 #include <string_view>
 #include <utility>
 
-std::shared_ptr<Sample> RawSampleTransformer::Transform(const RawSample& rawSample, std::vector<SampleValueTypeProvider::Offset> const& offsets)
-{
-    auto sample = std::make_shared<Sample>(rawSample.Timestamp, std::string_view(), rawSample.Stack.Size());
-    Transform(rawSample, sample, offsets);
-    return sample;
-}
-
-void RawSampleTransformer::Transform(const RawSample& rawSample, std::shared_ptr<Sample>& sample, std::vector<SampleValueTypeProvider::Offset> const& offsets)
+void RawSampleTransformer::Transform(const RawSample& rawSample, std::shared_ptr<Sample>& sample, const std::vector<SampleValueType>* sampleValueTypes)
 {
     sample->Reset();
+
+    // Set value types after Reset() so values vector is correctly sized for OnTransform
+    if (sampleValueTypes != nullptr)
+    {
+        sample->SetSampleValueTypes(sampleValueTypes);
+    }
 
     auto runtimeId = _pRuntimeIdStore->GetId(rawSample.AppDomainId);
 
@@ -47,7 +46,7 @@ void RawSampleTransformer::Transform(const RawSample& rawSample, std::shared_ptr
     SetStack(rawSample, sample);
 
     // allow inherited classes to add values and specific labels
-    rawSample.OnTransform(sample, offsets);
+    rawSample.OnTransform(sample);
 }
 
 void RawSampleTransformer::SetAppDomainDetails(const RawSample& rawSample, std::shared_ptr<Sample>& sample)

@@ -23,7 +23,6 @@
 #include <memory>
 
 class IConfiguration;
-class SampleValueTypeProvider;
 class RawSampleTransformer;
 
 class ExceptionsProvider :
@@ -32,7 +31,6 @@ class ExceptionsProvider :
 {
 public:
     ExceptionsProvider(
-        SampleValueTypeProvider& valueTypeProvider,
         ICorProfilerInfo4* pCorProfilerInfo,
         IManagedThreadList* pManagedThreadList,
         IFrameStore* pFrameStore,

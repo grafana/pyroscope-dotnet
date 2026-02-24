@@ -17,7 +17,6 @@
 #include "MetricsRegistry.h"
 #include "OsSpecificApi.h"
 #include "RawSampleTransformer.h"
-#include "SampleValueTypeProvider.h"
 
 #include <chrono>
 
@@ -26,46 +25,19 @@
 
 std::vector<SampleValueType> AllocationsProvider::SampleTypeDefinitions(
     {
-        {"alloc_samples", "count", -1, ProfileType::Alloc},
-        {"alloc_size", "bytes", -1, ProfileType::Alloc}
+        {"alloc_samples", "count", ProfileType::Alloc},
+        {"alloc_size", "bytes", ProfileType::Alloc}
     }
 );
 
 std::vector<SampleValueType> AllocationsProvider::FrameworkSampleTypeDefinitions(
     {
-        {"alloc_samples", "count", -1, ProfileType::Alloc},
+        {"alloc_samples", "count", ProfileType::Alloc},
     }
 );
 
 AllocationsProvider::AllocationsProvider(
     bool isFramework,
-    SampleValueTypeProvider& valueTypeProvider,
-    ICorProfilerInfo4* pCorProfilerInfo,
-    IManagedThreadList* pManagedThreadList,
-    IFrameStore* pFrameStore,
-    RawSampleTransformer* rawSampleTransformer,
-    IConfiguration* pConfiguration,
-    ISampledAllocationsListener* pListener,
-    MetricsRegistry& metricsRegistry,
-    CallstackProvider pool,
-    shared::pmr::memory_resource* memoryResource)
-    :
-    AllocationsProvider(
-        isFramework
-            ? valueTypeProvider.GetOrRegister(FrameworkSampleTypeDefinitions)
-            : valueTypeProvider.GetOrRegister(SampleTypeDefinitions),
-        pCorProfilerInfo, pManagedThreadList, pFrameStore,
-        rawSampleTransformer,
-        pConfiguration,
-        pListener,
-        metricsRegistry,
-        std::move(pool),
-        memoryResource)
-{
-}
-
-AllocationsProvider::AllocationsProvider(
-    std::vector<SampleValueTypeProvider::Offset> valueTypes,
     ICorProfilerInfo4* pCorProfilerInfo,
     IManagedThreadList* pManagedThreadList,
     IFrameStore* pFrameStore,
@@ -75,7 +47,9 @@ AllocationsProvider::AllocationsProvider(
     MetricsRegistry& metricsRegistry,
     CallstackProvider pool,
     shared::pmr::memory_resource* memoryResource) :
-    CollectorBase<RawAllocationSample>("AllocationsProvider", std::move(valueTypes), rawSampleTransformer, memoryResource, ProfileType::Alloc),
+    CollectorBase<RawAllocationSample>("AllocationsProvider",
+        isFramework ? &FrameworkSampleTypeDefinitions : &SampleTypeDefinitions,
+        rawSampleTransformer, memoryResource, ProfileType::Alloc),
     _pCorProfilerInfo(pCorProfilerInfo),
     _pManagedThreadList(pManagedThreadList),
     _pFrameStore(pFrameStore),
@@ -356,7 +330,7 @@ void AllocationsProvider::OnAllocation(std::chrono::nanoseconds timestamp,
 
 UpscalingPoissonInfo AllocationsProvider::GetPoissonInfo()
 {
-    auto const& offsets = GetValueOffsets(); //              sum(size)       count
-    UpscalingPoissonInfo info{ offsets, AllocTickThreshold, offsets[1], offsets[0] };
+    static const std::vector<std::uintptr_t> offsets = {0, 1}; // count=0, size=1
+    UpscalingPoissonInfo info{ offsets, AllocTickThreshold, 1, 0 }; // SumOffset=size(1), CountOffset=count(0)
     return info;
 }

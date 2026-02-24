@@ -19,7 +19,6 @@ class IManagedThreadList;
 class IConfiguration;
 class ISampledAllocationsListener;
 class RawSampleTransformer;
-class SampleValueTypeProvider;
 
 class LiveObjectsProvider : public ServiceBase,
                             public IBatchedSamplesProvider,
@@ -29,7 +28,6 @@ class LiveObjectsProvider : public ServiceBase,
 public:
     LiveObjectsProvider(
         ICorProfilerInfo13* pCorProfilerInfo,
-        SampleValueTypeProvider& valueTypeProvider,
         RawSampleTransformer* rawSampleTransformer,
         IConfiguration* pConfiguration);
 
@@ -87,7 +85,7 @@ private:
     std::mutex _liveObjectsLock;
     std::list<LiveObjectInfo> _monitoredObjects;
     // WeakHandle are checked after each GC
-    std::vector<SampleValueTypeProvider::Offset> _valueOffsets;
+    const std::vector<SampleValueType>* _sampleValueTypes = nullptr;
 
     static const std::string Gen1;
     static const std::string Gen2;

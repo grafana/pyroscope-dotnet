@@ -49,7 +49,6 @@
 #include "RuntimeIdStore.h"
 #include "RuntimeInfo.h"
 #include "Sample.h"
-#include "SampleValueTypeProvider.h"
 #include "SsiManager.h"
 #include "StackSamplerLoopManager.h"
 #include "ThreadsCpuManager.h"
@@ -212,8 +211,6 @@ void CorProfilerCallback::InitializeServices()
     _pNativeThreadList = RegisterService<NativeThreadList>();
     _pRuntimeIdStore = RegisterService<RuntimeIdStore>();
 
-    auto valueTypeProvider = SampleValueTypeProvider();
-
     _rawSampleTransformer = std::make_unique<RawSampleTransformer>(
         _pFrameStore.get(),
         _pAppDomainStore.get(),
@@ -222,7 +219,6 @@ void CorProfilerCallback::InitializeServices()
     if (_pConfiguration->IsThreadLifetimeEnabled())
     {
         _pThreadLifetimeProvider = RegisterService<ThreadLifetimeProvider>(
-            valueTypeProvider,
             _rawSampleTransformer.get(),
             MemoryResourceManager::GetDefault());
     }
@@ -231,7 +227,7 @@ void CorProfilerCallback::InitializeServices()
     {
         // PERF: use a synchronized pool to avoid race conditions when adding samples to the profile.
         auto pool = _memoryResourceManager.GetSynchronizedPool(1000, sizeof(RawWallTimeSample));
-        _pWallTimeProvider = RegisterService<WallTimeProvider>(valueTypeProvider, _rawSampleTransformer.get(), pool);
+        _pWallTimeProvider = RegisterService<WallTimeProvider>(_rawSampleTransformer.get(), pool);
     }
 
     if (_pConfiguration->IsCpuProfilingEnabled())
@@ -240,7 +236,7 @@ void CorProfilerCallback::InitializeServices()
         if (_pConfiguration->GetCpuProfilerType() == CpuProfilerType::ManualCpuTime)
         {
             _pCpuTimeProvider = RegisterService<CpuTimeProvider>(
-                valueTypeProvider, _rawSampleTransformer.get(), MemoryResourceManager::GetDefault());
+                _rawSampleTransformer.get(), MemoryResourceManager::GetDefault());
         }
         else
         {
@@ -259,18 +255,17 @@ void CorProfilerCallback::InitializeServices()
             std::size_t rbSize = std::ceil(nbSamplesCollectorTick * cpuAllocated * RawSampleCollectorBase<RawCpuSample>::SampleSize);
             Log::Info("RingBuffer size estimate (bytes): ", rbSize);
             _pCpuProfilerRb = std::make_unique<RingBuffer>(rbSize, CpuSampleProvider::SampleSize);
-            _pCpuSampleProvider = RegisterService<CpuSampleProvider>(valueTypeProvider, _rawSampleTransformer.get(), _pCpuProfilerRb.get(), _metricsRegistry);
+            _pCpuSampleProvider = RegisterService<CpuSampleProvider>(_rawSampleTransformer.get(), _pCpuProfilerRb.get(), _metricsRegistry);
         }
 #else // WINDOWS
         _pCpuTimeProvider = RegisterService<CpuTimeProvider>(
-            valueTypeProvider, _rawSampleTransformer.get(), MemoryResourceManager::GetDefault());
+            _rawSampleTransformer.get(), MemoryResourceManager::GetDefault());
 #endif
     }
 
     if (_pConfiguration->IsExceptionProfilingEnabled())
     {
         _pExceptionsProvider = RegisterService<ExceptionsProvider>(
-            valueTypeProvider,
             _pCorProfilerInfo,
             _pManagedThreadList,
             _pFrameStore.get(),
@@ -291,13 +286,11 @@ void CorProfilerCallback::InitializeServices()
             {
                 _pLiveObjectsProvider = RegisterService<LiveObjectsProvider>(
                     _pCorProfilerInfoLiveHeap,
-                    valueTypeProvider,
                     _rawSampleTransformer.get(),
                     _pConfiguration.get());
 
                 _pAllocationsProvider = RegisterService<AllocationsProvider>(
                     false, // not .NET Framework
-                    valueTypeProvider,
                     _pCorProfilerInfo,
                     _pManagedThreadList,
                     _pFrameStore.get(),
@@ -325,7 +318,6 @@ void CorProfilerCallback::InitializeServices()
         {
             _pAllocationsProvider = RegisterService<AllocationsProvider>(
                 false, // not .NET Framework
-                valueTypeProvider,
                 _pCorProfilerInfo,
                 _pManagedThreadList,
                 _pFrameStore.get(),
@@ -344,7 +336,6 @@ void CorProfilerCallback::InitializeServices()
             )
         {
             _pContentionProvider = RegisterService<ContentionProvider>(
-                valueTypeProvider,
                 _pCorProfilerInfo,
                 _pManagedThreadList,
                 _rawSampleTransformer.get(),
@@ -371,12 +362,10 @@ void CorProfilerCallback::InitializeServices()
         if ((_pHeapSnapshotManager != nullptr) || _pConfiguration->IsGarbageCollectionProfilingEnabled())
         {
             _pStopTheWorldProvider = RegisterService<StopTheWorldGCProvider>(
-                valueTypeProvider,
                 _rawSampleTransformer.get(),
                 MemoryResourceManager::GetDefault()
             );
             _pGarbageCollectionProvider = RegisterService<GarbageCollectionProvider>(
-                valueTypeProvider,
                 _rawSampleTransformer.get(),
                 _metricsRegistry,
                 MemoryResourceManager::GetDefault()
@@ -394,7 +383,6 @@ void CorProfilerCallback::InitializeServices()
             if (_pRuntimeInfo->GetMajorVersion() >= 7)
             {
                 _pNetworkProvider = RegisterService<NetworkProvider>(
-                    valueTypeProvider,
                     _pCorProfilerInfo,
                     _pManagedThreadList,
                     _rawSampleTransformer.get(),
@@ -442,7 +430,6 @@ void CorProfilerCallback::InitializeServices()
         {
             _pAllocationsProvider = RegisterService<AllocationsProvider>(
                 true, // is .NET Framework
-                valueTypeProvider,
                 _pCorProfilerInfo,
                 _pManagedThreadList,
                 _pFrameStore.get(),
@@ -458,7 +445,6 @@ void CorProfilerCallback::InitializeServices()
         if (_pConfiguration->IsContentionProfilingEnabled())
         {
             _pContentionProvider = RegisterService<ContentionProvider>(
-                valueTypeProvider,
                 _pCorProfilerInfo,
                 _pManagedThreadList,
                 _rawSampleTransformer.get(),
@@ -471,12 +457,10 @@ void CorProfilerCallback::InitializeServices()
         if (_pConfiguration->IsGarbageCollectionProfilingEnabled())
         {
             _pStopTheWorldProvider = RegisterService<StopTheWorldGCProvider>(
-                valueTypeProvider,
                 _rawSampleTransformer.get(),
                 MemoryResourceManager::GetDefault());
 
             _pGarbageCollectionProvider = RegisterService<GarbageCollectionProvider>(
-                valueTypeProvider,
                 _rawSampleTransformer.get(),
                 _metricsRegistry,
                 MemoryResourceManager::GetDefault());
@@ -552,19 +536,12 @@ void CorProfilerCallback::InitializeServices()
         }
     }
 
-    // GCThreadsCpuProvider must be constructed before freezing Sample::ValuesCount and building
-    // PprofExporter, so that its gc_cpu value types are registered in valueTypeProvider first.
     if (_pConfiguration->IsGcThreadsCpuTimeEnabled() &&
         _pConfiguration->IsCpuProfilingEnabled() &&
         _pRuntimeInfo->GetMajorVersion() >= 5)
     {
-        _gcThreadsCpuProvider = std::make_unique<GCThreadsCpuProvider>(valueTypeProvider, _rawSampleTransformer.get(), _metricsRegistry);
+        _gcThreadsCpuProvider = std::make_unique<GCThreadsCpuProvider>(_rawSampleTransformer.get(), _metricsRegistry);
     }
-
-    // Avoid iterating twice on all providers in order to inject this value in each constructor
-    // and store it in CollectorBase so it can be used in TransformRawSample (where the sample is created)
-    auto const& sampleTypeDefinitions = valueTypeProvider.GetValueTypes();
-    Sample::ValuesCount = sampleTypeDefinitions.size();
 
     _pStackSamplerLoopManager = RegisterService<StackSamplerLoopManager>(
         _pCorProfilerInfo,
@@ -609,8 +586,7 @@ void CorProfilerCallback::InitializeServices()
         PyroscopePprofSink::ParseHeadersJSON(std::move(_pConfiguration->PyroscopeHttpHeaders())),
         _pConfiguration->GetUserTags());
     _pExporter = std::make_unique<PprofExporter>(_pApplicationStore,
-                                                 _pyroscopePprofSink,
-                                                 sampleTypeDefinitions);
+                                                 _pyroscopePprofSink);
 
     if (_gcThreadsCpuProvider != nullptr)
     {

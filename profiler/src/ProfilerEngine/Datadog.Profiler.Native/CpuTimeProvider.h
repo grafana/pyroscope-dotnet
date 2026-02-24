@@ -10,7 +10,6 @@
 
 // forward declarations
 class IConfiguration;
-class SampleValueTypeProvider;
 class RawSampleTransformer;
 
 class CpuTimeProvider
@@ -19,7 +18,6 @@ class CpuTimeProvider
 {
 public:
     CpuTimeProvider(
-        SampleValueTypeProvider& valueTypeProvider,
         RawSampleTransformer* rawSampleTransformer,
         shared::pmr::memory_resource* memoryResource);
 

@@ -27,39 +27,10 @@ static std::string ProfileTypeToName(ProfileType pt)
 }
 
 PprofExporter::PprofExporter(IApplicationStore* applicationStore,
-                             std::shared_ptr<PProfExportSink> sink,
-                             std::vector<SampleValueType> sampleTypeDefinitions) :
+                             std::shared_ptr<PProfExportSink> sink) :
     _applicationStore(applicationStore),
-    _sink(std::move(sink)),
-    _sampleTypeDefinitions(std::move(sampleTypeDefinitions))
+    _sink(std::move(sink))
 {
-    // Build per-ProfileType builders: group sampleTypeDefinitions by profileType.
-    // Each group gets a PprofBuilder with only its subset of types, and a globalOffset
-    // so it reads the right slice from the full values vector.
-    std::unordered_map<int32_t, std::pair<std::vector<SampleValueType>, size_t>> groups; // profileType -> (types, firstOffset)
-
-    for (size_t i = 0; i < _sampleTypeDefinitions.size(); i++)
-    {
-        auto const& st = _sampleTypeDefinitions[i];
-        int32_t key = static_cast<int32_t>(st.profileType);
-        auto it = groups.find(key);
-        if (it == groups.end())
-        {
-            groups.emplace(key, std::make_pair(std::vector<SampleValueType>{st}, i));
-        }
-        else
-        {
-            it->second.first.push_back(st);
-        }
-    }
-
-    for (auto& [key, pair] : groups)
-    {
-        ProfileTypeEntry entry;
-        entry.builder = std::make_unique<PprofBuilder>(std::move(pair.first), pair.second);
-        _perProfileTypeBuilder.emplace(key, std::move(entry));
-    }
-
     signal(SIGPIPE, SIG_IGN);
 }
 
@@ -72,10 +43,17 @@ void PprofExporter::AddSampleToBuilder(std::shared_ptr<Sample> const& sample)
     int32_t key = static_cast<int32_t>(sample->GetProfileType());
     std::lock_guard lock(_perProfileTypeBuilderLock);
     auto it = _perProfileTypeBuilder.find(key);
-    if (it != _perProfileTypeBuilder.end())
+    if (it == _perProfileTypeBuilder.end())
     {
-        it->second.builder->AddSample(*sample);
+        auto const* sampleValueTypes = sample->GetSampleValueTypes();
+        if (sampleValueTypes == nullptr)
+            return;
+        std::vector<SampleValueType> types(*sampleValueTypes);
+        ProfileTypeEntry entry;
+        entry.builder = std::make_unique<PprofBuilder>(std::move(types));
+        it = _perProfileTypeBuilder.emplace(key, std::move(entry)).first;
     }
+    it->second.builder->AddSample(*sample);
 }
 
 void PprofExporter::Add(std::shared_ptr<Sample> const& sample)

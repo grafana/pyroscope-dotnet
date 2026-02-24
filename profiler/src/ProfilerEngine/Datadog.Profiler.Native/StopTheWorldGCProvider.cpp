@@ -14,22 +14,20 @@
 #include "Log.h"
 #include "OsSpecificApi.h"
 #include "RawSampleTransformer.h"
-#include "SampleValueTypeProvider.h"
 #include "TimelineSampleType.h"
 
 static std::vector<SampleValueType> StopTheWorldSampleTypeDefinitions(
-    {{"gc_stw_time", "nanoseconds", -1, ProfileType::GCStopTheWorld}});
+    {{"gc_stw_time", "nanoseconds", ProfileType::GCStopTheWorld}});
 
 #include "shared/src/native-src/com_ptr.h"
 #include "shared/src/native-src/string.h"
 
 
 StopTheWorldGCProvider::StopTheWorldGCProvider(
-    SampleValueTypeProvider& valueTypeProvider,
     RawSampleTransformer* rawSampleTransformer,
     shared::pmr::memory_resource* memoryResource)
     :
-    CollectorBase<RawStopTheWorldSample>("StopTheWorldGCProvider", valueTypeProvider.GetOrRegister(StopTheWorldSampleTypeDefinitions), rawSampleTransformer, memoryResource, ProfileType::GCStopTheWorld)
+    CollectorBase<RawStopTheWorldSample>("StopTheWorldGCProvider", &StopTheWorldSampleTypeDefinitions, rawSampleTransformer, memoryResource, ProfileType::GCStopTheWorld)
 {
 }
 

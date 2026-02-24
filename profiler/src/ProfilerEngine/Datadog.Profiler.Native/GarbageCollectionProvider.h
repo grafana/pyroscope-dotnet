@@ -15,7 +15,6 @@
 #include "shared/src/native-src/dd_memory_resource.hpp"
 
 class RawSampleTransformer;
-class SampleValueTypeProvider;
 
 class GarbageCollectionProvider
     : public CollectorBase<RawGarbageCollectionSample>,
@@ -23,7 +22,6 @@ class GarbageCollectionProvider
 {
 public:
     GarbageCollectionProvider(
-        SampleValueTypeProvider& valueTypeProvider,
         RawSampleTransformer* rawSampleTransformer,
         MetricsRegistry& metricsRegistry,
         shared::pmr::memory_resource* memoryResource);

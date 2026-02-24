@@ -12,7 +12,6 @@
 #include <vector>
 
 // forward declarations
-class SampleValueTypeProvider;
 class RawSampleTransformer;
 
 class CpuSampleProvider
@@ -21,7 +20,6 @@ class CpuSampleProvider
 {
 public:
     CpuSampleProvider(
-        SampleValueTypeProvider& valueTypeProvider,
         RawSampleTransformer* rawSampleTransformer,
         RingBuffer* ringBuffer,
         MetricsRegistry& metricsRegistry);

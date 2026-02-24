@@ -10,8 +10,8 @@
 #include "ProviderBase.h"
 #include "ServiceBase.h"
 #include "SamplesEnumerator.h"
-#include "SampleValueTypeProvider.h"
 #include "RawSampleTransformer.h"
+#include "Sample.h"
 
 #include <memory>
 
@@ -94,13 +94,13 @@ public:
 public:
     RawSampleCollectorBase(
         const char* name,
-        std::vector<SampleValueTypeProvider::Offset> valueOffsets,
+        const std::vector<SampleValueType>* sampleValueTypes,
         RawSampleTransformer* rawSampleTransformer,
         RingBuffer* ringBuffer,
         MetricsRegistry& metricsRegistry,
         ProfileType profileType) :
         ProviderBase(name),
-        _valueOffsets{std::move(valueOffsets)},
+        _sampleValueTypes{sampleValueTypes},
         _rawSampleTransformer{rawSampleTransformer},
         _collectedSamples{ringBuffer},
         _failedReservationMetric{metricsRegistry.GetOrRegister<DiscardMetrics>("dotnet_raw_sample_failed_allocation")},
@@ -122,7 +122,7 @@ public:
 
     std::unique_ptr<SamplesEnumerator> GetSamples() override
     {
-        return std::make_unique<SamplesEnumeratorImpl>(std::move(_collectedSamples->GetReader()), _rawSampleTransformer, _valueOffsets, _profileType);
+        return std::make_unique<SamplesEnumeratorImpl>(std::move(_collectedSamples->GetReader()), _rawSampleTransformer, _sampleValueTypes, _profileType);
     }
 
 private:
@@ -131,11 +131,11 @@ private:
     public:
         SamplesEnumeratorImpl(RingBuffer::Reader&& reader,
                               RawSampleTransformer* rawSampleTransformer,
-                              std::vector<SampleValueTypeProvider::Offset> const& valueOffsets,
+                              const std::vector<SampleValueType>* sampleValueTypes,
                               ProfileType profileType) :
             _reader{std::move(reader)},
             _rawSampleTransformer{rawSampleTransformer},
-            _valueOffsets{valueOffsets},
+            _sampleValueTypes{sampleValueTypes},
             _profileType{profileType}
         {
         }
@@ -163,7 +163,7 @@ private:
             auto* rawSample = const_cast<TRawSample*>(
                 reinterpret_cast<TRawSample const*>(buffer.data()));
 
-            _rawSampleTransformer->Transform(*rawSample, sample, _valueOffsets);
+            _rawSampleTransformer->Transform(*rawSample, sample, _sampleValueTypes);
             sample->SetProfileType(_profileType);
             std::destroy_at(rawSample);
             return true;
@@ -172,7 +172,7 @@ private:
     private:
         RingBuffer::Reader _reader;
         RawSampleTransformer* _rawSampleTransformer;
-        std::vector<SampleValueTypeProvider::Offset> const& _valueOffsets;
+        const std::vector<SampleValueType>* _sampleValueTypes;
         ProfileType _profileType;
     };
 
@@ -186,7 +186,7 @@ private:
         return true;
     }
 
-    std::vector<SampleValueTypeProvider::Offset> _valueOffsets;
+    const std::vector<SampleValueType>* _sampleValueTypes;
     RawSampleTransformer* _rawSampleTransformer;
     RingBuffer* _collectedSamples;
     std::shared_ptr<DiscardMetrics> _failedReservationMetric;

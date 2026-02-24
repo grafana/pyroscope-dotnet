@@ -13,10 +13,10 @@
 
 using namespace std::chrono_literals;
 
-NativeThreadsCpuProviderBase::NativeThreadsCpuProviderBase(std::vector<SampleValueTypeProvider::Offset> valueOffsets, RawSampleTransformer* sampleTransformer, ProfileType profileType) :
+NativeThreadsCpuProviderBase::NativeThreadsCpuProviderBase(const std::vector<SampleValueType>* sampleValueTypes, RawSampleTransformer* sampleTransformer, ProfileType profileType) :
     _sampleTransformer{sampleTransformer},
     _previousTotalCpuTime{0},
-    _valueOffsets{std::move(valueOffsets)},
+    _sampleValueTypes{sampleValueTypes},
     _profileType{profileType}
 {
 }
@@ -86,9 +86,8 @@ std::unique_ptr<SamplesEnumerator> NativeThreadsCpuProviderBase::GetSamples()
     RawCpuSample rawSample;
     rawSample.Duration = cpuTime;
 
-    // Cpu Time provider knows the offset of the Cpu value
-    // So leave the transformation to it
-    auto sample = _sampleTransformer->Transform(rawSample, _valueOffsets);
+    auto sample = std::make_shared<Sample>(rawSample.Timestamp, std::string_view(), rawSample.Stack.Size());
+    _sampleTransformer->Transform(rawSample, sample, _sampleValueTypes);
     sample->SetProfileType(_profileType);
 
     // The resulting callstack of the transformation is empty
