@@ -552,6 +552,15 @@ void CorProfilerCallback::InitializeServices()
         }
     }
 
+    // GCThreadsCpuProvider must be constructed before GetValueTypes() freezes Sample::ValuesCount,
+    // so that its GcThreadsCpuDefinitions are included in the snapshot passed to PprofExporter.
+    if (_pConfiguration->IsGcThreadsCpuTimeEnabled() &&
+        _pConfiguration->IsCpuProfilingEnabled() && // CPU profiling must be enabled
+        _pRuntimeInfo->GetMajorVersion() >= 5)
+    {
+        _gcThreadsCpuProvider = std::make_unique<GCThreadsCpuProvider>(valueTypeProvider, _rawSampleTransformer.get(), _metricsRegistry);
+    }
+
     // Avoid iterating twice on all providers in order to inject this value in each constructor
     // and store it in CollectorBase so it can be used in TransformRawSample (where the sample is created)
     auto const& sampleTypeDefinitions = valueTypeProvider.GetValueTypes();
@@ -603,12 +612,8 @@ void CorProfilerCallback::InitializeServices()
                                                  _pyroscopePprofSink,
                                                  sampleTypeDefinitions);
 
-    if (_pConfiguration->IsGcThreadsCpuTimeEnabled() &&
-        _pConfiguration->IsCpuProfilingEnabled() && // CPU profiling must be enabled
-        _pRuntimeInfo->GetMajorVersion() >= 5)
+    if (_gcThreadsCpuProvider != nullptr)
     {
-        _gcThreadsCpuProvider = std::make_unique<GCThreadsCpuProvider>(valueTypeProvider, _rawSampleTransformer.get(), _metricsRegistry);
-
         _pExporter->RegisterProcessSamplesProvider(_gcThreadsCpuProvider.get());
         _pExporter->RegisterGcSettingsProvider(_gcThreadsCpuProvider.get());
     }
