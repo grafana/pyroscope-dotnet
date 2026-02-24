@@ -24,7 +24,7 @@ using Pprof = std::string;
 class PProfExportSink
 {
 public:
-    virtual void Export(std::vector<Pprof> pprofs, ProfileTime& startTime, ProfileTime& endTime) = 0;
+    virtual void Export(std::vector<Pprof> pprofs) = 0;
     virtual ~PProfExportSink();
 };
 

@@ -93,7 +93,7 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
 
     if (!pprofs.empty())
     {
-        _sink->Export(std::move(pprofs), startTime, endTime);
+        _sink->Export(std::move(pprofs));
     }
     return true;
 }

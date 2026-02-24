@@ -41,13 +41,11 @@ PyroscopePprofSink::~PyroscopePprofSink()
     _running.store(false);
     _queue.push(PyroscopeRequest{
         .pprofs = {},
-        .startTime = ProfileTime(),
-        .endTime = ProfileTime(),
     });
     _workerThread.join();
 }
 
-void PyroscopePprofSink::Export(std::vector<Pprof> pprofs, ProfileTime& startTime, ProfileTime& endTime)
+void PyroscopePprofSink::Export(std::vector<Pprof> pprofs)
 {
     if (_queue.size() >= 3)
     {
@@ -56,8 +54,6 @@ void PyroscopePprofSink::Export(std::vector<Pprof> pprofs, ProfileTime& startTim
     }
     PyroscopeRequest req{
         .pprofs = std::move(pprofs),
-        .startTime = startTime,
-        .endTime = endTime,
     };
     _queue.push(std::move(req));
 }
@@ -87,7 +83,7 @@ void PyroscopePprofSink::work()
         _queue.waitAndPop(req);
         for (auto& pprof : req.pprofs)
         {
-            upload(std::move(pprof), req.startTime, req.endTime);
+            upload(std::move(pprof));
         }
     }
 }
