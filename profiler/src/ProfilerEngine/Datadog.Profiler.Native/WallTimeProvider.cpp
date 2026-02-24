@@ -15,6 +15,6 @@ WallTimeProvider::WallTimeProvider(
     shared::pmr::memory_resource* memoryResource
     )
     :
-    CollectorBase<RawWallTimeSample>("WallTimeProvider", sampleValueTypeProvider.GetOrRegister(sampleValueTypeProvider.WallTimeDefinitions), rawSampleTransformer, memoryResource)
+    CollectorBase<RawWallTimeSample>("WallTimeProvider", sampleValueTypeProvider.GetOrRegister2(sampleValueTypeProvider.WallTimeDefinitions), rawSampleTransformer, memoryResource)
 {
 }

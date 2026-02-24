@@ -39,8 +39,8 @@ AllocationsProvider::AllocationsProvider(
     :
     AllocationsProvider(
         isFramework
-            ? valueTypeProvider.GetOrRegister(valueTypeProvider.AllocFrameworkDefinitions)
-            : valueTypeProvider.GetOrRegister(valueTypeProvider.AllocDefinitions),
+            ? valueTypeProvider.GetOrRegister2(valueTypeProvider.AllocFrameworkDefinitions)
+            : valueTypeProvider.GetOrRegister2(valueTypeProvider.AllocDefinitions),
         pCorProfilerInfo, pManagedThreadList, pFrameStore,
         rawSampleTransformer,
         pConfiguration,
