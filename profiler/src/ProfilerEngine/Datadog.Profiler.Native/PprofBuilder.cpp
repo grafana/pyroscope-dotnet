@@ -40,17 +40,17 @@ void PprofBuilder::AddSample(const Sample& sample, std::span<const int64_t> valu
     _samplesCount++;
 }
 
-int PprofBuilder::SamplesCount() {
-    return _samplesCount;
-}
-
-std::string PprofBuilder::Build()
+std::optional<std::string> PprofBuilder::Build()
 {
     std::lock_guard<std::mutex> lock(this->_lock);
+    if (_samplesCount == 0)
+    {
+        return std::nullopt;
+    }
     auto res = _profile.SerializeAsString();
     Log::Debug("PprofBuilder samples: ", _samplesCount, ", serialized bytes: ", res.size());
     Reset();
-    return std::move(res);
+    return res;
 }
 
 int64_t PprofBuilder::AddString(const std::string_view& sv)
