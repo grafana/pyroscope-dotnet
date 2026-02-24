@@ -54,7 +54,6 @@ void PprofExporter::AddSampleToEntries(const Sample& sample)
     {
         auto slice = std::span<const int64_t>(allValues.data() + entry->startIndex, entry->count);
         if (AllZero(slice)) continue;
-        std::lock_guard lock(entry->lock);
         entry->builder.AddSample(sample, slice);
     }
 }
@@ -87,7 +86,6 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
     std::vector<Pprof> pprofs;
     for (auto& entry : _entries)
     {
-        std::lock_guard lock(entry->lock);
         if (entry->builder.SamplesCount() != 0)
             pprofs.emplace_back(entry->builder.Build());
     }

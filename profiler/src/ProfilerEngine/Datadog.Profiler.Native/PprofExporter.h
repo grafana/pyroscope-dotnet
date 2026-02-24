@@ -36,7 +36,6 @@ struct ProfileTypeEntry
     size_t startIndex;                 // offset into Sample::GetValues()
     size_t count;                      // number of values for this profile type
     PprofBuilder builder;
-    std::mutex lock;
 };
 
 class PprofExporter : public IExporter
