@@ -19,20 +19,20 @@ public:
 
     SampleValueTypeProvider();
 
-    std::vector<Offset> GetOrRegister(std::vector<SampleValueType> const& valueTypes);
+    std::vector<Offset> GetOrRegister(std::vector<SampleValueType>& valueTypes);
     std::vector<SampleValueType> const& GetValueTypes();
 
-    static const std::vector<SampleValueType> CpuTimeDefinitions;
-    static const std::vector<SampleValueType> WallTimeDefinitions;
-    static const std::vector<SampleValueType> AllocDefinitions;
-    static const std::vector<SampleValueType> AllocFrameworkDefinitions;
-    static const std::vector<SampleValueType> ContentionDefinitions;
-    static const std::vector<SampleValueType> ExceptionDefinitions;
-    static const std::vector<SampleValueType> NetworkDefinitions;
-    static const std::vector<SampleValueType> LiveObjectsDefinitions;
-    static const std::vector<SampleValueType> GarbageCollectionDefinitions;
-    static const std::vector<SampleValueType> StopTheWorldDefinitions;
-    static const std::vector<SampleValueType> ThreadLifetimeDefinitions;
+    std::vector<SampleValueType> CpuTimeDefinitions;
+    std::vector<SampleValueType> WallTimeDefinitions;
+    std::vector<SampleValueType> AllocDefinitions;
+    std::vector<SampleValueType> AllocFrameworkDefinitions;
+    std::vector<SampleValueType> ContentionDefinitions;
+    std::vector<SampleValueType> ExceptionDefinitions;
+    std::vector<SampleValueType> NetworkDefinitions;
+    std::vector<SampleValueType> LiveObjectsDefinitions;
+    std::vector<SampleValueType> GarbageCollectionDefinitions;
+    std::vector<SampleValueType> StopTheWorldDefinitions;
+    std::vector<SampleValueType> ThreadLifetimeDefinitions;
 
 private:
     std::int8_t GetOffset(SampleValueType const& valueType);

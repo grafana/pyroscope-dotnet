@@ -15,6 +15,6 @@ CpuSampleProvider::CpuSampleProvider(
     MetricsRegistry& metricsRegistry
     )
     :
-    RawSampleCollectorBase<RawCpuSample>("CpuSampleProvider", valueTypeProvider.GetOrRegister(SampleValueTypeProvider::CpuTimeDefinitions), rawSampleTransformer, ringBuffer, metricsRegistry)
+    RawSampleCollectorBase<RawCpuSample>("CpuSampleProvider", valueTypeProvider.GetOrRegister(valueTypeProvider.CpuTimeDefinitions), rawSampleTransformer, ringBuffer, metricsRegistry)
 {
 }

@@ -25,7 +25,7 @@ LiveObjectsProvider::LiveObjectsProvider(
     :
     _pCorProfilerInfo(pCorProfilerInfo),
     _rawSampleTransformer{rawSampleTransformer},
-    _valueOffsets{valueTypeProvider.GetOrRegister(SampleValueTypeProvider::LiveObjectsDefinitions)}
+    _valueOffsets{valueTypeProvider.GetOrRegister(valueTypeProvider.LiveObjectsDefinitions)}
 {
     _heapHandleLimit = pConfiguration->GetHeapHandleLimit();
 }

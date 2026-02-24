@@ -7,77 +7,103 @@
 #include <tuple>
 
 
-const std::vector<SampleValueType> SampleValueTypeProvider::CpuTimeDefinitions = {
-    {"cpu", "nanoseconds", ProfileType::ProcessCpu, -1},
-    {"cpu_samples", "count", ProfileType::ProcessCpu, -1}
-};
-
-const std::vector<SampleValueType> SampleValueTypeProvider::WallTimeDefinitions = {
-    {"wall", "nanoseconds", ProfileType::WallTime, -1}
-};
-
-const std::vector<SampleValueType> SampleValueTypeProvider::AllocDefinitions = {
-    {"alloc_samples", "count", ProfileType::Alloc, -1},
-    {"alloc_size", "bytes", ProfileType::Alloc, -1}
-};
-
-const std::vector<SampleValueType> SampleValueTypeProvider::AllocFrameworkDefinitions = {
-    {"alloc_samples", "count", ProfileType::AllocFramework, -1}
-};
-
-const std::vector<SampleValueType> SampleValueTypeProvider::ContentionDefinitions = {
-    {"lock_count", "count", ProfileType::Lock, -1},
-    {"lock_time", "nanoseconds", ProfileType::Lock, -1}
-};
-
-const std::vector<SampleValueType> SampleValueTypeProvider::ExceptionDefinitions = {
-    {"exception", "count", ProfileType::Exception, -1}
-};
-
-const std::vector<SampleValueType> SampleValueTypeProvider::NetworkDefinitions = {
-    {"request_time", "nanoseconds", ProfileType::Network, -1}
-};
-
-const std::vector<SampleValueType> SampleValueTypeProvider::LiveObjectsDefinitions = {
-    {"inuse_objects", "count", ProfileType::LiveObjects, -1},
-    {"inuse_space", "bytes", ProfileType::LiveObjects, -1}
-};
-
-const std::vector<SampleValueType> SampleValueTypeProvider::GarbageCollectionDefinitions = {
-    {"timeline", "nanoseconds", ProfileType::GcCpu, -1}
-};
-
-const std::vector<SampleValueType> SampleValueTypeProvider::StopTheWorldDefinitions = {
-    {"timeline", "nanoseconds", ProfileType::GcStw, -1}
-};
-
-const std::vector<SampleValueType> SampleValueTypeProvider::ThreadLifetimeDefinitions = {
-    {"timeline", "nanoseconds", ProfileType::ThreadLifetime, -1}
-};
-
-
-SampleValueTypeProvider::SampleValueTypeProvider()
+SampleValueTypeProvider::SampleValueTypeProvider() :
+    CpuTimeDefinitions{
+        {"cpu", "nanoseconds", ProfileType::ProcessCpu, -1},
+        {"cpu_samples", "count", ProfileType::ProcessCpu, -1}
+    },
+    WallTimeDefinitions{
+        {"wall", "nanoseconds", ProfileType::WallTime, -1}
+    },
+    AllocDefinitions{
+        {"alloc_samples", "count", ProfileType::Alloc, -1},
+        {"alloc_size", "bytes", ProfileType::Alloc, -1}
+    },
+    AllocFrameworkDefinitions{
+        {"alloc_samples", "count", ProfileType::AllocFramework, -1}
+    },
+    ContentionDefinitions{
+        {"lock_count", "count", ProfileType::Lock, -1},
+        {"lock_time", "nanoseconds", ProfileType::Lock, -1}
+    },
+    ExceptionDefinitions{
+        {"exception", "count", ProfileType::Exception, -1}
+    },
+    NetworkDefinitions{
+        {"request_time", "nanoseconds", ProfileType::Network, -1}
+    },
+    LiveObjectsDefinitions{
+        {"inuse_objects", "count", ProfileType::LiveObjects, -1},
+        {"inuse_space", "bytes", ProfileType::LiveObjects, -1}
+    },
+    GarbageCollectionDefinitions{
+        {"timeline", "nanoseconds", ProfileType::GcCpu, -1}
+    },
+    StopTheWorldDefinitions{
+        {"timeline", "nanoseconds", ProfileType::GcStw, -1}
+    },
+    ThreadLifetimeDefinitions{
+        {"timeline", "nanoseconds", ProfileType::ThreadLifetime, -1}
+    }
 {
     _sampleTypeDefinitions.reserve(16);
+
+    // Validate that no two definitions share the same (Name, Type) with different units,
+    // catching inconsistencies at startup rather than at registration time.
+    std::vector<std::vector<SampleValueType>*> allDefinitions = {
+        &CpuTimeDefinitions,
+        &WallTimeDefinitions,
+        &AllocDefinitions,
+        &AllocFrameworkDefinitions,
+        &ContentionDefinitions,
+        &ExceptionDefinitions,
+        &NetworkDefinitions,
+        &LiveObjectsDefinitions,
+        &GarbageCollectionDefinitions,
+        &StopTheWorldDefinitions,
+        &ThreadLifetimeDefinitions,
+    };
+
+    for (auto* definitions : allDefinitions)
+    {
+        for (auto const& valueType : *definitions)
+        {
+            for (auto* otherDefinitions : allDefinitions)
+            {
+                for (auto const& other : *otherDefinitions)
+                {
+                    if (valueType.Name == other.Name && valueType.Type == other.Type)
+                    {
+                        if (valueType.Unit != other.Unit)
+                        {
+                            throw std::runtime_error(
+                                "Inconsistent unit for sample value type '" + valueType.Name +
+                                "': '" + valueType.Unit + "' vs '" + other.Unit + "'");
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
-std::vector<SampleValueTypeProvider::Offset> SampleValueTypeProvider::GetOrRegister(std::vector<SampleValueType> const& valueTypes)
+std::vector<SampleValueTypeProvider::Offset> SampleValueTypeProvider::GetOrRegister(std::vector<SampleValueType>& valueTypes)
 {
     std::vector<Offset> offsets;
     offsets.reserve(valueTypes.size());
     bool incrementIndex = false;
 
-    for (auto const& valueType : valueTypes)
+    for (auto& valueType : valueTypes)
     {
         size_t idx = GetOffset(valueType);
         if (idx == -1)
         {
             incrementIndex = true;
-            SampleValueType registered = valueType;
-            registered.Index = _nextIndex;
+            // set the same index for all
+            valueType.Index = _nextIndex;
 
             idx = _sampleTypeDefinitions.size();
-            _sampleTypeDefinitions.push_back(registered);
+            _sampleTypeDefinitions.push_back(valueType);
         }
         offsets.push_back(idx);
     }

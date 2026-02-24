@@ -18,6 +18,6 @@ CpuTimeProvider::CpuTimeProvider(
     shared::pmr::memory_resource* memoryResource
     )
     :
-    CollectorBase<RawCpuSample>("CpuTimeProvider", valueTypeProvider.GetOrRegister(SampleValueTypeProvider::CpuTimeDefinitions), rawSampleTransformer, memoryResource)
+    CollectorBase<RawCpuSample>("CpuTimeProvider", valueTypeProvider.GetOrRegister(valueTypeProvider.CpuTimeDefinitions), rawSampleTransformer, memoryResource)
 {
 }

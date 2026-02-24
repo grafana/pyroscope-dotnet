@@ -18,7 +18,7 @@ using namespace std::chrono_literals;
 NativeThreadsCpuProviderBase::NativeThreadsCpuProviderBase(SampleValueTypeProvider& valueTypeProvider, RawSampleTransformer* sampleTransformer) :
     _sampleTransformer{sampleTransformer},
     _previousTotalCpuTime{0},
-    _valueOffsets{valueTypeProvider.GetOrRegister(SampleValueTypeProvider::CpuTimeDefinitions)}
+    _valueOffsets{valueTypeProvider.GetOrRegister(valueTypeProvider.CpuTimeDefinitions)}
 {
 }
 
