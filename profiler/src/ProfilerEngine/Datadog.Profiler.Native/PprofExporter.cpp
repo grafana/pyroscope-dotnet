@@ -24,6 +24,7 @@ PprofExporter::PprofExporter(IApplicationStore* applicationStore,
         }
     }
 
+    _builder = std::make_unique<PprofBuilder>(_sampleTypeDefinitions);
     _processSamplesBuilder = std::make_unique<PprofBuilder>(_processSampleTypeDefinitions);
     signal(SIGPIPE, SIG_IGN);
 }
@@ -34,8 +35,8 @@ PProfExportSink::~PProfExportSink()
 
 void PprofExporter::Add(std::shared_ptr<Sample> const& sample)
 {
-    GetPprofBuilder(sample->GetRuntimeId())
-        .AddSample(*sample);
+    std::lock_guard lock(_builderLock);
+    _builder->AddSample(*sample);
 }
 
 void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint)
@@ -46,13 +47,10 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
 {
     std::vector<std::string> pprofs;
     {
-        std::lock_guard lock(_perAppBuilderLock);
-        for (auto& builder : _perAppBuilder)
+        std::lock_guard lock(_builderLock);
+        if (_builder->SamplesCount() != 0)
         {
-            if (builder.second->SamplesCount() != 0)
-            {
-                pprofs.emplace_back(builder.second->Build());
-            }
+            pprofs.emplace_back(_builder->Build());
         }
     }
 
@@ -79,19 +77,6 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
         _sink->Export(std::move(pprof), startTime, endTime);
     }
     return true;
-}
-
-PprofBuilder& PprofExporter::GetPprofBuilder(std::string_view runtimeId)
-{
-    std::lock_guard lock(_perAppBuilderLock);
-    auto it = _perAppBuilder.find(runtimeId);
-    if (it != _perAppBuilder.end())
-    {
-        return *it->second;
-    }
-    auto instance = std::make_unique<PprofBuilder>(_sampleTypeDefinitions);
-    auto res = _perAppBuilder.emplace(runtimeId, std::move(instance));
-    return *res.first->second;
 }
 
 void PprofExporter::RegisterUpscaleProvider(IUpscaleProvider* provider) {};
