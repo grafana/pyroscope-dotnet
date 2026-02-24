@@ -9,6 +9,14 @@ SampleValueTypeProvider::SampleValueTypeProvider() :
         {"cpu", "nanoseconds", ProfileType::ProcessCpu, -1},
         {"cpu_samples", "count", ProfileType::ProcessCpu, -1}
     },
+    CpuSampleDefinitions{
+        {"cpu", "nanoseconds", ProfileType::CpuSample, -1},
+        {"cpu_samples", "count", ProfileType::CpuSample, -1}
+    },
+    GcThreadsCpuDefinitions{
+        {"cpu", "nanoseconds", ProfileType::GcThreadsCpu, -1},
+        {"cpu_samples", "count", ProfileType::GcThreadsCpu, -1}
+    },
     WallTimeDefinitions{
         {"wall", "nanoseconds", ProfileType::WallTime, -1}
     },
@@ -74,19 +82,3 @@ std::vector<SampleValueType> const& SampleValueTypeProvider::GetValueTypes()
     return _sampleTypeDefinitions;
 }
 
-std::int8_t SampleValueTypeProvider::GetOffset(SampleValueType const& valueType)
-{
-    for (auto i = 0; i < _sampleTypeDefinitions.size(); i++)
-    {
-        auto const& current = _sampleTypeDefinitions[i];
-        if (valueType.Name == current.Name && valueType.Type == current.Type)
-        {
-            if (valueType.Unit != current.Unit)
-            {
-                throw std::runtime_error("Cannot have the value type name with different unit: " + valueType.Unit + " != " + current.Unit);
-            }
-            return i;
-        }
-    }
-    return -1;
-}

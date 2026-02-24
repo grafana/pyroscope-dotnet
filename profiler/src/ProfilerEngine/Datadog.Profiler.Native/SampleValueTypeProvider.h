@@ -22,7 +22,9 @@ public:
     std::vector<Offset> RegisterPyroscopeSampleType(std::vector<SampleValueType>& valueTypes);
     std::vector<SampleValueType> const& GetValueTypes();
 
-    std::vector<SampleValueType> CpuTimeDefinitions;
+    std::vector<SampleValueType> CpuTimeDefinitions;        // managed threads CPU (CpuTimeProvider)
+    std::vector<SampleValueType> CpuSampleDefinitions;      // Linux perf-based CPU sampling (CpuSampleProvider)
+    std::vector<SampleValueType> GcThreadsCpuDefinitions;   // GC threads CPU (GCThreadsCpuProvider)
     std::vector<SampleValueType> WallTimeDefinitions;
     std::vector<SampleValueType> AllocDefinitions;
     std::vector<SampleValueType> AllocFrameworkDefinitions;

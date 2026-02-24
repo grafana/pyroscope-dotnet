@@ -15,6 +15,6 @@ CpuSampleProvider::CpuSampleProvider(
     MetricsRegistry& metricsRegistry
     )
     :
-    RawSampleCollectorBase<RawCpuSample>("CpuSampleProvider", valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.CpuTimeDefinitions), rawSampleTransformer, ringBuffer, metricsRegistry)
+    RawSampleCollectorBase<RawCpuSample>("CpuSampleProvider", valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.CpuSampleDefinitions), rawSampleTransformer, ringBuffer, metricsRegistry)
 {
 }

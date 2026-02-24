@@ -23,6 +23,8 @@
 enum class ProfileType
 {
     ProcessCpu,
+    CpuSample,
+    GcThreadsCpu,
     WallTime,
     Alloc,
     AllocFramework,
