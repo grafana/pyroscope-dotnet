@@ -23,7 +23,7 @@ using Pprof = std::string;
 class PProfExportSink
 {
 public:
-    virtual void Export(Pprof pprof, ProfileTime& startTime, ProfileTime& endTime) = 0;
+    virtual void Export(Pprof pprof) = 0;
     virtual ~PProfExportSink();
 };
 
