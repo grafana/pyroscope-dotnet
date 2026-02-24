@@ -14,33 +14,25 @@ PprofExporter::PprofExporter(IApplicationStore* applicationStore,
     _applicationStore(applicationStore),
     _sink(std::move(sink))
 {
-    // Group sampleTypeDefinitions by ProfileType, preserving first-occurrence order.
-    struct GroupAcc { std::vector<SampleValueType> types; size_t startIndex; };
-    std::map<ProfileType, GroupAcc> groups;
-    std::vector<ProfileType> order;
-
-    for (size_t i = 0; i < sampleTypeDefinitions.size(); ++i)
+    // Sample types are always laid out in contiguous blocks of the same ProfileType.
+    // Scan linearly: start a new entry whenever the ProfileType changes.
+    size_t i = 0;
+    while (i < sampleTypeDefinitions.size())
     {
-        const auto& svt = sampleTypeDefinitions[i];
-        if (groups.find(svt.Type) == groups.end())
+        ProfileType currentType = sampleTypeDefinitions[i].Type;
+        size_t startIndex = i;
+
+        std::vector<SampleValueType> groupTypes;
+        while (i < sampleTypeDefinitions.size() && sampleTypeDefinitions[i].Type == currentType)
         {
-            order.push_back(svt.Type);
-            groups[svt.Type] = GroupAcc{{}, i};
+            groupTypes.push_back(sampleTypeDefinitions[i]);
+            ++i;
         }
-        groups[svt.Type].types.push_back(svt);
-    }
 
-    // Reserve before push_back: PprofBuilder holds a reference to ProfileTypeEntry::sampleTypes,
-    // so _entries must never reallocate after builders are created.
-    _entries.reserve(order.size());
-    for (auto pt : order)
-    {
-        auto& acc = groups[pt];
         ProfileTypeEntry entry;
-        entry.startIndex  = acc.startIndex;
-        entry.count       = acc.types.size();
-        entry.sampleTypes = std::move(acc.types);
-        entry.builder     = std::make_unique<PprofBuilder>(entry.sampleTypes);
+        entry.startIndex = startIndex;
+        entry.count      = groupTypes.size();
+        entry.builder    = std::make_unique<PprofBuilder>(std::move(groupTypes));
         _entries.push_back(std::move(entry));
     }
 

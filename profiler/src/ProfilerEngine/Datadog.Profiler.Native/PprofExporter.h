@@ -15,7 +15,6 @@
 #include "google/v1/profile.pb.h"
 
 #include <forward_list>
-#include <map>
 #include <memory>
 #include <span>
 #include <vector>
@@ -31,10 +30,9 @@ public:
 
 struct ProfileTypeEntry
 {
-    std::vector<SampleValueType> sampleTypes; // subset of types for this profile type group
-    size_t startIndex;                         // offset into Sample::GetValues()
-    size_t count;                              // == sampleTypes.size()
-    std::unique_ptr<PprofBuilder> builder;     // holds reference to sampleTypes — must not move after init
+    size_t startIndex;                 // offset into Sample::GetValues()
+    size_t count;                      // number of values for this profile type
+    std::unique_ptr<PprofBuilder> builder;
 };
 
 class PprofExporter : public IExporter

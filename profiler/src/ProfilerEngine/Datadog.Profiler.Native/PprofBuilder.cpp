@@ -5,8 +5,8 @@
 #include "PprofBuilder.h"
 #include "Log.h"
 
-PprofBuilder::PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions) :
-    _sampleTypeDefinitions(sampleTypeDefinitions)
+PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions) :
+    _sampleTypeDefinitions(std::move(sampleTypeDefinitions))
 {
     Reset();
 }
