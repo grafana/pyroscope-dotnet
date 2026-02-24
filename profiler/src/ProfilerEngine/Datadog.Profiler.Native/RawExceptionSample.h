@@ -9,10 +9,7 @@ public:
         {"exception", "count", ProfileType::Exception}
     };
 
-    RawExceptionSample()
-    {
-        SampleValueTypes = &TypeDefinitions;
-    }
+    RawExceptionSample() = default;
 
     RawExceptionSample(RawExceptionSample&& other) noexcept
         :
@@ -35,7 +32,7 @@ public:
 
     inline void OnTransform(std::shared_ptr<Sample>& sample) const override
     {
-        sample->SetSampleValueTypes(SampleValueTypes);
+        sample->SetSampleValueTypes(&TypeDefinitions);
         sample->AddValue(1, 0);
     }
 

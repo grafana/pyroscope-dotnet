@@ -19,10 +19,7 @@ public:
         {"thread_lifetime", "nanoseconds", ProfileType::ThreadLifetime}
     };
 
-    RawThreadLifetimeSample()
-    {
-        SampleValueTypes = &TypeDefinitions;
-    }
+    RawThreadLifetimeSample() = default;
 
     ThreadEventKind Kind;
 

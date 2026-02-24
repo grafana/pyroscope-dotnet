@@ -43,7 +43,4 @@ public:
 
     // array of instruction pointers (32 or 64 bit address)
     Callstack Stack;
-
-    // set by the provider before transformation; used by OnTransform to call SetSampleValueTypes
-    const std::vector<SampleValueType>* SampleValueTypes = nullptr;
 };

@@ -32,12 +32,15 @@ public:
         return *this;
     }
 
+    // Derived class provides sample value types
+    virtual const std::vector<SampleValueType>* GetSampleValueTypes() const = 0;
+
     // This base class is in charge of storing garbage collection number and generation as labels
     // and fill up the callstack based on generation.
     // The default value is the Duration field; derived class could override by implementing GetValue()
     inline void OnTransform(std::shared_ptr<Sample>& sample) const override
     {
-        sample->SetSampleValueTypes(SampleValueTypes);
+        sample->SetSampleValueTypes(GetSampleValueTypes());
         sample->AddValue(GetValue(), 0);
 
         sample->AddLabel(NumericLabel(Sample::GarbageCollectionNumberLabel, Number));

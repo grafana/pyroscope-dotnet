@@ -15,10 +15,7 @@ public:
         {"request_time", "nanoseconds", ProfileType::Unknown}
     };
 
-    RawNetworkSample()
-    {
-        SampleValueTypes = &TypeDefinitions;
-    }
+    RawNetworkSample() = default;
 
     RawNetworkSample(RawNetworkSample&& other) noexcept
         :
@@ -71,7 +68,7 @@ public:
 
     inline void OnTransform(std::shared_ptr<Sample>& sample) const override
     {
-        sample->SetSampleValueTypes(SampleValueTypes);
+        sample->SetSampleValueTypes(&TypeDefinitions);
         sample->AddValue((Timestamp - StartTimestamp).count(), 0);
         // Note: we don't need to add the start timestamp as a label because it is computed
         // by the backend from the end timestamp and the duration; i.e. the value of this sample

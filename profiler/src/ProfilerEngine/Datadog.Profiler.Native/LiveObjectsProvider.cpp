@@ -153,9 +153,9 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
         auto handle = CreateWeakHandle(rawSample.Address);
         if (handle != nullptr)
         {
-            rawSample.SampleValueTypes = &LiveObjectsProvider::SampleTypeDefinitions;
             auto liveObjectSample = std::make_shared<Sample>(rawSample.Timestamp, std::string_view(), rawSample.Stack.Size());
             _rawSampleTransformer->Transform(rawSample, liveObjectSample);
+            liveObjectSample->SetSampleValueTypes(&LiveObjectsProvider::SampleTypeDefinitions);
         LiveObjectInfo info(
                 std::move(liveObjectSample),
                 rawSample.Address,

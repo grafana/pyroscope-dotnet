@@ -14,9 +14,11 @@ public:
         {"gc_stw_time", "nanoseconds", ProfileType::GCStopTheWorld}
     };
 
-    RawStopTheWorldSample()
+    RawStopTheWorldSample() = default;
+
+    const std::vector<SampleValueType>* GetSampleValueTypes() const override
     {
-        SampleValueTypes = &TypeDefinitions;
+        return &TypeDefinitions;
     }
 
     RawStopTheWorldSample(RawStopTheWorldSample&& other) = default;

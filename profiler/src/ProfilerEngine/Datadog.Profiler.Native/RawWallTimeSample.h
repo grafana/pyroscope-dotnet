@@ -15,10 +15,7 @@ public:
         {"wall", "nanoseconds", ProfileType::Wall}
     };
 
-    RawWallTimeSample()
-    {
-        SampleValueTypes = &TypeDefinitions;
-    }
+    RawWallTimeSample() = default;
 
     RawWallTimeSample(RawWallTimeSample&& other) noexcept
         :
@@ -39,7 +36,7 @@ public:
 
     inline void OnTransform(std::shared_ptr<Sample>& sample) const override
     {
-        sample->SetSampleValueTypes(SampleValueTypes);
+        sample->SetSampleValueTypes(&TypeDefinitions);
         sample->AddValue(Duration.count(), 0);
     }
 

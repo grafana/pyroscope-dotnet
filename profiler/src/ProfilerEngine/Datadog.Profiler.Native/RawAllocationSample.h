@@ -14,10 +14,7 @@ public:
         {"alloc_size", "bytes", ProfileType::Alloc}
     };
 
-    RawAllocationSample()
-    {
-        SampleValueTypes = &TypeDefinitions;
-    }
+    RawAllocationSample() = default;
 
     RawAllocationSample(RawAllocationSample&& other) noexcept
         :
@@ -44,7 +41,7 @@ public:
 
     inline void OnTransform(std::shared_ptr<Sample>& sample) const override
     {
-        sample->SetSampleValueTypes(SampleValueTypes);
+        sample->SetSampleValueTypes(&TypeDefinitions);
         sample->AddValue(1, 0);
         sample->AddValue(AllocationSize, 1);
     }

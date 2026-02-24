@@ -24,10 +24,7 @@ public:
         {"lock_time", "nanoseconds", ProfileType::Lock}
     };
 
-    RawContentionSample()
-    {
-        SampleValueTypes = &TypeDefinitions;
-    }
+    RawContentionSample() = default;
 
     RawContentionSample(RawContentionSample&& other) noexcept
         :
@@ -56,7 +53,7 @@ public:
 
     void OnTransform(std::shared_ptr<Sample>& sample) const override
     {
-        sample->SetSampleValueTypes(SampleValueTypes);
+        sample->SetSampleValueTypes(&TypeDefinitions);
         sample->AddValue(1, 0);
         sample->AddValue(ContentionDuration.count(), 1);
     }

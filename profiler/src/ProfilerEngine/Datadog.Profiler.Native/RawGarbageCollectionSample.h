@@ -18,9 +18,11 @@ public:
         {"gc_time", "nanoseconds", ProfileType::GC}
     };
 
-    RawGarbageCollectionSample()
+    RawGarbageCollectionSample() = default;
+
+    const std::vector<SampleValueType>* GetSampleValueTypes() const override
     {
-        SampleValueTypes = &TypeDefinitions;
+        return &TypeDefinitions;
     }
 
     RawGarbageCollectionSample(RawGarbageCollectionSample&& other) noexcept

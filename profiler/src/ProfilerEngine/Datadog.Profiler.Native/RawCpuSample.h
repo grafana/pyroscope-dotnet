@@ -11,11 +11,15 @@
 class RawCpuSample : public RawSample
 {
 public:
+    // Caller must set SampleValueTypes before transformation (shared by CpuTimeProvider and GC CPU providers)
+    const std::vector<SampleValueType>* SampleValueTypes = nullptr;
+
     RawCpuSample() noexcept = default;
 
     RawCpuSample(RawCpuSample&& other) noexcept
         :
         RawSample(std::move(other)),
+        SampleValueTypes(other.SampleValueTypes),
         Duration(other.Duration)
     {
     }
@@ -25,6 +29,7 @@ public:
         if (this != &other)
         {
             RawSample::operator=(std::move(other));
+            SampleValueTypes = other.SampleValueTypes;
             Duration = other.Duration;
         }
         return *this;
