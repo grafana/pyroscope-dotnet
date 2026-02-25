@@ -19,8 +19,8 @@ RUN apk add \
 RUN apk add wget
 RUN apk add go
 
-# Build OpenSSL 3.5.5 (LTS, supported until 2030-04-08) from source with static libs
-ARG OPENSSL_VERSION=3.5.5
+# Build OpenSSL from source with static libs
+ARG OPENSSL_VERSION=3.5.4
 RUN wget -q "https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" && \
     tar xf openssl-${OPENSSL_VERSION}.tar.gz && \
     cd openssl-${OPENSSL_VERSION} && \

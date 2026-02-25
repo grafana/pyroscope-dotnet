@@ -2,8 +2,8 @@ FROM debian:11@sha256:a50c3ed0200d2f58736c3bb02b4a9f174f3d6d3bd866f2f640375f1e82
 
 RUN apt-get update && apt-get -y install cmake make git curl golang libtool wget perl
 
-# Build OpenSSL 3.5.5 (LTS, supported until 2030-04-08) from source with static libs
-ARG OPENSSL_VERSION=3.5.5
+# Build OpenSSL from source with static libs
+ARG OPENSSL_VERSION=3.5.4
 RUN wget -q "https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" && \
     tar xf openssl-${OPENSSL_VERSION}.tar.gz && \
     cd openssl-${OPENSSL_VERSION} && \
