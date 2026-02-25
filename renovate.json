@@ -6,6 +6,10 @@
       "matchDepNames": ["openssl/openssl"],
       "matchUpdateTypes": ["major", "minor"],
       "enabled": false
+    },
+    {
+      "matchDepNames": ["openssl/openssl"],
+      "allowedVersions": "/^3\\.5\\./"
     }
   ],
   "customManagers": [
