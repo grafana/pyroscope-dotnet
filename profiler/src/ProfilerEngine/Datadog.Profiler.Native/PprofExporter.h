@@ -16,6 +16,7 @@
 
 #include <forward_list>
 #include <memory>
+#include <span>
 #include <vector>
 
 using Pprof = std::string;
@@ -23,8 +24,18 @@ using Pprof = std::string;
 class PProfExportSink
 {
 public:
-    virtual void Export(Pprof pprof) = 0;
+    virtual void Export(std::vector<Pprof> pprofs) = 0;
     virtual ~PProfExportSink();
+};
+
+struct ProfileTypeEntry
+{
+    ProfileTypeEntry(size_t startIndex, size_t count, std::vector<SampleValueType> sampleTypes) :
+        startIndex(startIndex), count(count), builder(std::move(sampleTypes)) {}
+
+    size_t startIndex;                 // offset into Sample::GetValues()
+    size_t count;                      // number of values for this profile type
+    PprofBuilder builder;
 };
 
 class PprofExporter : public IExporter
@@ -44,14 +55,13 @@ public:
     void RegisterGcSettingsProvider(IGcSettingsProvider* provider) override;
 
 private:
+    static bool AllZero(std::span<const int64_t> values);
+    void AddSampleToEntries(const Sample& sample);
+
     IApplicationStore* _applicationStore;
     std::shared_ptr<PProfExportSink> _sink;
-    std::vector<SampleValueType> _sampleTypeDefinitions;
-    std::vector<SampleValueType> _processSampleTypeDefinitions;
-    std::unique_ptr<PprofBuilder> _builder;
-    std::mutex _builderLock;
+    std::vector<std::unique_ptr<ProfileTypeEntry>> _entries;
 
     std::vector<ISamplesProvider*> _processSamplesProviders;
-    std::unique_ptr<PprofBuilder> _processSamplesBuilder;
     std::mutex _processSamplesLock;
 };

@@ -11,16 +11,16 @@
 
 #include <memory>
 #include <mutex>
+#include <span>
 #include <string_view>
 
 class PprofBuilder
 {
 
 public:
-    PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions);
+    PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions);
 
-    void AddSample(const Sample& sample);
-    int SamplesCount();
+    void AddSample(const Sample& sample, std::span<const int64_t> values);
     std::string Build(ProfileTime& startTime, ProfileTime& endTime);
 
 private:
@@ -33,6 +33,6 @@ private:
     google::v1::Profile _profile;
     std::map<std::string_view, int64_t> _strings;
     std::map<std::pair<int64_t, int64_t>, int64_t> _locations;
-    std::vector<SampleValueType>& _sampleTypeDefinitions;
+    std::vector<SampleValueType> _sampleTypeDefinitions;
 
 };

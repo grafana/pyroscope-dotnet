@@ -6,15 +6,14 @@
 #include "IExporter.h"
 #include "Log.h"
 
-PprofBuilder::PprofBuilder(std::vector<SampleValueType>& sampleTypeDefinitions) :
-    _sampleTypeDefinitions(sampleTypeDefinitions)
+PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions) :
+    _sampleTypeDefinitions(std::move(sampleTypeDefinitions))
 {
     Reset();
 }
 
-void PprofBuilder::AddSample(const Sample& sample)
+void PprofBuilder::AddSample(const Sample& sample, std::span<const int64_t> values)
 {
-    auto& values = sample.GetValues();
     assert(values.size() == _sampleTypeDefinitions.size());
     std::lock_guard<std::mutex> lock(this->_lock);
     auto* pSample = _profile.add_sample();
@@ -42,13 +41,13 @@ void PprofBuilder::AddSample(const Sample& sample)
     _samplesCount++;
 }
 
-int PprofBuilder::SamplesCount() {
-    return _samplesCount;
-}
-
 std::string PprofBuilder::Build(ProfileTime& startTime, ProfileTime& endTime)
 {
     std::lock_guard<std::mutex> lock(this->_lock);
+    if (_samplesCount == 0)
+    {
+        return {};
+    }
     auto startNanos = std::chrono::duration_cast<std::chrono::nanoseconds>(startTime.time_since_epoch()).count();
     auto durationNanos = std::chrono::duration_cast<std::chrono::nanoseconds>(endTime - startTime).count();
     _profile.set_time_nanos(startNanos);

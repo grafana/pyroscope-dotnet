@@ -12,20 +12,26 @@ PprofExporter::PprofExporter(IApplicationStore* applicationStore,
                              std::shared_ptr<PProfExportSink> sink,
                              std::vector<SampleValueType> sampleTypeDefinitions) :
     _applicationStore(applicationStore),
-    _sink(std::move(sink)),
-    _sampleTypeDefinitions(sampleTypeDefinitions),
-    _processSampleTypeDefinitions(_sampleTypeDefinitions)
+    _sink(std::move(sink))
 {
-    for (auto& sampleType : _processSampleTypeDefinitions)
+    // Sample types are always laid out in contiguous blocks of the same ProfileType.
+    // Scan linearly: start a new entry whenever the ProfileType changes.
+    size_t i = 0;
+    while (i < sampleTypeDefinitions.size())
     {
-        if (sampleType.Name == "cpu")
+        ProfileType currentType = sampleTypeDefinitions[i].Type;
+        size_t startIndex = i;
+
+        std::vector<SampleValueType> groupTypes;
+        while (i < sampleTypeDefinitions.size() && sampleTypeDefinitions[i].Type == currentType)
         {
-            sampleType.Name = "gc_cpu";
+            groupTypes.push_back(sampleTypeDefinitions[i]);
+            ++i;
         }
+
+        _entries.push_back(std::make_unique<ProfileTypeEntry>(startIndex, groupTypes.size(), std::move(groupTypes)));
     }
 
-    _builder = std::make_unique<PprofBuilder>(_sampleTypeDefinitions);
-    _processSamplesBuilder = std::make_unique<PprofBuilder>(_processSampleTypeDefinitions);
     signal(SIGPIPE, SIG_IGN);
 }
 
@@ -33,10 +39,28 @@ PProfExportSink::~PProfExportSink()
 {
 }
 
+// static
+bool PprofExporter::AllZero(std::span<const int64_t> values)
+{
+    for (auto v : values)
+        if (v != 0) return false;
+    return true;
+}
+
+void PprofExporter::AddSampleToEntries(const Sample& sample)
+{
+    auto const& allValues = sample.GetValues();
+    for (auto& entry : _entries)
+    {
+        auto slice = std::span<const int64_t>(allValues.data() + entry->startIndex, entry->count);
+        if (AllZero(slice)) continue;
+        entry->builder.AddSample(sample, slice);
+    }
+}
+
 void PprofExporter::Add(std::shared_ptr<Sample> const& sample)
 {
-    std::lock_guard lock(_builderLock);
-    _builder->AddSample(*sample);
+    AddSampleToEntries(*sample);
 }
 
 void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint)
@@ -45,15 +69,7 @@ void PprofExporter::SetEndpoint(const std::string& runtimeId, uint64_t traceId, 
 
 bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool lastCall)
 {
-    std::vector<std::string> pprofs;
-    {
-        std::lock_guard lock(_builderLock);
-        if (_builder->SamplesCount() != 0)
-        {
-            pprofs.emplace_back(_builder->Build(startTime, endTime));
-        }
-    }
-
+    // Collect process samples (e.g. GcThreadsCpu) through the same per-entry dispatch.
     {
         std::lock_guard lock(_processSamplesLock);
         for (auto provider : _processSamplesProviders)
@@ -62,19 +78,22 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
             std::shared_ptr<Sample> sample;
             while (samplesEnumerator->MoveNext(sample))
             {
-                _processSamplesBuilder->AddSample(*sample);
+                AddSampleToEntries(*sample);
             }
-        }
-
-        if (_processSamplesBuilder->SamplesCount() > 0)
-        {
-            pprofs.emplace_back(_processSamplesBuilder->Build(startTime, endTime));
         }
     }
 
-    for (const auto& pprof : pprofs)
+    std::vector<Pprof> pprofs;
+    for (auto& entry : _entries)
     {
-        _sink->Export(std::move(pprof));
+        auto pprof = entry->builder.Build(startTime, endTime);
+        if (!pprof.empty())
+            pprofs.emplace_back(std::move(pprof));
+    }
+
+    if (!pprofs.empty())
+    {
+        _sink->Export(std::move(pprofs));
     }
     return true;
 }
