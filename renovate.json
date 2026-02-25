@@ -1,6 +1,13 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
+  "packageRules": [
+    {
+      "matchDepNames": ["openssl/openssl"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    }
+  ],
   "customManagers": [
     {
       "customType": "regex",
