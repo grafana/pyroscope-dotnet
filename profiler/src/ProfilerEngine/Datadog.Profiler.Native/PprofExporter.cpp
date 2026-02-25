@@ -29,7 +29,7 @@ PprofExporter::PprofExporter(IApplicationStore* applicationStore,
             ++i;
         }
 
-        _entries.push_back(std::make_unique<ProfileTypeEntry>(startIndex, groupTypes.size(), std::move(groupTypes)));
+        _entries.push_back(std::make_unique<ProfileTypeEntry>(startIndex, groupTypes.size(), currentType, std::move(groupTypes)));
     }
 
     signal(SIGPIPE, SIG_IGN);
@@ -86,9 +86,9 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
     std::vector<Pprof> pprofs;
     for (auto& entry : _entries)
     {
-        auto pprof = entry->builder.Build(startTime, endTime);
-        if (!pprof.empty())
-            pprofs.emplace_back(std::move(pprof));
+        auto bytes = entry->builder.Build(startTime, endTime);
+        if (!bytes.empty())
+            pprofs.push_back({std::move(bytes), entry->profileType});
     }
 
     if (!pprofs.empty())

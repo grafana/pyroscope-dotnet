@@ -88,6 +88,27 @@ void PyroscopePprofSink::work()
     }
 }
 
+static std::string_view ProfileTypeName(ProfileType type)
+{
+    switch (type)
+    {
+        case ProfileType::ProcessCpu:     return "process_cpu";
+        case ProfileType::CpuSample:      return "process_cpu";
+        case ProfileType::GcThreadsCpu:   return "gc";
+        case ProfileType::WallTime:       return "wall";
+        case ProfileType::Alloc:          return "alloc";
+        case ProfileType::AllocFramework: return "alloc";
+        case ProfileType::Lock:           return "lock";
+        case ProfileType::Exception:      return "exception";
+        case ProfileType::Network:        return "network";
+        case ProfileType::Heap:           return "heap";
+        case ProfileType::GcCpu:          return "gc";
+        case ProfileType::GcStw:          return "gc";
+        case ProfileType::ThreadLifetime: return "thread_lifetime";
+        default:                          return "unknown";
+    }
+}
+
 void PyroscopePprofSink::upload(Pprof pprof)
 {
     push::v1::PushRequest request;
@@ -95,7 +116,7 @@ void PyroscopePprofSink::upload(Pprof pprof)
 
     auto* nameLabel = series->add_labels();
     nameLabel->set_name("__name__");
-    nameLabel->set_value("process_cpu");
+    nameLabel->set_value(std::string(ProfileTypeName(pprof.profileType)));
 
     auto* serviceLabel = series->add_labels();
     serviceLabel->set_name("service_name");
@@ -113,7 +134,7 @@ void PyroscopePprofSink::upload(Pprof pprof)
     }
 
     auto* sample = series->add_samples();
-    sample->set_raw_profile(std::move(pprof));
+    sample->set_raw_profile(std::move(pprof.bytes));
 
     std::string body = request.SerializeAsString();
     std::string path = _url.path() + "/push.v1.PusherService/Push";

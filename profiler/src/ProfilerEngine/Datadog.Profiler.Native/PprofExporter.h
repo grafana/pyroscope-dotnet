@@ -19,7 +19,11 @@
 #include <span>
 #include <vector>
 
-using Pprof = std::string;
+struct Pprof
+{
+    std::string bytes;
+    ProfileType profileType;
+};
 
 class PProfExportSink
 {
@@ -30,11 +34,12 @@ public:
 
 struct ProfileTypeEntry
 {
-    ProfileTypeEntry(size_t startIndex, size_t count, std::vector<SampleValueType> sampleTypes) :
-        startIndex(startIndex), count(count), builder(std::move(sampleTypes)) {}
+    ProfileTypeEntry(size_t startIndex, size_t count, ProfileType profileType, std::vector<SampleValueType> sampleTypes) :
+        startIndex(startIndex), count(count), profileType(profileType), builder(std::move(sampleTypes)) {}
 
     size_t startIndex;                 // offset into Sample::GetValues()
     size_t count;                      // number of values for this profile type
+    ProfileType profileType;
     PprofBuilder builder;
 };
 
