@@ -18,7 +18,7 @@ class RawSampleTransformer;
 class NativeThreadsCpuProviderBase : public ISamplesProvider
 {
 public:
-    NativeThreadsCpuProviderBase(SampleValueTypeProvider& valueTypeProvider, RawSampleTransformer* sampleTransformer);
+    NativeThreadsCpuProviderBase(std::vector<SampleValueTypeProvider::Offset> valueOffsets, RawSampleTransformer* sampleTransformer);
 
 protected:
     virtual void OnCpuDuration(std::chrono::milliseconds cpuTime);

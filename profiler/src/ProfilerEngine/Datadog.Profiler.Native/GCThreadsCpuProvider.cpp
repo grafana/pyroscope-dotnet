@@ -11,7 +11,7 @@
 #include "shared/src/native-src/util.h"
 
 GCThreadsCpuProvider::GCThreadsCpuProvider(SampleValueTypeProvider& valueTypeProvider, RawSampleTransformer* cpuSampleTransformer, MetricsRegistry& metricsRegistry) :
-    NativeThreadsCpuProviderBase(valueTypeProvider, cpuSampleTransformer)
+    NativeThreadsCpuProviderBase(valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.GcThreadsCpuDefinitions), cpuSampleTransformer)
 {
     _cpuDurationMetric = metricsRegistry.GetOrRegister<MeanMaxMetric>("dotnet_gc_cpu_duration");
 }

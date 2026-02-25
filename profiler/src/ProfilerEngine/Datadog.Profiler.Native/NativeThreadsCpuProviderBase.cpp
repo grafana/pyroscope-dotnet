@@ -15,10 +15,10 @@
 
 using namespace std::chrono_literals;
 
-NativeThreadsCpuProviderBase::NativeThreadsCpuProviderBase(SampleValueTypeProvider& valueTypeProvider, RawSampleTransformer* sampleTransformer) :
+NativeThreadsCpuProviderBase::NativeThreadsCpuProviderBase(std::vector<SampleValueTypeProvider::Offset> valueOffsets, RawSampleTransformer* sampleTransformer) :
     _sampleTransformer{sampleTransformer},
     _previousTotalCpuTime{0},
-    _valueOffsets{valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.GcThreadsCpuDefinitions)}
+    _valueOffsets{std::move(valueOffsets)}
 {
 }
 
