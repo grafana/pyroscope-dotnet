@@ -20,7 +20,7 @@ RUN apk add wget
 RUN apk add go
 
 # Build OpenSSL from source with static libs
-ARG OPENSSL_VERSION=3.5.4
+ARG OPENSSL_VERSION=3.5.5
 RUN wget -q "https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" && \
     tar xf openssl-${OPENSSL_VERSION}.tar.gz && \
     cd openssl-${OPENSSL_VERSION} && \
