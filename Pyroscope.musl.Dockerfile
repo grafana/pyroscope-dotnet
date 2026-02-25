@@ -1,6 +1,6 @@
 FROM alpine:3.18 AS builder
 
-RUN apk add  \
+RUN apk add \
             clang \
             cmake \
             git \
@@ -13,11 +13,21 @@ RUN apk add  \
             automake \
             xz-dev \
             musl-dbg \
-            openssl-dev \
-            openssl-libs-static
+            perl \
+            linux-headers
 
 RUN apk add wget
 RUN apk add go
+
+# Build OpenSSL 3.5.5 (LTS, supported until 2030-04-08) from source with static libs
+ARG OPENSSL_VERSION=3.5.5
+RUN wget -q "https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" && \
+    tar xf openssl-${OPENSSL_VERSION}.tar.gz && \
+    cd openssl-${OPENSSL_VERSION} && \
+    ./Configure linux-x86_64 no-shared no-tests --prefix=/usr/local/openssl && \
+    make -j$(nproc) && \
+    make install_sw && \
+    cd .. && rm -rf openssl-${OPENSSL_VERSION} openssl-${OPENSSL_VERSION}.tar.gz
 
 FROM builder as build
 
@@ -38,7 +48,11 @@ RUN mkdir build-${CMAKE_BUILD_TYPE} && \
         -DCMAKE_CXX_COMPILER=clang++ \
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
         -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" \
-        -DCMAKE_C_FLAGS_DEBUG="-g -O0"
+        -DCMAKE_C_FLAGS_DEBUG="-g -O0" \
+        -DOPENSSL_ROOT_DIR=/usr/local/openssl \
+        -DOPENSSL_CRYPTO_LIBRARY=/usr/local/openssl/lib64/libcrypto.a \
+        -DOPENSSL_SSL_LIBRARY=/usr/local/openssl/lib64/libssl.a \
+        -DOPENSSL_INCLUDE_DIR=/usr/local/openssl/include
 
 RUN cd build-${CMAKE_BUILD_TYPE} && make -j16 Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
