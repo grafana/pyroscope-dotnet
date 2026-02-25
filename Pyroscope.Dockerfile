@@ -7,8 +7,7 @@ ARG OPENSSL_VERSION=3.5.5
 RUN wget -q "https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" && \
     tar xf openssl-${OPENSSL_VERSION}.tar.gz && \
     cd openssl-${OPENSSL_VERSION} && \
-    ARCH=$(uname -m | sed 's/x86_64/linux-x86_64/;s/aarch64/linux-aarch64/') && \
-    ./Configure ${ARCH} no-shared no-tests --prefix=/usr/local/openssl && \
+    ./config no-shared no-tests --prefix=/usr/local/openssl && \
     make -j$(nproc) && \
     make install_sw && \
     cd .. && rm -rf openssl-${OPENSSL_VERSION} openssl-${OPENSSL_VERSION}.tar.gz
