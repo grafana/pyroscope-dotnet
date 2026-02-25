@@ -95,7 +95,7 @@ void PyroscopePprofSink::upload(Pprof pprof)
 
     auto* nameLabel = series->add_labels();
     nameLabel->set_name("__name__");
-    nameLabel->set_value("process_cpu");
+    nameLabel->set_value(pprof.profileTypeName);
 
     auto* serviceLabel = series->add_labels();
     serviceLabel->set_name("service_name");
@@ -113,7 +113,7 @@ void PyroscopePprofSink::upload(Pprof pprof)
     }
 
     auto* sample = series->add_samples();
-    sample->set_raw_profile(std::move(pprof));
+    sample->set_raw_profile(std::move(pprof.bytes));
 
     std::string body = request.SerializeAsString();
     std::string path = _url.path() + "/push.v1.PusherService/Push";

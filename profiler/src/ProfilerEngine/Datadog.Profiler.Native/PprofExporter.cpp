@@ -29,7 +29,7 @@ PprofExporter::PprofExporter(IApplicationStore* applicationStore,
             ++i;
         }
 
-        _entries.push_back(std::make_unique<ProfileTypeEntry>(startIndex, groupTypes.size(), std::move(groupTypes)));
+        _entries.push_back(std::make_unique<ProfileTypeEntry>(startIndex, groupTypes.size(), currentType, std::move(groupTypes)));
     }
 
     signal(SIGPIPE, SIG_IGN);
@@ -37,6 +37,28 @@ PprofExporter::PprofExporter(IApplicationStore* applicationStore,
 
 PProfExportSink::~PProfExportSink()
 {
+}
+
+// static
+std::string_view ProfileTypeEntry::ProfileTypeName(ProfileType type)
+{
+    switch (type)
+    {
+        case ProfileType::ProcessCpu:     return "process_cpu";
+        case ProfileType::CpuSample:      return "cpu";
+        case ProfileType::GcThreadsCpu:   return "gc_cpu";
+        case ProfileType::WallTime:       return "wall";
+        case ProfileType::Alloc:          return "alloc";
+        case ProfileType::AllocFramework: return "alloc_framework";
+        case ProfileType::Lock:           return "lock";
+        case ProfileType::Exception:      return "exception";
+        case ProfileType::Network:        return "network";
+        case ProfileType::Heap:           return "heap";
+        case ProfileType::GcCpu:          return "gc_cpu_timeline";
+        case ProfileType::GcStw:          return "gc_stw";
+        case ProfileType::ThreadLifetime: return "thread_lifetime";
+        default:                          return "unknown";
+    }
 }
 
 // static
@@ -86,9 +108,9 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
     std::vector<Pprof> pprofs;
     for (auto& entry : _entries)
     {
-        auto pprof = entry->builder.Build(startTime, endTime);
-        if (!pprof.empty())
-            pprofs.emplace_back(std::move(pprof));
+        auto bytes = entry->builder.Build(startTime, endTime);
+        if (!bytes.empty())
+            pprofs.push_back({std::move(bytes), std::string(ProfileTypeEntry::ProfileTypeName(entry->profileType))});
     }
 
     if (!pprofs.empty())
