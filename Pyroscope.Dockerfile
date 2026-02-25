@@ -1,6 +1,6 @@
 FROM debian:11@sha256:a50c3ed0200d2f58736c3bb02b4a9f174f3d6d3bd866f2f640375f1e82c61348 AS builder
 
-RUN apt-get update && apt-get -y install cmake make git curl golang libtool wget
+RUN apt-get update && apt-get -y install cmake make git curl golang libtool wget libssl-dev
 
 RUN apt-get -y install lsb-release wget software-properties-common gnupg
 

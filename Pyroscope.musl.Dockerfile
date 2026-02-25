@@ -12,7 +12,9 @@ RUN apk add  \
             libtool \
             automake \
             xz-dev \
-            musl-dbg
+            musl-dbg \
+            openssl-dev \
+            openssl-libs-static
 
 RUN apk add wget
 RUN apk add go

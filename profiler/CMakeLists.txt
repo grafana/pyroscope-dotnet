@@ -122,7 +122,8 @@ FILE(MAKE_DIRECTORY ${OUTPUT_TMP_DIR})
 
 
 add_compile_options(-fPIC)
-add_subdirectory(third_party/boringssl)
+set(OPENSSL_USE_STATIC_LIBS TRUE)
+find_package(OpenSSL REQUIRED)
 option(protobuf_BUILD_TESTS "Build tests" OFF)
 if(ISLINUX)
     add_compile_options($<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:Clang>>:-stdlib=libstdc++>)

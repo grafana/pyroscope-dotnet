@@ -1,9 +1,6 @@
 [submodule "profiler/third_party/protobuf"]
 	path = profiler/third_party/protobuf
 	url = https://github.com/protocolbuffers/protobuf.git
-[submodule "profiler/third_party/boringssl"]
-	path = profiler/third_party/boringssl
-	url = https://github.com/google/boringssl.git
 [submodule "profiler/third_party/cpp-httplib"]
 	path = profiler/third_party/cpp-httplib
 	url = https://github.com/yhirose/cpp-httplib.git
