@@ -10,11 +10,15 @@ permissions:
   contents: read
 
 jobs:
-  build-profiler-images:
-    name: Build Profiler Image
+  run-integration-test:
+    name: Run Integration Test
     runs-on: ubuntu-x64-large
     strategy:
+      fail-fast: false
       matrix:
+        dotnet_version:
+          - '8.0'
+          - '6.0'
         flavour:
           - glibc
           - musl
@@ -29,36 +33,6 @@ jobs:
             else
               docker build --platform linux/amd64 -t pyroscope-dotnet-glibc:test -f Pyroscope.Dockerfile --build-arg CMAKE_BUILD_TYPE=Debug .
             fi
-            docker save pyroscope-dotnet-${{ matrix.flavour }}:test -o pyroscope-dotnet-${{ matrix.flavour }}.tar
-      - name: Upload ${{ matrix.flavour }} profiler image artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
-        with:
-          name: pyroscope-dotnet-${{ matrix.flavour }}
-          path: pyroscope-dotnet-${{ matrix.flavour }}.tar
-          retention-days: 1
-  run-integration-test:
-    name: Run Integration Test
-    needs: build-profiler-images
-    runs-on: ubuntu-x64-large
-    strategy:
-      fail-fast: false
-      matrix:
-        dotnet_version:
-          - '8.0'
-          - '6.0'
-        flavour:
-          - glibc
-          - musl
-    steps:
-      - name: Download ${{ matrix.flavour }} profiler image artifact
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
-        with:
-          name: pyroscope-dotnet-${{ matrix.flavour }}
-          path: .
-      - name: Load ${{matrix.flavour}} Docker image
-        run: |
-          docker load --input pyroscope-dotnet-${{ matrix.flavour }}.tar
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
       - name: Build service image for ${{ matrix.flavour }} and .NET ${{ matrix.dotnet_version }}
         run: |
             if [ "${{ matrix.flavour }}" = "glibc" ]; then
@@ -78,14 +52,14 @@ jobs:
           # Create a unique project name for this matrix combination
           VERSION_HYPHEN=$(echo "${{ matrix.dotnet_version }}" | tr '.' '-')
           export COMPOSE_PROJECT_NAME="pyroscope-dotnet-${{ matrix.flavour }}-net$VERSION_HYPHEN"
-          
+
           # Set the service name to start and to use in the load generator
           export SERVICE_NAME="rideshare-${{ matrix.flavour }}-net-$VERSION_HYPHEN"
           # Set up trap to ensure cleanup happens on exit
           trap 'docker compose -f docker-compose-itest.yml down --remove-orphans --volumes' EXIT
-          
+
           # Start the services
-          docker compose -f docker-compose-itest.yml up --build --force-recreate -d pyroscope load-generator $SERVICE_NAME 
+          docker compose -f docker-compose-itest.yml up --build --force-recreate -d pyroscope load-generator $SERVICE_NAME
 
           # Run the verification script
           ./IntegrationTest/verify_profiles.sh ${{ matrix.flavour }} ${{ matrix.dotnet_version }}
