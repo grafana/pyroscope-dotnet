@@ -142,8 +142,8 @@ target_link_libraries(${PROFILER_STATIC_LIB_NAME}
     libprotobuf
     chmike::CxxUrl
     nlohmann_json::nlohmann_json
-    crypto
-    ssl
+    OpenSSL::Crypto
+    OpenSSL::SSL
     -static-libgcc
     -static-libstdc++
     -lstdc++fs
@@ -157,7 +157,6 @@ add_dependencies(${PROFILER_STATIC_LIB_NAME} libunwind-lib coreclr spdlog-header
 
 
 target_include_directories(${PROFILER_STATIC_LIB_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/../../../../profiler/third_party/cpp-httplib)
-target_compile_options(${PROFILER_STATIC_LIB_NAME} PUBLIC -isystem${PROJECT_SOURCE_DIR}/../../../../profiler/third_party/boringssl/include)
 target_compile_definitions(${PROFILER_STATIC_LIB_NAME} PUBLIC -DCPPHTTPLIB_OPENSSL_SUPPORT -DCPPHTTPLIB_USE_POLL)
 
 

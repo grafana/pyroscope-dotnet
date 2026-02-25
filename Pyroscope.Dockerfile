@@ -1,6 +1,17 @@
 FROM debian:11@sha256:a50c3ed0200d2f58736c3bb02b4a9f174f3d6d3bd866f2f640375f1e82c61348 AS builder
 
-RUN apt-get update && apt-get -y install cmake make git curl golang libtool wget
+RUN apt-get update && apt-get -y install cmake make git curl golang libtool wget perl
+
+# Build OpenSSL 3.5.5 (LTS, supported until 2030-04-08) from source with static libs
+ARG OPENSSL_VERSION=3.5.5
+RUN wget -q "https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" && \
+    tar xf openssl-${OPENSSL_VERSION}.tar.gz && \
+    cd openssl-${OPENSSL_VERSION} && \
+    ./config no-shared no-tests --prefix=/usr/local/openssl && \
+    make -j$(nproc) && \
+    make install_sw && \
+    ln -s /usr/local/openssl/lib64 /usr/local/openssl/lib && \
+    cd .. && rm -rf openssl-${OPENSSL_VERSION} openssl-${OPENSSL_VERSION}.tar.gz
 
 RUN apt-get -y install lsb-release wget software-properties-common gnupg
 
@@ -29,7 +40,8 @@ RUN mkdir build-${CMAKE_BUILD_TYPE} && \
         -DCMAKE_CXX_COMPILER=clang++ \
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
         -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" \
-        -DCMAKE_C_FLAGS_DEBUG="-g -O0"
+        -DCMAKE_C_FLAGS_DEBUG="-g -O0" \
+        -DOPENSSL_ROOT_DIR=/usr/local/openssl
 
 RUN cd build-${CMAKE_BUILD_TYPE} && make -j16 Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
