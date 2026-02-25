@@ -22,7 +22,7 @@
 struct Pprof
 {
     std::string bytes;
-    std::string profileTypeName;
+    ProfileType profileType;
 };
 
 class PProfExportSink
@@ -41,8 +41,6 @@ struct ProfileTypeEntry
     size_t count;                      // number of values for this profile type
     ProfileType profileType;
     PprofBuilder builder;
-
-    static std::string_view ProfileTypeName(ProfileType type);
 };
 
 class PprofExporter : public IExporter
