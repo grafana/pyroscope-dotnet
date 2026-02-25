@@ -27,6 +27,7 @@ RUN wget -q "https://github.com/openssl/openssl/releases/download/openssl-${OPEN
     ./config no-shared no-tests --prefix=/usr/local/openssl && \
     make -j$(nproc) && \
     make install_sw && \
+    ln -s /usr/local/openssl/lib64 /usr/local/openssl/lib && \
     cd .. && rm -rf openssl-${OPENSSL_VERSION} openssl-${OPENSSL_VERSION}.tar.gz
 
 FROM builder as build
@@ -49,10 +50,7 @@ RUN mkdir build-${CMAKE_BUILD_TYPE} && \
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
         -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" \
         -DCMAKE_C_FLAGS_DEBUG="-g -O0" \
-        -DOPENSSL_ROOT_DIR=/usr/local/openssl \
-        -DOPENSSL_CRYPTO_LIBRARY=/usr/local/openssl/lib64/libcrypto.a \
-        -DOPENSSL_SSL_LIBRARY=/usr/local/openssl/lib64/libssl.a \
-        -DOPENSSL_INCLUDE_DIR=/usr/local/openssl/include
+        -DOPENSSL_ROOT_DIR=/usr/local/openssl
 
 RUN cd build-${CMAKE_BUILD_TYPE} && make -j16 Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
