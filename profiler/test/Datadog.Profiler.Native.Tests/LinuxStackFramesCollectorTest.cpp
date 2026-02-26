@@ -3,7 +3,9 @@
 
 #ifdef LINUX
 
-#include "profiler/src/ProfilerEngine/Datadog.Profiler.Native.Linux/LibrariesInfoCache.h"
+#include "profiler/src/ProfilerEngine/Datadog.Profiler.Native.Linux/Backtrace2Unwinder.h"
+#include "profiler/src/ProfilerEngine/Datadog.Profiler.Native.Linux/IUnwinder.h"
+#include "MetricsRegistry.h"
 #include "profiler/src/ProfilerEngine/Datadog.Profiler.Native.Linux/LinuxStackFramesCollector.h"
 #include "profiler/src/ProfilerEngine/Datadog.Profiler.Native.Linux/ProfilerSignalManager.h"
 
@@ -235,8 +237,8 @@ public:
         EXPECT_GE(expectedNbFrames, 2);
         EXPECT_GE(collectedNbFrames, 2);
 
-        auto callstackView = callstack.Data();
-        auto expectedCallstackView = expectedCallstack.Data();
+        auto callstackView = callstack.AsSpan();
+        auto expectedCallstackView = expectedCallstack.AsSpan();
 
         EXPECT_EQ(callstackView[collectedNbFrames - 1], expectedCallstackView[expectedNbFrames - 1]);
         EXPECT_EQ(callstackView[collectedNbFrames - 2], expectedCallstackView[expectedNbFrames - 2]);
@@ -250,7 +252,8 @@ public:
 
     static LinuxStackFramesCollector CreateStackFramesCollector(ProfilerSignalManager* signalManager, IConfiguration* configuration, CallstackProvider* p)
     {
-        return LinuxStackFramesCollector(signalManager, configuration, p, LibrariesInfoCache::Get());
+        static MetricsRegistry metricsRegistry;
+        return LinuxStackFramesCollector(signalManager, configuration, p, metricsRegistry, nullptr);
     }
 
 private:
@@ -286,7 +289,7 @@ private:
         void Work()
         {
             // Get the callstack
-            auto buffer = _callstack.Data();
+            auto buffer = _callstack.AsSpan();
             auto nb = unw_backtrace((void**)buffer.data(), buffer.size());
             _callstack.SetCount(nb);
 
@@ -320,7 +323,6 @@ TEST_F(LinuxStackFramesCollectorFixture, CheckSamplingThreadCollectCallStack)
     auto* signalManager = GetSignalManager();
 
     auto [configuration, mockConfiguration] = CreateConfiguration();
-    EXPECT_CALL(mockConfiguration, UseBacktrace2()).WillOnce(Return(true));
 
     CallstackProvider p(MemoryResourceManager::GetDefault());
     auto collector = CreateStackFramesCollector(signalManager, configuration.get(), &p);
@@ -345,7 +347,6 @@ TEST_F(LinuxStackFramesCollectorFixture, CheckSamplingThreadCollectCallStackWith
     auto* signalManager = GetSignalManager();
 
     auto [configuration, mockConfiguration] = CreateConfiguration();
-    EXPECT_CALL(mockConfiguration, UseBacktrace2()).WillOnce(Return(false));
 
     CallstackProvider p(MemoryResourceManager::GetDefault());
     auto collector = CreateStackFramesCollector(signalManager, configuration.get(), &p);
@@ -372,7 +373,6 @@ TEST_F(LinuxStackFramesCollectorFixture, CheckCollectionAbortIfInPthreadCreateCa
     auto* signalManager = GetSignalManager();
 
     auto [configuration, mockConfiguration] = CreateConfiguration();
-    EXPECT_CALL(mockConfiguration, UseBacktrace2()).WillOnce(Return(true));
 
     CallstackProvider p(MemoryResourceManager::GetDefault());
     auto collector = CreateStackFramesCollector(signalManager, configuration.get(), &p);
@@ -394,7 +394,6 @@ TEST_F(LinuxStackFramesCollectorFixture, MustNotCollectIfUnknownThreadId)
     auto* signalManager = GetSignalManager();
 
     auto [configuration, mockConfiguration] = CreateConfiguration();
-    EXPECT_CALL(mockConfiguration, UseBacktrace2()).WillOnce(Return(true));
 
     CallstackProvider p(MemoryResourceManager::GetDefault());
     auto collector = CreateStackFramesCollector(signalManager, configuration.get(), &p);
@@ -417,7 +416,6 @@ TEST_F(LinuxStackFramesCollectorFixture, CheckProfilerSignalHandlerIsRestoredIfA
     auto* signalManager = GetSignalManager();
 
     auto [configuration, mockConfiguration] = CreateConfiguration();
-    EXPECT_CALL(mockConfiguration, UseBacktrace2()).WillOnce(Return(true));
 
     CallstackProvider p(MemoryResourceManager::GetDefault());
     auto collector = CreateStackFramesCollector(signalManager, configuration.get(), &p);
@@ -483,7 +481,6 @@ TEST_F(LinuxStackFramesCollectorFixture, CheckProfilerHandlerIsInstalledCorrectl
     auto* signalManager = GetSignalManager();
 
     auto [configuration, mockConfiguration] = CreateConfiguration();
-    EXPECT_CALL(mockConfiguration, UseBacktrace2()).WillOnce(Return(true));
 
     CallstackProvider p(MemoryResourceManager::GetDefault());
     auto collector = CreateStackFramesCollector(signalManager, configuration.get(), &p);
@@ -527,7 +524,6 @@ TEST_F(LinuxStackFramesCollectorFixture, CheckProfilerHandlerIsInstalledCorrectl
     auto* signalManager = GetSignalManager();
 
     auto [configuration, mockConfiguration] = CreateConfiguration();
-    EXPECT_CALL(mockConfiguration, UseBacktrace2()).WillOnce(Return(true));
 
     CallstackProvider p(MemoryResourceManager::GetDefault());
     auto collector = CreateStackFramesCollector(signalManager, configuration.get(), &p);
@@ -571,7 +567,6 @@ TEST_F(LinuxStackFramesCollectorFixture, CheckProfilerHandlerIsInstalledCorrectl
     auto* signalManager = GetSignalManager();
 
     auto [configuration, mockConfiguration] = CreateConfiguration();
-    EXPECT_CALL(mockConfiguration, UseBacktrace2()).WillOnce(Return(true));
 
     CallstackProvider p(MemoryResourceManager::GetDefault());
     auto collector = CreateStackFramesCollector(signalManager, configuration.get(), &p);
@@ -613,7 +608,6 @@ TEST_F(LinuxStackFramesCollectorFixture, CheckNoCrashIfPreviousHandlerWasMarkedA
     auto* signalManager = GetSignalManager();
 
     auto [configuration, mockConfiguration] = CreateConfiguration();
-    EXPECT_CALL(mockConfiguration, UseBacktrace2()).WillOnce(Return(true));
 
     CallstackProvider p(MemoryResourceManager::GetDefault());
     auto collector = CreateStackFramesCollector(signalManager, configuration.get(), &p);
@@ -637,7 +631,6 @@ TEST_F(LinuxStackFramesCollectorFixture, CheckThatProfilerHandlerAndOtherHandler
     auto* signalManager = GetSignalManager();
 
     auto [configuration, mockConfiguration] = CreateConfiguration();
-    EXPECT_CALL(mockConfiguration, UseBacktrace2()).WillOnce(Return(true));
 
     CallstackProvider p(MemoryResourceManager::GetDefault());
     auto collector = CreateStackFramesCollector(signalManager, configuration.get(), &p);
@@ -676,7 +669,6 @@ TEST_F(LinuxStackFramesCollectorFixture, CheckNoCrashIfNoPreviousHandlerInstalle
     auto* signalManager = GetSignalManager();
 
     auto [configuration, mockConfiguration] = CreateConfiguration();
-    EXPECT_CALL(mockConfiguration, UseBacktrace2()).WillOnce(Return(true));
 
     CallstackProvider p(MemoryResourceManager::GetDefault());
     auto collector = CreateStackFramesCollector(signalManager, configuration.get(), &p);
@@ -696,7 +688,6 @@ TEST_F(LinuxStackFramesCollectorFixture, CheckTheProfilerStopWorkingIfSignalHand
     auto* signalManager = GetSignalManager();
 
     auto [configuration, mockConfiguration] = CreateConfiguration();
-    EXPECT_CALL(mockConfiguration, UseBacktrace2()).WillOnce(Return(true));
 
     CallstackProvider p(MemoryResourceManager::GetDefault());
     auto collector = CreateStackFramesCollector(signalManager, configuration.get(), &p);

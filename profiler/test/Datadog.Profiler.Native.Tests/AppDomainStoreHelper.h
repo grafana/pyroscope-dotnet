@@ -25,7 +25,8 @@ public:
 
 public:
     // Inherited via IAppDomainStore
-    bool GetInfo(AppDomainID appDomainId, ProcessID& pid, std::string& appDomainName) override;
+    std::string_view GetName(AppDomainID appDomainId) override;
+    void Register(AppDomainID appDomainId) override;
 
 private:
     std::unordered_map<AppDomainID, AppDomainInfo> _mapping;

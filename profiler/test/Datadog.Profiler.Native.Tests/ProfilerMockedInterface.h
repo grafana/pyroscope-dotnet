@@ -61,7 +61,6 @@ public:
     MOCK_METHOD(int32_t, CodeHotspotsThreadsThreshold, (), (const override));
     MOCK_METHOD(bool, IsGarbageCollectionProfilingEnabled, (), (const override));
     MOCK_METHOD(bool, IsHeapProfilingEnabled, (), (const override));
-    MOCK_METHOD(bool, UseBacktrace2, (), (const override));
     MOCK_METHOD(bool, IsAllocationRecorderEnabled, (), (const override));
     MOCK_METHOD(bool, IsDebugInfoEnabled, (), (const override));
     MOCK_METHOD(bool, IsGcThreadsCpuTimeEnabled, (), (const override));
@@ -81,14 +80,13 @@ public:
     MOCK_METHOD(std::chrono::milliseconds, GetCpuProfilingInterval, (), (const override));
     MOCK_METHOD(std::chrono::milliseconds, GetSsiLongLivedThreshold, (), (const override));
     MOCK_METHOD(bool, IsTelemetryToDiskEnabled, (), (const override));
-    MOCK_METHOD(bool, IsSsiTelemetryEnabled, (), (const override));
 };
 
 class MockExporter : public IExporter
 {
 public:
     MOCK_METHOD(void, Add, (std::shared_ptr<Sample> const& sample), (override));
-    MOCK_METHOD(bool, Export, (bool lastCall), (override));
+    MOCK_METHOD(bool, Export, (ProfileTime& startTime, ProfileTime& endTime, bool lastCall), (override));
     MOCK_METHOD(void, SetEndpoint, (const std::string& runtimeId, uint64_t traceId, const std::string& endpoint), (override));
     MOCK_METHOD(void, RegisterUpscaleProvider, (IUpscaleProvider * provider), (override));
     MOCK_METHOD(void, RegisterProcessSamplesProvider, (ISamplesProvider * provider), (override));
@@ -159,7 +157,7 @@ class MockApplicationStore : public IApplicationStore
 {
 public:
     MOCK_METHOD(ApplicationInfo, GetApplicationInfo, (const std::string& runtimeId), (override));
-    MOCK_METHOD(void, SetApplicationInfo, (const std::string&, const std::string&, const std::string&, const std::string&), (override));
+    MOCK_METHOD(void, SetApplicationInfo, (const std::string&, const std::string&, const std::string&, const std::string&, const std::string&), (override));
     MOCK_METHOD(void, SetGitMetadata, (std::string, std::string, std::string), (override));
 };
 

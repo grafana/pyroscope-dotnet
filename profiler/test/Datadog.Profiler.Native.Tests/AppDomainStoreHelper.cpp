@@ -35,15 +35,17 @@ AppDomainStoreHelper::AppDomainStoreHelper(const std::unordered_map<AppDomainID,
 }
 
 
-bool AppDomainStoreHelper::GetInfo(AppDomainID appDomainId, ProcessID& pid, std::string& appDomainName)
+std::string_view AppDomainStoreHelper::GetName(AppDomainID appDomainId)
 {
     auto item = _mapping.find(appDomainId);
     if (item == _mapping.end())
     {
-        return false;
+        return {};
     }
 
-    pid = item->second.Pid;
-    appDomainName = item->second.AppDomainName;
-    return true;
+    return item->second.AppDomainName;
+}
+
+void AppDomainStoreHelper::Register(AppDomainID appDomainId)
+{
 }
