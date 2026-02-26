@@ -25,6 +25,13 @@ class MockConfiguration : public IConfiguration
 {
 public:
     ~MockConfiguration() override = default;
+    MOCK_METHOD(std::string, PyroscopeServerAddress, (), (const override));
+    MOCK_METHOD(std::string, PyroscopeApplicationName, (), (const override));
+    MOCK_METHOD(std::string, PyroscopeAuthToken, (), (const override));
+    MOCK_METHOD(std::string, PyroscopeHttpHeaders, (), (const override));
+    MOCK_METHOD(std::string, PyroscopeTenantID, (), (const override));
+    MOCK_METHOD(std::string, PyroscopeBasicAuthUser, (), (const override));
+    MOCK_METHOD(std::string, PyroscopeBasicAuthPassword, (), (const override));
     MOCK_METHOD(bool, IsDebugLogEnabled, (), (const override));
     MOCK_METHOD(fs::path const&, GetLogDirectory, (), (const override));
     MOCK_METHOD(fs::path const&, GetProfilesOutputDirectory, (), (const override));
@@ -37,16 +44,15 @@ public:
     MOCK_METHOD(std::string const&, GetHostname, (), (const override));    // return the machine hostname
     MOCK_METHOD(std::string const&, GetAgentUrl, (), (const override));
     MOCK_METHOD(std::string const&, GetAgentHost, (), (const override));
-    MOCK_METHOD(int, GetAgentPort, (), (const override));
+    MOCK_METHOD(int32_t, GetAgentPort, (), (const override));
     MOCK_METHOD(std::string const&, GetSite, (), (const override));
     MOCK_METHOD(std::string const&, GetApiKey, (), (const override));
     MOCK_METHOD(std::string const&, GetServiceName, (), (const override));
-    MOCK_METHOD(bool, IsFFLibddprofEnabled, (), (const override));
     MOCK_METHOD(bool, IsAgentless, (), (const override));
     MOCK_METHOD(bool, IsWallTimeProfilingEnabled, (), (const override));
     MOCK_METHOD(bool, IsCpuProfilingEnabled, (), (const override));
     MOCK_METHOD(bool, IsExceptionProfilingEnabled, (), (const override));
-    MOCK_METHOD(int, ExceptionSampleLimit, (), (const override));
+    MOCK_METHOD(int32_t, ExceptionSampleLimit, (), (const override));
     MOCK_METHOD(bool, IsAllocationProfilingEnabled, (), (const override));
     MOCK_METHOD(bool, IsContentionProfilingEnabled, (), (const override));
     MOCK_METHOD(double, MinimumCores, (), (const override));
@@ -79,7 +85,18 @@ public:
     MOCK_METHOD(CpuProfilerType, GetCpuProfilerType, (), (const override));
     MOCK_METHOD(std::chrono::milliseconds, GetCpuProfilingInterval, (), (const override));
     MOCK_METHOD(std::chrono::milliseconds, GetSsiLongLivedThreshold, (), (const override));
-    MOCK_METHOD(bool, IsTelemetryToDiskEnabled, (), (const override));
+    MOCK_METHOD(bool, IsHttpProfilingEnabled, (), (const override));
+    MOCK_METHOD(std::chrono::milliseconds, GetHttpRequestDurationThreshold, (), (const override));
+    MOCK_METHOD(bool, ForceHttpSampling, (), (const override));
+    MOCK_METHOD(bool, IsWaitHandleProfilingEnabled, (), (const override));
+    MOCK_METHOD(bool, IsManagedActivationEnabled, (), (const override));
+    MOCK_METHOD(void, SetEnablementStatus, (EnablementStatus status), (override));
+    MOCK_METHOD(bool, IsHeapSnapshotEnabled, (), (const override));
+    MOCK_METHOD(std::chrono::minutes, GetHeapSnapshotInterval, (), (const override));
+    MOCK_METHOD(std::chrono::milliseconds, GetHeapSnapshotCheckInterval, (), (const override));
+    MOCK_METHOD(uint32_t, GetHeapSnapshotMemoryPressureThreshold, (), (const override));
+    MOCK_METHOD(uint32_t, GetHeapHandleLimit, (), (const override));
+    MOCK_METHOD(bool, UseManagedCodeCache, (), (const override));
 };
 
 class MockExporter : public IExporter
@@ -89,8 +106,10 @@ public:
     MOCK_METHOD(bool, Export, (ProfileTime& startTime, ProfileTime& endTime, bool lastCall), (override));
     MOCK_METHOD(void, SetEndpoint, (const std::string& runtimeId, uint64_t traceId, const std::string& endpoint), (override));
     MOCK_METHOD(void, RegisterUpscaleProvider, (IUpscaleProvider * provider), (override));
+    MOCK_METHOD(void, RegisterUpscalePoissonProvider, (IUpscalePoissonProvider * provider), (override));
     MOCK_METHOD(void, RegisterProcessSamplesProvider, (ISamplesProvider * provider), (override));
     MOCK_METHOD(void, RegisterApplication, (std::string_view runtimeId), (override));
+    MOCK_METHOD(void, RegisterGcSettingsProvider, (IGcSettingsProvider * provider), (override));
 };
 
 class MockSamplesCollector : public ISamplesCollector
@@ -111,6 +130,7 @@ class MockSsiManager : public ISsiManager
 {
 public:
     // Inherited via ISsiManager
+    MOCK_METHOD(void, OnStableConfiguration, (), (override));
     MOCK_METHOD(void, OnSpanCreated, (), (override));
     MOCK_METHOD(bool, IsSpanCreated, (),  (const override));
     MOCK_METHOD(bool, IsLongLived, (), (const override));

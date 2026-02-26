@@ -40,13 +40,13 @@ TEST(LoggerTest, EnsureLogFilesAreFoundAtDefaultLocation)
     Log::Error(expectedString);
 
     std::string applicationNameNoExtension = fs::path(::shared::ToString(::shared::GetCurrentProcessName())).replace_extension().string();
-    std::string expectedLogFilename = "DD-DotNet-Profiler-Native-" + applicationNameNoExtension + "-" + std::to_string(::shared::GetPID()) + ".log";
+    std::string expectedLogFilename = "Pyroscope-DotNet-Profiler-Native-" + applicationNameNoExtension + "-" + std::to_string(::shared::GetPID()) + ".log"; // pyroscope: uses Pyroscope prefix
 
     fs::path expectedLogFileFullPath =
 #ifdef _WINDOWS
         "C:\\ProgramData\\Datadog .NET Tracer\\logs\\" + expectedLogFilename;
 #else
-        "/var/log/datadog/dotnet/" + expectedLogFilename;
+        "/var/log/pyroscope/dotnet/" + expectedLogFilename; // pyroscope: uses /var/log/pyroscope/ base dir
 #endif
 
     ASSERT_TRUE(fs::exists(expectedLogFileFullPath));

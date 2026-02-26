@@ -6,9 +6,9 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
-static const SampleValueType CpuValueType = {"cpu", "nanoseconds"};
-static const SampleValueType WallTimeValueType = {"walltime", "nanoseconds"};
-static const SampleValueType ExceptionValueType = {"exception", "count"};
+static const SampleValueType CpuValueType = {"cpu", "nanoseconds", ProfileType::ProcessCpu, -1};
+static const SampleValueType WallTimeValueType = {"walltime", "nanoseconds", ProfileType::WallTime, -1};
+static const SampleValueType ExceptionValueType = {"exception", "count", ProfileType::Exception, -1};
 
 testing::AssertionResult AreSampleValueTypeEqual(SampleValueType const& v1, SampleValueType const& v2)
 {
@@ -33,9 +33,9 @@ using ValueOffsets = std::vector<SampleValueTypeProvider::Offset>;
 TEST(SampleValueTypeProvider, RegisterValueTypes)
 {
     SampleValueTypeProvider provider;
-    auto const valueTypes = std::vector<SampleValueType>{CpuValueType, WallTimeValueType};
+    auto valueTypes = std::vector<SampleValueType>{CpuValueType, WallTimeValueType};
 
-    auto offsets = provider.GetOrRegister(valueTypes);
+    auto offsets = provider.RegisterPyroscopeSampleType(valueTypes);
 
     ASSERT_OFFSETS((ValueOffsets{0, 1}), offsets);
     //              cpu offset --^  ^-- walltime offset
@@ -43,55 +43,33 @@ TEST(SampleValueTypeProvider, RegisterValueTypes)
     ASSERT_DEFINITIONS(valueTypes, provider.GetValueTypes());
 }
 
-TEST(SampleValueTypeProvider, RegisterTwiceSameValueType)
+TEST(SampleValueTypeProvider, RegisterMultipleValueTypes)
 {
     SampleValueTypeProvider provider;
-    auto valueTypes = std::vector<SampleValueType>{CpuValueType, WallTimeValueType};
+    auto valueTypes1 = std::vector<SampleValueType>{CpuValueType, WallTimeValueType};
+    auto valueTypes2 = std::vector<SampleValueType>{ExceptionValueType};
 
-    auto offsets = provider.GetOrRegister(valueTypes);
+    auto offsets1 = provider.RegisterPyroscopeSampleType(valueTypes1);
+    auto offsets2 = provider.RegisterPyroscopeSampleType(valueTypes2);
 
-    ASSERT_OFFSETS((ValueOffsets{0, 1}), offsets);
-    //              cpu offset --^  ^-- walltime offset
-
-    ASSERT_DEFINITIONS(valueTypes, provider.GetValueTypes());
-
-    // Register walltime a second time
-
-    auto alreadyRegisteredValueType = std::vector<SampleValueType>{WallTimeValueType};
-    auto offsets2 = provider.GetOrRegister(alreadyRegisteredValueType);
-
-    ASSERT_OFFSETS((ValueOffsets{1}), offsets2); // walltime offset did not changed
-
-    ASSERT_DEFINITIONS(valueTypes, provider.GetValueTypes());
-}
-
-TEST(SampleValueTypeProvider, CheckSequentialRegistration)
-{
-    SampleValueTypeProvider provider;
-    auto valueTypes = std::vector<SampleValueType>{CpuValueType, WallTimeValueType};
-
-    auto offsets = provider.GetOrRegister(valueTypes);
-    ASSERT_DEFINITIONS(valueTypes, provider.GetValueTypes());
-
-    // Register ExceptionValueType
-    auto anotherValuetype = std::vector<SampleValueType>{ExceptionValueType};
-
-    auto offsets2 = provider.GetOrRegister(anotherValuetype);
+    ASSERT_OFFSETS((ValueOffsets{0, 1}), offsets1);
     ASSERT_OFFSETS((ValueOffsets{2}), offsets2);
 
-    ASSERT_DEFINITIONS((std::vector<SampleValueType>{CpuValueType, WallTimeValueType, ExceptionValueType}), provider.GetValueTypes());
+    auto allTypes = std::vector<SampleValueType>{CpuValueType, WallTimeValueType, ExceptionValueType};
+    ASSERT_DEFINITIONS(allTypes, provider.GetValueTypes());
 }
 
-TEST(SampleValueTypeProvider, EnsureThrowIfAddValueTypeSameNameButDifferentUnit)
+TEST(SampleValueTypeProvider, RegisterAssignsIndex)
 {
     SampleValueTypeProvider provider;
-    auto valueTypes = std::vector<SampleValueType>{CpuValueType};
+    auto valueTypes1 = std::vector<SampleValueType>{CpuValueType, WallTimeValueType};
+    auto valueTypes2 = std::vector<SampleValueType>{ExceptionValueType};
 
-    auto offsets = provider.GetOrRegister(valueTypes);
-    ASSERT_DEFINITIONS(valueTypes, provider.GetValueTypes());
+    provider.RegisterPyroscopeSampleType(valueTypes1);
+    provider.RegisterPyroscopeSampleType(valueTypes2);
 
-    // Register a cpu value but with different unit
-    auto anotherValuetype = std::vector<SampleValueType>{{"cpu", "non-sense-unit"}};
-
-    EXPECT_THROW(provider.GetOrRegister(anotherValuetype), std::runtime_error);
+    // valueTypes1 should have index 0, valueTypes2 should have index 1
+    ASSERT_EQ(0, valueTypes1[0].Index);
+    ASSERT_EQ(0, valueTypes1[1].Index);
+    ASSERT_EQ(1, valueTypes2[0].Index);
 }

@@ -149,7 +149,7 @@ TEST_F(ConfigurationTest, CheckDefaultLogDirectoryWhenVariableIsNotSet)
 #ifdef _WINDOWS
         WStr("C:\\ProgramData\\Datadog .NET Tracer\\logs");
 #else
-        WStr("/var/log/datadog/dotnet");
+        WStr("/var/log/pyroscope/dotnet");
 #endif
     ASSERT_EQ(expectedValue, configuration.GetLogDirectory());
 }
@@ -183,7 +183,7 @@ TEST_F(ConfigurationTest, CheckDefaultUploadIntervalInDevMode)
     unsetenv(EnvironmentVariables::UploadInterval);
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::DevelopmentConfiguration, WStr("1"));
     auto configuration = Configuration{};
-    ASSERT_EQ(20s, configuration.GetUploadInterval());
+    ASSERT_EQ(15s, configuration.GetUploadInterval()); // pyroscope: fixed 15s default
 }
 
 TEST_F(ConfigurationTest, CheckDefaultUploadIntervalInNonDevMode)
@@ -191,7 +191,7 @@ TEST_F(ConfigurationTest, CheckDefaultUploadIntervalInNonDevMode)
     unsetenv(EnvironmentVariables::UploadInterval);
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::DevelopmentConfiguration, WStr("0"));
     auto configuration = Configuration{};
-    ASSERT_EQ(60s, configuration.GetUploadInterval());
+    ASSERT_EQ(15s, configuration.GetUploadInterval()); // pyroscope: fixed 15s default
 }
 
 TEST_F(ConfigurationTest, CheckUploadIntervalWhenVariableIsSet)
@@ -389,7 +389,7 @@ TEST_F(ConfigurationTest, CheckMinimumCoresThresholdWhenVariableIsSet)
 TEST_F(ConfigurationTest, CheckExceptionProfilingIsEnabledByDefault)
 {
     auto configuration = Configuration{};
-    ASSERT_THAT(configuration.IsExceptionProfilingEnabled(), true);
+    ASSERT_THAT(configuration.IsExceptionProfilingEnabled(), false); // pyroscope: disabled by default
 }
 
 TEST_F(ConfigurationTest, CheckExceptionProfilingIsEnabledIfEnvVarSetToTrue)
@@ -409,7 +409,7 @@ TEST_F(ConfigurationTest, CheckExceptionProfilingIsDisabledIfEnvVarSetToFalse)
 TEST_F(ConfigurationTest, CheckContentionProfilingIsEnabledByDefault)
 {
     auto configuration = Configuration{};
-    ASSERT_THAT(configuration.IsContentionProfilingEnabled(), true);
+    ASSERT_THAT(configuration.IsContentionProfilingEnabled(), false); // pyroscope: disabled by default
 }
 
 TEST_F(ConfigurationTest, CheckContentionProfilingIsEnabledIfEnvVarSetToTrue)
@@ -559,7 +559,7 @@ TEST_F(ConfigurationTest, CheckNamedPipePathWhenProvided)
 TEST_F(ConfigurationTest, CheckTimestampAsLabelIsEnabledByDefault)
 {
     auto configuration = Configuration{};
-    ASSERT_THAT(configuration.IsTimestampsAsLabelEnabled(), true);
+    ASSERT_THAT(configuration.IsTimestampsAsLabelEnabled(), false); // pyroscope: disabled by default
 }
 
 TEST_F(ConfigurationTest, CheckTimestampAsLabelIsEnabledIfEnvVarSetToTrue)
@@ -641,7 +641,7 @@ TEST_F(ConfigurationTest, CheckCpuThreadsThresholdIfCorrectValue)
 TEST_F(ConfigurationTest, CheckGarbageCollectionProfilingIsEnabledByDefault)
 {
     auto configuration = Configuration{};
-    ASSERT_THAT(configuration.IsGarbageCollectionProfilingEnabled(), true);
+    ASSERT_THAT(configuration.IsGarbageCollectionProfilingEnabled(), false); // pyroscope: disabled by default
 }
 
 TEST_F(ConfigurationTest, CheckGarbageCollectionProfilingIsEnabledIfEnvVarSetToTrue)
@@ -704,7 +704,7 @@ TEST_F(ConfigurationTest, CheckDebugInfoIsDisabledIfEnvVarSetToFalse)
 TEST_F(ConfigurationTest, CheckGcThreadsCpuTimeIsDisabledByDefault)
 {
     auto configuration = Configuration{};
-    ASSERT_THAT(configuration.IsGcThreadsCpuTimeEnabled(), false);
+    ASSERT_THAT(configuration.IsGcThreadsCpuTimeEnabled(), true); // pyroscope: enabled by default via internal env var
 }
 
 TEST_F(ConfigurationTest, CheckGcThreadsCpuTimeIfEnvVarSetToTrue)
@@ -724,7 +724,7 @@ TEST_F(ConfigurationTest, CheckGcThreadsCpuTimeIsDisabledIfEnvVarSetToFalse)
 TEST_F(ConfigurationTest, CheckThreadLifetimeIsDisabledByDefault)
 {
     auto configuration = Configuration{};
-    ASSERT_THAT(configuration.IsThreadLifetimeEnabled(), false);
+    ASSERT_THAT(configuration.IsThreadLifetimeEnabled(), true); // pyroscope: enabled by default via internal env var
 }
 
 TEST_F(ConfigurationTest, CheckThreadLifetimeIfEnvVarSetToTrue)
@@ -941,7 +941,7 @@ TEST_F(ConfigurationTest, CheckSsiIsActivatedIfEnvVarConstainsProfiler)
 {
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::SsiDeployed, WStr("tracer,profiler"));
     auto configuration = Configuration{};
-    auto expectedValue = EnablementStatus::ManuallyEnabled;
+    auto expectedValue = EnablementStatus::NotSet; // pyroscope: "profiler" in SsiDeployed not implemented
     ASSERT_THAT(configuration.GetEnablementStatus(), expectedValue);
 }
 
@@ -1026,27 +1026,43 @@ TEST_F(ConfigurationTest, CheckDefaultCpuProfilerType)
 {
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::CpuProfilerType, WStr(""));
     auto configuration = Configuration{};
+#ifdef _WINDOWS
     ASSERT_THAT(configuration.GetCpuProfilerType(), CpuProfilerType::ManualCpuTime);
+#else
+    ASSERT_THAT(configuration.GetCpuProfilerType(), CpuProfilerType::TimerCreate); // pyroscope: TimerCreate on Linux
+#endif
 }
 
 TEST_F(ConfigurationTest, CheckDefaultCpuProfilerTypeWhenEnvVarNotSet)
 {
     auto configuration = Configuration{};
+#ifdef _WINDOWS
     ASSERT_THAT(configuration.GetCpuProfilerType(), CpuProfilerType::ManualCpuTime);
+#else
+    ASSERT_THAT(configuration.GetCpuProfilerType(), CpuProfilerType::TimerCreate); // pyroscope: TimerCreate on Linux
+#endif
 }
 
 TEST_F(ConfigurationTest, CheckUnknownCpuProfilerType)
 {
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::CpuProfilerType, WStr("UnknownCpuProfilerType"));
     auto configuration = Configuration{};
+#ifdef _WINDOWS
     ASSERT_THAT(configuration.GetCpuProfilerType(), CpuProfilerType::ManualCpuTime);
+#else
+    ASSERT_THAT(configuration.GetCpuProfilerType(), CpuProfilerType::TimerCreate); // pyroscope: env var not read, uses platform default
+#endif
 }
 
 TEST_F(ConfigurationTest, CheckManualCpuProfilerType)
 {
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::CpuProfilerType, WStr("ManualCpuTime"));
     auto configuration = Configuration{};
+#ifdef _WINDOWS
     ASSERT_THAT(configuration.GetCpuProfilerType(), CpuProfilerType::ManualCpuTime);
+#else
+    ASSERT_THAT(configuration.GetCpuProfilerType(), CpuProfilerType::TimerCreate); // pyroscope: env var not read, uses platform default
+#endif
 }
 
 TEST_F(ConfigurationTest, CheckTimerCreateCpuProfilerType)

@@ -253,7 +253,8 @@ public:
     static LinuxStackFramesCollector CreateStackFramesCollector(ProfilerSignalManager* signalManager, IConfiguration* configuration, CallstackProvider* p)
     {
         static MetricsRegistry metricsRegistry;
-        return LinuxStackFramesCollector(signalManager, configuration, p, metricsRegistry, nullptr);
+        static Backtrace2Unwinder unwinder;
+        return LinuxStackFramesCollector(signalManager, configuration, p, metricsRegistry, &unwinder);
     }
 
 private:

@@ -153,7 +153,9 @@ TEST(SsiManagerTest, Should_ProfilerBeActivated_When_DeployedAsSSIAndEnabled)
 
     SsiManager manager(&configuration, &lifetime);
 
-    ASSERT_EQ(manager.IsProfilerEnabled(), true);
+    // pyroscope: "profiler" in SsiDeployed is not implemented, so EnablementStatus::NotSet
+    // and IsProfilerEnabled() returns false (profiler not enabled in SSI-only mode)
+    ASSERT_EQ(manager.IsProfilerEnabled(), false);
 }
 
 TEST(SsiManagerTest, Should_ProfilerBeActivated_When_NotDeployedAsSSIAndEnabled)

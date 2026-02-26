@@ -118,6 +118,9 @@ TEST_F(ProfilerSignalManagerFixture, CheckSignalDeRegistration)
     ProfilerSignalManager* manager = nullptr;
     ASSERT_NE(manager = ProfilerSignalManager::Get(SIGPROF), nullptr);
 
+    manager->Reset();
+    ASSERT_TRUE(manager->RegisterHandler(CustomHandler));
+
     ASSERT_TRUE(manager->UnRegisterHandler());
 
     // Make sure we do not un register more than once
