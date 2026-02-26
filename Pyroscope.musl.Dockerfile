@@ -54,6 +54,9 @@ RUN mkdir build-${CMAKE_BUILD_TYPE} && \
 
 RUN cd build-${CMAKE_BUILD_TYPE} && make -j16 Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
+FROM build AS test
+RUN cd build-${CMAKE_BUILD_TYPE} && make -j$(nproc) profiler-native-tests wrapper-native-tests
+RUN cd build-${CMAKE_BUILD_TYPE} && ctest --output-on-failure
 
 FROM busybox:1.37.0-musl@sha256:19b646668802469d968a05342a601e78da4322a414a7c09b1c9ee25165042138
 COPY --from=build /profiler/profiler/_build/DDProf-Deploy/linux-musl/Pyroscope.Profiler.Native.so /Pyroscope.Profiler.Native.so
