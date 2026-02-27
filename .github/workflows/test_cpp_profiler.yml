@@ -1,0 +1,36 @@
+name: C++ profiler unit tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test-cpp-profiler:
+    runs-on: ubuntu-x64-large
+    env:
+      DOCKER_BUILDKIT: 1
+    strategy:
+      fail-fast: false
+      matrix:
+        libc: ['glibc', 'musl']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: 'true'
+          persist-credentials: false
+      - name: Build and run C++ unit tests (${{ matrix.libc }})
+        run: |
+          if [ "${{ matrix.libc }}" = "musl" ]; then
+            DOCKERFILE=Pyroscope.musl.Dockerfile
+          else
+            DOCKERFILE=Pyroscope.Dockerfile
+          fi
+          docker build --target test \
+            --build-arg CMAKE_BUILD_TYPE=Debug \
+            -f ${DOCKERFILE} .

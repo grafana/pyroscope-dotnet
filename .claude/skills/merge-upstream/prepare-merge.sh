@@ -68,9 +68,13 @@ step5_remove_fork_dirs() {
     .azure-pipelines \
     .gitlab \
     docs \
-    profiler/test \
     profiler/src/Tools \
     .gitlab-ci.yml
+  # Remove C# integration/managed tests from profiler/test but keep C++ unit tests.
+  git rm -rf --ignore-unmatch \
+    profiler/test/Datadog.Profiler.IntegrationTests \
+    profiler/test/RuntimeMetrics.Tests \
+    profiler/test/Directory.Build.props
 }
 
 # ── Step 6: Remove files we replace with git submodules ──────────────────────
