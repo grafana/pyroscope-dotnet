@@ -1034,7 +1034,8 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::QueryInterface(REFIID riid, void*
         || riid == __uuidof(ICorProfilerCallback7)                           // F76A2DBA-1D52-4539-866C-2AA518F9EFC3
         || riid == __uuidof(ICorProfilerCallback8)                           // 5BED9B15-C079-4D47-BFE2-215A140C07E0
         || riid == __uuidof(ICorProfilerCallback9)                           // 27583EC3-C8F5-482F-8052-194B8CE4705A
-        || riid == __uuidof(ICorProfilerCallback10))                         // CEC5B60E-C69C-495F-87F6-84D28EE16FFB
+        || riid == __uuidof(ICorProfilerCallback10)                          // CEC5B60E-C69C-495F-87F6-84D28EE16FFB
+        || riid == __uuidof(ICorProfilerCallback11))                         // 42350846-AAED-47F7-B128-FD0C98881CDE
     {
         *ppvObject = this;
         this->AddRef();
@@ -2637,3 +2638,9 @@ void CorProfilerCallback::SetExceptionTrackingEnabled(bool enabled)
 std::shared_ptr<PyroscopePprofSink> CorProfilerCallback::GetPyroscopePprofSink() {
     return _pyroscopePprofSink;
 };
+
+HRESULT STDMETHODCALLTYPE CorProfilerCallback::LoadAsNotificationOnly(BOOL* pbNotificationOnly)
+{
+    *pbNotificationOnly = TRUE;
+    return S_OK;
+}

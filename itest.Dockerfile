@@ -42,9 +42,8 @@ COPY --from=build /dotnet/app ./
 # Fix for alpine not being able to dlopen an already loaded library
 ENV LD_LIBRARY_PATH=/dotnet/subfolder/
 
-ENV CORECLR_ENABLE_PROFILING=1
-ENV CORECLR_PROFILER={BD1A650D-AC5D-4896-B64F-D6FA25D6B26A}
-ENV CORECLR_PROFILER_PATH=/dotnet/subfolder/Pyroscope.Profiler.Native.so
+ENV CORECLR_ENABLE_NOTIFICATION_PROFILERS=1
+ENV CORECLR_NOTIFICATION_PROFILERS=/dotnet/subfolder/Pyroscope.Profiler.Native.so={BD1A650D-AC5D-4896-B64F-D6FA25D6B26A}
 ENV LD_PRELOAD=/dotnet/subfolder/Pyroscope.Linux.ApiWrapper.x64.so
 
 ENV PYROSCOPE_SERVER_ADDRESS=http://pyroscope:4040

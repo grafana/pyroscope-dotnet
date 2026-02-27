@@ -73,7 +73,7 @@ class NetworkProvider;
 class SystemCallsShield;
 #endif
 
-class CorProfilerCallback : public ICorProfilerCallback10, public ISsiLifetime
+class CorProfilerCallback : public ICorProfilerCallback11, public ISsiLifetime
 {
 public:
     CorProfilerCallback(std::shared_ptr<IConfiguration> pConfiguration);
@@ -189,6 +189,7 @@ public:
                                                       ULONG numStackFrames,
                                                       UINT_PTR stackFrames[]) override;
     HRESULT STDMETHODCALLTYPE EventPipeProviderCreated(EVENTPIPE_PROVIDER provider) override;
+    HRESULT STDMETHODCALLTYPE LoadAsNotificationOnly(BOOL* pbNotificationOnly) override;
 
 public:
     // One and only instance of CorProfilerCallback
