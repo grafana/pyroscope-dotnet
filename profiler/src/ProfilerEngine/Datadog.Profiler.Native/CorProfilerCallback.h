@@ -73,11 +73,6 @@ class NetworkProvider;
 class SystemCallsShield;
 #endif
 
-namespace shared {
-class Loader;
-}
-
-
 class CorProfilerCallback : public ICorProfilerCallback10, public ISsiLifetime
 {
 public:

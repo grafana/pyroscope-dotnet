@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup Label="Globals">
     <MSBuildAllProjects Condition="'$(MSBuildVersion)' == '' Or '$(MSBuildVersion)' &lt; '16.0'">$(MSBuildAllProjects);$(MSBuildThisFileFullPath)</MSBuildAllProjects>
@@ -9,9 +9,6 @@
     <ProjectCapability Include="SourceItemsFromImports" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="$(MSBuildThisFileDirectory)il_rewriter.cpp" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)il_rewriter_wrapper.cpp" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)loader.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)miniutf.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)string.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)util.cpp" />
@@ -19,11 +16,8 @@
   <ItemGroup>
     <ClInclude Include="$(MSBuildThisFileDirectory)com_ptr.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)environment_variables.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)il_rewriter.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)il_rewriter_wrapper.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)lazy_rotating_file_sink.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)lazy_rotating_file_sink-inl.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)loader.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)logger.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)logmanager.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)miniutf.hpp" />

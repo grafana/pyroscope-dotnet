@@ -9,8 +9,6 @@
 #include "ProfilerEngineStatus.h"
 #include "ThreadsCpuManager.h"
 
-#include "shared/src/native-src/loader.h"
-
 extern "C" void __stdcall ThreadsCpuManager_Map(std::uint32_t threadId, const WCHAR* pName)
 {
     const auto profiler = CorProfilerCallback::GetInstance();

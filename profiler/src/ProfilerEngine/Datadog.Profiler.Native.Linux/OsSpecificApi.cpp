@@ -34,7 +34,6 @@
 #include "OpSysTools.h"
 #include "ProfilerSignalManager.h"
 #include "StackFramesCollectorBase.h"
-#include "shared/src/native-src/loader.h"
 
 class CallstackProvider;
 
