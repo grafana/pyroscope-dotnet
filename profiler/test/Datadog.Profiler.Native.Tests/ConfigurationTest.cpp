@@ -183,7 +183,7 @@ TEST_F(ConfigurationTest, CheckDefaultUploadIntervalInDevMode)
     unsetenv(EnvironmentVariables::UploadInterval);
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::DevelopmentConfiguration, WStr("1"));
     auto configuration = Configuration{};
-    ASSERT_EQ(15s, configuration.GetUploadInterval()); // pyroscope: fixed 15s default
+    ASSERT_EQ(15s, configuration.GetUploadInterval());
 }
 
 TEST_F(ConfigurationTest, CheckDefaultUploadIntervalInNonDevMode)
@@ -191,7 +191,7 @@ TEST_F(ConfigurationTest, CheckDefaultUploadIntervalInNonDevMode)
     unsetenv(EnvironmentVariables::UploadInterval);
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::DevelopmentConfiguration, WStr("0"));
     auto configuration = Configuration{};
-    ASSERT_EQ(15s, configuration.GetUploadInterval()); // pyroscope: fixed 15s default
+    ASSERT_EQ(15s, configuration.GetUploadInterval());
 }
 
 TEST_F(ConfigurationTest, CheckUploadIntervalWhenVariableIsSet)
@@ -389,7 +389,7 @@ TEST_F(ConfigurationTest, CheckMinimumCoresThresholdWhenVariableIsSet)
 TEST_F(ConfigurationTest, CheckExceptionProfilingIsEnabledByDefault)
 {
     auto configuration = Configuration{};
-    ASSERT_THAT(configuration.IsExceptionProfilingEnabled(), false); // pyroscope: disabled by default
+    ASSERT_THAT(configuration.IsExceptionProfilingEnabled(), false);
 }
 
 TEST_F(ConfigurationTest, CheckExceptionProfilingIsEnabledIfEnvVarSetToTrue)
@@ -409,7 +409,7 @@ TEST_F(ConfigurationTest, CheckExceptionProfilingIsDisabledIfEnvVarSetToFalse)
 TEST_F(ConfigurationTest, CheckContentionProfilingIsEnabledByDefault)
 {
     auto configuration = Configuration{};
-    ASSERT_THAT(configuration.IsContentionProfilingEnabled(), false); // pyroscope: disabled by default
+    ASSERT_THAT(configuration.IsContentionProfilingEnabled(), false);
 }
 
 TEST_F(ConfigurationTest, CheckContentionProfilingIsEnabledIfEnvVarSetToTrue)
@@ -559,7 +559,7 @@ TEST_F(ConfigurationTest, CheckNamedPipePathWhenProvided)
 TEST_F(ConfigurationTest, CheckTimestampAsLabelIsEnabledByDefault)
 {
     auto configuration = Configuration{};
-    ASSERT_THAT(configuration.IsTimestampsAsLabelEnabled(), false); // pyroscope: disabled by default
+    ASSERT_THAT(configuration.IsTimestampsAsLabelEnabled(), false);
 }
 
 TEST_F(ConfigurationTest, CheckTimestampAsLabelIsEnabledIfEnvVarSetToTrue)
@@ -641,7 +641,7 @@ TEST_F(ConfigurationTest, CheckCpuThreadsThresholdIfCorrectValue)
 TEST_F(ConfigurationTest, CheckGarbageCollectionProfilingIsEnabledByDefault)
 {
     auto configuration = Configuration{};
-    ASSERT_THAT(configuration.IsGarbageCollectionProfilingEnabled(), false); // pyroscope: disabled by default
+    ASSERT_THAT(configuration.IsGarbageCollectionProfilingEnabled(), false);
 }
 
 TEST_F(ConfigurationTest, CheckGarbageCollectionProfilingIsEnabledIfEnvVarSetToTrue)
@@ -678,9 +678,6 @@ TEST_F(ConfigurationTest, CheckHeapProfilingIsDisabledIfEnvVarSetToFalse)
     ASSERT_THAT(configuration.IsHeapProfilingEnabled(), false);
 }
 
-
-
-
 TEST_F(ConfigurationTest, CheckDebugInfoIsDisabledByDefault)
 {
     auto configuration = Configuration{};
@@ -701,10 +698,36 @@ TEST_F(ConfigurationTest, CheckDebugInfoIsDisabledIfEnvVarSetToFalse)
     ASSERT_THAT(configuration.IsDebugInfoEnabled(), false);
 }
 
-TEST_F(ConfigurationTest, CheckGcThreadsCpuTimeIsDisabledByDefault)
+TEST_F(ConfigurationTest, CheckGcThreadsCpuTimeEnabledTakesOverInternal)
+{
+    EnvironmentHelper::EnvironmentVariable ev1(EnvironmentVariables::GcThreadsCpuTimeEnabled, WStr("1"));
+    EnvironmentHelper::EnvironmentVariable ev2(EnvironmentVariables::GcThreadsCpuTimeInternalEnabled, WStr("0"));
+    auto configuration = Configuration{};
+    auto expectedValue = true;
+    ASSERT_THAT(configuration.IsGcThreadsCpuTimeEnabled(), expectedValue);
+}
+
+TEST_F(ConfigurationTest, CheckGcThreadsCpuTimeDisabledTakesOverInternal)
+{
+    EnvironmentHelper::EnvironmentVariable ev1(EnvironmentVariables::GcThreadsCpuTimeEnabled, WStr("0"));
+    EnvironmentHelper::EnvironmentVariable ev2(EnvironmentVariables::GcThreadsCpuTimeInternalEnabled, WStr("1"));
+    auto configuration = Configuration{};
+    auto expectedValue = false;
+    ASSERT_THAT(configuration.IsGcThreadsCpuTimeEnabled(), expectedValue);
+}
+
+TEST_F(ConfigurationTest, CheckInternalGcThreadsCpuTimeProfilingIsTakenIntoAccount)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::GcThreadsCpuTimeInternalEnabled, WStr("1"));
+    auto configuration = Configuration{};
+    auto expectedValue = true;
+    ASSERT_THAT(configuration.IsGcThreadsCpuTimeEnabled(), expectedValue);
+}
+
+TEST_F(ConfigurationTest, CheckGcThreadsCpuTimeIsEnabledByDefault)
 {
     auto configuration = Configuration{};
-    ASSERT_THAT(configuration.IsGcThreadsCpuTimeEnabled(), true); // pyroscope: enabled by default via internal env var
+    ASSERT_THAT(configuration.IsGcThreadsCpuTimeEnabled(), true);
 }
 
 TEST_F(ConfigurationTest, CheckGcThreadsCpuTimeIfEnvVarSetToTrue)
@@ -721,10 +744,36 @@ TEST_F(ConfigurationTest, CheckGcThreadsCpuTimeIsDisabledIfEnvVarSetToFalse)
     ASSERT_THAT(configuration.IsGcThreadsCpuTimeEnabled(), false);
 }
 
-TEST_F(ConfigurationTest, CheckThreadLifetimeIsDisabledByDefault)
+TEST_F(ConfigurationTest, CheckThreadLifetimeEnabledTakesOverInternal)
+{
+    EnvironmentHelper::EnvironmentVariable ev1(EnvironmentVariables::ThreadLifetimeEnabled, WStr("1"));
+    EnvironmentHelper::EnvironmentVariable ev2(EnvironmentVariables::ThreadLifetimeInternalEnabled, WStr("0"));
+    auto configuration = Configuration{};
+    auto expectedValue = true;
+    ASSERT_THAT(configuration.IsThreadLifetimeEnabled(), expectedValue);
+}
+
+TEST_F(ConfigurationTest, CheckThreadLifetimeDisabledTakesOverInternal)
+{
+    EnvironmentHelper::EnvironmentVariable ev1(EnvironmentVariables::ThreadLifetimeEnabled, WStr("0"));
+    EnvironmentHelper::EnvironmentVariable ev2(EnvironmentVariables::ThreadLifetimeInternalEnabled, WStr("1"));
+    auto configuration = Configuration{};
+    auto expectedValue = false;
+    ASSERT_THAT(configuration.IsThreadLifetimeEnabled(), expectedValue);
+}
+
+TEST_F(ConfigurationTest, CheckInternalThreadLifetimeProfilingIsTakenIntoAccount)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ThreadLifetimeInternalEnabled, WStr("1"));
+    auto configuration = Configuration{};
+    auto expectedValue = true;
+    ASSERT_THAT(configuration.IsThreadLifetimeEnabled(), expectedValue);
+}
+
+TEST_F(ConfigurationTest, CheckThreadLifetimeIsEnabledByDefault)
 {
     auto configuration = Configuration{};
-    ASSERT_THAT(configuration.IsThreadLifetimeEnabled(), true); // pyroscope: enabled by default via internal env var
+    ASSERT_THAT(configuration.IsThreadLifetimeEnabled(), true);
 }
 
 TEST_F(ConfigurationTest, CheckThreadLifetimeIfEnvVarSetToTrue)
@@ -835,10 +884,16 @@ TEST_F(ConfigurationTest, CheckCIVisibilitySpanIdValueIfSetTo0)
     ASSERT_THAT(configuration.GetCIVisibilitySpanId(), 0ull);
 }
 
-TEST_F(ConfigurationTest, CheckEtwIsDisabledByDefault)
+TEST_F(ConfigurationTest, CheckEtwIsEnabledByDefault)
 {
     auto configuration = Configuration{};
-    ASSERT_THAT(configuration.IsEtwEnabled(), false);
+    auto expectedValue =
+#ifdef LINUX
+        false;
+#else
+        true;
+#endif
+    ASSERT_THAT(configuration.IsEtwEnabled(), expectedValue);
 }
 
 TEST_F(ConfigurationTest, CheckEtwIsEnabledIfEnvVarSetToTrue)
@@ -937,17 +992,94 @@ TEST_F(ConfigurationTest, CheckSsiIsDeployedIfProfilerEnabledVarIsSetToFalse)
     ASSERT_THAT(configuration.GetDeploymentMode(), expectedValue);
 }
 
-TEST_F(ConfigurationTest, CheckSsiIsActivatedIfEnvVarConstainsProfiler)
+
+// In Pyroscope, ManagedActivationEnabled defaults to false, so enablement is resolved
+// from environment variables immediately (not deferred to the managed layer).
+// Use the DD_PROFILING_MANAGED_ACTIVATION_ENABLED kill switch to test per env vars configuration
+TEST_F(ConfigurationTest, CheckStandbyIfSsiEnabledAndStableConfigurationByDefault)
 {
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::SsiDeployed, WStr("tracer,profiler"));
     auto configuration = Configuration{};
-    auto expectedValue = EnablementStatus::NotSet; // pyroscope: "profiler" in SsiDeployed not implemented
+    ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::NotSet);
+}
+
+TEST_F(ConfigurationTest, CheckStandbyIfSsiEnabledAndStableConfigurationEnabled)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ManagedActivationEnabled, WStr("1"));
+    EnvironmentHelper::EnvironmentVariable ar2(EnvironmentVariables::SsiDeployed, WStr("tracer,profiler"));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::Standby);
+}
+
+TEST_F(ConfigurationTest, CheckStandbyIfSsiEnvVarDoesNotContainProfilerAndStableConfigurationByDefault)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::SsiDeployed, WStr("tracer"));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::NotSet);
+}
+
+TEST_F(ConfigurationTest, CheckStandbyIfSsiEnvVarEmptyAndStableConfigurationByDefault)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::SsiDeployed, WStr(""));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::NotSet);
+}
+
+TEST_F(ConfigurationTest, CheckSsiIsActivatedIfProfilerEnvVarConstainsAutoAndStableConfigurationByDefault)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ProfilerEnabled, WStr("auto"));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::Auto);
+}
+
+TEST_F(ConfigurationTest, CheckProfilerEnablementIfEnvVarIsNotSetAndStableConfigurationByDefault)
+{
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::NotSet);
+}
+
+TEST_F(ConfigurationTest, CheckProfilerIsDisabledIfEnvVarIsEmptyAndStableConfigurationByDefault)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ProfilerEnabled, WStr("  "));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::ManuallyDisabled);
+}
+
+TEST_F(ConfigurationTest, CheckProfilerEnablementIfEnvVarIsToTrueAndStableConfigurationByDefault)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ProfilerEnabled, WStr("1 ")); // add a space on purpose to ensure that it's correctly parsed
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::ManuallyEnabled);
+}
+
+TEST_F(ConfigurationTest, CheckProfilerEnablementIfEnvVarIsNotParsableAndStableConfigurationByDefault)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ProfilerEnabled, WStr("not_parsable_ "));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::ManuallyDisabled);
+}
+
+TEST_F(ConfigurationTest, CheckProfilerEnablementIfEnvVarIsToFalseAndStableConfigurationByDefault)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ProfilerEnabled, WStr("  0 ")); // add a space on purpose to ensure that it's correctly parsed
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::ManuallyDisabled);
+}
+
+// use the Stable Configuration kill switch to validate per env vars enablement configuration
+TEST_F(ConfigurationTest, CheckNoMoreSupportedSsiActivationModeIfEnvVarConstainsProfiler)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ManagedActivationEnabled, WStr("0"));
+    EnvironmentHelper::EnvironmentVariable ar2(EnvironmentVariables::SsiDeployed, WStr("profiler"));
+    auto configuration = Configuration{};
+    auto expectedValue = EnablementStatus::NotSet;
     ASSERT_THAT(configuration.GetEnablementStatus(), expectedValue);
 }
 
 TEST_F(ConfigurationTest, CheckSsiIsDisableddIfEnvVarDoesNotContainProfiler)
 {
-    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::SsiDeployed, WStr("tracer"));
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ManagedActivationEnabled, WStr("0"));
+    EnvironmentHelper::EnvironmentVariable ar2(EnvironmentVariables::SsiDeployed, WStr("tracer"));
     auto configuration = Configuration{};
     auto expectedValue = EnablementStatus::NotSet;
     ASSERT_THAT(configuration.GetEnablementStatus(), expectedValue);
@@ -955,7 +1087,8 @@ TEST_F(ConfigurationTest, CheckSsiIsDisableddIfEnvVarDoesNotContainProfiler)
 
 TEST_F(ConfigurationTest, CheckSsiIsDisabledIfEnvVarIsEmpty)
 {
-    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::SsiDeployed, WStr(""));
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ManagedActivationEnabled, WStr("0"));
+    EnvironmentHelper::EnvironmentVariable ar2(EnvironmentVariables::SsiDeployed, WStr(""));
     auto configuration = Configuration{};
     auto expectedValue = EnablementStatus::NotSet;
     ASSERT_THAT(configuration.GetEnablementStatus(), expectedValue);
@@ -963,7 +1096,8 @@ TEST_F(ConfigurationTest, CheckSsiIsDisabledIfEnvVarIsEmpty)
 
 TEST_F(ConfigurationTest, CheckSsiIsActivatedIfProfilerEnvVarConstainsAuto)
 {
-    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ProfilerEnabled, WStr("auto"));
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ManagedActivationEnabled, WStr("0"));
+    EnvironmentHelper::EnvironmentVariable ar2(EnvironmentVariables::ProfilerEnabled, WStr("auto"));
     auto configuration = Configuration{};
     auto expectedValue = EnablementStatus::Auto;
     ASSERT_THAT(configuration.GetEnablementStatus(), expectedValue);
@@ -971,19 +1105,22 @@ TEST_F(ConfigurationTest, CheckSsiIsActivatedIfProfilerEnvVarConstainsAuto)
 
 TEST_F(ConfigurationTest, CheckProfilerEnablementIfEnvVarIsNotSet)
 {
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ManagedActivationEnabled, WStr("0"));
     auto configuration = Configuration{};
     ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::NotSet) << "Env var is not set. Profiler enablement should be the default one.";
 }
 
 TEST_F(ConfigurationTest, CheckProfilerIsDisabledIfEnvVarIsEmpty)
 {
-    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ProfilerEnabled, WStr("  "));
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ManagedActivationEnabled, WStr("0"));
+    EnvironmentHelper::EnvironmentVariable ar2(EnvironmentVariables::ProfilerEnabled, WStr("  "));
     auto configuration = Configuration{};
     ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::ManuallyDisabled);
 }
 
 TEST_F(ConfigurationTest, CheckProfilerEnablementIfEnvVarIsToTrue)
 {
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ManagedActivationEnabled, WStr("0"));
     EnvironmentHelper::EnvironmentVariable ar2(EnvironmentVariables::ProfilerEnabled, WStr("1 ")); // add a space on purpose to ensure that it's correctly parsed
     auto configuration = Configuration{};
     ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::ManuallyEnabled) << "Env var is to 1. Profiler must be enabled.";
@@ -991,6 +1128,7 @@ TEST_F(ConfigurationTest, CheckProfilerEnablementIfEnvVarIsToTrue)
 
 TEST_F(ConfigurationTest, CheckProfilerEnablementIfEnvVarIsNotParsable)
 {
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ManagedActivationEnabled, WStr("0"));
     EnvironmentHelper::EnvironmentVariable ar2(EnvironmentVariables::ProfilerEnabled, WStr("not_parsable_ "));
     auto configuration = Configuration{};
     ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::ManuallyDisabled) << "Profiler must disabled is value for DD_PROLIFER_ENABLED cannot be converted to bool.";
@@ -998,6 +1136,7 @@ TEST_F(ConfigurationTest, CheckProfilerEnablementIfEnvVarIsNotParsable)
 
 TEST_F(ConfigurationTest, CheckProfilerEnablementIfEnvVarIsToFalse)
 {
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ManagedActivationEnabled, WStr("0"));
     EnvironmentHelper::EnvironmentVariable ar2(EnvironmentVariables::ProfilerEnabled, WStr("  0 ")); // add a space on purpose to ensure that it's correctly parsed
     auto configuration = Configuration{};
     ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::ManuallyDisabled) << "Env var is to 0. Profiler must be disabled.";
@@ -1026,43 +1165,53 @@ TEST_F(ConfigurationTest, CheckDefaultCpuProfilerType)
 {
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::CpuProfilerType, WStr(""));
     auto configuration = Configuration{};
+    auto expected =
 #ifdef _WINDOWS
-    ASSERT_THAT(configuration.GetCpuProfilerType(), CpuProfilerType::ManualCpuTime);
+        CpuProfilerType::ManualCpuTime;
 #else
-    ASSERT_THAT(configuration.GetCpuProfilerType(), CpuProfilerType::TimerCreate); // pyroscope: TimerCreate on Linux
+        CpuProfilerType::TimerCreate;
 #endif
+    ASSERT_THAT(configuration.GetCpuProfilerType(), expected);
 }
 
 TEST_F(ConfigurationTest, CheckDefaultCpuProfilerTypeWhenEnvVarNotSet)
 {
     auto configuration = Configuration{};
+    auto expected =
 #ifdef _WINDOWS
-    ASSERT_THAT(configuration.GetCpuProfilerType(), CpuProfilerType::ManualCpuTime);
+        CpuProfilerType::ManualCpuTime;
 #else
-    ASSERT_THAT(configuration.GetCpuProfilerType(), CpuProfilerType::TimerCreate); // pyroscope: TimerCreate on Linux
+        CpuProfilerType::TimerCreate;
 #endif
+    ASSERT_THAT(configuration.GetCpuProfilerType(), expected);
 }
 
 TEST_F(ConfigurationTest, CheckUnknownCpuProfilerType)
 {
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::CpuProfilerType, WStr("UnknownCpuProfilerType"));
     auto configuration = Configuration{};
+    auto expected =
 #ifdef _WINDOWS
-    ASSERT_THAT(configuration.GetCpuProfilerType(), CpuProfilerType::ManualCpuTime);
+        CpuProfilerType::ManualCpuTime;
 #else
-    ASSERT_THAT(configuration.GetCpuProfilerType(), CpuProfilerType::TimerCreate); // pyroscope: env var not read, uses platform default
+        CpuProfilerType::TimerCreate;
 #endif
+    ASSERT_THAT(configuration.GetCpuProfilerType(), expected);
 }
 
 TEST_F(ConfigurationTest, CheckManualCpuProfilerType)
 {
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::CpuProfilerType, WStr("ManualCpuTime"));
     auto configuration = Configuration{};
+    // Pyroscope always uses the default CpuProfilerType (TimerCreate on Linux)
+    // and does not read the CpuProfilerType environment variable
+    auto expected =
 #ifdef _WINDOWS
-    ASSERT_THAT(configuration.GetCpuProfilerType(), CpuProfilerType::ManualCpuTime);
+        CpuProfilerType::ManualCpuTime;
 #else
-    ASSERT_THAT(configuration.GetCpuProfilerType(), CpuProfilerType::TimerCreate); // pyroscope: env var not read, uses platform default
+        CpuProfilerType::TimerCreate;
 #endif
+    ASSERT_THAT(configuration.GetCpuProfilerType(), expected);
 }
 
 TEST_F(ConfigurationTest, CheckTimerCreateCpuProfilerType)
@@ -1133,6 +1282,216 @@ TEST_F(ConfigurationTest, CheckLongLivedThresholdIsDefaultIfSetToNegativeValue)
     ASSERT_THAT(configuration.GetSsiLongLivedThreshold(), 30'000ms);
 }
 
+TEST_F(ConfigurationTest, CheckHttpRequestThresholdWhenEnvVarNotSet)
+{
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.GetHttpRequestDurationThreshold(), 50ms);
+}
+
+TEST_F(ConfigurationTest, CheckHttpRequestThresholdWhenEnvVarNotParsable)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::HttpRequestDurationThreshold, WStr("not_an_int"));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.GetHttpRequestDurationThreshold(), 50ms);
+}
+
+TEST_F(ConfigurationTest, CheckHttpRequestThresholdWhenEnvVarIsCorrectlySet)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::HttpRequestDurationThreshold, WStr("456"));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.GetHttpRequestDurationThreshold(), 456ms);
+}
+
+TEST_F(ConfigurationTest, CheckHttpRequestThresholdIsSetToZero)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::HttpRequestDurationThreshold, WStr("0"));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.GetHttpRequestDurationThreshold(), 0ms);
+}
+
+TEST_F(ConfigurationTest, CheckHttpRequestThresholdIsDefaultIfSetToNegativeValue)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::HttpRequestDurationThreshold, WStr("-1"));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.GetHttpRequestDurationThreshold(), 50ms);
+}
+
+TEST_F(ConfigurationTest, CheckHttpProfilingIsDisabledByDefault)
+{
+    auto configuration = Configuration{};
+    auto expectedValue = false;
+    ASSERT_THAT(configuration.IsHttpProfilingEnabled(), expectedValue);
+}
+
+TEST_F(ConfigurationTest, CheckHttpProfilingIsDisabledIfEnvVarIsDisabled)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::HttpProfilingEnabled, WStr("0"));
+    auto configuration = Configuration{};
+    auto expectedValue = false;
+    ASSERT_THAT(configuration.IsHttpProfilingEnabled(), expectedValue);
+}
+
+TEST_F(ConfigurationTest, CheckHttpProfilingIsEnabledIfEnvVarIsEnabled)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::HttpProfilingEnabled, WStr("1"));
+    auto configuration = Configuration{};
+    auto expectedValue = true;
+    ASSERT_THAT(configuration.IsHttpProfilingEnabled(), expectedValue);
+}
+
+TEST_F(ConfigurationTest, CheckHttpProfilingEnabledTakesOverInternal)
+{
+    EnvironmentHelper::EnvironmentVariable ev1(EnvironmentVariables::HttpProfilingEnabled, WStr("1"));
+    EnvironmentHelper::EnvironmentVariable ev2(EnvironmentVariables::HttpProfilingInternalEnabled, WStr("0"));
+    auto configuration = Configuration{};
+    auto expectedValue = true;
+    ASSERT_THAT(configuration.IsHttpProfilingEnabled(), expectedValue);
+}
+
+TEST_F(ConfigurationTest, CheckHttpProfilingdisabledTakesOverInternal)
+{
+    EnvironmentHelper::EnvironmentVariable ev1(EnvironmentVariables::HttpProfilingEnabled, WStr("0"));
+    EnvironmentHelper::EnvironmentVariable ev2(EnvironmentVariables::HttpProfilingInternalEnabled, WStr("1"));
+    auto configuration = Configuration{};
+    auto expectedValue = false;
+    ASSERT_THAT(configuration.IsHttpProfilingEnabled(), expectedValue);
+}
+
+TEST_F(ConfigurationTest, CheckInternalHttpProfilingIsTakenIntoAccount)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::HttpProfilingInternalEnabled, WStr("1"));
+    auto configuration = Configuration{};
+    auto expectedValue = true;
+    ASSERT_THAT(configuration.IsHttpProfilingEnabled(), expectedValue);
+}
+
+TEST_F(ConfigurationTest, CheckForceHttpSamplingIsDisabledByDefault)
+{
+    auto configuration = Configuration{};
+    auto expectedValue = false;
+    ASSERT_THAT(configuration.ForceHttpSampling(), expectedValue);
+}
+
+TEST_F(ConfigurationTest, CheckForceHttpSamplingIsDisabledIfEnvVarIsDisabled)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ForceHttpSampling, WStr("0"));
+    auto configuration = Configuration{};
+    auto expectedValue = false;
+    ASSERT_THAT(configuration.ForceHttpSampling(), expectedValue);
+}
+
+TEST_F(ConfigurationTest, CheckForceHttpSamplingIsEnabledIfEnvVarIsEnabled)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ForceHttpSampling, WStr("1"));
+    auto configuration = Configuration{};
+    auto expectedValue = true;
+    ASSERT_THAT(configuration.ForceHttpSampling(), expectedValue);
+}
+
+TEST_F(ConfigurationTest, CheckWaitHandleProfilingIsDisabledByDefault)
+{
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.IsWaitHandleProfilingEnabled(), false);
+}
+
+TEST_F(ConfigurationTest, CheckWaitHandleProfilingIsEnabledIfEnvVarSetToTrue)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::WaitHandleProfilingEnabled, WStr("1"));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.IsWaitHandleProfilingEnabled(), true);
+}
+
+TEST_F(ConfigurationTest, CheckWaitHandleProfilingIsDisabledIfEnvVarSetToFalse)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::WaitHandleProfilingEnabled, WStr("0"));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.IsWaitHandleProfilingEnabled(), false);
+}
+
+TEST_F(ConfigurationTest, CheckHeapSnapshotIsDisabledByDefault)
+{
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.IsHeapSnapshotEnabled(), false);
+}
+
+TEST_F(ConfigurationTest, CheckHeapSnapshotIsEnabledIfEnvVarSetToTrue)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::HeapSnapshotEnabled, WStr("1"));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.IsHeapSnapshotEnabled(), true);
+}
+
+TEST_F(ConfigurationTest, CheckHeapSnapshotIsDisabledIfEnvVarSetToFalse)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::HeapSnapshotEnabled, WStr("0"));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.IsHeapSnapshotEnabled(), false);
+}
+
+TEST_F(ConfigurationTest, CheckHeapHandleLimitIfNoValue)
+{
+    auto configuration = Configuration{};
+    auto threshold = configuration.GetHeapHandleLimit();
+    ASSERT_THAT(threshold, 4096);
+}
+
+TEST_F(ConfigurationTest, CheckHeapHandleLimitIfTooSmallValue)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::HeapHandleLimit, WStr("1"));
+    auto configuration = Configuration{};
+    auto threshold = configuration.GetHeapHandleLimit();
+    ASSERT_THAT(threshold, 1024);
+}
+
+TEST_F(ConfigurationTest, CheckHeapHandleLimitIfTooLargeValue)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::HeapHandleLimit, WStr("100000"));
+    auto configuration = Configuration{};
+    auto threshold = configuration.GetHeapHandleLimit();
+    ASSERT_THAT(threshold, 16000);
+}
+
+TEST_F(ConfigurationTest, CheckHeapHandleLimitIfCorrectValue)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::HeapHandleLimit, WStr("8000"));
+    auto configuration = Configuration{};
+    auto threshold = configuration.GetHeapHandleLimit();
+    ASSERT_THAT(threshold, 8000);
+}
 
 
+TEST_F(ConfigurationTest, CheckIfUseManagedCodeCacheIsEnabledWhenEnvVariableIsSetToTrue)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::UseManagedCodeCache, WStr("1"));
+    auto configuration = Configuration{};
+    ASSERT_TRUE(configuration.UseManagedCodeCache());
+}
 
+TEST_F(ConfigurationTest, CheckIfUseManagedCodeCacheIsDisabledWhenEnvVariableIsSetToFalse)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::UseManagedCodeCache, WStr("0"));
+    auto configuration = Configuration{};
+    ASSERT_FALSE(configuration.UseManagedCodeCache());
+}
+
+TEST_F(ConfigurationTest, CheckIfUseManagedCodeCacheIsDisabledWhenEnvVariableIsSetEmptyString)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::UseManagedCodeCache, WStr(""));
+    auto configuration = Configuration{};
+    #ifdef ARM64
+        ASSERT_TRUE(configuration.UseManagedCodeCache());
+    #else
+        ASSERT_FALSE(configuration.UseManagedCodeCache());
+    #endif
+}
+
+TEST_F(ConfigurationTest, CheckIfUseManagedCodeCacheUsesDefaultWhenVariableIsNotSet)
+{
+    unsetenv(EnvironmentVariables::UseManagedCodeCache);
+    auto configuration = Configuration{};
+#ifdef ARM64
+    ASSERT_TRUE(configuration.UseManagedCodeCache());
+#else
+    ASSERT_FALSE(configuration.UseManagedCodeCache());
+#endif
+}

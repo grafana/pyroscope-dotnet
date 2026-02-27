@@ -59,7 +59,7 @@ RUN cd build-${CMAKE_BUILD_TYPE} && make -j$(nproc) profiler-native-tests wrappe
 # Run profiler unit tests
 RUN cd build-${CMAKE_BUILD_TYPE}/profiler && ctest --output-on-failure -E "WrappedFunctionsTest"
 # Run wrapper tests with LD_PRELOAD so wrapped functions resolve to the wrapper library
-RUN WRAPPER_SO=$(find /profiler/profiler/_build -name "Datadog.Linux.ApiWrapper.x64.so" | head -1) && \
+RUN WRAPPER_SO=$(find /profiler/profiler/_build/DDProf-Deploy/linux-musl -name "Datadog.Linux.ApiWrapper.x64.so" | head -1) && \
     cd build-${CMAKE_BUILD_TYPE}/profiler && \
     LD_PRELOAD="${WRAPPER_SO}" ctest --output-on-failure -R "WrappedFunctionsTest"
 
