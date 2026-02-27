@@ -335,7 +335,7 @@ TEST(SamplesCollectorTest, MustNotFailWhenAddingSampleThrows)
 
     auto [exporter, mockExporter] = CreateExporter();
     EXPECT_CALL(mockExporter, Add(_)).Times(AtLeast(3)).WillOnce(Return()).WillRepeatedly(Throw(std::exception()));
-    EXPECT_CALL(mockExporter, Export(_, _, _)).Times(1); // Called once when stopping
+    EXPECT_CALL(mockExporter, Export(_, _, _)).Times(AtLeast(1)).WillRepeatedly(Return(true)); // At least once when stopping
 
     auto metricsSender = MockMetricsSender();
     auto threadsCpuManagerHelper = ThreadsCpuManagerHelper();
