@@ -12,9 +12,6 @@
 #include <tuple>
 
 // forward declarations
-namespace shared {
-struct LoaderResourceMonikerIDs;
-}
 class IConfiguration;
 class IThreadInfo;
 class IEtwEventsManager;

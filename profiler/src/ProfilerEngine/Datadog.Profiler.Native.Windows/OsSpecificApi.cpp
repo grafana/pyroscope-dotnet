@@ -20,8 +20,6 @@
 #include "WindowsThreadInfo.h"
 #include "EtwEventsManager.h"
 
-#include "shared/src/native-src/loader.h"
-
 #include <memory>
 #include <sstream>
 
