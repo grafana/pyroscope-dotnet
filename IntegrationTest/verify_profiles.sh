@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+FLAVOUR=$1
+DOTNET_VERSION=$2
+
 profilecli_download_url="https://github.com/grafana/pyroscope/releases/download/v1.13.4/profilecli_1.13.4_linux_amd64.tar.gz"
 sleep_time=30
 
@@ -14,7 +17,7 @@ echo "Waiting $sleep_time seconds for profile collection..."
 sleep $sleep_time
 
 echo "Running profilecli command..."
-eval "./profilecli query series --label-names vehicle --query '{service_name=\"rideshare.dotnet.'$1'.'$2'.app\"}'" 2>&1 | grep -v "^level=" | jq -r '.[]' > profilecli_output.json
+eval "./profilecli query series --label-names vehicle --query '{service_name=\"rideshare.dotnet.'$FLAVOUR'.'$DOTNET_VERSION'.app\"}'" 2>&1 | grep -v "^level=" | jq -r '.[]' > profilecli_output.json
 echo "Labels in profilecli output:"
 cat profilecli_output.json
 labels=$(cat profilecli_output.json)
@@ -42,3 +45,18 @@ for i in "${!expected_labels[@]}"; do
 done
 
 echo "Successfully verified all expected labels (bike, car, scooter) are present"
+
+# Download pprof for each vehicle type
+PPROF_DIR="pprofs-${FLAVOUR}-net${DOTNET_VERSION}"
+mkdir -p "$PPROF_DIR"
+
+for vehicle in "${expected_labels[@]}"; do
+  echo "Downloading pprof for vehicle=$vehicle..."
+  ./profilecli query merge \
+    --query "{service_name=\"rideshare.dotnet.${FLAVOUR}.${DOTNET_VERSION}.app\",vehicle=\"${vehicle}\"}" \
+    --output "pprof=$PPROF_DIR/${vehicle}.pprof" \
+    2>&1 | grep -v "^level=" || true
+  echo "Saved pprof to $PPROF_DIR/${vehicle}.pprof"
+done
+
+echo "All pprofs downloaded to $PPROF_DIR/"
