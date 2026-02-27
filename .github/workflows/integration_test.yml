@@ -61,9 +61,16 @@ jobs:
           # Start the services
           docker compose -f docker-compose-itest.yml up --build --force-recreate -d pyroscope load-generator $SERVICE_NAME
 
-          # Run the verification script
+          # Run the verification script (also downloads pprofs per vehicle type)
           ./IntegrationTest/verify_profiles.sh ${{ matrix.flavour }} ${{ matrix.dotnet_version }}
 
           # Remove the trap since we're exiting normally
           trap - EXIT
           docker compose -f docker-compose-itest.yml down --remove-orphans --volumes
+      - name: Upload pprofs as artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pprofs-${{ matrix.flavour }}-net${{ matrix.dotnet_version }}
+          path: pprofs-${{ matrix.flavour }}-net${{ matrix.dotnet_version }}/
+          if-no-files-found: warn
