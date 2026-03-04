@@ -41,6 +41,17 @@ services:
     image: rideshare-app-glibc:net6.0 # built locally
     pull_policy: never
 
+  rideshare-glibc-otel-net-8-0:
+    platform: linux/amd64
+    ports:
+      - "5000"
+    environment:
+      REGION: us-east
+      PYROSCOPE_APPLICATION_NAME: rideshare.dotnet.glibc-otel.8.0.app
+      PYROSCOPE_SERVER_ADDRESS: http://pyroscope:4040
+    image: rideshare-app-glibc-otel:net8.0
+    pull_policy: never
+
   rideshare-musl-net-8-0:
     platform: linux/amd64
     ports:

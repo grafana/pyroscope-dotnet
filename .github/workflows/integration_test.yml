@@ -67,3 +67,34 @@ jobs:
           # Remove the trap since we're exiting normally
           trap - EXIT
           docker compose -f docker-compose-itest.yml down --remove-orphans --volumes
+
+  run-integration-test-with-otel:
+    name: Run Integration Test (8.0, glibc, with OTEL)
+    runs-on: ubuntu-x64-large
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          submodules: true
+      - name: Build glibc profiler image
+        run: |
+          docker build --platform linux/amd64 -t pyroscope-dotnet-glibc:test -f Pyroscope.Dockerfile --build-arg CMAKE_BUILD_TYPE=Debug .
+      - name: Build service image with OTEL
+        run: |
+          docker build --platform linux/amd64 \
+            --build-arg PYROSCOPE_SDK_IMAGE=pyroscope-dotnet-glibc:test \
+            --build-arg SDK_VERSION=8.0 \
+            --build-arg SDK_IMAGE_SUFFIX=-jammy \
+            -t rideshare-app-glibc-otel:net8.0 \
+            -f itest-with-otel.Dockerfile .
+      - name: Run integration test
+        run: |
+          export COMPOSE_PROJECT_NAME="pyroscope-dotnet-glibc-otel-net8-0"
+          export SERVICE_NAME="rideshare-glibc-otel-net-8-0"
+          trap 'docker compose -f docker-compose-itest.yml down --remove-orphans --volumes' EXIT
+
+          docker compose -f docker-compose-itest.yml up --build --force-recreate -d pyroscope load-generator $SERVICE_NAME
+
+          ./IntegrationTest/verify_profiles.sh glibc-otel 8.0
+
+          trap - EXIT
+          docker compose -f docker-compose-itest.yml down --remove-orphans --volumes
