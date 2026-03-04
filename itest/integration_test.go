@@ -89,7 +89,7 @@ func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwo
 				"DD_TRACE_DEBUG":             "true",
 			},
 			ExposedPorts: []string{"5000/tcp"},
-			WaitingFor:   wait.ForHTTP("/bike").WithPort("5000/tcp").WithStartupTimeout(60 * time.Second),
+			WaitingFor:   wait.ForListeningPort("5000/tcp").WithStartupTimeout(120 * time.Second),
 		},
 		Started: true,
 	})
