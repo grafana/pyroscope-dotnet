@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -36,7 +37,7 @@ func repoRoot() string {
 	return filepath.Dir(filepath.Dir(filename))
 }
 
-func flavour() string      { return envOrDefault("FLAVOUR", "glibc") }
+func flavour() string       { return envOrDefault("FLAVOUR", "glibc") }
 func dotnetVersion() string { return envOrDefault("DOTNET_VERSION", "8.0") }
 
 func rideshareImage() string {
@@ -71,7 +72,7 @@ func startPyroscope(ctx context.Context, t *testing.T, net *testcontainers.Docke
 	return fmt.Sprintf("http://%s:%s", host, port.Port())
 }
 
-func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork) {
+func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork) string {
 	t.Helper()
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
@@ -94,25 +95,42 @@ func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwo
 	})
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = c.Terminate(ctx) })
+
+	host, err := c.Host(ctx)
+	require.NoError(t, err)
+	port, err := c.MappedPort(ctx, "5000/tcp")
+	require.NoError(t, err)
+	return fmt.Sprintf("http://%s:%s", host, port.Port())
 }
 
-func startLoadGenerator(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork) {
+// runLoadGenerator cycles through /bike, /scooter, /car requests in a goroutine
+// until ctx is cancelled.
+func runLoadGenerator(ctx context.Context, t *testing.T, appBaseURL string) {
 	t.Helper()
-	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			FromDockerfile: testcontainers.FromDockerfile{
-				Dockerfile: "Dockerfile.load-generator",
-				Context:    filepath.Join(repoRoot(), "IntegrationTest"),
-			},
-			Networks: []string{net.Name},
-			Env: map[string]string{
-				"SERVICE_NAME": "rideshare",
-			},
-		},
-		Started: true,
-	})
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = c.Terminate(ctx) })
+	vehicles := []string{"bike", "scooter", "car"}
+	go func() {
+		client := &http.Client{Timeout: 10 * time.Second}
+		i := 0
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+			vehicle := vehicles[i%len(vehicles)]
+			i++
+			url := appBaseURL + "/" + vehicle
+			resp, err := client.Get(url)
+			if err == nil {
+				_ = resp.Body.Close()
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(300 * time.Millisecond):
+			}
+		}
+	}()
 }
 
 func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string) (string, error) {
@@ -146,37 +164,23 @@ func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string) (stri
 	return buf.String(), nil
 }
 
-// frameContains checks that the collapsed stack output contains a frame with the
-// given class name and method name. The .NET profiler emits frames in the format:
+// frameContains checks that the collapsed stack output contains a frame where
+// the class name and method name both match. The .NET profiler emits frames in
+// the format:
 //
 //	|ct:ClassName |cg:... |fn:MethodName |fg:... |sg:...
 //
-// Frames are separated by semicolons.
+// Frames within a stack are separated by semicolons; stacks are separated by newlines.
 func frameContains(collapsed, className, methodName string) bool {
-	needle := "|ct:" + className + " "
-	idx := 0
-	for {
-		i := strings.Index(collapsed[idx:], needle)
-		if i < 0 {
-			return false
-		}
-		frameStart := idx + i
-		frameEnd := strings.Index(collapsed[frameStart:], ";")
-		var frame string
-		if frameEnd < 0 {
-			frame = collapsed[frameStart:]
-		} else {
-			frame = collapsed[frameStart : frameStart+frameEnd]
-		}
-		fnNeedle := "|fn:" + methodName + " "
-		if strings.Contains(frame, fnNeedle) || strings.Contains(frame, "|fn:"+methodName+"\n") {
+	re := regexp.MustCompile(
+		`\|ct:` + regexp.QuoteMeta(className) + ` .*\|fn:` + regexp.QuoteMeta(methodName) + `[ |]`,
+	)
+	for _, frame := range strings.Split(collapsed, ";") {
+		if re.MatchString(frame) {
 			return true
 		}
-		idx = frameStart + 1
-		if idx >= len(collapsed) {
-			return false
-		}
 	}
+	return false
 }
 
 type vehicleCheck struct {
@@ -185,15 +189,16 @@ type vehicleCheck struct {
 }
 
 func TestRideshareProfiles(t *testing.T) {
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 
 	net, err := network.New(ctx)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = net.Remove(ctx) })
 
 	pyroscopeURL := startPyroscope(ctx, t, net)
-	startApp(ctx, t, net)
-	startLoadGenerator(ctx, t, net)
+	appBaseURL := startApp(ctx, t, net)
+	runLoadGenerator(ctx, t, appBaseURL)
 
 	svcName := serviceName()
 
