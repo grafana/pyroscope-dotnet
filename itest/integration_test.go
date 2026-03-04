@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -20,6 +19,9 @@ import (
 	"github.com/grafana/pyroscope/api/gen/proto/go/querier/v1/querierv1connect"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/network"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 func envOrDefault(key, defaultValue string) string {
@@ -34,54 +36,83 @@ func repoRoot() string {
 	return filepath.Dir(filepath.Dir(filename))
 }
 
+func flavour() string      { return envOrDefault("FLAVOUR", "glibc") }
+func dotnetVersion() string { return envOrDefault("DOTNET_VERSION", "8.0") }
+
+func rideshareImage() string {
+	return fmt.Sprintf("rideshare-app-%s:net%s", flavour(), dotnetVersion())
+}
+
 func serviceName() string {
-	flavour := envOrDefault("FLAVOUR", "glibc")
-	dotnetVersion := envOrDefault("DOTNET_VERSION", "8.0")
-	return fmt.Sprintf("rideshare.dotnet.%s.%s.app", flavour, dotnetVersion)
+	return fmt.Sprintf("rideshare.dotnet.%s.%s.app", flavour(), dotnetVersion())
 }
 
-func composeServiceName() string {
-	flavour := envOrDefault("FLAVOUR", "glibc")
-	dotnetVersion := envOrDefault("DOTNET_VERSION", "8.0")
-	versionHyphen := strings.ReplaceAll(dotnetVersion, ".", "-")
-	return fmt.Sprintf("rideshare-%s-net-%s", flavour, versionHyphen)
-}
-
-func composeProjectName() string {
-	flavour := envOrDefault("FLAVOUR", "glibc")
-	dotnetVersion := envOrDefault("DOTNET_VERSION", "8.0")
-	versionHyphen := strings.ReplaceAll(dotnetVersion, ".", "-")
-	return fmt.Sprintf("pyroscope-dotnet-%s-net%s", flavour, versionHyphen)
-}
-
-func composeUp(t *testing.T) {
+func startPyroscope(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork) string {
 	t.Helper()
-	svcName := composeServiceName()
-	cmd := exec.Command("docker", "compose",
-		"-f", "docker-compose-itest.yml",
-		"-p", composeProjectName(),
-		"up", "--build", "--force-recreate", "-d",
-		"pyroscope", "load-generator", svcName,
-	)
-	cmd.Dir = repoRoot()
-	cmd.Env = append(os.Environ(), "SERVICE_NAME="+svcName)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	require.NoError(t, cmd.Run(), "docker compose up failed")
+	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:        "grafana/pyroscope@sha256:0ad897bb457228c7d1133ce7004f83052e635be9daf4a7cc90364317637e9754",
+			ExposedPorts: []string{"4040/tcp"},
+			Networks:     []string{net.Name},
+			NetworkAliases: map[string][]string{
+				net.Name: {"pyroscope"},
+			},
+			WaitingFor: wait.ForHTTP("/ready").WithPort("4040/tcp").WithStartupTimeout(60 * time.Second),
+		},
+		Started: true,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = c.Terminate(ctx) })
+
+	host, err := c.Host(ctx)
+	require.NoError(t, err)
+	port, err := c.MappedPort(ctx, "4040/tcp")
+	require.NoError(t, err)
+	return fmt.Sprintf("http://%s:%s", host, port.Port())
 }
 
-func composeDown(t *testing.T) {
+func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork) {
 	t.Helper()
-	cmd := exec.Command("docker", "compose",
-		"-f", "docker-compose-itest.yml",
-		"-p", composeProjectName(),
-		"down", "--remove-orphans", "--volumes",
-	)
-	cmd.Dir = repoRoot()
-	cmd.Env = os.Environ()
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	_ = cmd.Run() // best-effort cleanup
+	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:         rideshareImage(),
+			ImagePlatform: "linux/amd64",
+			Networks:      []string{net.Name},
+			NetworkAliases: map[string][]string{
+				net.Name: {"rideshare"},
+			},
+			Env: map[string]string{
+				"REGION":                     "us-east",
+				"PYROSCOPE_APPLICATION_NAME": serviceName(),
+				"PYROSCOPE_SERVER_ADDRESS":   "http://pyroscope:4040",
+				"DD_TRACE_DEBUG":             "true",
+			},
+			ExposedPorts: []string{"5000/tcp"},
+			WaitingFor:   wait.ForHTTP("/bike").WithPort("5000/tcp").WithStartupTimeout(60 * time.Second),
+		},
+		Started: true,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = c.Terminate(ctx) })
+}
+
+func startLoadGenerator(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork) {
+	t.Helper()
+	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			FromDockerfile: testcontainers.FromDockerfile{
+				Dockerfile: "Dockerfile.load-generator",
+				Context:    filepath.Join(repoRoot(), "IntegrationTest"),
+			},
+			Networks: []string{net.Name},
+			Env: map[string]string{
+				"SERVICE_NAME": "rideshare",
+			},
+		},
+		Started: true,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = c.Terminate(ctx) })
 }
 
 func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string) (string, error) {
@@ -103,7 +134,7 @@ func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string) (stri
 	if err != nil {
 		return "", err
 	}
-	if resp.Msg.Tree == nil || len(resp.Msg.Tree) == 0 {
+	if len(resp.Msg.Tree) == 0 {
 		return "", nil
 	}
 	tt, err := model.UnmarshalTree(resp.Msg.Tree)
@@ -115,36 +146,75 @@ func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string) (stri
 	return buf.String(), nil
 }
 
+// frameContains checks that the collapsed stack output contains a frame with the
+// given class name and method name. The .NET profiler emits frames in the format:
+//
+//	|ct:ClassName |cg:... |fn:MethodName |fg:... |sg:...
+//
+// Frames are separated by semicolons.
+func frameContains(collapsed, className, methodName string) bool {
+	needle := "|ct:" + className + " "
+	idx := 0
+	for {
+		i := strings.Index(collapsed[idx:], needle)
+		if i < 0 {
+			return false
+		}
+		frameStart := idx + i
+		frameEnd := strings.Index(collapsed[frameStart:], ";")
+		var frame string
+		if frameEnd < 0 {
+			frame = collapsed[frameStart:]
+		} else {
+			frame = collapsed[frameStart : frameStart+frameEnd]
+		}
+		fnNeedle := "|fn:" + methodName + " "
+		if strings.Contains(frame, fnNeedle) || strings.Contains(frame, "|fn:"+methodName+"\n") {
+			return true
+		}
+		idx = frameStart + 1
+		if idx >= len(collapsed) {
+			return false
+		}
+	}
+}
+
 type vehicleCheck struct {
-	vehicle           string
-	expectedFunctions []string
+	vehicle        string
+	expectedFrames [][2]string // each entry is [className, methodName]
 }
 
 func TestRideshareProfiles(t *testing.T) {
-	pyroscopeURL := envOrDefault("PYROSCOPE_URL", "http://localhost:4040")
-	svcName := serviceName()
+	ctx := context.Background()
 
-	composeUp(t)
-	t.Cleanup(func() { composeDown(t) })
+	net, err := network.New(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = net.Remove(ctx) })
+
+	pyroscopeURL := startPyroscope(ctx, t, net)
+	startApp(ctx, t, net)
+	startLoadGenerator(ctx, t, net)
+
+	svcName := serviceName()
 
 	checks := []vehicleCheck{
 		{
 			vehicle: "bike",
-			expectedFunctions: []string{
-				"OrderService.FindNearestVehicle",
+			expectedFrames: [][2]string{
+				{"OrderService", "FindNearestVehicle"},
 			},
 		},
 		{
 			vehicle: "scooter",
-			expectedFunctions: []string{
-				"OrderService.FindNearestVehicle",
+			expectedFrames: [][2]string{
+				{"OrderService", "FindNearestVehicle"},
 			},
 		},
 		{
 			vehicle: "car",
-			expectedFunctions: []string{
-				"OrderService.FindNearestVehicle",
-				"OrderService.CheckDriverAvailability",
+			expectedFrames: [][2]string{
+				{"OrderService", "FindNearestVehicle"},
+				{"OrderService", "CheckDriverAvailability"},
 			},
 		},
 	}
@@ -160,13 +230,13 @@ func TestRideshareProfiles(t *testing.T) {
 				if lastErr != nil || lastCollapsed == "" {
 					return false
 				}
-				for _, fn := range check.expectedFunctions {
-					if !strings.Contains(lastCollapsed, fn) {
+				for _, f := range check.expectedFrames {
+					if !frameContains(lastCollapsed, f[0], f[1]) {
 						return false
 					}
 				}
 				return true
-			}, 90*time.Second, 2*time.Second)
+			}, 3*time.Minute, 5*time.Second)
 
 			if !ok {
 				t.Logf("label selector: %s", labelSelector)
