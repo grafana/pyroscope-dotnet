@@ -39,13 +39,22 @@ func repoRoot() string {
 
 func flavour() string       { return envOrDefault("FLAVOUR", "glibc") }
 func dotnetVersion() string { return envOrDefault("DOTNET_VERSION", "8.0") }
+func isOTEL() bool          { return os.Getenv("OTEL") == "true" }
 
 func rideshareImage() string {
-	return fmt.Sprintf("rideshare-app-%s:net%s", flavour(), dotnetVersion())
+	base := fmt.Sprintf("rideshare-app-%s", flavour())
+	if isOTEL() {
+		base += "-otel"
+	}
+	return fmt.Sprintf("%s:net%s", base, dotnetVersion())
 }
 
 func serviceName() string {
-	return fmt.Sprintf("rideshare.dotnet.%s.%s.app", flavour(), dotnetVersion())
+	base := fmt.Sprintf("rideshare.dotnet.%s.%s.app", flavour(), dotnetVersion())
+	if isOTEL() {
+		base += "-otel"
+	}
+	return base
 }
 
 func startPyroscope(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork) string {
@@ -201,6 +210,77 @@ func TestRideshareProfiles(t *testing.T) {
 	runLoadGenerator(ctx, t, appBaseURL)
 
 	svcName := serviceName()
+
+	checks := []vehicleCheck{
+		{
+			vehicle: "bike",
+			expectedFrames: [][2]string{
+				{"OrderService", "FindNearestVehicle"},
+			},
+		},
+		{
+			vehicle: "scooter",
+			expectedFrames: [][2]string{
+				{"OrderService", "FindNearestVehicle"},
+			},
+		},
+		{
+			vehicle: "car",
+			expectedFrames: [][2]string{
+				{"OrderService", "FindNearestVehicle"},
+				{"OrderService", "CheckDriverAvailability"},
+			},
+		},
+	}
+
+	for _, check := range checks {
+		check := check
+		t.Run(check.vehicle, func(t *testing.T) {
+			labelSelector := fmt.Sprintf(`{service_name="%s",vehicle="%s"}`, svcName, check.vehicle)
+			var lastCollapsed string
+			var lastErr error
+			ok := assert.Eventually(t, func() bool {
+				lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector)
+				if lastErr != nil || lastCollapsed == "" {
+					return false
+				}
+				for _, f := range check.expectedFrames {
+					if !frameContains(lastCollapsed, f[0], f[1]) {
+						return false
+					}
+				}
+				return true
+			}, 3*time.Minute, 5*time.Second)
+
+			if !ok {
+				t.Logf("label selector: %s", labelSelector)
+				t.Logf("last profile query error: %v", lastErr)
+				t.Logf("last collapsed profile:\n%s", lastCollapsed)
+				t.FailNow()
+			}
+			t.Logf("collapsed profile for %s:\n%s", check.vehicle, lastCollapsed)
+		})
+	}
+}
+
+// TestRideshareProfilesWithOTEL tests Pyroscope as a notification profiler
+// when OTEL .NET auto-instrumentation occupies the classic profiler slot.
+// This test is nearly identical to TestRideshareProfiles - the only difference
+// is that OTEL=true environment variable is set by the Makefile, which causes
+// rideshareImage() and serviceName() to return OTEL variants.
+func TestRideshareProfilesWithOTEL(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	net, err := network.New(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = net.Remove(ctx) })
+
+	pyroscopeURL := startPyroscope(ctx, t, net)
+	appBaseURL := startApp(ctx, t, net) // Uses OTEL image because OTEL=true
+	runLoadGenerator(ctx, t, appBaseURL)
+
+	svcName := serviceName() // Returns "rideshare.dotnet.{flavour}.{version}.app-otel"
 
 	checks := []vehicleCheck{
 		{
