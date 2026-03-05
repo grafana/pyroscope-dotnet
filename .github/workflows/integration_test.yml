@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   run-integration-test:
-    name: Run Integration Test
+    name: itest ${{ matrix.flavour }} .NET ${{ matrix.dotnet_version }}
     runs-on: ubuntu-x64-large
     strategy:
       fail-fast: false
@@ -26,44 +26,11 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           submodules: true
-      - name: Build ${{ matrix.flavour }} profiler image
-        run: |
-            if [ "${{ matrix.flavour }}" = "musl" ]; then
-              docker build --platform linux/amd64 -t pyroscope-dotnet-musl:test -f Pyroscope.musl.Dockerfile --build-arg CMAKE_BUILD_TYPE=Debug .
-            else
-              docker build --platform linux/amd64 -t pyroscope-dotnet-glibc:test -f Pyroscope.Dockerfile --build-arg CMAKE_BUILD_TYPE=Debug .
-            fi
-      - name: Build service image for ${{ matrix.flavour }} and .NET ${{ matrix.dotnet_version }}
-        run: |
-            if [ "${{ matrix.flavour }}" = "glibc" ]; then
-              SDK_IMAGE_SUFFIX="-jammy"
-            else
-              SDK_IMAGE_SUFFIX="-alpine"
-            fi
-
-            docker build --platform linux/amd64 \
-            --build-arg PYROSCOPE_SDK_IMAGE=pyroscope-dotnet-${{ matrix.flavour }}:test \
-            --build-arg SDK_VERSION=${{ matrix.dotnet_version }} \
-            --build-arg SDK_IMAGE_SUFFIX=${SDK_IMAGE_SUFFIX} \
-            -t rideshare-app-${{ matrix.flavour }}:net${{ matrix.dotnet_version }} \
-            -f itest.Dockerfile .
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
+        with:
+          go-version: 'stable'
+          cache-dependency-path: itest/go.sum
       - name: Run integration test
-        run: |
-          # Create a unique project name for this matrix combination
-          VERSION_HYPHEN=$(echo "${{ matrix.dotnet_version }}" | tr '.' '-')
-          export COMPOSE_PROJECT_NAME="pyroscope-dotnet-${{ matrix.flavour }}-net$VERSION_HYPHEN"
-
-          # Set the service name to start and to use in the load generator
-          export SERVICE_NAME="rideshare-${{ matrix.flavour }}-net-$VERSION_HYPHEN"
-          # Set up trap to ensure cleanup happens on exit
-          trap 'docker compose -f docker-compose-itest.yml down --remove-orphans --volumes' EXIT
-
-          # Start the services
-          docker compose -f docker-compose-itest.yml up --build --force-recreate -d pyroscope load-generator $SERVICE_NAME
-
-          # Run the verification script
-          ./IntegrationTest/verify_profiles.sh ${{ matrix.flavour }} ${{ matrix.dotnet_version }}
-
-          # Remove the trap since we're exiting normally
-          trap - EXIT
-          docker compose -f docker-compose-itest.yml down --remove-orphans --volumes
+        run: make itest FLAVOUR=${{ matrix.flavour }} DOTNET_VERSION=${{ matrix.dotnet_version }}
+        working-directory: itest
