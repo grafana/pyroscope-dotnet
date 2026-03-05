@@ -1,6 +1,3 @@
-# NOTE: This file is for manual testing only.
-# CI uses Go-based integration tests in the itest/ directory.
-# See itest/integration_test.go for automated testing.
 services:
   pyroscope:
     platform: linux/amd64
