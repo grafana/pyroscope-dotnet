@@ -1516,7 +1516,10 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::Initialize(IUnknown* corProfilerI
 
     if (_pConfiguration->UseManagedCodeCache())
     {
-        eventMask |= COR_PRF_MONITOR_JIT_COMPILATION | COR_PRF_ENABLE_REJIT;
+        // Note: COR_PRF_ENABLE_REJIT was removed here because the profiler never calls
+        // RequestReJIT/RequestRevert, and the flag is not in COR_PRF_ALLOWABLE_NOTIFICATION_PROFILER,
+        // which causes SetEventMask2 to fail when running as a notification profiler.
+        eventMask |= COR_PRF_MONITOR_JIT_COMPILATION;
     }
 
     if (_pConfiguration->IsExceptionProfilingEnabled())
