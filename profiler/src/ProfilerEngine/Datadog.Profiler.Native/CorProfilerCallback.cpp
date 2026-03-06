@@ -1516,7 +1516,7 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::Initialize(IUnknown* corProfilerI
 
     if (_pConfiguration->UseManagedCodeCache())
     {
-        eventMask |= COR_PRF_MONITOR_JIT_COMPILATION | COR_PRF_ENABLE_REJIT;
+        eventMask |= COR_PRF_MONITOR_JIT_COMPILATION;
     }
 
     if (_pConfiguration->IsExceptionProfilingEnabled())
