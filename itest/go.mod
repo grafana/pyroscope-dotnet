@@ -2,7 +2,7 @@ module pyroscope-dotnet-itest
 
 go 1.24.6
 
-toolchain go1.24.9
+toolchain go1.26.1
 
 require (
 	connectrpc.com/connect v1.19.1
