@@ -68,6 +68,8 @@ step5_remove_fork_dirs() {
     .azure-pipelines \
     .gitlab \
     docs \
+    profiler/docs \
+    profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows \
     profiler/src/Tools \
     .gitlab-ci.yml
   # Remove C# integration/managed tests from profiler/test but keep C++ unit tests.
