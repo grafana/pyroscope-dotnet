@@ -122,7 +122,8 @@ FILE(MAKE_DIRECTORY ${OUTPUT_TMP_DIR})
 
 
 add_compile_options(-fPIC)
-set(OPENSSL_USE_STATIC_LIBS TRUE)
+option(USE_STATIC_OPENSSL "Link OpenSSL statically" ON)
+set(OPENSSL_USE_STATIC_LIBS ${USE_STATIC_OPENSSL})
 find_package(OpenSSL REQUIRED)
 option(protobuf_BUILD_TESTS "Build tests" OFF)
 if(ISLINUX)
