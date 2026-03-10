@@ -2147,7 +2147,7 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::ThreadAssignedToOSThread(ThreadID
     }
 
     // TL;DR prevent the profiler from deadlocking application thread on malloc
-    // Backtrace2Unwinder relies on libunwind. We need to call it to make sure 
+    // Backtrace2Unwinder relies on libunwind. We need to call it to make sure
     // libunwind allocates and initializes TLS (Thread Local Storage) data structures for the current
     // thread.
     // Initialization of TLS object does call malloc. Unfortunately, if those calls to malloc
@@ -2641,6 +2641,11 @@ std::shared_ptr<PyroscopePprofSink> CorProfilerCallback::GetPyroscopePprofSink()
 
 HRESULT STDMETHODCALLTYPE CorProfilerCallback::LoadAsNotificationOnly(BOOL* pbNotificationOnly)
 {
-    *pbNotificationOnly = TRUE;
+    if (_pConfiguration->UseManagedCodeCache())
+    {
+        *pbNotificationOnly = FALSE;
+    } else {
+        *pbNotificationOnly = TRUE;
+    }
     return S_OK;
 }
