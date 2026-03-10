@@ -40,7 +40,7 @@ What we strip from upstream on every merge:
 - `.github/` additions from upstream — we keep only our own pyroscope-specific workflows
 - `.claude/` additions from upstream — we keep only our own claude configuration
 - `.gitlab-ci.yml` — upstream CI config; we use GitHub Actions only
-- `docs/` — upstream documentation
+- `docs/`, `profiler/docs/` — upstream documentation
 - `shared/src/Datadog.Trace.ClrProfiler.Native` — not used in our fork
 - `build/cmake/FindSpdlog.cmake`, `shared/src/native-lib/spdlog`, `build/cmake/FindManagedLoader.cmake` — we use git submodules for these instead
 
