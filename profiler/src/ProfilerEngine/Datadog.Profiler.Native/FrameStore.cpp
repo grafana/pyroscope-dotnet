@@ -29,7 +29,8 @@ FrameStore::FrameStore(ICorProfilerInfo4* pCorProfilerInfo,
     ManagedCodeCache* pManagedCodeCache) :
     _pCorProfilerInfo{pCorProfilerInfo},
     _pDebugInfoStore{debugInfoStore},
-    _pManagedCodeCache{pManagedCodeCache}
+    _pManagedCodeCache{pManagedCodeCache},
+    _resolveNativeFrames{true}
 {
     if (_pManagedCodeCache == nullptr)
     {
@@ -80,8 +81,8 @@ std::pair<bool, FrameInfoView> FrameStore::GetFrame(uintptr_t instructionPointer
     static const std::string UnloadedModuleName("UnloadedModule");
     static const std::string FakeModuleName("FakeModule");
 
-    static const std::string FakeContentionFrame("|lm:Unknown-Assembly |ns: |ct:Unknown-Type |cg: |fn:lock-contention |fg: |sg:(?)");
-    static const std::string FakeAllocationFrame("|lm:Unknown-Assembly |ns: |ct:Unknown-Type |cg: |fn:allocation |fg: |sg:(?)");
+    static const std::string FakeContentionFrame("lock-contention");
+    static const std::string FakeAllocationFrame("allocation");
 
 
     // check for fake IPs used in tests
@@ -116,7 +117,13 @@ std::pair<bool, FrameInfoView> FrameStore::GetFrame(uintptr_t instructionPointer
         // if native frame
         if (FAILED(hr))
         {
-            return {false, {NotResolvedModuleName, NotResolvedFrame, "", 0}};
+            if (!_resolveNativeFrames)
+            {
+                return {false, {NotResolvedModuleName, NotResolvedFrame, "", 0}};
+            }
+
+            auto [moduleName, frame] = GetNativeFrame(instructionPointer);
+            return {true, {moduleName, frame, "", 0}};
         }
     }
     else
@@ -140,6 +147,45 @@ std::pair<bool, FrameInfoView> FrameStore::GetFrame(uintptr_t instructionPointer
 
     auto frameInfo = GetManagedFrame(functionId.value());
     return {true, frameInfo};
+}
+
+// It should be possible to use dbghlp.dll on Windows (and something else on Linux?)
+// to get function name + offset
+// see https://docs.microsoft.com/en-us/windows/win32/api/dbghelp/nf-dbghelp-symfromaddr for more details
+// However, today, no symbol resolution is done; only the module implementing the function is provided
+std::pair<std::string_view, std::string_view> FrameStore::GetNativeFrame(uintptr_t instructionPointer)
+{
+    static const std::string UnknownNativeFrame("NativeCode!Unknown-Native-Module");
+    static const std::string UnknowNativeModule = "Unknown-Native-Module";
+
+    auto moduleName = OpSysTools::GetModuleName(reinterpret_cast<void*>(instructionPointer));
+    if (moduleName.empty())
+    {
+        return {UnknowNativeModule, UnknownNativeFrame};
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(_nativeLock);
+
+        auto it = _framePerNativeModule.find(moduleName);
+        if (it != _framePerNativeModule.cend())
+        {
+            return {it->first, it->second};
+        }
+    }
+
+    // moduleName contains the full path: keep only the filename
+    auto moduleFilename = fs::path(moduleName).filename().string();
+    std::stringstream builder;
+    builder << "NativeCode!" << moduleFilename;
+
+    {
+        std::lock_guard<std::mutex> lock(_nativeLock);
+        // emplace returns a pair<iterator, bool>. It returns false if the element was already there
+        // we use the iterator (first element of the pair) to get a reference to the key and the value
+        auto [it, _] = _framePerNativeModule.emplace(std::move(moduleName), builder.str());
+        return {it->first, it->second};
+    }
 }
 
 
@@ -183,9 +229,6 @@ FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId)
         return {UnknownManagedAssembly, UnknownManagedFrame, {}, 0};
     }
 
-    // get the method signature
-     std::string signature = GetMethodSignature(_pCorProfilerInfo, pMetadataImport.Get(), mdTokenType, functionId, mdTokenFunc);
-
     // get type related description (assembly, namespace and type name)
     // look into the cache first
     TypeDesc* pTypeDesc = nullptr;  // if already in the cache
@@ -206,7 +249,7 @@ FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId)
             std::lock_guard<std::mutex> lock(_methodsLock);
             auto& value = _methods[functionId];
             std::stringstream builder;
-            builder << UnknownManagedType << " |fn:" << std::move(methodName) << " |fg:" << std::move(methodGenericParameters) << " |sg:" << std::move(signature);
+            builder << UnknownManagedType << "." << std::move(methodName) << std::move(methodGenericParameters);
             value = {UnknownManagedAssembly, builder.str(), "", 0};
             return value;
         }
@@ -214,18 +257,16 @@ FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId)
         pTypeDesc = &typeDesc;
     }
 
-    // build the frame from assembly, namespace, type and method names
+    // build the frame from namespace, type and method names
     std::stringstream builder;
-    if (!pTypeDesc->Assembly.empty())
+    if (!pTypeDesc->Namespace.empty())
     {
-        builder << "|lm:" << pTypeDesc->Assembly;
+        builder << pTypeDesc->Namespace << ".";
     }
-    builder << " |ns:" << pTypeDesc->Namespace;
-    builder << " |ct:" << pTypeDesc->Type;
-    builder << " |cg:" << pTypeDesc->Parameters;
-    builder << " |fn:" << methodName;
-    builder << " |fg:" << methodGenericParameters;
-    builder << " |sg:" << signature;
+    builder << pTypeDesc->Type;
+    builder << pTypeDesc->Parameters;
+    builder << "." << methodName;
+    builder << methodGenericParameters;
 
     auto debugInfo = _pDebugInfoStore->Get(moduleId, mdTokenFunc);
 
