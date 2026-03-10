@@ -142,6 +142,25 @@ std::pair<bool, FrameInfoView> FrameStore::GetFrame(uintptr_t instructionPointer
     return {true, frameInfo};
 }
 
+std::string FrameStore::FormatFrame(
+    const std::string& nameSpace,
+    const std::string& type,
+    const std::string& classGenerics,
+    const std::string& methodName,
+    const std::string& methodGenerics)
+{
+    std::stringstream builder;
+    if (!nameSpace.empty())
+    {
+        builder << nameSpace << ".";
+    }
+    builder << type;
+    builder << classGenerics;
+    builder << "." << methodName;
+    builder << methodGenerics;
+    return builder.str();
+}
+
 
 FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId)
 {
@@ -202,9 +221,7 @@ FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId)
 
             std::lock_guard<std::mutex> lock(_methodsLock);
             auto& value = _methods[functionId];
-            std::stringstream builder;
-            builder << UnknownManagedType << "." << std::move(methodName) << std::move(methodGenericParameters);
-            value = {UnknownManagedAssembly, builder.str(), "", 0};
+            value = {UnknownManagedAssembly, FormatFrame("", UnknownManagedType, "", methodName, methodGenericParameters), "", 0};
             return value;
         }
 
@@ -212,19 +229,9 @@ FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId)
     }
 
     // build the frame from namespace, type and method names
-    std::stringstream builder;
-    if (!pTypeDesc->Namespace.empty())
-    {
-        builder << pTypeDesc->Namespace << ".";
-    }
-    builder << pTypeDesc->Type;
-    builder << pTypeDesc->Parameters;
-    builder << "." << methodName;
-    builder << methodGenericParameters;
+    std::string managedFrame = FormatFrame(pTypeDesc->Namespace, pTypeDesc->Type, pTypeDesc->Parameters, methodName, methodGenericParameters);
 
     auto debugInfo = _pDebugInfoStore->Get(moduleId, mdTokenFunc);
-
-    std::string managedFrame = builder.str();
 
     {
         std::lock_guard<std::mutex> lock(_methodsLock);

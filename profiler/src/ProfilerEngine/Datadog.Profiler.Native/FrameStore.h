@@ -90,6 +90,15 @@ private:
 public:   // global helpers
     static bool GetAssemblyName(ICorProfilerInfo4* pInfo, ModuleID moduleId, std::string& assemblyName);
 
+    // Build a human-readable frame name from its components.
+    // Format: "Namespace.Type<ClassGenerics>.Method<MethodGenerics>"
+    static std::string FormatFrame(
+        const std::string& nameSpace,
+        const std::string& type,
+        const std::string& classGenerics,
+        const std::string& methodName,
+        const std::string& methodGenerics);
+
 private:  // global helpers
     static void FixTrailingGeneric(WCHAR* name);
     static std::string GetTypeNameFromMetadata(IMetaDataImport2* pMetadata, mdTypeDef mdTokenType);

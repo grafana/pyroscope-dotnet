@@ -4,8 +4,6 @@
 #include "gtest/gtest.h"
 
 #include "FrameStore.h"
-#include "GCBaseRawSample.h"
-#include "RawThreadLifetimeSample.h"
 
 #include <string>
 
@@ -19,7 +17,6 @@ protected:
 };
 
 // --- Fake IP frame tests ---
-// These test the frames returned for special synthetic instruction pointers
 
 TEST_F(FrameStoreTest, LockContentionFrameIsHumanReadable)
 {
@@ -44,7 +41,6 @@ TEST_F(FrameStoreTest, UnknownFakeFrameIsHumanReadable)
 
 TEST_F(FrameStoreTest, FakeFramesDoNotContainPipeDelimitedFormat)
 {
-    // Verify none of the fake frames use the old pipe-delimited format
     std::vector<uintptr_t> fakeIPs = {
         FrameStore::FakeUnknownIP,
         FrameStore::FakeLockContentionIP,
@@ -68,49 +64,75 @@ TEST_F(FrameStoreTest, FakeFramesDoNotContainPipeDelimitedFormat)
     }
 }
 
-// --- GC frame constant tests ---
-// GCBaseRawSample members are private, so we test via known string values
+// --- FormatFrame tests ---
+// Test the static frame formatting function with various combinations
+// of namespace, type, generics, and method names.
 
-TEST(FrameNamingTest, GCFramesAreHumanReadable)
+TEST(FormatFrameTest, SimpleNamespaceTypeMethod)
 {
-    // These constants are defined in GCBaseRawSample.h - we verify by checking
-    // the expected string values that the build would use.
-    // Since the constants are private, we verify by checking that
-    // the header compiles with the expected simple string format.
-    // The actual values are tested implicitly through compilation and
-    // integration tests, but we can verify the pattern here.
-
-    // Verify GC and thread frame strings don't contain pipe-delimited format
-    // by constructing them the same way the source does
-    std::string_view gcFrames[] = {
-        "Garbage Collector",
-        "gen0",
-        "gen1",
-        "gen2",
-        "unknown"
-    };
-
-    for (auto frame : gcFrames)
-    {
-        EXPECT_EQ(frame.find("|lm:"), std::string_view::npos)
-            << "GC frame should not contain |lm: but got: " << frame;
-        EXPECT_EQ(frame.find("|fn:"), std::string_view::npos)
-            << "GC frame should not contain |fn: but got: " << frame;
-    }
+    auto result = FrameStore::FormatFrame(
+        "System.Collections.Generic", "List", "", "Add", "");
+    EXPECT_EQ(result, "System.Collections.Generic.List.Add");
 }
 
-TEST(FrameNamingTest, ThreadFramesAreHumanReadable)
+TEST(FormatFrameTest, WithClassGenerics)
 {
-    std::string_view threadFrames[] = {
-        "Thread Start",
-        "Thread Stop"
-    };
+    auto result = FrameStore::FormatFrame(
+        "System.Collections.Generic", "List", "<System.String>", "Add", "");
+    EXPECT_EQ(result, "System.Collections.Generic.List<System.String>.Add");
+}
 
-    for (auto frame : threadFrames)
-    {
-        EXPECT_EQ(frame.find("|lm:"), std::string_view::npos)
-            << "Thread frame should not contain |lm: but got: " << frame;
-        EXPECT_EQ(frame.find("|fn:"), std::string_view::npos)
-            << "Thread frame should not contain |fn: but got: " << frame;
-    }
+TEST(FormatFrameTest, WithMethodGenerics)
+{
+    auto result = FrameStore::FormatFrame(
+        "System.Linq", "Enumerable", "", "Select", "<System.Int32>");
+    EXPECT_EQ(result, "System.Linq.Enumerable.Select<System.Int32>");
+}
+
+TEST(FormatFrameTest, WithBothClassAndMethodGenerics)
+{
+    auto result = FrameStore::FormatFrame(
+        "System.Collections.Generic", "Dictionary", "<System.String, System.Int32>",
+        "TryGetValue", "<System.Object>");
+    EXPECT_EQ(result, "System.Collections.Generic.Dictionary<System.String, System.Int32>.TryGetValue<System.Object>");
+}
+
+TEST(FormatFrameTest, EmptyNamespace)
+{
+    auto result = FrameStore::FormatFrame(
+        "", "MyType", "", "DoWork", "");
+    EXPECT_EQ(result, "MyType.DoWork");
+}
+
+TEST(FormatFrameTest, MultipleClassGenericParameters)
+{
+    auto result = FrameStore::FormatFrame(
+        "System.Collections.Generic", "Dictionary", "<System.String, System.Int32>",
+        "ContainsKey", "");
+    EXPECT_EQ(result, "System.Collections.Generic.Dictionary<System.String, System.Int32>.ContainsKey");
+}
+
+TEST(FormatFrameTest, NestedNamespace)
+{
+    auto result = FrameStore::FormatFrame(
+        "MyApp.Services.Internal", "OrderService", "", "FindNearestVehicle", "");
+    EXPECT_EQ(result, "MyApp.Services.Internal.OrderService.FindNearestVehicle");
+}
+
+TEST(FormatFrameTest, UnknownTypeWithMethodGenerics)
+{
+    auto result = FrameStore::FormatFrame(
+        "", "Unknown-Type", "", "SomeMethod", "<T0>");
+    EXPECT_EQ(result, "Unknown-Type.SomeMethod<T0>");
+}
+
+TEST(FormatFrameTest, DoesNotContainPipeDelimitedMarkers)
+{
+    auto result = FrameStore::FormatFrame(
+        "System.Threading", "Monitor", "", "Enter", "");
+    EXPECT_EQ(result.find("|lm:"), std::string::npos);
+    EXPECT_EQ(result.find("|ns:"), std::string::npos);
+    EXPECT_EQ(result.find("|ct:"), std::string::npos);
+    EXPECT_EQ(result.find("|fn:"), std::string::npos);
+    EXPECT_EQ(result.find("|sg:"), std::string::npos);
 }
