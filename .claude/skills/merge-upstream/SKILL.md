@@ -41,6 +41,7 @@ What we strip from upstream on every merge:
 - `.claude/` additions from upstream — we keep only our own claude configuration
 - `.gitlab-ci.yml` — upstream CI config; we use GitHub Actions only
 - `docs/`, `profiler/docs/` — upstream documentation
+- `profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/` — Windows profiler; we only build for Linux
 - `shared/src/Datadog.Trace.ClrProfiler.Native` — not used in our fork
 - `build/cmake/FindSpdlog.cmake`, `shared/src/native-lib/spdlog`, `build/cmake/FindManagedLoader.cmake` — we use git submodules for these instead
 
