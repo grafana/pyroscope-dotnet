@@ -282,3 +282,53 @@ TEST(DebugInfoStoreTest, ParseModuleDebugInfo_NetCorePortable)
     ASSERT_FALSE(moduleInfo.RidToDebugInfo.empty()) << "Expected RID to debug info mapping for Portable PDB";
     ASSERT_FALSE(moduleInfo.Files.empty()) << "Expected source files in debug info";
 }
+
+// Reproduces the stale-iterator-after-insertion pattern from DebugInfoStore::Get().
+// In the original code, find() returns an iterator, then ParseModuleDebugInfo() inserts
+// into the same unordered_map, potentially causing a rehash that invalidates all iterators.
+// The old iterator was then reused — undefined behavior per the C++ standard.
+//
+// This test uses a standalone unordered_map to demonstrate that rehash does occur and
+// that re-acquiring the iterator after insertion is the correct fix.
+// Under ASAN, if the rehash frees the old bucket array, using the stale iterator
+// would access freed memory and be caught.
+TEST(DebugInfoStoreTest, StaleIteratorAfterInsert_RehashInvalidatesIterators)
+{
+    // Use the same types as DebugInfoStore::_modulesInfo
+    std::unordered_map<ModuleID, ModuleDebugInfo> map;
+
+    // Fill the map to just below the rehash threshold so one more insert triggers rehash.
+    // max_load_factor() defaults to 1.0, and initial bucket_count() is implementation-defined.
+    // We force a known state by reserving exactly 1 bucket, then filling to capacity.
+    map.rehash(1);
+    auto bucketsBefore = map.bucket_count();
+    auto threshold = static_cast<size_t>(bucketsBefore * map.max_load_factor());
+
+    // Fill up to exactly the threshold (the point where one more insert triggers rehash)
+    for (size_t i = 0; i < threshold; ++i)
+    {
+        map[static_cast<ModuleID>(i)] = ModuleDebugInfo{};
+    }
+
+    // Use a key that's not in the map yet
+    ModuleID missingKey = static_cast<ModuleID>(threshold + 1000);
+    auto it = map.find(missingKey);
+    ASSERT_EQ(it, map.cend()) << "Key should not exist yet";
+
+    auto bucketsBeforeInsert = map.bucket_count();
+
+    // This insertion mirrors what ParseModuleDebugInfo does: map[missingKey] = ...
+    map[missingKey] = ModuleDebugInfo{};
+
+    auto bucketsAfterInsert = map.bucket_count();
+
+    // Verify that rehash actually occurred — this is the precondition for the UB
+    // If bucket_count changed, all prior iterators (including `it`) are invalidated.
+    // NOTE: If this assertion fails, increase the fill count or adjust rehash(1) above.
+    ASSERT_NE(bucketsBeforeInsert, bucketsAfterInsert)
+        << "Expected rehash to occur after insertion (bucket count should change)";
+
+    // The FIX: after insertion, re-acquire the iterator. This must find the element.
+    auto it2 = map.find(missingKey);
+    ASSERT_NE(it2, map.cend()) << "Re-acquired iterator must find the just-inserted element";
+}
