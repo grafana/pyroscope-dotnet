@@ -18,6 +18,7 @@ packages/
 !tracer/test/Directory.Build.props
 !tracer/test/GlobalSuppressions.cs
 cmake-build-*/
+profiler/_build/
 
 Pyroscope/artifacts/
 Pyroscope/.idea
