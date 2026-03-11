@@ -177,16 +177,18 @@ func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string) (stri
 // the class name and method name both match. The .NET profiler emits frames in
 // the format:
 //
-//	|ct:ClassName |cg:... |fn:MethodName |fg:... |sg:...
+//	Namespace!ClassName<Generics>.MethodName<MethodGenerics>
 //
+// The "!" separates namespace from type; "." separates type from method.
 // Frames within a stack are separated by semicolons; stacks are separated by newlines.
 func frameContains(collapsed, className, methodName string) bool {
-	re := regexp.MustCompile(
-		`\|ct:` + regexp.QuoteMeta(className) + ` .*\|fn:` + regexp.QuoteMeta(methodName) + `[ |]`,
-	)
-	for _, frame := range strings.Split(collapsed, ";") {
-		if re.MatchString(frame) {
-			return true
+	pattern := `(?:^|!)` + regexp.QuoteMeta(className) + `(?:<[^>]*>)?\.` + regexp.QuoteMeta(methodName) + `(?:<|;|\s|$)`
+	re := regexp.MustCompile(pattern)
+	for _, line := range strings.Split(collapsed, "\n") {
+		for _, frame := range strings.Split(line, ";") {
+			if re.MatchString(frame) {
+				return true
+			}
 		}
 	}
 	return false

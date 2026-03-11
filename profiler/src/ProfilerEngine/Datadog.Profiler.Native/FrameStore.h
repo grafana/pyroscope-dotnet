@@ -21,8 +21,8 @@ class ManagedCodeCache;
 class FrameStore : public IFrameStore
 {
 private:
-    const std::string UnknownManagedFrame = "|lm:Unknown-Assembly |ns: |ct:Unknown-Type |cg: |fn:Unknown-Method |fg: |sg:(?)";
-    const std::string UnknownManagedType = "|lm:Unknown-Assembly |ns: |ct:Unknown-Type |cg: ";
+    const std::string UnknownManagedFrame = "Unknown-Type.Unknown-Method";
+    const std::string UnknownManagedType = "Unknown-Type";
     const std::string UnknownManagedAssembly = "Unknown-Assembly";
 
 private:
@@ -96,6 +96,15 @@ private:
 public:   // global helpers
     static bool GetAssemblyName(ICorProfilerInfo4* pInfo, ModuleID moduleId, std::string& assemblyName);
 
+    // Build a human-readable frame name from its components.
+    // Format: "Namespace.Type<ClassGenerics>.Method<MethodGenerics>"
+    static std::string FormatFrame(
+        const std::string& nameSpace,
+        const std::string& type,
+        const std::string& classGenerics,
+        const std::string& methodName,
+        const std::string& methodGenerics);
+
 private:  // global helpers
     static void FixTrailingGeneric(WCHAR* name);
     static std::string GetTypeNameFromMetadata(IMetaDataImport2* pMetadata, mdTypeDef mdTokenType);
@@ -115,21 +124,6 @@ private:  // global helpers
         mdTypeDef mdTokenType,
         bool isArray,
         const char* arraySuffix);
-    std::string GetMethodSignature(
-        ICorProfilerInfo4* pInfo,
-        IMetaDataImport2* pMetadataImport,
-        mdTypeDef mdTokenType,
-        FunctionID functionId,
-        mdMethodDef mdTokenFunc
-        );
-    PCCOR_SIGNATURE ParseElementType(
-        IMetaDataImport* pMDImport,
-        PCCOR_SIGNATURE signature,
-        std::vector<std::string>& classTypeArgs,
-        ClassID* methodTypeArgs,
-        ULONG* elementType,
-        std::stringstream& builder,
-        mdToken* typeToken);
     static std::tuple<std::string, mdTypeDef, ULONG> GetMethodNameFromMetadata(
         IMetaDataImport2* pMetadataImport,
         mdMethodDef mdTokenFunc

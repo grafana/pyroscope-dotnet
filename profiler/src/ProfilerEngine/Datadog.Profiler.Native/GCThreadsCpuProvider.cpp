@@ -118,8 +118,8 @@ std::vector<FrameInfoView> GCThreadsCpuProvider::GetFrames()
 {
     return
     {
-        {"", "|lm:[native] GC |ns: |ct: |cg: |fn:Garbage Collector |fg: |sg:", "", 0},
-        {"", "|lm:[native] CLR |ns: |ct: |cg: |fn:.NET |fg: |sg:", "", 0}
+        {"", "Garbage Collector", "", 0},
+        {"", ".NET", "", 0}
     };
 }
 
