@@ -262,6 +262,7 @@ func TestRideshareProfiles(t *testing.T) {
 			t.Logf("collapsed profile for %s:\n%s", check.vehicle, lastCollapsed)
 		})
 	}
+	time.Sleep(1009 * time.Second)
 }
 
 // TestRideshareProfilesWithOTEL tests Pyroscope as a notification profiler
