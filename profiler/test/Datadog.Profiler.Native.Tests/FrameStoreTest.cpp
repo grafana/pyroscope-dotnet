@@ -72,21 +72,21 @@ TEST(FormatFrameTest, SimpleNamespaceTypeMethod)
 {
     auto result = FrameStore::FormatFrame(
         "System.Collections.Generic", "List", "", "Add", "");
-    EXPECT_EQ(result, "System.Collections.Generic.List.Add");
+    EXPECT_EQ(result, "System.Collections.Generic!List.Add");
 }
 
 TEST(FormatFrameTest, WithClassGenerics)
 {
     auto result = FrameStore::FormatFrame(
         "System.Collections.Generic", "List", "<System.String>", "Add", "");
-    EXPECT_EQ(result, "System.Collections.Generic.List<System.String>.Add");
+    EXPECT_EQ(result, "System.Collections.Generic!List<System.String>.Add");
 }
 
 TEST(FormatFrameTest, WithMethodGenerics)
 {
     auto result = FrameStore::FormatFrame(
         "System.Linq", "Enumerable", "", "Select", "<System.Int32>");
-    EXPECT_EQ(result, "System.Linq.Enumerable.Select<System.Int32>");
+    EXPECT_EQ(result, "System.Linq!Enumerable.Select<System.Int32>");
 }
 
 TEST(FormatFrameTest, WithBothClassAndMethodGenerics)
@@ -94,7 +94,7 @@ TEST(FormatFrameTest, WithBothClassAndMethodGenerics)
     auto result = FrameStore::FormatFrame(
         "System.Collections.Generic", "Dictionary", "<System.String, System.Int32>",
         "TryGetValue", "<System.Object>");
-    EXPECT_EQ(result, "System.Collections.Generic.Dictionary<System.String, System.Int32>.TryGetValue<System.Object>");
+    EXPECT_EQ(result, "System.Collections.Generic!Dictionary<System.String, System.Int32>.TryGetValue<System.Object>");
 }
 
 TEST(FormatFrameTest, EmptyNamespace)
@@ -109,14 +109,14 @@ TEST(FormatFrameTest, MultipleClassGenericParameters)
     auto result = FrameStore::FormatFrame(
         "System.Collections.Generic", "Dictionary", "<System.String, System.Int32>",
         "ContainsKey", "");
-    EXPECT_EQ(result, "System.Collections.Generic.Dictionary<System.String, System.Int32>.ContainsKey");
+    EXPECT_EQ(result, "System.Collections.Generic!Dictionary<System.String, System.Int32>.ContainsKey");
 }
 
 TEST(FormatFrameTest, NestedNamespace)
 {
     auto result = FrameStore::FormatFrame(
         "MyApp.Services.Internal", "OrderService", "", "FindNearestVehicle", "");
-    EXPECT_EQ(result, "MyApp.Services.Internal.OrderService.FindNearestVehicle");
+    EXPECT_EQ(result, "MyApp.Services.Internal!OrderService.FindNearestVehicle");
 }
 
 TEST(FormatFrameTest, UnknownTypeWithMethodGenerics)
@@ -130,6 +130,7 @@ TEST(FormatFrameTest, DoesNotContainPipeDelimitedMarkers)
 {
     auto result = FrameStore::FormatFrame(
         "System.Threading", "Monitor", "", "Enter", "");
+    EXPECT_EQ(result, "System.Threading!Monitor.Enter");
     EXPECT_EQ(result.find("|lm:"), std::string::npos);
     EXPECT_EQ(result.find("|ns:"), std::string::npos);
     EXPECT_EQ(result.find("|ct:"), std::string::npos);

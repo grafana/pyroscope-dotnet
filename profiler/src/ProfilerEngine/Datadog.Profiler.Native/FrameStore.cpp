@@ -145,7 +145,7 @@ std::string FrameStore::FormatFrame(
     std::stringstream builder;
     if (!nameSpace.empty())
     {
-        builder << nameSpace << ".";
+        builder << nameSpace << "!";
     }
     builder << type;
     builder << classGenerics;
@@ -589,12 +589,7 @@ std::tuple<ULONG, std::string, std::string, mdTypeDef> FrameStore::GetMethodName
         }
         else // normal namespace.type case
         {
-            if (!ns.empty())
-            {
-                builder << ns;
-            }
-
-            builder << "." << typeName;
+            builder << ns << "!" << typeName;
         }
 
         if (i < genericParametersCount - 1)
