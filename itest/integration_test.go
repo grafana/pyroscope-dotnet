@@ -181,7 +181,7 @@ func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string) (stri
 //
 // Frames within a stack are separated by semicolons; stacks are separated by newlines.
 func frameContains(collapsed, className, methodName string) bool {
-	pattern := regexp.QuoteMeta(className) + `[^;]*\.` + regexp.QuoteMeta(methodName)
+	pattern := `(?:^|\.)` + regexp.QuoteMeta(className) + `[^;]*\.` + regexp.QuoteMeta(methodName)
 	re := regexp.MustCompile(pattern)
 	for _, line := range strings.Split(collapsed, "\n") {
 		for _, frame := range strings.Split(line, ";") {
