@@ -124,21 +124,6 @@ private:  // global helpers
         mdTypeDef mdTokenType,
         bool isArray,
         const char* arraySuffix);
-    std::string GetMethodSignature(
-        ICorProfilerInfo4* pInfo,
-        IMetaDataImport2* pMetadataImport,
-        mdTypeDef mdTokenType,
-        FunctionID functionId,
-        mdMethodDef mdTokenFunc
-        );
-    PCCOR_SIGNATURE ParseElementType(
-        IMetaDataImport* pMDImport,
-        PCCOR_SIGNATURE signature,
-        std::vector<std::string>& classTypeArgs,
-        ClassID* methodTypeArgs,
-        ULONG* elementType,
-        std::stringstream& builder,
-        mdToken* typeToken);
     static std::tuple<std::string, mdTypeDef, ULONG> GetMethodNameFromMetadata(
         IMetaDataImport2* pMetadataImport,
         mdMethodDef mdTokenFunc
