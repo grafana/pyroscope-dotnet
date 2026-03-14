@@ -9,7 +9,7 @@ require (
 	github.com/dennwc/varint v1.0.0
 	github.com/grafana/pyroscope/api v1.3.0
 	github.com/stretchr/testify v1.11.1
-	github.com/testcontainers/testcontainers-go v0.37.0
+	github.com/testcontainers/testcontainers-go v0.41.0
 )
 
 require (
