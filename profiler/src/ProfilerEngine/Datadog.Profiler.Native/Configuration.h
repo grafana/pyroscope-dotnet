@@ -89,6 +89,7 @@ public:
     std::chrono::milliseconds GetHeapSnapshotCheckInterval() const override;
     uint32_t GetHeapSnapshotMemoryPressureThreshold() const override;
     uint32_t GetHeapHandleLimit() const override;
+    uint64_t GetHeapSamplingRate() const override;
     bool UseManagedCodeCache() const override;
     bool IsMemoryFootprintEnabled() const override;
 
@@ -127,6 +128,7 @@ private:
     std::chrono::milliseconds ExtractHeapSnapshotCheckInterval() const;
     std::chrono::minutes GetDefaultHeapSnapshotInterval() const;
     int32_t ExtractHeapHandleLimit() const;
+    uint64_t ExtractHeapSamplingRate() const;
 
 private:
     static std::string const DefaultProdSite;
@@ -182,6 +184,7 @@ private:
     int32_t _cpuThreadsThreshold;
     int32_t _codeHotspotsThreadsThreshold;
     uint32_t _heapHandleLimit;
+    uint64_t _heapSamplingRate;
     bool _isAllocationRecorderEnabled;
     bool _isGcThreadsCpuTimeEnabled;
     std::string _gitRepositoryUrl;
