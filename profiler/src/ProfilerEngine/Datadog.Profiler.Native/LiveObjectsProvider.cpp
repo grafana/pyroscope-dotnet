@@ -8,11 +8,12 @@
 #include "GarbageCollection.h"
 #include "IConfiguration.h"
 #include "LiveObjectsProvider.h"
+#include "Log.h"
 #include "OpSysTools.h"
 #include "RawSampleTransformer.h"
 #include "Sample.h"
-#include "SamplesEnumerator.h"
 #include "SampleValueTypeProvider.h"
+#include "SamplesEnumerator.h"
 
 const std::string LiveObjectsProvider::Gen1("1");
 const std::string LiveObjectsProvider::Gen2("2");
@@ -21,13 +22,15 @@ LiveObjectsProvider::LiveObjectsProvider(
     ICorProfilerInfo13* pCorProfilerInfo,
     SampleValueTypeProvider& valueTypeProvider,
     RawSampleTransformer* rawSampleTransformer,
-    IConfiguration* pConfiguration)
-    :
+    IConfiguration* pConfiguration) :
     _pCorProfilerInfo(pCorProfilerInfo),
     _rawSampleTransformer{rawSampleTransformer},
-    _valueOffsets{valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.LiveObjectsDefinitions)}
+    _valueOffsets{valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.LiveObjectsDefinitions)},
+    _sampler(pConfiguration->GetHeapSamplingRate())
 {
     _heapHandleLimit = pConfiguration->GetHeapHandleLimit();
+    _heapSamplingRate = pConfiguration->GetHeapSamplingRate();
+    Log::Info("LiveObjectsProvider: Poisson heap sampling with mean interval of ", _heapSamplingRate, " bytes");
 }
 
 const char* LiveObjectsProvider::GetName()
@@ -40,8 +43,7 @@ void LiveObjectsProvider::OnGarbageCollectionStart(
     int32_t number,
     uint32_t generation,
     GCReason reason,
-    GCType type
-)
+    GCType type)
 {
     // The address provided during AllocationTick event is not pointing to real object
     // so we tried to wait for the next garbage collection to create a wrapping weak handle.
@@ -117,19 +119,36 @@ std::unique_ptr<SamplesEnumerator> LiveObjectsProvider::GetSamples()
 {
     std::lock_guard<std::mutex> lock(_liveObjectsLock);
 
-    auto currentTimestamp = OpSysTools::GetHighPrecisionTimestamp();
-    std::size_t nbSamples = 0;
-
-    // OPTIM maybe use an allocator
     auto samples = std::make_unique<LiveObjectsEnumerator>(_monitoredObjects.size());
 
     for (auto const& info : _monitoredObjects)
     {
-        // gen2 objects are candidates for leaking however collections could be rare and only gen1 objects
-        // are available for live heap profiling
         auto sample = info.GetSample();
 
-        samples->Add(sample);
+        // Apply Poisson upscale weight to compensate for sampling bias.
+        // The sample was created with count=1 and size=AllocationSize by
+        // RawAllocationSample::OnTransform. We scale both values by the
+        // weight so the profile reflects the estimated true heap.
+        double weight = info.GetUpscaleWeight();
+        if (weight > 1.0)
+        {
+            auto countIdx = _valueOffsets[0];
+            auto sizeIdx = _valueOffsets[1];
+
+            auto const& values = sample->GetValues();
+            int64_t scaledCount = static_cast<int64_t>(std::llround(static_cast<double>(values[countIdx]) * weight));
+            int64_t scaledSize = static_cast<int64_t>(std::llround(static_cast<double>(values[sizeIdx]) * weight));
+
+            // Create a copy to avoid mutating the stored sample
+            auto scaledSample = std::make_shared<Sample>(*sample);
+            scaledSample->AddValue(scaledCount, countIdx);
+            scaledSample->AddValue(scaledSize, sizeIdx);
+            samples->Add(scaledSample);
+        }
+        else
+        {
+            samples->Add(sample);
+        }
     }
 
     return samples;
@@ -137,30 +156,41 @@ std::unique_ptr<SamplesEnumerator> LiveObjectsProvider::GetSamples()
 
 void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
 {
+    // Poisson byte-weighted sampling: decide before taking the lock.
+    // AllocationSize may be 0 for .NET Framework events; treat as 1 byte
+    // to still decrement the counter.
+    uint64_t size = (rawSample.AllocationSize > 0)
+        ? static_cast<uint64_t>(rawSample.AllocationSize)
+        : 1;
+
+    if (!_sampler.ShouldSample(size))
+    {
+        return;
+    }
+
     std::lock_guard<std::mutex> lock(_liveObjectsLock);
 
-    // Limit the number of handle to create until the next GC
-    // If _monitoredObjects is already full, stop adding new objects
-    if (_monitoredObjects.size() < _heapHandleLimit)
+    // Hard cap as safety net — with proper sampling this should rarely be hit
+    if (_monitoredObjects.size() >= _heapHandleLimit)
     {
-        // When the AllocationTick event is received, the object is not already initialized.
-        // To call CreateWeakHandle(), it is needed to patch the MethodTable in memory
-        *(uintptr_t*)rawSample.Address = rawSample.MethodTable;
+        return;
+    }
 
-        auto handle = CreateWeakHandle(rawSample.Address);
-        if (handle != nullptr)
-        {
-            LiveObjectInfo info(
-                _rawSampleTransformer->Transform(rawSample, _valueOffsets),
-                rawSample.Address,
-                rawSample.Timestamp);
-            info.SetHandle(handle);
-            _monitoredObjects.push_back(std::move(info));
-        }
-        else
-        {
-            // this should never happen
-        }
+    // When the AllocationTick event is received, the object is not already initialized.
+    // To call CreateWeakHandle(), it is needed to patch the MethodTable in memory
+    *(uintptr_t*)rawSample.Address = rawSample.MethodTable;
+
+    auto handle = CreateWeakHandle(rawSample.Address);
+    if (handle != nullptr)
+    {
+        LiveObjectInfo info(
+            _rawSampleTransformer->Transform(rawSample, _valueOffsets),
+            rawSample.Address,
+            size,
+            _heapSamplingRate,
+            rawSample.Timestamp);
+        info.SetHandle(handle);
+        _monitoredObjects.push_back(std::move(info));
     }
 }
 

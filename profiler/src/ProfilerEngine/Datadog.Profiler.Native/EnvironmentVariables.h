@@ -42,6 +42,7 @@ public:
     inline static const shared::WSTRING HeapProfilingEnabled            = WStr("DD_PROFILING_HEAP_ENABLED");
 
     inline static const shared::WSTRING HeapHandleLimit                 = WStr("DD_INTERNAL_PROFILING_HEAP_HANDLE_LIMIT");
+    inline static const shared::WSTRING HeapSamplingRate               = WStr("DD_INTERNAL_PROFILING_HEAP_SAMPLING_RATE");
     inline static const shared::WSTRING ExceptionSampleLimit            = WStr("DD_INTERNAL_PROFILING_EXCEPTION_SAMPLE_LIMIT");
     inline static const shared::WSTRING AllocationSampleLimit           = WStr("DD_INTERNAL_PROFILING_ALLOCATION_SAMPLE_LIMIT");
     inline static const shared::WSTRING ContentionSampleLimit           = WStr("DD_INTERNAL_PROFILING_CONTENTION_SAMPLE_LIMIT");

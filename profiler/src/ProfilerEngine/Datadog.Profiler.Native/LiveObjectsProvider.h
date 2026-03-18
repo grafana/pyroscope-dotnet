@@ -12,6 +12,7 @@
 #include "IGarbageCollectionsListener.h"
 #include "ISampledAllocationsListener.h"
 #include "LiveObjectInfo.h"
+#include "PoissonAllocationSampler.h"
 #include "Sample.h"
 #include "ServiceBase.h"
 
@@ -76,12 +77,14 @@ private:
 
 private:
     uint32_t _heapHandleLimit;
+    uint64_t _heapSamplingRate;
 
      // used to access the CLR to create weak handles
      // and get object generation
     ICorProfilerInfo13* _pCorProfilerInfo = nullptr;
     RawSampleTransformer* _rawSampleTransformer = nullptr;
 
+    PoissonAllocationSampler _sampler;
     std::mutex _liveObjectsLock;
     std::list<LiveObjectInfo> _monitoredObjects;
     // WeakHandle are checked after each GC
