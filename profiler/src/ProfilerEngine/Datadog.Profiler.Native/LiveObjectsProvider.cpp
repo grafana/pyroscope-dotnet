@@ -156,14 +156,12 @@ std::unique_ptr<SamplesEnumerator> LiveObjectsProvider::GetSamples()
 
 void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
 {
-    // Poisson byte-weighted sampling: decide before taking the lock.
-    // AllocationSize may be 0 for .NET Framework events; treat as 1 byte
-    // to still decrement the counter.
-    uint64_t size = (rawSample.AllocationSize > 0)
-        ? static_cast<uint64_t>(rawSample.AllocationSize)
-        : 1;
+    // The CLR's AllocationTick fires every ~100KB. Use that window as the Poisson
+    // decrement unit so the sampler operates on allocation windows, not individual
+    // object bytes. This correctly models layer 1 of the two-layer sampling.
+    static constexpr uint64_t allocationWindow = 100u * 1024u;
 
-    if (!_sampler.ShouldSample(size))
+    if (!_sampler.ShouldSample(allocationWindow))
     {
         return;
     }
@@ -183,10 +181,14 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
     auto handle = CreateWeakHandle(rawSample.Address);
     if (handle != nullptr)
     {
+        uint64_t objectSize = (rawSample.AllocationSize > 0)
+            ? static_cast<uint64_t>(rawSample.AllocationSize)
+            : 1;
         LiveObjectInfo info(
             _rawSampleTransformer->Transform(rawSample, _valueOffsets),
             rawSample.Address,
-            size,
+            objectSize,
+            allocationWindow,
             _heapSamplingRate,
             rawSample.Timestamp);
         info.SetHandle(handle);

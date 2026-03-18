@@ -16,6 +16,7 @@ public:
         RawSample(std::move(other)),
         AllocationClass(std::move(other.AllocationClass)),
         AllocationSize(other.AllocationSize),
+        AllocationAmount(other.AllocationAmount),
         Address(other.Address),
         MethodTable(other.MethodTable)
     {
@@ -28,6 +29,7 @@ public:
             RawSample::operator=(std::move(other));
             AllocationClass = std::move(other.AllocationClass);
             AllocationSize = other.AllocationSize;
+            AllocationAmount = other.AllocationAmount;
             Address = other.Address;
             MethodTable = other.MethodTable;
         }
@@ -49,6 +51,7 @@ public:
 
     std::string AllocationClass;
     int64_t AllocationSize;
+    uint64_t AllocationAmount = 0;  // bytes in the CLR sampling window (~100KB for AllocationTick)
     uintptr_t Address;
     ClassID MethodTable;
 };

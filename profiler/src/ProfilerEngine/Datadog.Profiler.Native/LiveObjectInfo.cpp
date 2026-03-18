@@ -8,7 +8,7 @@ std::atomic<uint64_t> LiveObjectInfo::s_nextObjectId = 1;
 
 
 LiveObjectInfo::LiveObjectInfo(std::shared_ptr<Sample> sample, uintptr_t address,
-                               uint64_t allocationSize, uint64_t samplingRate,
+                               uint64_t allocationSize, uint64_t allocationWindow, uint64_t samplingRate,
                                std::chrono::nanoseconds timestamp)
     :
     _address(address),
@@ -16,6 +16,7 @@ LiveObjectInfo::LiveObjectInfo(std::shared_ptr<Sample> sample, uintptr_t address
     _timestamp(timestamp),
     _gcCount(0),
     _allocationSize(allocationSize),
+    _allocationWindow(allocationWindow),
     _samplingRate(samplingRate)
 {
     _sample = sample;
@@ -56,6 +57,11 @@ uint64_t LiveObjectInfo::GetAllocationSize() const
     return _allocationSize;
 }
 
+uint64_t LiveObjectInfo::GetAllocationWindow() const
+{
+    return _allocationWindow;
+}
+
 uint64_t LiveObjectInfo::GetSamplingRate() const
 {
     return _samplingRate;
@@ -63,5 +69,12 @@ uint64_t LiveObjectInfo::GetSamplingRate() const
 
 double LiveObjectInfo::GetUpscaleWeight() const
 {
-    return PoissonAllocationSampler::ComputeUpscaleWeight(_allocationSize, _samplingRate);
+    // Layer 1: CLR's size-proportional AllocationTick sampling.
+    // An object of size S in a 100KB window was the tick trigger with probability S/window.
+    double w_clr = PoissonAllocationSampler::ComputeUpscaleWeight(_allocationSize, _allocationWindow);
+
+    // Layer 2: our secondary Poisson filter that sub-samples AllocationTick events.
+    double w_ours = PoissonAllocationSampler::ComputeUpscaleWeight(_allocationWindow, _samplingRate);
+
+    return w_clr * w_ours;
 }

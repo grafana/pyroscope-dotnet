@@ -16,7 +16,7 @@ class LiveObjectInfo
 {
 public:
     LiveObjectInfo(std::shared_ptr<Sample> sample, uintptr_t address,
-                   uint64_t allocationSize, uint64_t samplingRate,
+                   uint64_t allocationSize, uint64_t allocationWindow, uint64_t samplingRate,
                    std::chrono::nanoseconds timestamp);
 
     // accessors
@@ -28,6 +28,7 @@ public:
     bool IsGen2() const;
 
     uint64_t GetAllocationSize() const;
+    uint64_t GetAllocationWindow() const;
     uint64_t GetSamplingRate() const;
 
     // Compute the Poisson upscale weight for this sampled allocation.
@@ -41,6 +42,7 @@ private:
     std::chrono::nanoseconds _timestamp;
     uint64_t _gcCount;
     uint64_t _allocationSize;
+    uint64_t _allocationWindow;
     uint64_t _samplingRate;
 
     static std::atomic<uint64_t> s_nextObjectId;
