@@ -26,6 +26,8 @@ import (
 
 	"connectrpc.com/connect"
 	dockercontainer "github.com/docker/docker/api/types/container"
+	dockernetwork "github.com/docker/docker/api/types/network"
+	dockerclient "github.com/docker/docker/client"
 	querierv1 "github.com/grafana/pyroscope/api/gen/proto/go/querier/v1"
 	"github.com/grafana/pyroscope/api/gen/proto/go/querier/v1/querierv1connect"
 	"github.com/stretchr/testify/assert"
@@ -357,13 +359,48 @@ func startTLSProfileReceiver(t *testing.T, hostname string) (port int, caCertPEM
 	return
 }
 
+// dockerBridgeGatewayIP returns the gateway IP of the Docker bridge network.
+// On Linux this is the IP address that containers use to reach the host.
+func dockerBridgeGatewayIP(ctx context.Context, t *testing.T) string {
+	t.Helper()
+	cli, err := dockerclient.NewClientWithOpts(dockerclient.FromEnv, dockerclient.WithAPIVersionNegotiation())
+	require.NoError(t, err)
+	defer cli.Close()
+
+	info, err := cli.NetworkInspect(ctx, "bridge", dockernetwork.InspectOptions{})
+	require.NoError(t, err)
+	for _, cfg := range info.IPAM.Config {
+		if cfg.Gateway != "" {
+			return cfg.Gateway
+		}
+	}
+	t.Fatal("could not determine Docker bridge gateway IP")
+	return ""
+}
+
+// hostDockerInternalExtraHost returns the ExtraHosts entry that makes
+// host.docker.internal reachable from inside a container.
+//
+// On macOS (Docker Desktop / OrbStack) host.docker.internal is configured
+// automatically by the runtime, so no extra entry is needed.
+// On Linux the hostname is not injected by default; we map it to the Docker
+// bridge gateway, which is the address containers use to reach the host.
+func hostDockerInternalExtraHost(ctx context.Context, t *testing.T) string {
+	t.Helper()
+	if runtime.GOOS != "linux" {
+		return ""
+	}
+	return "host.docker.internal:" + dockerBridgeGatewayIP(ctx, t)
+}
+
 // startAppForTLSTest starts the rideshare app configured to send profiles to
-// the Go TLS receiver running on the Docker host. The container resolves
-// "profile-receiver" to the host via host-gateway. The CA certificate is
-// appended to /etc/ssl/cert.pem (the default cert file for our statically-
-// linked OpenSSL build with --openssldir=/etc/ssl).
+// the Go TLS receiver running on the Docker host via host.docker.internal.
+// The CA certificate is appended to /etc/ssl/cert.pem (the default cert file
+// for our statically-linked OpenSSL build with --openssldir=/etc/ssl).
 func startAppForTLSTest(ctx context.Context, t *testing.T, imageName, serverAddress string, caCertPEM []byte) string {
 	t.Helper()
+
+	extraHost := hostDockerInternalExtraHost(ctx, t)
 
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
@@ -396,10 +433,13 @@ func startAppForTLSTest(ctx context.Context, t *testing.T, imageName, serverAddr
 					},
 				},
 			},
-			// Map "profile-receiver" to the Docker host so the container can
-			// reach the Go TLS server running on the test machine.
+			// On Linux, add host.docker.internal → bridge gateway so the
+			// container can reach the Go TLS server running on the host.
+			// On macOS the entry is empty and the modifier is a no-op.
 			HostConfigModifier: func(hc *dockercontainer.HostConfig) {
-				hc.ExtraHosts = append(hc.ExtraHosts, "profile-receiver:host-gateway")
+				if extraHost != "" {
+					hc.ExtraHosts = append(hc.ExtraHosts, extraHost)
+				}
 			},
 			ExposedPorts: []string{"5000/tcp"},
 			WaitingFor:   wait.ForListeningPort("5000/tcp").WithStartupTimeout(120 * time.Second),
@@ -431,7 +471,9 @@ func TestTLSProfileUpload(t *testing.T) {
 
 	imageName := fmt.Sprintf("rideshare-app-%s:net%s", flavour(), dotnetVersion())
 
-	const hostname = "profile-receiver"
+	// host.docker.internal is the standard hostname for reaching the Docker
+	// host from inside a container (macOS: built-in; Linux: mapped via ExtraHosts).
+	const hostname = "host.docker.internal"
 	port, caCertPEM, received := startTLSProfileReceiver(t, hostname)
 	serverAddress := fmt.Sprintf("https://%s:%d", hostname, port)
 
