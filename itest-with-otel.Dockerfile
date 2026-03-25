@@ -31,7 +31,11 @@ ARG PYROSCOPE_SDK_IMAGE
 # Runtime only image of the targetplatfrom, so the platform the image will be running on.
 FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/aspnet:$SDK_VERSION$SDK_IMAGE_SUFFIX
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl unzip && rm -rf /var/lib/apt/lists/*
+RUN if command -v apt-get > /dev/null 2>&1; then \
+        apt-get update && apt-get install -y --no-install-recommends curl unzip && rm -rf /var/lib/apt/lists/*; \
+    else \
+        apk add --no-cache curl unzip; \
+    fi
 
 ARG OTEL_VERSION=1.14.1
 ENV OTEL_DOTNET_AUTO_HOME=/opt/otel-dotnet
