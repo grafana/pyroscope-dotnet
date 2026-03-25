@@ -24,7 +24,7 @@ ARG OPENSSL_VERSION=3.5.5
 RUN wget -q "https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" && \
     tar xf openssl-${OPENSSL_VERSION}.tar.gz && \
     cd openssl-${OPENSSL_VERSION} && \
-    ./config no-shared no-tests --prefix=/usr/local/openssl && \
+    ./config no-shared no-tests --prefix=/usr/local/openssl --openssldir=/etc/ssl && \
     make -j$(nproc) && \
     make install_sw && \
     ln -s /usr/local/openssl/lib64 /usr/local/openssl/lib && \
