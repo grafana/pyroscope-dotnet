@@ -21,8 +21,11 @@ RUN sed -i -E 's|<TargetFrameworks>.*</TargetFrameworks>|<TargetFramework>net'$S
 
 WORKDIR /dotnet/app
 
+# Debug: verify csproj and source files
+RUN echo "=== SDK version ===" && dotnet --version && echo "=== Rideshare.csproj ===" && cat Rideshare.csproj && echo "=== Program.cs ===" && cat Program.cs && echo "=== ls ===" && ls -la
+
 # We hardcode linux-x64 here, as the profiler doesn't support any other platform
-RUN dotnet publish -o . --framework net$SDK_VERSION --runtime linux-x64 --no-self-contained
+RUN dotnet publish -o . --framework net$SDK_VERSION --runtime linux-x64 --no-self-contained -v:d 2>&1 | tail -100
 
 # This uses a locally built image of the SDK
 FROM --platform=linux/amd64 $PYROSCOPE_SDK_IMAGE AS sdk
