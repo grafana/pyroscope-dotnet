@@ -2,7 +2,6 @@
   <PropertyGroup>
     <TargetFrameworks>net10.0;net9.0;net8.0;net6.0</TargetFrameworks>
     <AssemblyName>rideshare</AssemblyName>
-    <OutputType>Exe</OutputType>
     <PackageId>rideshare</PackageId>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
