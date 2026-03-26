@@ -120,3 +120,12 @@ itest/notification-profiler/musl/6.0: build-app-notification-profiler-musl-6.0
 .PHONY: itest/notification-profiler/musl/8.0
 itest/notification-profiler/musl/8.0: build-app-notification-profiler-musl-8.0
 	FLAVOUR=musl DOTNET_VERSION=8.0 OTEL=true go test -v -timeout 15m -count=1 ./... -run TestRideshareProfilesWithOTEL
+
+# TLS profile upload tests — one per libc flavour, using the main (non-OTEL) profiler images.
+.PHONY: itest/tls-profile-upload/glibc/8.0
+itest/tls-profile-upload/glibc/8.0: build-app-main-profiler-glibc-8.0
+	FLAVOUR=glibc DOTNET_VERSION=8.0 go test -v -timeout 10m -count=1 ./... -run TestTLSProfileUpload
+
+.PHONY: itest/tls-profile-upload/musl/8.0
+itest/tls-profile-upload/musl/8.0: build-app-main-profiler-musl-8.0
+	FLAVOUR=musl DOTNET_VERSION=8.0 go test -v -timeout 10m -count=1 ./... -run TestTLSProfileUpload
