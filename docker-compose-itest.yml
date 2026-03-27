@@ -148,7 +148,7 @@ services:
       SERVICE_NAME: $SERVICE_NAME
 
   grafana:
-    image: grafana/grafana:latest@sha256:ba93c9d192e58b23e064c7f501d453426ccf4a85065bf25b705ab1e98602bfb1
+    image: grafana/grafana:latest@sha256:83749231c3835e390a3144e5e940203e42b9589761f20ef3169c716e734ad505
     environment:
       - GF_INSTALL_PLUGINS=grafana-pyroscope-app
       - GF_AUTH_ANONYMOUS_ENABLED=true
