@@ -68,7 +68,9 @@ COPY --from=build /dotnet/publish ./
 
 ENV LD_LIBRARY_PATH=/dotnet/subfolder/
 ENV CORECLR_ENABLE_NOTIFICATION_PROFILERS=1
-ENV CORECLR_NOTIFICATION_PROFILERS=/dotnet/subfolder/Pyroscope.Profiler.Native.so={BD1A650D-AC5D-4896-B64F-D6FA25D6B26A}
+# Trailing semicolon required for .NET 9+ (bug in CLR: loop condition uses Find(';') so
+# single-entry lists without trailing ';' are never processed).
+ENV CORECLR_NOTIFICATION_PROFILERS=/dotnet/subfolder/Pyroscope.Profiler.Native.so={BD1A650D-AC5D-4896-B64F-D6FA25D6B26A};
 ENV LD_PRELOAD=/dotnet/subfolder/Pyroscope.Linux.ApiWrapper.x64.so
 
 ENV PYROSCOPE_SERVER_ADDRESS=http://pyroscope:4040
