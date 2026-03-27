@@ -15,9 +15,7 @@
 class LiveObjectInfo
 {
 public:
-    LiveObjectInfo(std::shared_ptr<Sample> sample, uintptr_t address,
-                   uint64_t allocationSize, uint64_t allocationWindow, uint64_t samplingRate,
-                   std::chrono::nanoseconds timestamp);
+    LiveObjectInfo(std::shared_ptr<Sample> sample, uintptr_t address, std::chrono::nanoseconds timestamp);
 
     // accessors
     void SetHandle(ObjectHandleID handle);
@@ -27,23 +25,14 @@ public:
     void IncrementGC();
     bool IsGen2() const;
 
-    uint64_t GetAllocationSize() const;
-    uint64_t GetAllocationWindow() const;
-    uint64_t GetSamplingRate() const;
-
-    // Compute the Poisson upscale weight for this sampled allocation.
-    // weight = 1 / (1 - exp(-size / rate))
-    double GetUpscaleWeight() const;
-
 private:
     std::shared_ptr<Sample> _sample;
     uintptr_t _address;
     ObjectHandleID _weakHandle;
+    // TODO This field is not yet used because the current implementation is incomplete.
+    // Just keep to remind us to finish the implementation.
     std::chrono::nanoseconds _timestamp;
     uint64_t _gcCount;
-    uint64_t _allocationSize;
-    uint64_t _allocationWindow;
-    uint64_t _samplingRate;
 
     static std::atomic<uint64_t> s_nextObjectId;
 };

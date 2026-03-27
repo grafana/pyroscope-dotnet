@@ -119,36 +119,19 @@ std::unique_ptr<SamplesEnumerator> LiveObjectsProvider::GetSamples()
 {
     std::lock_guard<std::mutex> lock(_liveObjectsLock);
 
+    auto currentTimestamp = OpSysTools::GetHighPrecisionTimestamp();
+    std::size_t nbSamples = 0;
+
+    // OPTIM maybe use an allocator
     auto samples = std::make_unique<LiveObjectsEnumerator>(_monitoredObjects.size());
 
     for (auto const& info : _monitoredObjects)
     {
+        // gen2 objects are candidates for leaking however collections could be rare and only gen1 objects
+        // are available for live heap profiling
         auto sample = info.GetSample();
 
-        // Apply Poisson upscale weight to compensate for sampling bias.
-        // The sample was created with count=1 and size=AllocationSize by
-        // RawAllocationSample::OnTransform. We scale both values by the
-        // weight so the profile reflects the estimated true heap.
-        double weight = info.GetUpscaleWeight();
-        if (weight > 1.0)
-        {
-            auto countIdx = _valueOffsets[0];
-            auto sizeIdx = _valueOffsets[1];
-
-            auto const& values = sample->GetValues();
-            int64_t scaledCount = static_cast<int64_t>(std::llround(static_cast<double>(values[countIdx]) * weight));
-            int64_t scaledSize = static_cast<int64_t>(std::llround(static_cast<double>(values[sizeIdx]) * weight));
-
-            // Create a copy to avoid mutating the stored sample
-            auto scaledSample = std::make_shared<Sample>(*sample);
-            scaledSample->AddValue(scaledCount, countIdx);
-            scaledSample->AddValue(scaledSize, sizeIdx);
-            samples->Add(scaledSample);
-        }
-        else
-        {
-            samples->Add(sample);
-        }
+        samples->Add(sample);
     }
 
     return samples;
@@ -182,12 +165,25 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
             uint64_t objectSize = (rawSample.AllocationSize > 0)
                 ? static_cast<uint64_t>(rawSample.AllocationSize)
                 : 1;
+
+            auto sample = _rawSampleTransformer->Transform(rawSample, _valueOffsets);
+
+            // Bake the two-layer Poisson upscale weight into the sample at ingestion.
+            // Layer 1: object-size-proportional CLR AllocationTick bias (w_clr).
+            // Layer 2: our secondary Poisson sub-sampler (w_ours).
+            double w_clr = PoissonAllocationSampler::ComputeUpscaleWeight(objectSize, allocationWindow);
+            double w_ours = PoissonAllocationSampler::ComputeUpscaleWeight(allocationWindow, _heapSamplingRate);
+            double weight = w_clr * w_ours;
+            if (weight > 1.0)
+            {
+                auto const& values = sample->GetValues();
+                sample->AddValue(static_cast<int64_t>(std::llround(static_cast<double>(values[_valueOffsets[0]]) * weight)), _valueOffsets[0]);
+                sample->AddValue(static_cast<int64_t>(std::llround(static_cast<double>(values[_valueOffsets[1]]) * weight)), _valueOffsets[1]);
+            }
+
             LiveObjectInfo info(
-                _rawSampleTransformer->Transform(rawSample, _valueOffsets),
+                sample,
                 rawSample.Address,
-                objectSize,
-                allocationWindow,
-                _heapSamplingRate,
                 rawSample.Timestamp);
             info.SetHandle(handle);
             _monitoredObjects.push_back(std::move(info));
