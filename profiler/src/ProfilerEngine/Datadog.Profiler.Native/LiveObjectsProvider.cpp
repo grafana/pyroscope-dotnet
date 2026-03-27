@@ -8,6 +8,7 @@
 #include "GarbageCollection.h"
 #include "IConfiguration.h"
 #include "LiveObjectsProvider.h"
+#include "Log.h"
 #include "OpSysTools.h"
 #include "RawSampleTransformer.h"
 #include "Sample.h"
@@ -25,9 +26,12 @@ LiveObjectsProvider::LiveObjectsProvider(
     :
     _pCorProfilerInfo(pCorProfilerInfo),
     _rawSampleTransformer{rawSampleTransformer},
-    _valueOffsets{valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.LiveObjectsDefinitions)}
+    _valueOffsets{valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.LiveObjectsDefinitions)},
+    _sampler(pConfiguration->GetHeapSamplingRate())
 {
     _heapHandleLimit = pConfiguration->GetHeapHandleLimit();
+    _heapSamplingRate = pConfiguration->GetHeapSamplingRate();
+    Log::Info("LiveObjectsProvider: Poisson heap sampling with mean interval of ", _heapSamplingRate, " bytes");
 }
 
 const char* LiveObjectsProvider::GetName()
@@ -137,6 +141,23 @@ std::unique_ptr<SamplesEnumerator> LiveObjectsProvider::GetSamples()
 
 void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
 {
+    // The CLR fires one allocation event per ~100KB of allocations:
+    //  - < .NET 10: AllocationTick (every ~100KB window, one object selected with
+    //               probability proportional to its size).
+    //  - >= .NET 10: AllocationSampled (Poisson-sampled with mean ~100KB).
+    // In both cases the expected sampling interval is 100KB, so the same
+    // allocationWindow constant and upscale formula apply.
+    static constexpr uint64_t allocationWindow = 100u * 1024u;
+
+    // Layer-2 sub-sampler: gives users control over what fraction of CLR allocation
+    // events are tracked for live heap profiling. Each AllocationTick/AllocationSampled
+    // event is treated as a unit of allocationWindow bytes; _sampler decides whether
+    // this particular event contributes a live-heap sample.
+    if (!_sampler.ShouldSample(allocationWindow))
+    {
+        return;
+    }
+
     std::lock_guard<std::mutex> lock(_liveObjectsLock);
 
     // Limit the number of handle to create until the next GC
@@ -150,8 +171,27 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
         auto handle = CreateWeakHandle(rawSample.Address);
         if (handle != nullptr)
         {
+            uint64_t objectSize = (rawSample.AllocationSize > 0)
+                ? static_cast<uint64_t>(rawSample.AllocationSize)
+                : 1;
+
+            auto sample = _rawSampleTransformer->Transform(rawSample, _valueOffsets);
+
+            // Bake the two-layer Poisson upscale weight into the sample at ingestion.
+            // Layer 1: object-size-proportional CLR AllocationTick bias (w_clr).
+            // Layer 2: our secondary Poisson sub-sampler (w_ours).
+            double w_clr = PoissonAllocationSampler::ComputeUpscaleWeight(objectSize, allocationWindow);
+            double w_ours = PoissonAllocationSampler::ComputeUpscaleWeight(allocationWindow, _heapSamplingRate);
+            double weight = w_clr * w_ours;
+            if (weight > 1.0)
+            {
+                auto const& values = sample->GetValues();
+                sample->AddValue(static_cast<int64_t>(std::llround(static_cast<double>(values[_valueOffsets[0]]) * weight)), _valueOffsets[0]);
+                sample->AddValue(static_cast<int64_t>(std::llround(static_cast<double>(values[_valueOffsets[1]]) * weight)), _valueOffsets[1]);
+            }
+
             LiveObjectInfo info(
-                _rawSampleTransformer->Transform(rawSample, _valueOffsets),
+                sample,
                 rawSample.Address,
                 rawSample.Timestamp);
             info.SetHandle(handle);
