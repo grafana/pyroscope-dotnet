@@ -21,11 +21,10 @@ RUN sed -i -E 's|<TargetFrameworks>.*</TargetFrameworks>|<TargetFramework>net'$S
 
 WORKDIR /dotnet/app
 
-# Debug: verify csproj and source files
-RUN echo "=== SDK version ===" && dotnet --version && echo "=== Rideshare.csproj ===" && cat Rideshare.csproj && echo "=== Program.cs ===" && cat Program.cs && echo "=== ls ===" && ls -la
-
-# We hardcode linux-x64 here, as the profiler doesn't support any other platform
-RUN dotnet publish -o . --framework net$SDK_VERSION --runtime linux-x64 --no-self-contained -v:d 2>&1 | tail -100
+# We hardcode linux-x64 here, as the profiler doesn't support any other platform.
+# Publish to a separate directory: .NET 10+ cleans the output dir before compiling,
+# so -o . (source dir) would delete source files and cause CS5001.
+RUN dotnet publish -o /dotnet/publish --framework net$SDK_VERSION --runtime linux-x64 --no-self-contained
 
 # This uses a locally built image of the SDK
 FROM --platform=linux/amd64 $PYROSCOPE_SDK_IMAGE AS sdk
@@ -65,7 +64,7 @@ WORKDIR /dotnet
 # Pyroscope as the notification profiler
 COPY --from=sdk /Pyroscope.Profiler.Native.so ./subfolder/Pyroscope.Profiler.Native.so
 COPY --from=sdk /Pyroscope.Linux.ApiWrapper.x64.so ./subfolder/Pyroscope.Linux.ApiWrapper.x64.so
-COPY --from=build /dotnet/app ./
+COPY --from=build /dotnet/publish ./
 
 ENV LD_LIBRARY_PATH=/dotnet/subfolder/
 ENV CORECLR_ENABLE_NOTIFICATION_PROFILERS=1
