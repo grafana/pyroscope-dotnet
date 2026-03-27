@@ -83,9 +83,10 @@ TEST(PoissonAllocationSamplerTest, ShouldSample_EventuallyReturnsTrue)
 
 TEST(PoissonAllocationSamplerTest, ShouldSample_FixedWindowRate_CorrectFrequency)
 {
-    // When we pass exactly `rate` bytes per call, the sampler should fire
-    // roughly once per call on average (since each call represents one mean
-    // interval). Over many calls the sample rate should be close to 1.
+    // When allocationSize == rate, the sampler has no deficit carry-over, so
+    // by the memoryless property of the exponential the per-call sample
+    // probability is p = 1 - exp(-allocationSize/rate) = 1 - exp(-1) ≈ 0.632.
+    // (The corresponding upscale weight 1/p ≈ 1.582 corrects for this.)
     //
     // This models the < .NET 10 (AllocationTick) case where each call
     // represents a fixed 100 KB allocation window.
@@ -100,16 +101,16 @@ TEST(PoissonAllocationSamplerTest, ShouldSample_FixedWindowRate_CorrectFrequency
             samples++;
     }
 
-    // Expect roughly one sample per call (Poisson mean = 1).
-    // With 10 000 trials the std-dev ≈ 1, so a ±10% window is very safe.
+    // Expected per-call probability: 1 - exp(-1) ≈ 0.6321.
+    double expected = 1.0 - std::exp(-1.0);
     double ratio = static_cast<double>(samples) / calls;
-    EXPECT_NEAR(ratio, 1.0, 0.10);
+    EXPECT_NEAR(ratio, expected, 0.02);
 }
 
 TEST(PoissonAllocationSamplerTest, ShouldSample_HalfRateWindow_HalfFrequency)
 {
-    // When each call represents half the mean interval, the sampler should
-    // fire roughly once every two calls (sample rate ≈ 0.5).
+    // When allocationSize = rate/2, per-call probability =
+    //   1 - exp(-allocationSize/rate) = 1 - exp(-0.5) ≈ 0.3935.
     //
     // This models sub-sampling AllocationTick events at 2× the tick rate.
     const uint64_t rate = 200u * 1024u;
@@ -124,14 +125,15 @@ TEST(PoissonAllocationSamplerTest, ShouldSample_HalfRateWindow_HalfFrequency)
             samples++;
     }
 
+    double expected = 1.0 - std::exp(-static_cast<double>(window) / rate);
     double ratio = static_cast<double>(samples) / calls;
-    EXPECT_NEAR(ratio, 0.5, 0.05);
+    EXPECT_NEAR(ratio, expected, 0.02);
 }
 
 TEST(PoissonAllocationSamplerTest, ShouldSample_HighRateWindow_LowFrequency)
 {
-    // When each call represents a window much smaller than the mean interval,
-    // the sample rate should be proportionally low.
+    // When allocationSize = rate/10, per-call probability =
+    //   1 - exp(-0.1) ≈ 0.0952 (close to 0.1 for small ratios).
     const uint64_t rate = 1000u * 1024u;
     const uint64_t window = 100u * 1024u; // 10× smaller
     PoissonAllocationSampler sampler(rate);
@@ -144,8 +146,9 @@ TEST(PoissonAllocationSamplerTest, ShouldSample_HighRateWindow_LowFrequency)
             samples++;
     }
 
+    double expected = 1.0 - std::exp(-static_cast<double>(window) / rate);
     double ratio = static_cast<double>(samples) / calls;
-    EXPECT_NEAR(ratio, 0.1, 0.02);
+    EXPECT_NEAR(ratio, expected, 0.02);
 }
 
 // ---------------------------------------------------------------------------
