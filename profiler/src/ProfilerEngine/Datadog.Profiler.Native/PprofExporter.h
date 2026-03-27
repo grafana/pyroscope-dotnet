@@ -6,6 +6,7 @@
 
 #include "IConfiguration.h"
 #include "IExporter.h"
+#include "IUpscaleProvider.h"
 #include "Sample.h"
 #include "TagsHelper.h"
 #include <mutex>
@@ -69,4 +70,6 @@ private:
 
     std::vector<ISamplesProvider*> _processSamplesProviders;
     std::mutex _processSamplesLock;
+
+    std::vector<IUpscalePoissonProvider*> _poissonUpscaleProviders;
 };

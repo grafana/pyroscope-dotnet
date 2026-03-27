@@ -139,11 +139,18 @@ std::unique_ptr<SamplesEnumerator> LiveObjectsProvider::GetSamples()
 
 void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
 {
-    // The CLR's AllocationTick fires every ~100KB. Use that window as the Poisson
-    // decrement unit so the sampler operates on allocation windows, not individual
-    // object bytes. This correctly models layer 1 of the two-layer sampling.
+    // The CLR fires one allocation event per ~100KB of allocations:
+    //  - < .NET 10: AllocationTick (every ~100KB window, one object selected with
+    //               probability proportional to its size).
+    //  - >= .NET 10: AllocationSampled (Poisson-sampled with mean ~100KB).
+    // In both cases the expected sampling interval is 100KB, so the same
+    // allocationWindow constant and upscale formula apply.
     static constexpr uint64_t allocationWindow = 100u * 1024u;
 
+    // Layer-2 sub-sampler: gives users control over what fraction of CLR allocation
+    // events are tracked for live heap profiling. Each AllocationTick/AllocationSampled
+    // event is treated as a unit of allocationWindow bytes; _sampler decides whether
+    // this particular event contributes a live-heap sample.
     if (!_sampler.ShouldSample(allocationWindow))
     {
         return;

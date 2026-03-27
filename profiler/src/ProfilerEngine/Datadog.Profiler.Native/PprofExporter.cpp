@@ -4,8 +4,10 @@
 
 #include "PprofExporter.h"
 #include "ISamplesProvider.h"
+#include "PoissonAllocationSampler.h"
 #include "SamplesEnumerator.h"
 #include "Log.h"
+#include <cmath>
 #include <signal.h>
 
 PprofExporter::PprofExporter(IApplicationStore* applicationStore,
@@ -60,6 +62,34 @@ void PprofExporter::AddSampleToEntries(const Sample& sample)
 
 void PprofExporter::Add(std::shared_ptr<Sample> const& sample)
 {
+    // Apply layer-1 Poisson upscaling for registered providers.
+    // Each provider's SamplingDistance and SumOffset identify which samples to scale
+    // and by how much (weight = 1 / (1 - exp(-size / SamplingDistance))).
+    for (auto* provider : _poissonUpscaleProviders)
+    {
+        auto info = provider->GetPoissonInfo();
+        auto const& values = sample->GetValues();
+        auto sizeIdx = static_cast<size_t>(info.SumOffset);
+        if (sizeIdx >= values.size() || values[sizeIdx] <= 0)
+        {
+            continue;
+        }
+
+        double weight = PoissonAllocationSampler::ComputeUpscaleWeight(
+            static_cast<uint64_t>(values[sizeIdx]), info.SamplingDistance);
+        if (weight <= 1.0)
+        {
+            continue;
+        }
+
+        for (auto offset : info.Offsets)
+        {
+            auto idx = static_cast<size_t>(offset);
+            sample->AddValue(
+                static_cast<int64_t>(std::llround(static_cast<double>(values[idx]) * weight)), idx);
+        }
+    }
+
     AddSampleToEntries(*sample);
 }
 
@@ -99,7 +129,10 @@ bool PprofExporter::Export(ProfileTime& startTime, ProfileTime& endTime, bool la
 }
 
 void PprofExporter::RegisterUpscaleProvider(IUpscaleProvider* provider) {};
-void PprofExporter::RegisterUpscalePoissonProvider(IUpscalePoissonProvider* provider) {};
+void PprofExporter::RegisterUpscalePoissonProvider(IUpscalePoissonProvider* provider)
+{
+    _poissonUpscaleProviders.push_back(provider);
+};
 
 void PprofExporter::RegisterProcessSamplesProvider(ISamplesProvider* provider)
 {
