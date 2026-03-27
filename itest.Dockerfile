@@ -21,8 +21,10 @@ RUN sed -i -E 's|<TargetFrameworks>.*</TargetFrameworks>|<TargetFramework>net'$S
 
 WORKDIR /dotnet/app
 
-# We hardcode linux-x64 here, as the profiler doesn't support any other platform
-RUN dotnet publish -o . --framework net$SDK_VERSION --runtime linux-x64 --no-self-contained
+# We hardcode linux-x64 here, as the profiler doesn't support any other platform.
+# Publish to a separate directory: .NET 10+ cleans the output dir before compiling,
+# so -o . (source dir) would delete source files and cause CS5001.
+RUN dotnet publish -o /dotnet/publish --framework net$SDK_VERSION --runtime linux-x64 --no-self-contained
 
 # This uses a locally built image of the SDK
 FROM --platform=linux/amd64 $PYROSCOPE_SDK_IMAGE AS sdk
@@ -37,7 +39,7 @@ WORKDIR /dotnet
 # and dynamic linker could not find the profiler lib.
 COPY --from=sdk /Pyroscope.Profiler.Native.so ./subfolder/Pyroscope.Profiler.Native.so
 COPY --from=sdk /Pyroscope.Linux.ApiWrapper.x64.so ./subfolder/Pyroscope.Linux.ApiWrapper.x64.so
-COPY --from=build /dotnet/app ./
+COPY --from=build /dotnet/publish ./
 
 # Fix for alpine not being able to dlopen an already loaded library
 ENV LD_LIBRARY_PATH=/dotnet/subfolder/

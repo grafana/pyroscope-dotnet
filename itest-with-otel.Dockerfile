@@ -21,8 +21,10 @@ RUN sed -i -E 's|<TargetFrameworks>.*</TargetFrameworks>|<TargetFramework>net'$S
 
 WORKDIR /dotnet/app
 
-# We hardcode linux-x64 here, as the profiler doesn't support any other platform
-RUN dotnet publish -o . --framework net$SDK_VERSION --runtime linux-x64 --no-self-contained
+# We hardcode linux-x64 here, as the profiler doesn't support any other platform.
+# Publish to a separate directory: .NET 10+ cleans the output dir before compiling,
+# so -o . (source dir) would delete source files and cause CS5001.
+RUN dotnet publish -o /dotnet/publish --framework net$SDK_VERSION --runtime linux-x64 --no-self-contained
 
 # This uses a locally built image of the SDK
 FROM --platform=linux/amd64 $PYROSCOPE_SDK_IMAGE AS sdk
@@ -62,11 +64,14 @@ WORKDIR /dotnet
 # Pyroscope as the notification profiler
 COPY --from=sdk /Pyroscope.Profiler.Native.so ./subfolder/Pyroscope.Profiler.Native.so
 COPY --from=sdk /Pyroscope.Linux.ApiWrapper.x64.so ./subfolder/Pyroscope.Linux.ApiWrapper.x64.so
-COPY --from=build /dotnet/app ./
+COPY --from=build /dotnet/publish ./
 
 ENV LD_LIBRARY_PATH=/dotnet/subfolder/
 ENV CORECLR_ENABLE_NOTIFICATION_PROFILERS=1
-ENV CORECLR_NOTIFICATION_PROFILERS=/dotnet/subfolder/Pyroscope.Profiler.Native.so={BD1A650D-AC5D-4896-B64F-D6FA25D6B26A}
+# Trailing semicolon required for .NET 9+ (bug in CLR: loop condition uses Find(';') so
+# single-entry lists without trailing ';' are never processed).
+# See https://github.com/dotnet/runtime/issues/126197
+ENV CORECLR_NOTIFICATION_PROFILERS=/dotnet/subfolder/Pyroscope.Profiler.Native.so={BD1A650D-AC5D-4896-B64F-D6FA25D6B26A};
 ENV LD_PRELOAD=/dotnet/subfolder/Pyroscope.Linux.ApiWrapper.x64.so
 
 ENV PYROSCOPE_SERVER_ADDRESS=http://pyroscope:4040

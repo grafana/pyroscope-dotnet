@@ -8,6 +8,30 @@ services:
     ports:
       - "4040:4040"
 
+  rideshare-glibc-net-10-0:
+    platform: linux/amd64
+    ports:
+      - "5000"
+    environment:
+      REGION: us-east
+      PYROSCOPE_APPLICATION_NAME: rideshare.dotnet.glibc.10.0.app
+      PYROSCOPE_SERVER_ADDRESS: http://pyroscope:4040
+      DD_TRACE_DEBUG: true
+    image: rideshare-app-glibc:net10.0 # built locally
+    pull_policy: never
+
+  rideshare-glibc-net-9-0:
+    platform: linux/amd64
+    ports:
+      - "5000"
+    environment:
+      REGION: us-east
+      PYROSCOPE_APPLICATION_NAME: rideshare.dotnet.glibc.9.0.app
+      PYROSCOPE_SERVER_ADDRESS: http://pyroscope:4040
+      DD_TRACE_DEBUG: true
+    image: rideshare-app-glibc:net9.0 # built locally
+    pull_policy: never
+
   rideshare-glibc-net-8-0:
     platform: linux/amd64
     ports:
@@ -53,6 +77,30 @@ services:
       PYROSCOPE_APPLICATION_NAME: rideshare.dotnet.glibc-otel.8.0.app
       PYROSCOPE_SERVER_ADDRESS: http://pyroscope:4040
     image: rideshare-app-glibc-otel:net8.0
+    pull_policy: never
+
+  rideshare-musl-net-10-0:
+    platform: linux/amd64
+    ports:
+      - "5000"
+    environment:
+      REGION: us-west
+      PYROSCOPE_APPLICATION_NAME: rideshare.dotnet.musl.10.0.app
+      PYROSCOPE_SERVER_ADDRESS: http://pyroscope:4040
+      DD_TRACE_DEBUG: true
+    image: rideshare-app-musl:net10.0 # built locally
+    pull_policy: never
+
+  rideshare-musl-net-9-0:
+    platform: linux/amd64
+    ports:
+      - "5000"
+    environment:
+      REGION: us-west
+      PYROSCOPE_APPLICATION_NAME: rideshare.dotnet.musl.9.0.app
+      PYROSCOPE_SERVER_ADDRESS: http://pyroscope:4040
+      DD_TRACE_DEBUG: true
+    image: rideshare-app-musl:net9.0 # built locally
     pull_policy: never
 
   rideshare-musl-net-8-0:
