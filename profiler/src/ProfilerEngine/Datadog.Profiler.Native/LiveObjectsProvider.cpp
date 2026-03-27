@@ -12,8 +12,8 @@
 #include "OpSysTools.h"
 #include "RawSampleTransformer.h"
 #include "Sample.h"
-#include "SampleValueTypeProvider.h"
 #include "SamplesEnumerator.h"
+#include "SampleValueTypeProvider.h"
 
 const std::string LiveObjectsProvider::Gen1("1");
 const std::string LiveObjectsProvider::Gen2("2");
@@ -22,7 +22,8 @@ LiveObjectsProvider::LiveObjectsProvider(
     ICorProfilerInfo13* pCorProfilerInfo,
     SampleValueTypeProvider& valueTypeProvider,
     RawSampleTransformer* rawSampleTransformer,
-    IConfiguration* pConfiguration) :
+    IConfiguration* pConfiguration)
+    :
     _pCorProfilerInfo(pCorProfilerInfo),
     _rawSampleTransformer{rawSampleTransformer},
     _valueOffsets{valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.LiveObjectsDefinitions)},
@@ -43,7 +44,8 @@ void LiveObjectsProvider::OnGarbageCollectionStart(
     int32_t number,
     uint32_t generation,
     GCReason reason,
-    GCType type)
+    GCType type
+)
 {
     // The address provided during AllocationTick event is not pointing to real object
     // so we tried to wait for the next garbage collection to create a wrapping weak handle.
