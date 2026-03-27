@@ -168,31 +168,34 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
 
     std::lock_guard<std::mutex> lock(_liveObjectsLock);
 
-    // Hard cap as safety net — with proper sampling this should rarely be hit
-    if (_monitoredObjects.size() >= _heapHandleLimit)
+    // Limit the number of handle to create until the next GC
+    // If _monitoredObjects is already full, stop adding new objects
+    if (_monitoredObjects.size() < _heapHandleLimit)
     {
-        return;
-    }
+        // When the AllocationTick event is received, the object is not already initialized.
+        // To call CreateWeakHandle(), it is needed to patch the MethodTable in memory
+        *(uintptr_t*)rawSample.Address = rawSample.MethodTable;
 
-    // When the AllocationTick event is received, the object is not already initialized.
-    // To call CreateWeakHandle(), it is needed to patch the MethodTable in memory
-    *(uintptr_t*)rawSample.Address = rawSample.MethodTable;
-
-    auto handle = CreateWeakHandle(rawSample.Address);
-    if (handle != nullptr)
-    {
-        uint64_t objectSize = (rawSample.AllocationSize > 0)
-            ? static_cast<uint64_t>(rawSample.AllocationSize)
-            : 1;
-        LiveObjectInfo info(
-            _rawSampleTransformer->Transform(rawSample, _valueOffsets),
-            rawSample.Address,
-            objectSize,
-            allocationWindow,
-            _heapSamplingRate,
-            rawSample.Timestamp);
-        info.SetHandle(handle);
-        _monitoredObjects.push_back(std::move(info));
+        auto handle = CreateWeakHandle(rawSample.Address);
+        if (handle != nullptr)
+        {
+            uint64_t objectSize = (rawSample.AllocationSize > 0)
+                ? static_cast<uint64_t>(rawSample.AllocationSize)
+                : 1;
+            LiveObjectInfo info(
+                _rawSampleTransformer->Transform(rawSample, _valueOffsets),
+                rawSample.Address,
+                objectSize,
+                allocationWindow,
+                _heapSamplingRate,
+                rawSample.Timestamp);
+            info.SetHandle(handle);
+            _monitoredObjects.push_back(std::move(info));
+        }
+        else
+        {
+            // this should never happen
+        }
     }
 }
 
