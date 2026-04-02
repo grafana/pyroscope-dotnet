@@ -144,6 +144,7 @@ Configuration::Configuration()
     _heapSnapshotCheckInterval = ExtractHeapSnapshotCheckInterval();
     _heapSnapshotMemoryPressureThreshold = GetEnvironmentValue(EnvironmentVariables::HeapSnapshotMemoryPressureThreshold, 85);
     _heapHandleLimit = ExtractHeapHandleLimit();
+    _heapSamplingRate = ExtractHeapSamplingRate();
     bool defaultUseManagedCodeCache =
     #if ARM64
         true;
@@ -911,6 +912,19 @@ int32_t Configuration::ExtractHeapHandleLimit() const
 uint32_t Configuration::GetHeapHandleLimit() const
 {
     return _heapHandleLimit;
+}
+
+uint64_t Configuration::ExtractHeapSamplingRate() const
+{
+    // Default is 524288 (512KB), matching Go's MemProfileRate.
+    // Minimum is 1024 (1KB) to avoid excessive overhead.
+    auto value = GetEnvironmentValue(EnvironmentVariables::HeapSamplingRate, uint64_t{524288});
+    return std::max(value, uint64_t{1024});
+}
+
+uint64_t Configuration::GetHeapSamplingRate() const
+{
+    return _heapSamplingRate;
 }
 
 

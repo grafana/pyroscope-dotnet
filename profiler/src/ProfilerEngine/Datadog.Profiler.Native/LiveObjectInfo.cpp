@@ -45,3 +45,4 @@ bool LiveObjectInfo::IsGen2() const
 {
     return _gcCount >= 2;
 }
+
