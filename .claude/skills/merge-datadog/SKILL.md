@@ -15,6 +15,7 @@ determine it automatically:
    .claude/skills/merge-datadog/find-previously-merged-version.sh
    ```
 2. Take the highest version found and increment the minor version (e.g. `v3.34.0` → `v3.35.0`).
+   Then check dd-trace-dotnet for the latest patch of that minor version by listing remote tags:
    ```
    git ls-remote --tags dd-trace-dotnet 'refs/tags/v<major>.<next_minor>.*'
    ```
