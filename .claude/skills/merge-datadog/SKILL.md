@@ -7,7 +7,7 @@ allowed-tools: Bash(git *), Bash(cmake *), Bash(make *), Bash(gh *), Bash(gh pr 
 
 Merge a specific tag from DataDog/dd-trace-dotnet into the fork.
 
-The user will provide the tag to merge (e.g. `v3.35.0`). If not provided,
+The user will provide the dd-trace-dotnet tag to merge (e.g. `v3.35.0`). If not provided,
 determine it automatically:
 
 1. Find previously merged versions:
