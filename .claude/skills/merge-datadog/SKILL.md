@@ -16,7 +16,7 @@ determine it automatically:
    ```
 2. Take the highest version found and increment the minor version (e.g. `v3.34.0` → `v3.35.0`).
    ```
-   git ls-remote --tags datadog 'refs/tags/v<major>.<next_minor>.*'
+   git ls-remote --tags dd-trace-dotnet 'refs/tags/v<major>.<next_minor>.*'
    ```
    Pick the highest patch version available (e.g. if `v3.35.0` and `v3.35.1` both exist,
    suggest `v3.35.1`). If no tags exist for that minor version, the tag doesn't exist yet — abort.
@@ -30,7 +30,7 @@ determine it automatically:
 
 | Remote     | Repository                          |
 |------------|-------------------------------------|
-| `datadog`  | https://github.com/DataDog/dd-trace-dotnet  |
+| `dd-trace-dotnet` | https://github.com/DataDog/dd-trace-dotnet  |
 | `upstream` | https://github.com/grafana/pyroscope-dotnet |
 
 DataDog/dd-trace-dotnet contains both a **tracer** and a **profiler**.
@@ -68,11 +68,11 @@ The scripts bellow should be executed as is, as executable, without passing it t
    ```
    .claude/skills/merge-datadog/prepare-merge.sh <ref> <base>
    ```
-   `<ref>` can be a tag (`v3.38.0`), a commit hash, or a remote ref (`datadog/main`).
+   `<ref>` can be a tag (`v3.38.0`), a commit hash, or a remote ref (`dd-trace-dotnet/main`).
    `<base>` is the local branch to build on (e.g. `main`).
 
    This single script handles everything up through step 9:
-   - Adds `datadog` remote (if missing) and fetches
+   - Adds `dd-trace-dotnet` remote (if missing) and fetches
    - Verifies `<ref>` resolves to a commit (aborts if not)
    - Creates the branch `kk/fork-update-<ref>` from `<base>` (re-creates if it already exists)
    - Starts the merge (`--no-commit --no-ff`)

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Find previously merged versions from git log.
-# Also ensures the 'datadog' and 'upstream' remotes are correctly configured.
+# Also ensures the 'dd-trace-dotnet' and 'upstream' remotes are correctly configured.
 set -euo pipefail
 
 DATADOG_URL="https://github.com/DataDog/dd-trace-dotnet.git"
@@ -20,7 +20,7 @@ ensure_remote() {
   fi
 }
 
-ensure_remote datadog   "$DATADOG_URL"
+ensure_remote dd-trace-dotnet "$DATADOG_URL"
 ensure_remote upstream  "$GRAFANA_URL"
 
 git log --oneline main | grep -iE "merge (tag|upstream|datadog)" | grep -oP 'v\d+\.\d+\.\d+' | sort -V | tail -5
