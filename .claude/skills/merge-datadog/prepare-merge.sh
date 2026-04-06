@@ -22,18 +22,17 @@ VERSION="${REF#v}"
 VERSION="${VERSION//\//-}"
 BRANCH="kk/fork-update-${VERSION}"
 
-# ── Step 1: Ensure dd-trace-dotnet remote exists and fetch ────────────────────
-step1_ensure_remote() {
-  echo "==> Step 1: Ensuring dd-trace-dotnet remote and fetching..."
+# ── Ensure remotes and fetch ─────────────────────────────────────────────────
+ensure_remotes() {
+  echo "==> Ensuring remotes and fetching..."
   local script_dir
   script_dir="$(cd "$(dirname "$0")" && pwd)"
   "$script_dir/find-previously-merged-version.sh" >/dev/null
-  git fetch dd-trace-dotnet --tags
 }
 
-# ── Step 2: Verify the ref resolves to a commit ──────────────────────────────
-step2_verify_ref() {
-  echo "==> Step 2: Verifying ref '${REF}' resolves to a commit..."
+# ── Verify the ref resolves to a commit ──────────────────────────────────────
+verify_ref() {
+  echo "==> Verifying ref '${REF}' resolves to a commit..."
   if ! git rev-parse --verify "${REF}^{commit}" &>/dev/null; then
     echo "ERROR: '${REF}' does not resolve to a commit. Aborting."
     exit 1
@@ -41,25 +40,25 @@ step2_verify_ref() {
   echo "    Ref '${REF}' confirmed."
 }
 
-# ── Step 3: Create merge branch from <base> ──────────────────────────────────
-step3_create_branch() {
-  echo "==> Step 3: Creating branch ${BRANCH} from ${BASE}..."
+# ── Create merge branch from <base> ──────────────────────────────────────────
+create_branch() {
+  echo "==> Creating branch ${BRANCH} from ${BASE}..."
   if git rev-parse --verify "${BRANCH}" &>/dev/null; then
     git branch -D "${BRANCH}"
   fi
   git checkout -b "${BRANCH}" "${BASE}"
 }
 
-# ── Step 4: Start the merge ───────────────────────────────────────────────────
-step4_start_merge() {
-  echo "==> Step 4: Starting merge of '${REF}' (--no-commit --no-ff)..."
+# ── Start the merge ──────────────────────────────────────────────────────────
+start_merge() {
+  echo "==> Starting merge of '${REF}' (--no-commit --no-ff)..."
   # Conflicts are expected; we handle them in subsequent steps.
   git merge "${REF}" --no-commit --no-ff || true
 }
 
-# ── Step 5: Remove directories we don't carry in the fork ────────────────────
-step5_remove_fork_dirs() {
-  echo "==> Step 5: Removing directories not carried in the fork..."
+# ── Remove directories we don't carry in the fork ────────────────────────────
+remove_fork_dirs() {
+  echo "==> Removing directories not carried in the fork..."
   git rm -rf --ignore-unmatch \
     tracer \
     profiler/src/Demos \
@@ -79,25 +78,25 @@ step5_remove_fork_dirs() {
     profiler/test/Directory.Build.props
 }
 
-# ── Step 6: Remove files we replace with git submodules ──────────────────────
-step6_remove_submodule_files() {
-  echo "==> Step 6: Removing files replaced by git submodules..."
+# ── Remove files we replace with git submodules ──────────────────────────────
+remove_submodule_files() {
+  echo "==> Removing files replaced by git submodules..."
   git rm -rf --ignore-unmatch \
     build/cmake/FindSpdlog.cmake \
     shared/src/native-lib/spdlog \
     build/cmake/FindManagedLoader.cmake
 }
 
-# ── Step 7: Resolve DU conflicts (deleted-by-us / updated-by-upstream) ───────
-step7_resolve_du_conflicts() {
-  echo "==> Step 7: Resolving DU (deleted-by-us) conflicts..."
+# ── Resolve DU conflicts (deleted-by-us / updated-by-upstream) ───────────────
+resolve_du_conflicts() {
+  echo "==> Resolving DU (deleted-by-us) conflicts..."
   git status --porcelain | grep '^DU ' | cut -c4- | xargs -r git rm -f
   echo "    DU conflicts done"
 }
 
-# ── Step 8: Remove upstream .github and .claude additions ────────────────────
-step8_remove_upstream_additions() {
-  echo "==> Step 8: Removing upstream .github and .claude additions..."
+# ── Remove upstream .github and .claude additions ────────────────────────────
+remove_upstream_additions() {
+  echo "==> Removing upstream .github and .claude additions..."
 
   local files
   files=$(git status --porcelain | grep '^A ' | grep '\.github' | cut -c4- || true)
@@ -118,9 +117,9 @@ step8_remove_upstream_additions() {
   fi
 }
 
-# ── Step 9: Resolve .github/CODEOWNERS to our fork version ───────────────────
-step9_resolve_codeowners() {
-  echo "==> Step 9: Resolving .github/CODEOWNERS..."
+# ── Resolve .github/CODEOWNERS to our fork version ───────────────────────────
+resolve_codeowners() {
+  echo "==> Resolving .github/CODEOWNERS..."
   if [ -f .github/CODEOWNERS ]; then
     git checkout --ours .github/CODEOWNERS
     git add .github/CODEOWNERS
@@ -131,18 +130,18 @@ step9_resolve_codeowners() {
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
-step1_ensure_remote
-step2_verify_ref
-step3_create_branch
-step4_start_merge
-step5_remove_fork_dirs
-step6_remove_submodule_files
-step7_resolve_du_conflicts
-step8_remove_upstream_additions
-step9_resolve_codeowners
+ensure_remotes
+verify_ref
+create_branch
+start_merge
+remove_fork_dirs
+remove_submodule_files
+resolve_du_conflicts
+remove_upstream_additions
+resolve_codeowners
 
 echo ""
-echo "==> Steps 1-9 complete. Branch: ${BRANCH}"
+echo "==> Steps complete. Branch: ${BRANCH}"
 echo "    Remaining conflicts (if any):"
 git diff --name-only --diff-filter=U || true
 echo ""
