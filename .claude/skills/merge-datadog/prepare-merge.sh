@@ -46,6 +46,7 @@ create_branch() {
   if git rev-parse --verify "${BRANCH}" &>/dev/null; then
     git branch -D "${BRANCH}"
   fi
+  git push origin --delete "${BRANCH}" 2>/dev/null || true
   git checkout -b "${BRANCH}" "${BASE}"
 }
 
