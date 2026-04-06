@@ -23,7 +23,7 @@ determine it automatically:
    suggest `v3.35.1`). If no tags exist for that minor version, the tag doesn't exist yet — abort.
 3. **Always confirm with the user** before proceeding — show the previous version
    found and the proposed next version, and ask the user to confirm or provide a different tag.
-4. **Ask the user which branch to base the merge on.** Suggest `main` (recommended)
+4. **Ask the user which branch to base the merge on.** Suggest `upstream/main` (recommended)
    but also offer the current branch (`git branch --show-current`) as an option.
    Use the chosen branch as `<base>` in step 3 below.
 
