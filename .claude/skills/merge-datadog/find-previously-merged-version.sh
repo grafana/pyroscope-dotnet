@@ -24,4 +24,5 @@ ensure_remote dd-trace-dotnet "$DATADOG_URL"
 ensure_remote upstream  "$GRAFANA_URL"
 
 git fetch upstream --quiet
+git fetch dd-trace-dotnet --tags --quiet
 git log --oneline upstream/main | grep -iE "merge (tag|upstream|datadog)" | grep -oP 'v\d+\.\d+\.\d+' | sort -V | tail -5
