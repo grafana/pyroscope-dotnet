@@ -25,11 +25,9 @@ BRANCH="kk/fork-update-${VERSION}"
 # ── Step 1: Ensure datadog remote exists and fetch ───────────────────────────
 step1_ensure_datadog() {
   echo "==> Step 1: Ensuring datadog remote and fetching..."
-  # find-previous-versions.sh validates remotes; re-use the same logic here
-  # in case prepare-merge.sh is called directly.
   local script_dir
   script_dir="$(cd "$(dirname "$0")" && pwd)"
-  "$script_dir/find-previous-versions.sh" >/dev/null
+  "$script_dir/find-previously-merged-version.sh" >/dev/null
   git fetch datadog --tags
 }
 
