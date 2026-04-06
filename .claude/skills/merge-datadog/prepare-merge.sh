@@ -130,6 +130,12 @@ resolve_codeowners() {
   fi
 }
 
+# ── Initialize and update git submodules ──────────────────────────────────────
+update_submodules() {
+  echo "==> Updating git submodules..."
+  git submodule update --init --recursive --jobs 6
+}
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 ensure_remotes
 verify_ref
@@ -140,6 +146,7 @@ remove_submodule_files
 resolve_du_conflicts
 remove_upstream_additions
 resolve_codeowners
+update_submodules
 
 echo ""
 echo "==> Steps complete. Branch: ${BRANCH}"
