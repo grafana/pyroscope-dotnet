@@ -3,8 +3,8 @@
 # Also ensures the 'dd-trace-dotnet' and 'upstream' remotes are correctly configured.
 set -euo pipefail
 
-DATADOG_URL="https://github.com/DataDog/dd-trace-dotnet.git"
-GRAFANA_URL="https://github.com/grafana/pyroscope-dotnet.git"
+DATADOG_URL="git@github.com:DataDog/dd-trace-dotnet.git"
+GRAFANA_URL="git@github.com:grafana/pyroscope-dotnet.git"
 
 ensure_remote() {
   local name="$1" expected_url="$2"
