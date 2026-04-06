@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # prepare-merge.sh <ref> <base-branch>
-# Steps 1-9 of the merge-upstream skill.
-# <ref> can be a tag (v3.38.0), a commit hash, or a remote ref (upstream/main).
+# Steps 1-9 of the merge-datadog skill.
+# <ref> can be a tag (v3.38.0), a commit hash, or a remote ref (datadog/main).
 # <base-branch> is the local branch to base the merge on (e.g. main).
 set -euxo pipefail
 
@@ -11,24 +11,24 @@ BASE="${2:-}"
 if [ -z "$REF" ] || [ -z "$BASE" ]; then
   echo "Usage: $0 <ref> <base-branch>"
   echo "  e.g. $0 v3.38.0 main"
-  echo "  e.g. $0 upstream/main main"
+  echo "  e.g. $0 datadog/main main"
   echo "  e.g. $0 abc1234 main"
   exit 1
 fi
 
 # Derive a clean version string for the branch name.
-# Strip leading 'v', replace '/' with '-' so remote refs like upstream/main become upstream-main.
+# Strip leading 'v', replace '/' with '-' so remote refs like datadog/main become datadog-main.
 VERSION="${REF#v}"
 VERSION="${VERSION//\//-}"
 BRANCH="kk/fork-update-${VERSION}"
 
-# ── Step 1: Ensure upstream remote exists and fetch ──────────────────────────
-step1_ensure_upstream() {
-  echo "==> Step 1: Ensuring upstream remote and fetching..."
-  if ! git remote get-url upstream &>/dev/null; then
-    git remote add upstream https://github.com/DataDog/dd-trace-dotnet.git
+# ── Step 1: Ensure datadog remote exists and fetch ───────────────────────────
+step1_ensure_datadog() {
+  echo "==> Step 1: Ensuring datadog remote and fetching..."
+  if ! git remote get-url datadog &>/dev/null; then
+    git remote add datadog https://github.com/DataDog/dd-trace-dotnet.git
   fi
-  git fetch upstream --tags
+  git fetch datadog --tags
 }
 
 # ── Step 2: Verify the ref resolves to a commit ──────────────────────────────
@@ -131,7 +131,7 @@ step9_resolve_codeowners() {
 }
 
 # ── Main ──────────────────────────────────────────────────────────────────────
-step1_ensure_upstream
+step1_ensure_datadog
 step2_verify_ref
 step3_create_branch
 step4_start_merge
