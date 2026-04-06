@@ -25,8 +25,16 @@ BRANCH="kk/fork-update-${VERSION}"
 # ── Step 1: Ensure datadog remote exists and fetch ───────────────────────────
 step1_ensure_datadog() {
   echo "==> Step 1: Ensuring datadog remote and fetching..."
+  local expected_url="https://github.com/DataDog/dd-trace-dotnet.git"
   if ! git remote get-url datadog &>/dev/null; then
-    git remote add datadog https://github.com/DataDog/dd-trace-dotnet.git
+    git remote add datadog "$expected_url"
+  else
+    local actual_url
+    actual_url=$(git remote get-url datadog)
+    if [ "$actual_url" != "$expected_url" ]; then
+      echo "ERROR: 'datadog' remote points to '$actual_url', expected '$expected_url'. Aborting."
+      exit 1
+    fi
   fi
   git fetch datadog --tags
 }
