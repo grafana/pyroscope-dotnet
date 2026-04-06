@@ -28,6 +28,11 @@ determine it automatically:
 
 ## Fork context
 
+| Remote     | Repository                          |
+|------------|-------------------------------------|
+| `datadog`  | https://github.com/DataDog/dd-trace-dotnet  |
+| `upstream` | https://github.com/grafana/pyroscope-dotnet |
+
 DataDog/dd-trace-dotnet contains both a **tracer** and a **profiler**.
 Our fork only uses the **profiler** — the tracer is completely removed.
 

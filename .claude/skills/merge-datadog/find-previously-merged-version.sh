@@ -4,6 +4,7 @@
 set -euo pipefail
 
 DATADOG_URL="https://github.com/DataDog/dd-trace-dotnet.git"
+GRAFANA_URL="https://github.com/grafana/pyroscope-dotnet.git"
 
 ensure_remote() {
   local name="$1" expected_url="$2"
@@ -19,7 +20,7 @@ ensure_remote() {
   fi
 }
 
-ensure_remote datadog  "$DATADOG_URL"
-ensure_remote upstream "$DATADOG_URL"
+ensure_remote datadog   "$DATADOG_URL"
+ensure_remote upstream  "$GRAFANA_URL"
 
 git log --oneline main | grep -iE "merge (tag|upstream|datadog)" | grep -oP 'v\d+\.\d+\.\d+' | sort -V | tail -5
