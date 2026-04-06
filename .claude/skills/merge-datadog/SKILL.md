@@ -15,11 +15,9 @@ determine it automatically:
    .claude/skills/merge-datadog/find-previous-versions.sh
    ```
 2. Take the highest version found and increment the minor version (e.g. `v3.34.0` → `v3.35.0`).
-   Then ensure the `datadog` remote exists and check for the latest patch of that
-   minor version by listing remote tags (`ls-remote` queries the server directly,
-   no fetch needed):
+   Then check for the latest patch of that minor version by listing remote tags
+   (`find-previous-versions.sh` already ensured the `datadog` remote exists):
    ```
-   git remote get-url datadog &>/dev/null || git remote add datadog https://github.com/DataDog/dd-trace-dotnet.git
    git ls-remote --tags datadog 'refs/tags/v<major>.<next_minor>.*'
    ```
    Pick the highest patch version available (e.g. if `v3.35.0` and `v3.35.1` both exist,
