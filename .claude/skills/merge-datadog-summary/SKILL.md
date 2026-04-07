@@ -1,27 +1,27 @@
 ---
-description: Summarize an upstream merge PR with diff overview and profiler-related commit log
+description: Summarize a datadog merge PR with diff overview and profiler-related commit log
 allowed-tools: Bash(gh *), Bash(git *), Read, Glob, Grep
 ---
 
-# Merge Upstream Summary
+# Merge Datadog Summary
 
-Generate a summary for a PR created by the `merge-upstream` skill and update
+Generate a summary for a PR created by the `merge-datadog` skill and update
 the PR description.
 
 If the conversation already contains PR information (number, URL, branch name),
 use that directly — do NOT run `gh pr list` to re-discover it.
 
 Only as a last resort, if no PR info is available in context, find the most
-recent open PR with the `upstream-merge` label:
+recent open PR with the `datadog-merge` label:
 ```
-gh pr list --repo grafana/pyroscope-dotnet --label upstream-merge --state open --limit 1
+gh pr list --repo grafana/pyroscope-dotnet --label datadog-merge --state open --limit 1
 ```
 
 ## Steps
 
-1. **Identify the PR and upstream tag**
+1. **Identify the PR and the DataDog tag**
    - Get PR metadata: `gh pr view <pr> --repo grafana/pyroscope-dotnet --json number,title,baseRefName,headRefName,url`
-   - Extract the upstream tag from the PR title (e.g. `merge upstream v3.35.0` → `v3.35.0`)
+   - Extract the tag from the PR title (e.g. `merge datadog v3.35.0` → `v3.35.0`)
 
 2. **Get the PR diff and find profiler-related changes**
    ```
@@ -32,7 +32,7 @@ gh pr list --repo grafana/pyroscope-dotnet --label upstream-merge --state open -
    ```
    gh pr view <pr> --repo grafana/pyroscope-dotnet --json commits --jq '.commits[] | [.oid[:8], .oid, .messageHeadline] | @tsv'
    ```
-   For each profiler-related commit, build the upstream GitHub URL:
+   For each profiler-related commit, build the DataDog GitHub URL:
    `https://github.com/DataDog/dd-trace-dotnet/commit/<full-sha>`
 
 3. **Write the summary**
@@ -40,7 +40,7 @@ gh pr list --repo grafana/pyroscope-dotnet --label upstream-merge --state open -
    Compose a PR description in this format:
 
    ```markdown
-   Merge upstream dd-trace-dotnet <tag> into the fork.
+   Merge dd-trace-dotnet <tag> into the fork.
 
    ## Summary
 

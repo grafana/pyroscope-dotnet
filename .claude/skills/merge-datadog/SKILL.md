@@ -1,38 +1,43 @@
 ---
-description: Merge upstream dd-trace-dotnet changes into the pyroscope-dotnet fork
-allowed-tools: Bash(git *), Bash(cmake *), Bash(make *), Bash(gh *), Bash(gh pr create *), Bash(git add -A && git commit *), Bash(*/.claude/skills/merge-upstream/*.sh), Read, Write, Edit, Glob, Grep
+description: Merge dd-trace-dotnet changes from DataDog into the pyroscope-dotnet fork
+allowed-tools: Bash(git *), Bash(cmake *), Bash(make *), Bash(gh *), Bash(gh pr create *), Bash(git add -A && git commit *), Bash(*/.claude/skills/merge-datadog/*.sh), Read, Write, Edit, Glob, Grep
 ---
 
-# Merge Upstream
+# Merge Datadog
 
-Merge a specific upstream tag from DataDog/dd-trace-dotnet into the fork.
+Merge a specific tag from DataDog/dd-trace-dotnet into the fork.
 
-The user will provide the upstream tag to merge (e.g. `v3.35.0`). If not provided,
+The user will provide the dd-trace-dotnet tag to merge (e.g. `v3.35.0`). If not provided,
 determine it automatically:
 
-1. Find previously merged upstream versions:
+1. Find previously merged versions:
    ```
-   .claude/skills/merge-upstream/find-previous-versions.sh
+   .claude/skills/merge-datadog/find-previously-merged-version.sh
    ```
 2. Take the highest version found and increment the minor version (e.g. `v3.34.0` → `v3.35.0`).
-   Then check upstream for the latest patch of that minor version by listing remote tags:
+   Then check dd-trace-dotnet for the latest patch of that minor version by listing remote tags:
    ```
-   git ls-remote --tags upstream 'refs/tags/v<major>.<next_minor>.*'
+   git ls-remote --tags dd-trace-dotnet 'refs/tags/v<major>.<next_minor>.*'
    ```
    Pick the highest patch version available (e.g. if `v3.35.0` and `v3.35.1` both exist,
    suggest `v3.35.1`). If no tags exist for that minor version, the tag doesn't exist yet — abort.
 3. **Always confirm with the user** before proceeding — show the previous version
    found and the proposed next version, and ask the user to confirm or provide a different tag.
-4. **Ask the user which branch to base the merge on.** Suggest `main` (recommended)
+4. **Ask the user which branch to base the merge on.** Suggest `upstream/main` (recommended)
    but also offer the current branch (`git branch --show-current`) as an option.
    Use the chosen branch as `<base>` in step 3 below.
 
 ## Fork context
 
-The upstream project (dd-trace-dotnet) contains both a **tracer** and a **profiler**.
+| Remote     | Repository                          |
+|------------|-------------------------------------|
+| `dd-trace-dotnet` | git@github.com:DataDog/dd-trace-dotnet.git  |
+| `upstream` | git@github.com:grafana/pyroscope-dotnet.git |
+
+DataDog/dd-trace-dotnet contains both a **tracer** and a **profiler**.
 Our fork only uses the **profiler** — the tracer is completely removed.
 
-What we strip from upstream on every merge:
+What we strip from DataDog on every merge:
 - `tracer/` — we don't use the Datadog tracer at all
 - `profiler/src/Demos/`, `profiler/test/`, `profiler/src/Tools/` — upstream demo/test code we don't need
 - `shared/test/` — upstream shared test code
@@ -50,25 +55,25 @@ related to the tracer, Azure CI, upstream demos, or upstream .github workflows, 
 (deletion/absence) is correct.
 
 **IMPORTANT — git safety rules:**
-- Never create PRs or push to the upstream DataDog repo. All PRs must target
+- Never create PRs or push to the DataDog repo. All PRs must target
   `grafana/pyroscope-dotnet` with `--base main`.
 - Never rebase or rewrite history. The only allowed destructive operations are
   `--amend` and `--force-push` on the merge commit of the branch created in step 5.
 - Only push to the `kk/fork-update-*` branch created for this merge — never to `main`.
 
-The scripts bellow should be executed as is, as executable, without passing it to the bash.  `.claude/skills/merge-upstream/find-previous-versions.sh` instead of `bash .claude/skills/merge-upstream/find-previous-versions.sh`
+The scripts bellow should be executed as is, as executable, without passing it to the bash.  `.claude/skills/merge-datadog/find-previously-merged-version.sh` instead of `bash .claude/skills/merge-datadog/find-previously-merged-version.sh`
 
 ## Steps
 
 1. **Run the prepare-merge script (steps 1-9)**
    ```
-   .claude/skills/merge-upstream/prepare-merge.sh <ref> <base>
+   .claude/skills/merge-datadog/prepare-merge.sh <ref> <base>
    ```
-   `<ref>` can be a tag (`v3.38.0`), a commit hash, or a remote ref (`upstream/main`).
+   `<ref>` can be a tag (`v3.38.0`), a commit hash, or a remote ref (`dd-trace-dotnet/main`).
    `<base>` is the local branch to build on (e.g. `main`).
 
    This single script handles everything up through step 9:
-   - Adds upstream remote (if missing) and fetches
+   - Adds `dd-trace-dotnet` remote (if missing) and fetches
    - Verifies `<ref>` resolves to a commit (aborts if not)
    - Creates the branch `kk/fork-update-<ref>` from `<base>` (re-creates if it already exists)
    - Starts the merge (`--no-commit --no-ff`)
@@ -85,7 +90,7 @@ The scripts bellow should be executed as is, as executable, without passing it t
    - Resolve CMake-related conflicts first (`CMakeLists.txt`, `*.cmake` files)
    - Then verify cmake configures successfully:
      ```
-     .claude/skills/merge-upstream/cmake_configure.sh
+     .claude/skills/merge-datadog/cmake_configure.sh
      ```
      Fix any cmake errors before proceeding to other conflicts.
 
@@ -101,20 +106,20 @@ The scripts bellow should be executed as is, as executable, without passing it t
     (e.g. 600000ms).
 
     ```
-    .claude/skills/merge-upstream/build.sh
+    .claude/skills/merge-datadog/build.sh
     ```
 
     Report any build errors and fix them before committing.
 
 5. **Commit the merge**
-    - `git add -A && git commit` with message: `merge upstream <tag>`
+    - `git add -A && git commit` with message: `merge datadog <tag>`
 
 6. **Push and create a draft PR**
     ```
     git push -u origin kk/fork-update-<version>
-    gh pr create --draft --repo grafana/pyroscope-dotnet --base <base> --label "upstream-merge" --title "merge upstream <tag>" --body "Merge upstream dd-trace-dotnet <tag> into the fork."
+    gh pr create --draft --repo grafana/pyroscope-dotnet --base <base> --label "datadog-merge" --title "merge datadog <tag>" --body "Merge dd-trace-dotnet <tag> into the fork."
     ```
 
 7. **Generate PR summary**
-    After the PR is created, invoke the `merge-upstream-summary` skill to generate
+    After the PR is created, invoke the `merge-datadog-summary` skill to generate
     a detailed summary and update the PR description.
