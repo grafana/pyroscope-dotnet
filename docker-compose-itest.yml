@@ -4,7 +4,7 @@
 services:
   pyroscope:
     platform: linux/amd64
-    image: grafana/pyroscope@sha256:0ad897bb457228c7d1133ce7004f83052e635be9daf4a7cc90364317637e9754
+    image: grafana/pyroscope@sha256:47fc578b2227e9c0c5c5efda34966c1566b0d0a0802cb2adc2e1e9f7ae16a7aa
     ports:
       - "4040:4040"
 
