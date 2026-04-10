@@ -1,4 +1,4 @@
-FROM debian:11@sha256:a50c3ed0200d2f58736c3bb02b4a9f174f3d6d3bd866f2f640375f1e82c61348 AS builder
+FROM debian:trixie-20260406@sha256:3352c2e13876c8a5c5873ef20870e1939e73cb9a3c1aeba5e3e72172a85ce9ed AS builder
 
 RUN apt-get update && apt-get -y install cmake make git curl golang libtool wget perl
 
