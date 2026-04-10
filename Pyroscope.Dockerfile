@@ -13,7 +13,7 @@ RUN wget -q "https://github.com/openssl/openssl/releases/download/openssl-${OPEN
     ln -s /usr/local/openssl/lib64 /usr/local/openssl/lib && \
     cd .. && rm -rf openssl-${OPENSSL_VERSION} openssl-${OPENSSL_VERSION}.tar.gz
 
-RUN apt-get -y install lsb-release wget software-properties-common gnupg
+RUN apt-get -y install lsb-release wget gnupg
 
 RUN wget https://apt.llvm.org/llvm.sh && \
   chmod +x llvm.sh && \
