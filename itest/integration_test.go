@@ -69,6 +69,12 @@ func serviceName() string {
 	return base
 }
 
+type appInstance struct {
+	container       testcontainers.Container
+	baseURL         string
+	applicationName string
+}
+
 func startPyroscope(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork) string {
 	t.Helper()
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
@@ -95,6 +101,22 @@ func startPyroscope(ctx context.Context, t *testing.T, net *testcontainers.Docke
 
 func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork) string {
 	t.Helper()
+	return startAppWithOptions(ctx, t, net, serviceName(), nil).baseURL
+}
+
+func startAppWithOptions(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork, applicationName string, extraEnv map[string]string) appInstance {
+	t.Helper()
+
+	env := map[string]string{
+		"REGION":                     "us-east",
+		"PYROSCOPE_APPLICATION_NAME": applicationName,
+		"PYROSCOPE_SERVER_ADDRESS":   "http://pyroscope:4040",
+		"DD_TRACE_DEBUG":             "true",
+	}
+	for key, value := range extraEnv {
+		env[key] = value
+	}
+
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:         rideshareImage(),
@@ -103,12 +125,7 @@ func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwo
 			NetworkAliases: map[string][]string{
 				net.Name: {"rideshare"},
 			},
-			Env: map[string]string{
-				"REGION":                     "us-east",
-				"PYROSCOPE_APPLICATION_NAME": serviceName(),
-				"PYROSCOPE_SERVER_ADDRESS":   "http://pyroscope:4040",
-				"DD_TRACE_DEBUG":             "true",
-			},
+			Env:          env,
 			ExposedPorts: []string{"5000/tcp"},
 			WaitingFor:   wait.ForListeningPort("5000/tcp").WithStartupTimeout(120 * time.Second),
 		},
@@ -121,7 +138,11 @@ func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwo
 	require.NoError(t, err)
 	port, err := c.MappedPort(ctx, "5000/tcp")
 	require.NoError(t, err)
-	return fmt.Sprintf("http://%s:%s", host, port.Port())
+	return appInstance{
+		container:       c,
+		baseURL:         fmt.Sprintf("http://%s:%s", host, port.Port()),
+		applicationName: applicationName,
+	}
 }
 
 // runLoadGenerator cycles through /bike, /scooter, /car requests in a goroutine
@@ -154,16 +175,75 @@ func runLoadGenerator(ctx context.Context, t *testing.T, appBaseURL string) {
 	}()
 }
 
-func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string) (string, error) {
+func setCPUTrackingEnabled(t *testing.T, appBaseURL string, enabled bool) {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/profiling/cpu/%t", appBaseURL, enabled), nil)
+	require.NoError(t, err)
+
+	resp, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func setAllTrackingEnabled(t *testing.T, appBaseURL string, enabled bool) {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/profiling/all/%t", appBaseURL, enabled), nil)
+	require.NoError(t, err)
+
+	resp, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func profileTypeID(t *testing.T, pyroscopeURL string, profileName string) (string, error) {
 	t.Helper()
 	qc := querierv1connect.NewQuerierServiceClient(http.DefaultClient, pyroscopeURL)
+
+	to := time.Now()
+	from := to.Add(-1 * time.Hour)
+	resp, err := qc.ProfileTypes(context.Background(),
+		connect.NewRequest(&querierv1.ProfileTypesRequest{
+			Start: from.UnixMilli(),
+			End:   to.UnixMilli(),
+		}))
+	if err != nil {
+		return "", err
+	}
+
+	for _, profileType := range resp.Msg.ProfileTypes {
+		if profileType.GetName() == profileName {
+			return profileType.GetID(), nil
+		}
+	}
+
+	return "", nil
+}
+
+func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string) (string, error) {
+	return queryProfileByName(t, pyroscopeURL, labelSelector, "process_cpu")
+}
+
+func queryProfileByName(t *testing.T, pyroscopeURL string, labelSelector string, profileName string) (string, error) {
+	t.Helper()
+	qc := querierv1connect.NewQuerierServiceClient(http.DefaultClient, pyroscopeURL)
+
+	profileTypeID, err := profileTypeID(t, pyroscopeURL, profileName)
+	if err != nil || profileTypeID == "" {
+		return "", err
+	}
 
 	to := time.Now()
 	from := to.Add(-1 * time.Hour)
 	maxNodes := int64(65536)
 	resp, err := qc.SelectMergeStacktraces(context.Background(),
 		connect.NewRequest(&querierv1.SelectMergeStacktracesRequest{
-			ProfileTypeID: "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+			ProfileTypeID: profileTypeID,
 			Start:         from.UnixMilli(),
 			End:           to.UnixMilli(),
 			LabelSelector: labelSelector,
@@ -274,6 +354,64 @@ func TestRideshareProfiles(t *testing.T) {
 			}
 			t.Logf("collapsed profile for %s:\n%s", check.vehicle, lastCollapsed)
 		})
+	}
+}
+
+func TestDynamicCPUProfilingCanBeReenabledAfterStartupDisable(t *testing.T) {
+	if flavour() != "musl" || dotnetVersion() != "10.0" {
+		t.Skip("targets the reported musl/.NET 10 environment")
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	net, err := network.New(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = net.Remove(ctx) })
+
+	pyroscopeURL := startPyroscope(ctx, t, net)
+	app := startAppWithOptions(ctx, t, net, serviceName()+".dynamic-reenable", map[string]string{
+		"DD_PROFILING_CPU_ENABLED":      "false",
+		"DD_PROFILING_WALLTIME_ENABLED": "true",
+	})
+
+	setAllTrackingEnabled(t, app.baseURL, false)
+	time.Sleep(7 * time.Second)
+	setCPUTrackingEnabled(t, app.baseURL, true)
+	runLoadGenerator(ctx, t, app.baseURL)
+
+	labelSelector := fmt.Sprintf(`{service_name="%s",vehicle="bike"}`, app.applicationName)
+	var lastCollapsed string
+	var lastQueryErr error
+	var lastProbeErr error
+
+	ok := assert.Eventually(t, func() bool {
+		resp, err := (&http.Client{Timeout: 10 * time.Second}).Get(app.baseURL + "/bike")
+		if err != nil {
+			lastProbeErr = err
+			return false
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			lastProbeErr = fmt.Errorf("unexpected app status: %s", resp.Status)
+			return false
+		}
+		lastProbeErr = nil
+
+		lastCollapsed, lastQueryErr = queryProfileByName(t, pyroscopeURL, labelSelector, "wall")
+		if lastQueryErr != nil || lastCollapsed == "" {
+			return false
+		}
+
+		return frameContains(lastCollapsed, "OrderService", "FindNearestVehicle")
+	}, 3*time.Minute, 5*time.Second)
+
+	if !ok {
+		t.Logf("label selector: %s", labelSelector)
+		t.Logf("last app probe error: %v", lastProbeErr)
+		t.Logf("last profile query error: %v", lastQueryErr)
+		t.Logf("last collapsed profile:\n%s", lastCollapsed)
+		t.FailNow()
 	}
 }
 
