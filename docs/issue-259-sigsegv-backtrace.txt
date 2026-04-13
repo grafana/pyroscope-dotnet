@@ -1,0 +1,46 @@
+Issue: https://github.com/grafana/pyroscope-dotnet/issues/259
+Environment: musl image + .NET 10 + walltime/cpu enabled + dynamic disable/enable via managed API
+
+Capture method:
+- Run rideshare in Docker under gdb (batch mode)
+- Configure gdb to ignore profiler runtime signals (SIGUSR1, SIGPROF)
+- Trigger dynamic toggling endpoint
+
+Reproducer command (abbreviated):
+gdb --batch \
+  -ex "set pagination off" \
+  -ex "handle SIGUSR1 nostop noprint pass" \
+  -ex "handle SIGPROF nostop noprint pass" \
+  -ex "run" \
+  -ex "bt" \
+  -ex "thread apply all bt" \
+  --args dotnet /dotnet/rideshare.dll
+
+Relevant backtrace excerpt:
+
+Thread 43 "DD_StackSampler" received signal SIGSEGV, Segmentation fault.
+[Switching to LWP 63]
+0x000073eee253f668 in OsSpecificApi::IsRunning (pThreadInfo=0x0)
+    at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Linux/OsSpecificApi.cpp:195
+
+#0  0x000073eee253f668 in OsSpecificApi::IsRunning (pThreadInfo=0x0)
+    at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Linux/OsSpecificApi.cpp:195
+#1  0x000073eee26bfbea in StackSamplerLoop::ResetThreadsCpuConsumption (this=0x73ae489d8a80)
+    at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/StackSamplerLoop.cpp:621
+#2  0x000073eee26bf920 in StackSamplerLoop::MainLoop (this=0x73ae489d8a80)
+    at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/StackSamplerLoop.cpp:155
+#3  0x000073eee26c21bc in StackSamplerLoop::StartImpl()::$_0::operator()() const
+    at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/StackSamplerLoop.cpp:117
+#4  0x000073eee26c2185 in std::__invoke_impl<void, StackSamplerLoop::StartImpl()::$_0>(...)
+#5  0x000073eee26c2145 in std::__invoke<StackSamplerLoop::StartImpl()::$_0>(...)
+#6  0x000073eee26c211d in std::thread::_Invoker<std::tuple<StackSamplerLoop::StartImpl()::$_0> >::_M_invoke<0ul>(...)
+#7  0x000073eee26c20f5 in std::thread::_Invoker<std::tuple<StackSamplerLoop::StartImpl()::$_0> >::operator()(...)
+#8  0x000073eee26c2059 in std::thread::_State_impl<...>::_M_run(...)
+#9  0x000073eee2dfde63 in std::execute_native_thread_routine (...)
+#10 0x000073ef63630305 in dd_pthread_entry (...)
+#11 0x000073ef636a443a in start (...)
+#12 0x000073ef636a5d88 in __clone (...)
+
+Observation:
+- Crash occurs during dynamic restart of stack sampler loop.
+- Null pointer is passed into OsSpecificApi::IsRunning from ResetThreadsCpuConsumption.
