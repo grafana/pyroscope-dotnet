@@ -249,7 +249,7 @@ extern "C" void __stdcall SetCPUTrackingEnabled(bool enabled)
 
     if (profiler == nullptr)
     {
-        Log::Error("SetStackSamplerEnabled is called BEFORE CLR initialize");
+        Log::Error("SetCPUTrackingEnabled is called BEFORE CLR initialize");
         return;
     }
 
@@ -257,7 +257,7 @@ extern "C" void __stdcall SetCPUTrackingEnabled(bool enabled)
     {
         return;
     }
-    profiler->SetStackSamplerEnabled(enabled);
+    profiler->SetCPUTrackingEnabled(enabled);
 }
 
 extern "C" void __stdcall SetAllocationTrackingEnabled(bool enabled)

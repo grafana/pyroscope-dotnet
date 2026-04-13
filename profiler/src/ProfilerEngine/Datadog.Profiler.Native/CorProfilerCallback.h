@@ -228,7 +228,7 @@ public:
     void TraceContextHasBeenSet() { _pSsiManager->OnSpanCreated(); }
 
 
-    void SetStackSamplerEnabled(bool enabled);
+    void SetCPUTrackingEnabled(bool enabled);
     void SetAllocationTrackingEnabled(bool enabled);
     void SetContentionTrackingEnabled(bool enabled);
     void SetExceptionTrackingEnabled(bool enabled);

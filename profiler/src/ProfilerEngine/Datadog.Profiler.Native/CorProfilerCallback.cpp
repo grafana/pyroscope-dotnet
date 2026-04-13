@@ -2732,9 +2732,54 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::EventPipeProviderCreated(EVENTPIP
 }
 
 
-void CorProfilerCallback::SetStackSamplerEnabled(bool enabled)
+void CorProfilerCallback::SetCPUTrackingEnabled(bool enabled)
 {
-    Log::Debug("CorProfilerCallback::SetStackSamplerEnabled: ", enabled);
+    Log::Debug("CorProfilerCallback::SetCPUTrackingEnabled: ", enabled);
+
+#ifdef LINUX
+    if (_pCpuProfiler != nullptr)
+    {
+        if (enabled)
+        {
+            if (_pCpuProfiler->IsStarted())
+            {
+                Log::Debug(_pCpuProfiler->GetName(), " is already started.");
+            }
+            else
+            {
+                auto success = _pCpuProfiler->Start();
+                LogServiceStart(success, _pCpuProfiler->GetName());
+            }
+        }
+        else
+        {
+            if (!_pCpuProfiler->IsStarted())
+            {
+                Log::Debug(_pCpuProfiler->GetName(), " is already stopped.");
+            }
+            else
+            {
+                auto success = _pCpuProfiler->StopWithState(ServiceBase::State::Init);
+                LogServiceStop(success, _pCpuProfiler->GetName());
+            }
+        }
+    }
+#endif
+
+    if (_pStackSamplerLoopManager == nullptr)
+    {
+        return;
+    }
+
+    auto shouldToggleStackSampler =
+        _pConfiguration->IsWallTimeProfilingEnabled()
+        ||
+        (_pConfiguration->GetCpuProfilerType() == CpuProfilerType::ManualCpuTime);
+    if (!shouldToggleStackSampler)
+    {
+        return;
+    }
+
     if (enabled)
     {
         _pStackSamplerLoopManager->Start();

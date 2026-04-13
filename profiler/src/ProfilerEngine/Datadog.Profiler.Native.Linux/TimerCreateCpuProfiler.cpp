@@ -82,6 +82,11 @@ bool TimerCreateCpuProfiler::StartImpl()
 
     if (registered)
     {
+        if (!_pSignalManager->CheckSignalHandler())
+        {
+            return false;
+        }
+
         std::unique_lock lock(_registerLock);
         Instance = this;
 
