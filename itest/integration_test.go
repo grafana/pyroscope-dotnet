@@ -11,6 +11,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"math/big"
 	"net"
 	"net/http"
@@ -275,6 +276,41 @@ func TestRideshareProfiles(t *testing.T) {
 			t.Logf("collapsed profile for %s:\n%s", check.vehicle, lastCollapsed)
 		})
 	}
+}
+
+func TestDynamicCpuToggleDoesNotCrash(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	net, err := network.New(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = net.Remove(ctx) })
+
+	_ = startPyroscope(ctx, t, net)
+	appBaseURL := startApp(ctx, t, net)
+	client := &http.Client{Timeout: 30 * time.Second}
+
+	warmupResp, err := client.Get(appBaseURL + "/bike")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, warmupResp.StatusCode)
+	_ = warmupResp.Body.Close()
+
+	for i := 0; i < 3; i++ {
+		resp, err := client.Post(appBaseURL+"/profiling/repro-dynamic-cpu-toggle", "text/plain", nil)
+		require.NoError(t, err)
+		body, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		require.Equal(t, http.StatusOK, resp.StatusCode, "iteration %d body: %s", i, string(body))
+	}
+
+	require.Eventually(t, func() bool {
+		resp, err := client.Get(appBaseURL + "/car")
+		if err != nil {
+			return false
+		}
+		_ = resp.Body.Close()
+		return resp.StatusCode == http.StatusOK
+	}, 30*time.Second, time.Second, "rideshare app is not reachable after dynamic CPU toggling")
 }
 
 // generateTestCerts creates a self-signed CA and a server certificate signed by
