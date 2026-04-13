@@ -93,8 +93,19 @@ func startPyroscope(ctx context.Context, t *testing.T, net *testcontainers.Docke
 	return fmt.Sprintf("http://%s:%s", host, port.Port())
 }
 
-func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork) string {
+func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork, extraEnv ...map[string]string) string {
 	t.Helper()
+	env := map[string]string{
+		"REGION":                     "us-east",
+		"PYROSCOPE_APPLICATION_NAME": serviceName(),
+		"PYROSCOPE_SERVER_ADDRESS":   "http://pyroscope:4040",
+		"DD_TRACE_DEBUG":             "true",
+	}
+	for _, extra := range extraEnv {
+		for k, v := range extra {
+			env[k] = v
+		}
+	}
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:         rideshareImage(),
@@ -103,12 +114,7 @@ func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwo
 			NetworkAliases: map[string][]string{
 				net.Name: {"rideshare"},
 			},
-			Env: map[string]string{
-				"REGION":                     "us-east",
-				"PYROSCOPE_APPLICATION_NAME": serviceName(),
-				"PYROSCOPE_SERVER_ADDRESS":   "http://pyroscope:4040",
-				"DD_TRACE_DEBUG":             "true",
-			},
+			Env:          env,
 			ExposedPorts: []string{"5000/tcp"},
 			WaitingFor:   wait.ForListeningPort("5000/tcp").WithStartupTimeout(120 * time.Second),
 		},
@@ -502,7 +508,9 @@ func TestDynamicProfilingToggle(t *testing.T) {
 	t.Cleanup(func() { _ = net.Remove(ctx) })
 
 	pyroscopeURL := startPyroscope(ctx, t, net)
-	appBaseURL := startApp(ctx, t, net)
+	appBaseURL := startApp(ctx, t, net, map[string]string{
+		"DD_PROFILING_WALLTIME_ENABLED": "1",
+	})
 
 	// Generate some load first so managed threads are registered.
 	runLoadGenerator(ctx, t, appBaseURL)
@@ -515,6 +523,13 @@ func TestDynamicProfilingToggle(t *testing.T) {
 	require.NoError(t, err, "dynamic-toggle request failed — the app likely crashed")
 	_ = resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	// The SIGSEGV happens on a background thread after the HTTP response.
+	// Give it a moment, then verify the app is still alive.
+	time.Sleep(2 * time.Second)
+	resp2, err := client.Get(appBaseURL + "/bike")
+	require.NoError(t, err, "app crashed after dynamic-toggle (SIGSEGV on background thread)")
+	_ = resp2.Body.Close()
 	t.Log("dynamic-toggle succeeded — profiling re-enabled without crash")
 
 	// Verify profiles still arrive after re-enabling.
