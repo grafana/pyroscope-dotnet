@@ -24,9 +24,7 @@ jobs:
           cache-dependency-path: itest/go.sum
       - name: Generate test matrix
         id: tests
-        run: |
-          matrix=$(go test -list . -json ./... | jq -sc '{test: [.[] | select(.Action=="output") | .Output | rtrimstr("\n") | select(startswith("Test"))]}')
-          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+        run: echo "matrix=$(make ci-matrix)" >> "$GITHUB_OUTPUT"
         working-directory: itest
 
   test:

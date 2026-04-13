@@ -167,6 +167,10 @@ build-app-notification-profiler-musl-10.0: build-profiler-musl
 list-tests:
 	go test -list . -json ./...
 
+.PHONY: ci-matrix
+ci-matrix:
+	@go test -list . -json ./... | jq -sc '{test: [.[] | select(.Action=="output") | .Output | rtrimstr("\n") | select(startswith("Test"))]}'
+
 .PHONY: test/%
 test/%:
 	go test -v -timeout 60m -count=1 -run '^$*$$' ./...
