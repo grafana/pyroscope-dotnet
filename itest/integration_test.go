@@ -18,6 +18,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -94,7 +95,21 @@ func startPyroscope(ctx context.Context, t *testing.T, net *testcontainers.Docke
 }
 
 func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork) string {
+	return startAppWithEnv(ctx, t, net, nil)
+}
+
+func startAppWithEnv(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork, extraEnv map[string]string) string {
 	t.Helper()
+	env := map[string]string{
+		"REGION":                     "us-east",
+		"PYROSCOPE_APPLICATION_NAME": serviceName(),
+		"PYROSCOPE_SERVER_ADDRESS":   "http://pyroscope:4040",
+		"DD_TRACE_DEBUG":             "true",
+	}
+	for key, value := range extraEnv {
+		env[key] = value
+	}
+
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:         rideshareImage(),
@@ -103,12 +118,7 @@ func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwo
 			NetworkAliases: map[string][]string{
 				net.Name: {"rideshare"},
 			},
-			Env: map[string]string{
-				"REGION":                     "us-east",
-				"PYROSCOPE_APPLICATION_NAME": serviceName(),
-				"PYROSCOPE_SERVER_ADDRESS":   "http://pyroscope:4040",
-				"DD_TRACE_DEBUG":             "true",
-			},
+			Env:          env,
 			ExposedPorts: []string{"5000/tcp"},
 			WaitingFor:   wait.ForListeningPort("5000/tcp").WithStartupTimeout(120 * time.Second),
 		},
@@ -154,12 +164,36 @@ func runLoadGenerator(ctx context.Context, t *testing.T, appBaseURL string) {
 	}()
 }
 
+// runCpuLoadGenerator repeatedly calls the /npe endpoint to keep CPU busy.
+func runCpuLoadGenerator(ctx context.Context, t *testing.T, appBaseURL string) {
+	t.Helper()
+	go func() {
+		client := &http.Client{Timeout: 30 * time.Second}
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+			}
+			resp, err := client.Get(appBaseURL + "/npe")
+			if err == nil {
+				_ = resp.Body.Close()
+			}
+		}
+	}()
+}
+
 func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string) (string, error) {
+	t.Helper()
+	to := time.Now()
+	from := to.Add(-1 * time.Hour)
+	return queryProfileInRange(t, pyroscopeURL, labelSelector, from, to)
+}
+
+func queryProfileInRange(t *testing.T, pyroscopeURL string, labelSelector string, from time.Time, to time.Time) (string, error) {
 	t.Helper()
 	qc := querierv1connect.NewQuerierServiceClient(http.DefaultClient, pyroscopeURL)
 
-	to := time.Now()
-	from := to.Add(-1 * time.Hour)
 	maxNodes := int64(65536)
 	resp, err := qc.SelectMergeStacktraces(context.Background(),
 		connect.NewRequest(&querierv1.SelectMergeStacktracesRequest{
@@ -183,6 +217,33 @@ func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string) (stri
 	buf := bytes.NewBuffer(nil)
 	tt.WriteCollapsed(buf)
 	return buf.String(), nil
+}
+
+func setCPUTrackingEnabled(t *testing.T, appBaseURL string, enabled bool) {
+	t.Helper()
+	url := fmt.Sprintf("%s/profiling/cpu/%t", appBaseURL, enabled)
+	req, err := http.NewRequest(http.MethodPost, url, nil)
+	require.NoError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode, "unexpected status toggling CPU tracking")
+}
+
+func collapsedTotalSamples(collapsed string) int64 {
+	var total int64
+	for _, line := range strings.Split(strings.TrimSpace(collapsed), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		value, err := strconv.ParseInt(fields[len(fields)-1], 10, 64)
+		if err == nil {
+			total += value
+		}
+	}
+	return total
 }
 
 // frameContains checks that the collapsed stack output contains a frame where
@@ -275,6 +336,53 @@ func TestRideshareProfiles(t *testing.T) {
 			t.Logf("collapsed profile for %s:\n%s", check.vehicle, lastCollapsed)
 		})
 	}
+}
+
+func TestDynamicCpuTrackingToggle(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	net, err := network.New(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = net.Remove(ctx) })
+
+	pyroscopeURL := startPyroscope(ctx, t, net)
+	appBaseURL := startAppWithEnv(ctx, t, net, map[string]string{
+		"PYROSCOPE_PROFILING_CPU_ENABLED":        "true",
+		"PYROSCOPE_PROFILING_WALLTIME_ENABLED":   "false",
+		"PYROSCOPE_PROFILING_ALLOCATION_ENABLED": "false",
+		"PYROSCOPE_PROFILING_CONTENTION_ENABLED": "false",
+		"PYROSCOPE_PROFILING_EXCEPTION_ENABLED":  "false",
+		"PYROSCOPE_PROFILING_HEAP_ENABLED":       "false",
+		"DD_PROFILING_UPLOAD_PERIOD":             "5",
+	})
+	runCpuLoadGenerator(ctx, t, appBaseURL)
+
+	labelSelector := fmt.Sprintf(`{service_name="%s"}`, serviceName())
+
+	var baselineProfile string
+	var baselineErr error
+	baselineFound := assert.Eventually(t, func() bool {
+		now := time.Now()
+		baselineProfile, baselineErr = queryProfileInRange(t, pyroscopeURL, labelSelector, now.Add(-30*time.Second), now)
+		return baselineErr == nil && baselineProfile != ""
+	}, 3*time.Minute, 5*time.Second)
+	require.True(t, baselineFound, "expected baseline CPU profile before toggling off; err=%v, profile=%q", baselineErr, baselineProfile)
+	require.Greater(t, collapsedTotalSamples(baselineProfile), int64(0), "baseline profile should contain CPU samples")
+
+	setCPUTrackingEnabled(t, appBaseURL, false)
+	disabledAt := time.Now()
+	time.Sleep(70 * time.Second)
+	afterDisableProfile, afterDisableErr := queryProfileInRange(t, pyroscopeURL, labelSelector, disabledAt.Add(10*time.Second), time.Now())
+	require.NoError(t, afterDisableErr, "query after CPU disable should succeed")
+	require.Equal(t, int64(0), collapsedTotalSamples(afterDisableProfile), "expected no CPU samples after disabling")
+
+	setCPUTrackingEnabled(t, appBaseURL, true)
+	reenabledAt := time.Now()
+	time.Sleep(70 * time.Second)
+	afterEnableProfile, afterEnableErr := queryProfileInRange(t, pyroscopeURL, labelSelector, reenabledAt.Add(10*time.Second), time.Now())
+	require.NoError(t, afterEnableErr, "query after CPU enable should succeed")
+	require.Greater(t, collapsedTotalSamples(afterEnableProfile), int64(0), "expected CPU samples to resume after enabling")
 }
 
 // generateTestCerts creates a self-signed CA and a server certificate signed by

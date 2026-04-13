@@ -36,5 +36,11 @@ app.MapGet("/npe", () =>
     return "NPE work";
 });
 
+app.MapPost("/profiling/cpu/{enabled:bool}", (bool enabled) =>
+{
+    Pyroscope.Profiler.Instance.SetCPUTrackingEnabled(enabled);
+    return Results.Ok(new { cpuTrackingEnabled = enabled });
+});
+
 
 app.Run();
