@@ -94,8 +94,18 @@ func startPyroscope(ctx context.Context, t *testing.T, net *testcontainers.Docke
 	return fmt.Sprintf("http://%s:%s", host, port.Port())
 }
 
-func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork) string {
+func startAppWithEnv(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork, extraEnv map[string]string) string {
 	t.Helper()
+	env := map[string]string{
+		"REGION":                     "us-east",
+		"PYROSCOPE_APPLICATION_NAME": serviceName(),
+		"PYROSCOPE_SERVER_ADDRESS":   "http://pyroscope:4040",
+		"DD_TRACE_DEBUG":             "true",
+	}
+	for k, v := range extraEnv {
+		env[k] = v
+	}
+
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:         rideshareImage(),
@@ -104,12 +114,7 @@ func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwo
 			NetworkAliases: map[string][]string{
 				net.Name: {"rideshare"},
 			},
-			Env: map[string]string{
-				"REGION":                     "us-east",
-				"PYROSCOPE_APPLICATION_NAME": serviceName(),
-				"PYROSCOPE_SERVER_ADDRESS":   "http://pyroscope:4040",
-				"DD_TRACE_DEBUG":             "true",
-			},
+			Env:          env,
 			ExposedPorts: []string{"5000/tcp"},
 			WaitingFor:   wait.ForListeningPort("5000/tcp").WithStartupTimeout(120 * time.Second),
 		},
@@ -123,6 +128,11 @@ func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwo
 	port, err := c.MappedPort(ctx, "5000/tcp")
 	require.NoError(t, err)
 	return fmt.Sprintf("http://%s:%s", host, port.Port())
+}
+
+func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork) string {
+	t.Helper()
+	return startAppWithEnv(ctx, t, net, nil)
 }
 
 // runLoadGenerator cycles through /bike, /scooter, /car requests in a goroutine
@@ -287,7 +297,14 @@ func TestDynamicCpuToggleDoesNotCrash(t *testing.T) {
 	t.Cleanup(func() { _ = net.Remove(ctx) })
 
 	_ = startPyroscope(ctx, t, net)
-	appBaseURL := startApp(ctx, t, net)
+	appBaseURL := startAppWithEnv(ctx, t, net, map[string]string{
+		"PYROSCOPE_PROFILING_ENABLED":           "true",
+		"PYROSCOPE_PROFILING_CPU_ENABLED":       "true",
+		"PYROSCOPE_PROFILING_WALLTIME_ENABLED":  "true",
+		"PYROSCOPE_PROFILING_ALLOCATION_ENABLED": "true",
+		"PYROSCOPE_PROFILING_CONTENTION_ENABLED": "true",
+		"PYROSCOPE_PROFILING_EXCEPTION_ENABLED":  "true",
+	})
 	client := &http.Client{Timeout: 30 * time.Second}
 
 	warmupResp, err := client.Get(appBaseURL + "/bike")
