@@ -488,6 +488,57 @@ func TestTLSProfileUpload(t *testing.T) {
 	}
 }
 
+// TestDynamicProfilingToggle verifies that dynamically disabling and re-enabling
+// profiling does not crash the process. This reproduces
+// https://github.com/grafana/pyroscope-dotnet/issues/259 where calling
+// SetCPUTrackingEnabled(true) after a disable would SIGSEGV because
+// StackSamplerLoop::ResetThreadsCpuConsumption dereferenced a null _targetThread.
+func TestDynamicProfilingToggle(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	net, err := network.New(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = net.Remove(ctx) })
+
+	pyroscopeURL := startPyroscope(ctx, t, net)
+	appBaseURL := startApp(ctx, t, net)
+
+	// Generate some load first so managed threads are registered.
+	runLoadGenerator(ctx, t, appBaseURL)
+	time.Sleep(3 * time.Second)
+
+	// Trigger the dynamic disable/re-enable cycle.
+	// Before the fix this would kill the process with SIGSEGV (exit 139).
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Get(appBaseURL + "/dynamic-toggle")
+	require.NoError(t, err, "dynamic-toggle request failed — the app likely crashed")
+	_ = resp.Body.Close()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	t.Log("dynamic-toggle succeeded — profiling re-enabled without crash")
+
+	// Verify profiles still arrive after re-enabling.
+	svcName := serviceName()
+	labelSelector := fmt.Sprintf(`{service_name="%s",vehicle="bike"}`, svcName)
+	var lastCollapsed string
+	var lastErr error
+	ok := assert.Eventually(t, func() bool {
+		lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector)
+		if lastErr != nil || lastCollapsed == "" {
+			return false
+		}
+		return frameContains(lastCollapsed, "OrderService", "FindNearestVehicle")
+	}, 3*time.Minute, 5*time.Second)
+
+	if !ok {
+		t.Logf("label selector: %s", labelSelector)
+		t.Logf("last profile query error: %v", lastErr)
+		t.Logf("last collapsed profile:\n%s", lastCollapsed)
+		t.FailNow()
+	}
+	t.Logf("profiles still collected after dynamic toggle")
+}
+
 // TestRideshareProfilesWithOTEL tests Pyroscope as a notification profiler
 // when OTEL .NET auto-instrumentation occupies the classic profiler slot.
 // This test is nearly identical to TestRideshareProfiles - the only difference

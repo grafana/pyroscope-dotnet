@@ -36,5 +36,22 @@ app.MapGet("/npe", () =>
     return "NPE work";
 });
 
+app.MapGet("/dynamic-toggle", () =>
+{
+    Pyroscope.Profiler.Instance.SetCPUTrackingEnabled(false);
+    Pyroscope.Profiler.Instance.SetAllocationTrackingEnabled(false);
+    Pyroscope.Profiler.Instance.SetContentionTrackingEnabled(false);
+    Pyroscope.Profiler.Instance.SetExceptionTrackingEnabled(false);
+
+    Thread.Sleep(100);
+
+    Pyroscope.Profiler.Instance.SetCPUTrackingEnabled(true);
+    Pyroscope.Profiler.Instance.SetAllocationTrackingEnabled(true);
+    Pyroscope.Profiler.Instance.SetContentionTrackingEnabled(true);
+    Pyroscope.Profiler.Instance.SetExceptionTrackingEnabled(true);
+
+    return "OK";
+});
+
 
 app.Run();

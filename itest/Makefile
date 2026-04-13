@@ -233,3 +233,12 @@ itest/tls-profile-upload/glibc/8.0: build-app-main-profiler-glibc-8.0
 .PHONY: itest/tls-profile-upload/musl/8.0
 itest/tls-profile-upload/musl/8.0: build-app-main-profiler-musl-8.0
 	FLAVOUR=musl DOTNET_VERSION=8.0 go test -v -timeout 10m -count=1 ./... -run TestTLSProfileUpload
+
+# Dynamic profiling toggle tests — verifies disable/re-enable doesn't SIGSEGV (issue #259).
+.PHONY: itest/dynamic-toggle/glibc/8.0
+itest/dynamic-toggle/glibc/8.0: build-app-main-profiler-glibc-8.0
+	FLAVOUR=glibc DOTNET_VERSION=8.0 go test -v -timeout 15m -count=1 ./... -run TestDynamicProfilingToggle
+
+.PHONY: itest/dynamic-toggle/musl/8.0
+itest/dynamic-toggle/musl/8.0: build-app-main-profiler-musl-8.0
+	FLAVOUR=musl DOTNET_VERSION=8.0 go test -v -timeout 15m -count=1 ./... -run TestDynamicProfilingToggle
