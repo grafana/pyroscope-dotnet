@@ -43,6 +43,9 @@ typedef enum
 class StackSamplerLoop : public ServiceBase
 {
     friend StackSamplerLoopManager;
+#ifdef DD_TEST
+    friend class StackSamplerLoopTest;
+#endif
 
 public:
     StackSamplerLoop(
