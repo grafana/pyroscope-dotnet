@@ -159,77 +159,14 @@ build-app-notification-profiler-musl-10.0: build-profiler-musl
 		-t rideshare-app-musl-otel:net10.0 \
 		-f $(REPO_ROOT)/itest-with-otel.Dockerfile $(REPO_ROOT)
 
-# Integration test targets - main profiler
-.PHONY: itest/main-profiler/glibc/6.0
-itest/main-profiler/glibc/6.0: build-app-main-profiler-glibc-6.0
-	FLAVOUR=glibc DOTNET_VERSION=6.0 go test -v -timeout 15m -count=1 ./... -run TestRideshareProfiles
+# Convenience targets for local development.
+# Tests build their own Docker images when run, so these are optional
+# pre-build targets for faster iteration.
 
-.PHONY: itest/main-profiler/glibc/8.0
-itest/main-profiler/glibc/8.0: build-app-main-profiler-glibc-8.0
-	FLAVOUR=glibc DOTNET_VERSION=8.0 go test -v -timeout 15m -count=1 ./... -run TestRideshareProfiles
+.PHONY: list-tests
+list-tests:
+	go test -list . -json ./...
 
-.PHONY: itest/main-profiler/musl/6.0
-itest/main-profiler/musl/6.0: build-app-main-profiler-musl-6.0
-	FLAVOUR=musl DOTNET_VERSION=6.0 go test -v -timeout 15m -count=1 ./... -run TestRideshareProfiles
-
-.PHONY: itest/main-profiler/musl/8.0
-itest/main-profiler/musl/8.0: build-app-main-profiler-musl-8.0
-	FLAVOUR=musl DOTNET_VERSION=8.0 go test -v -timeout 15m -count=1 ./... -run TestRideshareProfiles
-
-.PHONY: itest/main-profiler/glibc/9.0
-itest/main-profiler/glibc/9.0: build-app-main-profiler-glibc-9.0
-	FLAVOUR=glibc DOTNET_VERSION=9.0 go test -v -timeout 15m -count=1 ./... -run TestRideshareProfiles
-
-.PHONY: itest/main-profiler/glibc/10.0
-itest/main-profiler/glibc/10.0: build-app-main-profiler-glibc-10.0
-	FLAVOUR=glibc DOTNET_VERSION=10.0 go test -v -timeout 15m -count=1 ./... -run TestRideshareProfiles
-
-.PHONY: itest/main-profiler/musl/9.0
-itest/main-profiler/musl/9.0: build-app-main-profiler-musl-9.0
-	FLAVOUR=musl DOTNET_VERSION=9.0 go test -v -timeout 15m -count=1 ./... -run TestRideshareProfiles
-
-.PHONY: itest/main-profiler/musl/10.0
-itest/main-profiler/musl/10.0: build-app-main-profiler-musl-10.0
-	FLAVOUR=musl DOTNET_VERSION=10.0 go test -v -timeout 15m -count=1 ./... -run TestRideshareProfiles
-
-# Integration test targets - notification profiler (with OTEL)
-.PHONY: itest/notification-profiler/glibc/6.0
-itest/notification-profiler/glibc/6.0: build-app-notification-profiler-glibc-6.0
-	FLAVOUR=glibc DOTNET_VERSION=6.0 OTEL=true go test -v -timeout 15m -count=1 ./... -run TestRideshareProfilesWithOTEL
-
-.PHONY: itest/notification-profiler/glibc/8.0
-itest/notification-profiler/glibc/8.0: build-app-notification-profiler-glibc-8.0
-	FLAVOUR=glibc DOTNET_VERSION=8.0 OTEL=true go test -v -timeout 15m -count=1 ./... -run TestRideshareProfilesWithOTEL
-
-.PHONY: itest/notification-profiler/musl/6.0
-itest/notification-profiler/musl/6.0: build-app-notification-profiler-musl-6.0
-	FLAVOUR=musl DOTNET_VERSION=6.0 OTEL=true go test -v -timeout 15m -count=1 ./... -run TestRideshareProfilesWithOTEL
-
-.PHONY: itest/notification-profiler/musl/8.0
-itest/notification-profiler/musl/8.0: build-app-notification-profiler-musl-8.0
-	FLAVOUR=musl DOTNET_VERSION=8.0 OTEL=true go test -v -timeout 15m -count=1 ./... -run TestRideshareProfilesWithOTEL
-
-.PHONY: itest/notification-profiler/glibc/9.0
-itest/notification-profiler/glibc/9.0: build-app-notification-profiler-glibc-9.0
-	FLAVOUR=glibc DOTNET_VERSION=9.0 OTEL=true go test -v -timeout 15m -count=1 ./... -run TestRideshareProfilesWithOTEL
-
-.PHONY: itest/notification-profiler/glibc/10.0
-itest/notification-profiler/glibc/10.0: build-app-notification-profiler-glibc-10.0
-	FLAVOUR=glibc DOTNET_VERSION=10.0 OTEL=true go test -v -timeout 15m -count=1 ./... -run TestRideshareProfilesWithOTEL
-
-.PHONY: itest/notification-profiler/musl/9.0
-itest/notification-profiler/musl/9.0: build-app-notification-profiler-musl-9.0
-	FLAVOUR=musl DOTNET_VERSION=9.0 OTEL=true go test -v -timeout 15m -count=1 ./... -run TestRideshareProfilesWithOTEL
-
-.PHONY: itest/notification-profiler/musl/10.0
-itest/notification-profiler/musl/10.0: build-app-notification-profiler-musl-10.0
-	FLAVOUR=musl DOTNET_VERSION=10.0 OTEL=true go test -v -timeout 15m -count=1 ./... -run TestRideshareProfilesWithOTEL
-
-# TLS profile upload tests — one per libc flavour, using the main (non-OTEL) profiler images.
-.PHONY: itest/tls-profile-upload/glibc/8.0
-itest/tls-profile-upload/glibc/8.0: build-app-main-profiler-glibc-8.0
-	FLAVOUR=glibc DOTNET_VERSION=8.0 go test -v -timeout 10m -count=1 ./... -run TestTLSProfileUpload
-
-.PHONY: itest/tls-profile-upload/musl/8.0
-itest/tls-profile-upload/musl/8.0: build-app-main-profiler-musl-8.0
-	FLAVOUR=musl DOTNET_VERSION=8.0 go test -v -timeout 10m -count=1 ./... -run TestTLSProfileUpload
+.PHONY: test/%
+test/%:
+	go test -v -timeout 60m -count=1 -run '^$*$$' ./...
