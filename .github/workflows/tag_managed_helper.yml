@@ -37,7 +37,7 @@ jobs:
           name: packages
           path: ./Pyroscope/artifacts/package/release
           if-no-files-found: error
-      - uses: grafana/shared-workflows/actions/get-vault-secrets@9be2f51d865bc51202190c8ca09c0382c9a2f7fa
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
         if: ${{ !contains(github.ref_name, '-rc') }}
         with:
           repo_secrets: |
