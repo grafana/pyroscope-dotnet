@@ -23,6 +23,7 @@ import (
 	"pyroscope-dotnet-itest/pyroscope/model"
 
 	"connectrpc.com/connect"
+	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
 	dockernetwork "github.com/docker/docker/api/types/network"
 	dockerclient "github.com/docker/docker/client"
@@ -77,9 +78,11 @@ func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwo
 					"SDK_VERSION":         strPtr(version),
 					"SDK_IMAGE_SUFFIX":    strPtr(sdkImageSuffix(flavour, version)),
 				},
+				BuildOptionsModifier: func(opts *dockertypes.ImageBuildOptions) {
+					opts.Platform = "linux/amd64"
+				},
 			},
-			ImagePlatform: "linux/amd64",
-			Networks:      []string{net.Name},
+			Networks: []string{net.Name},
 			NetworkAliases: map[string][]string{
 				net.Name: {"rideshare"},
 			},
@@ -399,8 +402,10 @@ func startAppForTLSTest(ctx context.Context, t *testing.T, flavour, version, ser
 					"SDK_VERSION":         strPtr(version),
 					"SDK_IMAGE_SUFFIX":    strPtr(sdkImageSuffix(flavour, version)),
 				},
+				BuildOptionsModifier: func(opts *dockertypes.ImageBuildOptions) {
+					opts.Platform = "linux/amd64"
+				},
 			},
-			ImagePlatform: "linux/amd64",
 			Env: map[string]string{
 				"REGION":                     "us-east",
 				"PYROSCOPE_APPLICATION_NAME": "tls-test-app",
