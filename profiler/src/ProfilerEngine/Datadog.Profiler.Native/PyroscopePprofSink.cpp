@@ -10,6 +10,16 @@
 #include "gen/push/v1/push.pb.h"
 #include "gen/types/v1/types.pb.h"
 
+namespace
+{
+std::string BuildPushPath(const Url& url)
+{
+    Url pushUrl;
+    pushUrl.path(url.path() + "/push.v1.PusherService/Push");
+    return pushUrl.str();
+}
+}
+
 PyroscopePprofSink::PyroscopePprofSink(
     std::string server,
     std::string appName,
@@ -137,7 +147,7 @@ void PyroscopePprofSink::upload(Pprof pprof)
     sample->set_raw_profile(std::move(pprof.bytes));
 
     std::string body = request.SerializeAsString();
-    std::string path = _url.path() + "/push.v1.PusherService/Push";
+    std::string path = BuildPushPath(_url);
 
     httplib::Headers headers = getHeaders();
     auto res = _client.Post(path, headers, body, "application/proto");
