@@ -106,6 +106,8 @@ bool ProfilerSignalManager::IgnoreSignal() {
                    strerror(errno), ".");
         return false;
     }
+    _handler = nullptr;
+    _isHandlerInPlace = false;
     return true;
 }
 
