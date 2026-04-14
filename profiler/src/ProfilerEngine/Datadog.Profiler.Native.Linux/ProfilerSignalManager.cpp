@@ -148,7 +148,7 @@ bool ProfilerSignalManager::CheckSignalHandler()
 
     Log::Info("Profiler signal handler has been replaced. Restoring it.");
 
-    // restore profiler handler
+    _previousActionCaptured = false;
     _isHandlerInPlace = SetupSignalHandler();
 
     if (!_isHandlerInPlace)
