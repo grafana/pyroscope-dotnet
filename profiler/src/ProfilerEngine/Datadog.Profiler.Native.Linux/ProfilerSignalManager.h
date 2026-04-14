@@ -29,7 +29,7 @@ public:
 #ifdef DD_TEST
     void Reset()
     {
-        _handler = nullptr;
+        _handler.store(nullptr, std::memory_order_relaxed);
         sigaction(_signalToSend, &_previousAction, nullptr);
         _isHandlerInPlace = false;
         _canReplaceSignalHandler = true;
@@ -58,7 +58,7 @@ private:
 private:
     bool _canReplaceSignalHandler;
     int32_t _signalToSend;
-    HandlerFn_t _handler;
+    std::atomic<HandlerFn_t> _handler;
     pid_t _processId;
     bool _isHandlerInPlace;
     struct sigaction _previousAction;
