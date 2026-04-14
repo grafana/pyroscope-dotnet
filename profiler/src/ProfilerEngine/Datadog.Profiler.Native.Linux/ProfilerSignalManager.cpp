@@ -51,7 +51,7 @@ bool ProfilerSignalManager::RegisterHandler(HandlerFn_t handler)
 {
     HandlerFn_t current = _handler.load(std::memory_order_acquire);
 
-    if (current != nullptr)
+    if (current != nullptr && _isHandlerInPlace)
     {
         assert(current == handler);
         return current == handler;
@@ -59,7 +59,7 @@ bool ProfilerSignalManager::RegisterHandler(HandlerFn_t handler)
     std::unique_lock<std::mutex> lock(_handlerRegisterMutex);
 
     current = _handler.load(std::memory_order_acquire);
-    if (current != nullptr)
+    if (current != nullptr && _isHandlerInPlace)
     {
         assert(current == handler);
         return current == handler;
@@ -107,6 +107,7 @@ bool ProfilerSignalManager::IgnoreSignal() {
                    strerror(errno), ".");
         return false;
     }
+    _isHandlerInPlace = false;
     return true;
 }
 
