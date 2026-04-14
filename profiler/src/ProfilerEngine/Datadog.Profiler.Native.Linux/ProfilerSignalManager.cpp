@@ -177,12 +177,18 @@ bool ProfilerSignalManager::SetupSignalHandler()
     sigemptyset(&sampleAction.sa_mask);
     sigaddset(&sampleAction.sa_mask, _signalToSend);
 
-    int32_t result = sigaction(_signalToSend, &sampleAction, &_previousAction);
+    struct sigaction oldAction;
+    int32_t result = sigaction(_signalToSend, &sampleAction, &oldAction);
     if (result != 0)
     {
         Log::Error("ProfilerSignalManager::SetupSignalHandler: Failed to setup signal handler for ", strsignal(_signalToSend), " signals. Reason: ",
                    strerror(errno), ".");
         return false;
+    }
+
+    if (oldAction.sa_handler != SIG_IGN)
+    {
+        _previousAction = oldAction;
     }
 
     Log::Info("ProfilerSignalManager::SetupSignalHandler: Successfully setup signal handler for ", strsignal(_signalToSend), " signal.");
