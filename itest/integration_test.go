@@ -14,8 +14,6 @@ import (
 	"math/big"
 	"net"
 	"net/http"
-	"os"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -25,6 +23,7 @@ import (
 	"pyroscope-dotnet-itest/pyroscope/model"
 
 	"connectrpc.com/connect"
+	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
 	dockernetwork "github.com/docker/docker/api/types/network"
 	dockerclient "github.com/docker/docker/client"
@@ -37,37 +36,7 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func envOrDefault(key, defaultValue string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return defaultValue
-}
-
-func repoRoot() string {
-	_, filename, _, _ := runtime.Caller(0)
-	return filepath.Dir(filepath.Dir(filename))
-}
-
-func flavour() string       { return envOrDefault("FLAVOUR", "glibc") }
-func dotnetVersion() string { return envOrDefault("DOTNET_VERSION", "8.0") }
-func isOTEL() bool          { return os.Getenv("OTEL") == "true" }
-
-func rideshareImage() string {
-	base := fmt.Sprintf("rideshare-app-%s", flavour())
-	if isOTEL() {
-		base += "-otel"
-	}
-	return fmt.Sprintf("%s:net%s", base, dotnetVersion())
-}
-
-func serviceName() string {
-	base := fmt.Sprintf("rideshare.dotnet.%s.%s.app", flavour(), dotnetVersion())
-	if isOTEL() {
-		base += "-otel"
-	}
-	return base
-}
+func strPtr(s string) *string { return &s }
 
 func startPyroscope(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork) string {
 	t.Helper()
@@ -93,19 +62,33 @@ func startPyroscope(ctx context.Context, t *testing.T, net *testcontainers.Docke
 	return fmt.Sprintf("http://%s:%s", host, port.Port())
 }
 
-func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork) string {
+func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork, libcType, version string, otel bool) string {
 	t.Helper()
+	ensureProfilerImage(t, libcType)
+
+	svcName := rideshareServiceName(libcType, version, otel)
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:         rideshareImage(),
-			ImagePlatform: "linux/amd64",
-			Networks:      []string{net.Name},
+			FromDockerfile: testcontainers.FromDockerfile{
+				Context:       repoRoot(),
+				Dockerfile:    appDockerfile(otel),
+				PrintBuildLog: true,
+				BuildArgs: map[string]*string{
+					"PYROSCOPE_SDK_IMAGE": strPtr(profilerImageTag(libcType)),
+					"SDK_VERSION":         strPtr(version),
+					"SDK_IMAGE_SUFFIX":    strPtr(sdkImageSuffix(libcType, version)),
+				},
+				BuildOptionsModifier: func(opts *dockertypes.ImageBuildOptions) {
+					opts.Platform = "linux/amd64"
+				},
+			},
+			Networks: []string{net.Name},
 			NetworkAliases: map[string][]string{
 				net.Name: {"rideshare"},
 			},
 			Env: map[string]string{
 				"REGION":                     "us-east",
-				"PYROSCOPE_APPLICATION_NAME": serviceName(),
+				"PYROSCOPE_APPLICATION_NAME": svcName,
 				"PYROSCOPE_SERVER_ADDRESS":   "http://pyroscope:4040",
 				"DD_TRACE_DEBUG":             "true",
 			},
@@ -124,8 +107,6 @@ func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwo
 	return fmt.Sprintf("http://%s:%s", host, port.Port())
 }
 
-// runLoadGenerator cycles through /bike, /scooter, /car requests in a goroutine
-// until ctx is cancelled.
 func runLoadGenerator(ctx context.Context, t *testing.T, appBaseURL string) {
 	t.Helper()
 	vehicles := []string{"bike", "scooter", "car"}
@@ -211,7 +192,7 @@ type vehicleCheck struct {
 	expectedFrames [][2]string // each entry is [className, methodName]
 }
 
-func TestRideshareProfiles(t *testing.T) {
+func runRideshareProfileTest(t *testing.T, libcType, version string, otel bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -220,10 +201,10 @@ func TestRideshareProfiles(t *testing.T) {
 	t.Cleanup(func() { _ = net.Remove(ctx) })
 
 	pyroscopeURL := startPyroscope(ctx, t, net)
-	appBaseURL := startApp(ctx, t, net)
+	appBaseURL := startApp(ctx, t, net, libcType, version, otel)
 	runLoadGenerator(ctx, t, appBaseURL)
 
-	svcName := serviceName()
+	svcName := rideshareServiceName(libcType, version, otel)
 
 	checks := []vehicleCheck{
 		{
@@ -275,6 +256,14 @@ func TestRideshareProfiles(t *testing.T) {
 			t.Logf("collapsed profile for %s:\n%s", check.vehicle, lastCollapsed)
 		})
 	}
+}
+
+func TestRideshareProfiles(t *testing.T) {
+	runRideshareProfileTest(t, envLibcType(), envDotnetVersion(), false)
+}
+
+func TestRideshareProfilesWithOTEL(t *testing.T) {
+	runRideshareProfileTest(t, envLibcType(), envDotnetVersion(), true)
 }
 
 // generateTestCerts creates a self-signed CA and a server certificate signed by
@@ -323,10 +312,6 @@ func generateTestCerts(t *testing.T, hostname string) (caCertPEM, serverCertPEM,
 	return
 }
 
-// startTLSProfileReceiver starts a Go TLS HTTP server on 0.0.0.0 and returns
-// the port it is listening on, the CA certificate PEM, and a channel that
-// receives a value when the first profile request arrives. The server is
-// stopped when the test finishes.
 func startTLSProfileReceiver(t *testing.T, hostname string) (port int, caCertPEM []byte, received <-chan struct{}) {
 	t.Helper()
 
@@ -359,8 +344,6 @@ func startTLSProfileReceiver(t *testing.T, hostname string) (port int, caCertPEM
 	return
 }
 
-// dockerBridgeGatewayIP returns the gateway IP of the Docker bridge network.
-// On Linux this is the IP address that containers use to reach the host.
 func dockerBridgeGatewayIP(ctx context.Context, t *testing.T) string {
 	t.Helper()
 	cli, err := dockerclient.NewClientWithOpts(dockerclient.FromEnv, dockerclient.WithAPIVersionNegotiation())
@@ -378,13 +361,6 @@ func dockerBridgeGatewayIP(ctx context.Context, t *testing.T) string {
 	return ""
 }
 
-// hostDockerInternalExtraHost returns the ExtraHosts entry that makes
-// host.docker.internal reachable from inside a container.
-//
-// On macOS (Docker Desktop / OrbStack) host.docker.internal is configured
-// automatically by the runtime, so no extra entry is needed.
-// On Linux the hostname is not injected by default; we map it to the Docker
-// bridge gateway, which is the address containers use to reach the host.
 func hostDockerInternalExtraHost(ctx context.Context, t *testing.T) string {
 	t.Helper()
 	if runtime.GOOS != "linux" {
@@ -393,19 +369,27 @@ func hostDockerInternalExtraHost(ctx context.Context, t *testing.T) string {
 	return "host.docker.internal:" + dockerBridgeGatewayIP(ctx, t)
 }
 
-// startAppForTLSTest starts the rideshare app configured to send profiles to
-// the Go TLS receiver running on the Docker host via host.docker.internal.
-// The CA certificate is appended to /etc/ssl/cert.pem (the default cert file
-// for our statically-linked OpenSSL build with --openssldir=/etc/ssl).
-func startAppForTLSTest(ctx context.Context, t *testing.T, imageName, serverAddress string, caCertPEM []byte) string {
+func startAppForTLSTest(ctx context.Context, t *testing.T, libcType, version, serverAddress string, caCertPEM []byte) string {
 	t.Helper()
+	ensureProfilerImage(t, libcType)
 
 	extraHost := hostDockerInternalExtraHost(ctx, t)
 
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
-			Image:         imageName,
-			ImagePlatform: "linux/amd64",
+			FromDockerfile: testcontainers.FromDockerfile{
+				Context:       repoRoot(),
+				Dockerfile:    appDockerfile(false),
+				PrintBuildLog: true,
+				BuildArgs: map[string]*string{
+					"PYROSCOPE_SDK_IMAGE": strPtr(profilerImageTag(libcType)),
+					"SDK_VERSION":         strPtr(version),
+					"SDK_IMAGE_SUFFIX":    strPtr(sdkImageSuffix(libcType, version)),
+				},
+				BuildOptionsModifier: func(opts *dockertypes.ImageBuildOptions) {
+					opts.Platform = "linux/amd64"
+				},
+			},
 			Env: map[string]string{
 				"REGION":                     "us-east",
 				"PYROSCOPE_APPLICATION_NAME": "tls-test-app",
@@ -419,10 +403,6 @@ func startAppForTLSTest(ctx context.Context, t *testing.T, imageName, serverAddr
 					FileMode:          0644,
 				},
 			},
-			// Append the test CA to /etc/ssl/cert.pem before the profiler
-			// starts sending. Our OpenSSL (--openssldir=/etc/ssl) uses this
-			// file as its default bundle on both glibc (Ubuntu/jammy) and
-			// musl (Alpine) images.
 			LifecycleHooks: []testcontainers.ContainerLifecycleHooks{
 				{
 					PostStarts: []testcontainers.ContainerHook{
@@ -433,9 +413,6 @@ func startAppForTLSTest(ctx context.Context, t *testing.T, imageName, serverAddr
 					},
 				},
 			},
-			// On Linux, add host.docker.internal → bridge gateway so the
-			// container can reach the Go TLS server running on the host.
-			// On macOS the entry is empty and the modifier is a no-op.
 			HostConfigModifier: func(hc *dockercontainer.HostConfig) {
 				if extraHost != "" {
 					hc.ExtraHosts = append(hc.ExtraHosts, extraHost)
@@ -456,105 +433,28 @@ func startAppForTLSTest(ctx context.Context, t *testing.T, imageName, serverAddr
 	return fmt.Sprintf("http://%s:%s", host, mappedPort.Port())
 }
 
-// TestTLSProfileUpload verifies that the profiler can deliver profiles over
-// HTTPS with TLS certificate verification enabled. A Go TLS server running on
-// the test host receives the profile; the app container reaches it via the
-// "profile-receiver" host alias (resolved to the Docker host gateway).
-//
-// The image under test is selected by FLAVOUR (glibc or musl) and
-// DOTNET_VERSION, following the same convention as the other integration tests.
-// Two Makefile targets drive this test: itest/tls-profile-upload/glibc/8.0 and
-// itest/tls-profile-upload/musl/8.0.
-func TestTLSProfileUpload(t *testing.T) {
+func runTLSProfileUploadTest(t *testing.T, libcType, version string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	imageName := fmt.Sprintf("rideshare-app-%s:net%s", flavour(), dotnetVersion())
-
-	// host.docker.internal is the standard hostname for reaching the Docker
-	// host from inside a container (macOS: built-in; Linux: mapped via ExtraHosts).
 	const hostname = "host.docker.internal"
 	port, caCertPEM, received := startTLSProfileReceiver(t, hostname)
 	serverAddress := fmt.Sprintf("https://%s:%d", hostname, port)
 
-	appBaseURL := startAppForTLSTest(ctx, t, imageName, serverAddress, caCertPEM)
+	appBaseURL := startAppForTLSTest(ctx, t, libcType, version, serverAddress, caCertPEM)
 	runLoadGenerator(ctx, t, appBaseURL)
 
 	select {
 	case <-received:
-		t.Logf("profile received over TLS from %s", imageName)
+		t.Logf("profile received over TLS (%s, .NET %s)", libcType, version)
 	case <-time.After(3 * time.Minute):
-		t.Fatalf("timed out waiting for profile upload from %s", imageName)
+		t.Fatalf("timed out waiting for TLS profile upload (%s, .NET %s)", libcType, version)
 	}
 }
 
-// TestRideshareProfilesWithOTEL tests Pyroscope as a notification profiler
-// when OTEL .NET auto-instrumentation occupies the classic profiler slot.
-// This test is nearly identical to TestRideshareProfiles - the only difference
-// is that OTEL=true environment variable is set by the Makefile, which causes
-// rideshareImage() and serviceName() to return OTEL variants.
-func TestRideshareProfilesWithOTEL(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	net, err := network.New(ctx)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = net.Remove(ctx) })
-
-	pyroscopeURL := startPyroscope(ctx, t, net)
-	appBaseURL := startApp(ctx, t, net) // Uses OTEL image because OTEL=true
-	runLoadGenerator(ctx, t, appBaseURL)
-
-	svcName := serviceName() // Returns "rideshare.dotnet.{flavour}.{version}.app-otel"
-
-	checks := []vehicleCheck{
-		{
-			vehicle: "bike",
-			expectedFrames: [][2]string{
-				{"OrderService", "FindNearestVehicle"},
-			},
-		},
-		{
-			vehicle: "scooter",
-			expectedFrames: [][2]string{
-				{"OrderService", "FindNearestVehicle"},
-			},
-		},
-		{
-			vehicle: "car",
-			expectedFrames: [][2]string{
-				{"OrderService", "FindNearestVehicle"},
-				{"OrderService", "CheckDriverAvailability"},
-			},
-		},
+func TestTLSProfileUpload(t *testing.T) {
+	if v := envDotnetVersion(); v != "8.0" {
+		t.Skipf("TLS test only runs on .NET 8.0, got %s", v)
 	}
-
-	for _, check := range checks {
-		check := check
-		t.Run(check.vehicle, func(t *testing.T) {
-			labelSelector := fmt.Sprintf(`{service_name="%s",vehicle="%s"}`, svcName, check.vehicle)
-			var lastCollapsed string
-			var lastErr error
-			ok := assert.Eventually(t, func() bool {
-				lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector)
-				if lastErr != nil || lastCollapsed == "" {
-					return false
-				}
-				for _, f := range check.expectedFrames {
-					if !frameContains(lastCollapsed, f[0], f[1]) {
-						return false
-					}
-				}
-				return true
-			}, 3*time.Minute, 5*time.Second)
-
-			if !ok {
-				t.Logf("label selector: %s", labelSelector)
-				t.Logf("last profile query error: %v", lastErr)
-				t.Logf("last collapsed profile:\n%s", lastCollapsed)
-				t.FailNow()
-			}
-			t.Logf("collapsed profile for %s:\n%s", check.vehicle, lastCollapsed)
-		})
-	}
+	runTLSProfileUploadTest(t, envLibcType(), envDotnetVersion())
 }
