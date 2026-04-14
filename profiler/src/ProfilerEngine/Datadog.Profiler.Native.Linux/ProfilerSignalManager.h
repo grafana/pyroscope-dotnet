@@ -60,7 +60,7 @@ private:
     int32_t _signalToSend;
     std::atomic<HandlerFn_t> _handler;
     pid_t _processId;
-    bool _isHandlerInPlace;
+    std::atomic<bool> _isHandlerInPlace;
     struct sigaction _previousAction;
     std::mutex _handlerRegisterMutex;
 };
