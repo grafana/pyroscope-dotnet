@@ -62,11 +62,11 @@ func startPyroscope(ctx context.Context, t *testing.T, net *testcontainers.Docke
 	return fmt.Sprintf("http://%s:%s", host, port.Port())
 }
 
-func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork, flavour, version string, otel bool) string {
+func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork, libcType, version string, otel bool) string {
 	t.Helper()
-	ensureProfilerImage(t, flavour)
+	ensureProfilerImage(t, libcType)
 
-	svcName := rideshareServiceName(flavour, version, otel)
+	svcName := rideshareServiceName(libcType, version, otel)
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			FromDockerfile: testcontainers.FromDockerfile{
@@ -74,9 +74,9 @@ func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwo
 				Dockerfile:    appDockerfile(otel),
 				PrintBuildLog: true,
 				BuildArgs: map[string]*string{
-					"PYROSCOPE_SDK_IMAGE": strPtr(profilerImageTag(flavour)),
+					"PYROSCOPE_SDK_IMAGE": strPtr(profilerImageTag(libcType)),
 					"SDK_VERSION":         strPtr(version),
-					"SDK_IMAGE_SUFFIX":    strPtr(sdkImageSuffix(flavour, version)),
+					"SDK_IMAGE_SUFFIX":    strPtr(sdkImageSuffix(libcType, version)),
 				},
 				BuildOptionsModifier: func(opts *dockertypes.ImageBuildOptions) {
 					opts.Platform = "linux/amd64"
@@ -192,7 +192,7 @@ type vehicleCheck struct {
 	expectedFrames [][2]string // each entry is [className, methodName]
 }
 
-func runRideshareProfileTest(t *testing.T, flavour, version string, otel bool) {
+func runRideshareProfileTest(t *testing.T, libcType, version string, otel bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -201,10 +201,10 @@ func runRideshareProfileTest(t *testing.T, flavour, version string, otel bool) {
 	t.Cleanup(func() { _ = net.Remove(ctx) })
 
 	pyroscopeURL := startPyroscope(ctx, t, net)
-	appBaseURL := startApp(ctx, t, net, flavour, version, otel)
+	appBaseURL := startApp(ctx, t, net, libcType, version, otel)
 	runLoadGenerator(ctx, t, appBaseURL)
 
-	svcName := rideshareServiceName(flavour, version, otel)
+	svcName := rideshareServiceName(libcType, version, otel)
 
 	checks := []vehicleCheck{
 		{
@@ -259,27 +259,11 @@ func runRideshareProfileTest(t *testing.T, flavour, version string, otel bool) {
 }
 
 func TestRideshareProfiles(t *testing.T) {
-	for _, flavour := range Flavours {
-		for _, version := range DotnetVersions {
-			t.Run(flavour, func(t *testing.T) {
-				t.Run(version, func(t *testing.T) {
-					runRideshareProfileTest(t, flavour, version, false)
-				})
-			})
-		}
-	}
+	runRideshareProfileTest(t, envLibcType(), envDotnetVersion(), false)
 }
 
 func TestRideshareProfilesWithOTEL(t *testing.T) {
-	for _, flavour := range Flavours {
-		for _, version := range DotnetVersions {
-			t.Run(flavour, func(t *testing.T) {
-				t.Run(version, func(t *testing.T) {
-					runRideshareProfileTest(t, flavour, version, true)
-				})
-			})
-		}
-	}
+	runRideshareProfileTest(t, envLibcType(), envDotnetVersion(), true)
 }
 
 // generateTestCerts creates a self-signed CA and a server certificate signed by
@@ -385,9 +369,9 @@ func hostDockerInternalExtraHost(ctx context.Context, t *testing.T) string {
 	return "host.docker.internal:" + dockerBridgeGatewayIP(ctx, t)
 }
 
-func startAppForTLSTest(ctx context.Context, t *testing.T, flavour, version, serverAddress string, caCertPEM []byte) string {
+func startAppForTLSTest(ctx context.Context, t *testing.T, libcType, version, serverAddress string, caCertPEM []byte) string {
 	t.Helper()
-	ensureProfilerImage(t, flavour)
+	ensureProfilerImage(t, libcType)
 
 	extraHost := hostDockerInternalExtraHost(ctx, t)
 
@@ -398,9 +382,9 @@ func startAppForTLSTest(ctx context.Context, t *testing.T, flavour, version, ser
 				Dockerfile:    appDockerfile(false),
 				PrintBuildLog: true,
 				BuildArgs: map[string]*string{
-					"PYROSCOPE_SDK_IMAGE": strPtr(profilerImageTag(flavour)),
+					"PYROSCOPE_SDK_IMAGE": strPtr(profilerImageTag(libcType)),
 					"SDK_VERSION":         strPtr(version),
-					"SDK_IMAGE_SUFFIX":    strPtr(sdkImageSuffix(flavour, version)),
+					"SDK_IMAGE_SUFFIX":    strPtr(sdkImageSuffix(libcType, version)),
 				},
 				BuildOptionsModifier: func(opts *dockertypes.ImageBuildOptions) {
 					opts.Platform = "linux/amd64"
@@ -449,7 +433,7 @@ func startAppForTLSTest(ctx context.Context, t *testing.T, flavour, version, ser
 	return fmt.Sprintf("http://%s:%s", host, mappedPort.Port())
 }
 
-func runTLSProfileUploadTest(t *testing.T, flavour, version string) {
+func runTLSProfileUploadTest(t *testing.T, libcType, version string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
@@ -457,21 +441,20 @@ func runTLSProfileUploadTest(t *testing.T, flavour, version string) {
 	port, caCertPEM, received := startTLSProfileReceiver(t, hostname)
 	serverAddress := fmt.Sprintf("https://%s:%d", hostname, port)
 
-	appBaseURL := startAppForTLSTest(ctx, t, flavour, version, serverAddress, caCertPEM)
+	appBaseURL := startAppForTLSTest(ctx, t, libcType, version, serverAddress, caCertPEM)
 	runLoadGenerator(ctx, t, appBaseURL)
 
 	select {
 	case <-received:
-		t.Logf("profile received over TLS (%s, .NET %s)", flavour, version)
+		t.Logf("profile received over TLS (%s, .NET %s)", libcType, version)
 	case <-time.After(3 * time.Minute):
-		t.Fatalf("timed out waiting for TLS profile upload (%s, .NET %s)", flavour, version)
+		t.Fatalf("timed out waiting for TLS profile upload (%s, .NET %s)", libcType, version)
 	}
 }
 
 func TestTLSProfileUpload(t *testing.T) {
-	for _, flavour := range Flavours {
-		t.Run(flavour, func(t *testing.T) {
-			runTLSProfileUploadTest(t, flavour, "8.0")
-		})
+	if v := envDotnetVersion(); v != "8.0" {
+		t.Skipf("TLS test only runs on .NET 8.0, got %s", v)
 	}
+	runTLSProfileUploadTest(t, envLibcType(), envDotnetVersion())
 }

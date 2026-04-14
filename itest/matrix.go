@@ -2,6 +2,7 @@ package itest
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -9,11 +10,18 @@ import (
 	"testing"
 )
 
-var Flavours = []string{"glibc", "musl"}
-var DotnetVersions = []string{"6.0", "8.0", "9.0", "10.0"}
+func envOrDefault(key, defaultValue string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return defaultValue
+}
 
-func sdkImageSuffix(flavour, version string) string {
-	if flavour == "musl" {
+func envLibcType() string      { return envOrDefault("LIBC_TYPE", "glibc") }
+func envDotnetVersion() string { return envOrDefault("DOTNET_VERSION", "8.0") }
+
+func sdkImageSuffix(libcType, version string) string {
+	if libcType == "musl" {
 		return "-alpine"
 	}
 	switch version {
@@ -24,15 +32,15 @@ func sdkImageSuffix(flavour, version string) string {
 	}
 }
 
-func profilerDockerfile(flavour string) string {
-	if flavour == "musl" {
+func profilerDockerfile(libcType string) string {
+	if libcType == "musl" {
 		return "Pyroscope.musl.Dockerfile"
 	}
 	return "Pyroscope.Dockerfile"
 }
 
-func profilerImageTag(flavour string) string {
-	return fmt.Sprintf("pyroscope-dotnet-%s:test", flavour)
+func profilerImageTag(libcType string) string {
+	return fmt.Sprintf("pyroscope-dotnet-%s:test", libcType)
 }
 
 func appDockerfile(otel bool) string {
@@ -42,8 +50,8 @@ func appDockerfile(otel bool) string {
 	return "itest.Dockerfile"
 }
 
-func rideshareServiceName(flavour, version string, otel bool) string {
-	base := fmt.Sprintf("rideshare.dotnet.%s.%s.app", flavour, version)
+func rideshareServiceName(libcType, version string, otel bool) string {
+	base := fmt.Sprintf("rideshare.dotnet.%s.%s.app", libcType, version)
 	if otel {
 		base += "-otel"
 	}
@@ -62,17 +70,17 @@ type profilerBuildResult struct {
 
 var profilerBuilds sync.Map
 
-func ensureProfilerImage(t *testing.T, flavour string) {
+func ensureProfilerImage(t *testing.T, libcType string) {
 	t.Helper()
-	val, _ := profilerBuilds.LoadOrStore(flavour, &profilerBuildResult{})
+	val, _ := profilerBuilds.LoadOrStore(libcType, &profilerBuildResult{})
 	pb := val.(*profilerBuildResult)
 	pb.once.Do(func() {
-		tag := profilerImageTag(flavour)
+		tag := profilerImageTag(libcType)
 		t.Logf("building profiler image %s ...", tag)
 		cmd := exec.Command("docker", "build",
 			"--platform", "linux/amd64",
 			"-t", tag,
-			"-f", filepath.Join(repoRoot(), profilerDockerfile(flavour)),
+			"-f", filepath.Join(repoRoot(), profilerDockerfile(libcType)),
 			"--build-arg", "CMAKE_BUILD_TYPE=Debug",
 			repoRoot(),
 		)

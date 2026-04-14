@@ -169,7 +169,7 @@ list-tests:
 
 .PHONY: ci-matrix
 ci-matrix:
-	@go test -list . -json ./... | jq -sc '{include: [.[] | select(.Action=="output") | {test: (.Output | rtrimstr("\n")), pkg: .Package} | select(.test | startswith("Test"))]}'
+	@go test -list . -json ./... | jq -sc '[.[] | select(.Action=="output") | .Output | rtrimstr("\n") | select(startswith("Test"))]'
 
 .PHONY: test/%
 test/%:
