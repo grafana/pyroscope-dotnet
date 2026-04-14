@@ -17,10 +17,8 @@ public:
     static ProfilerSignalManager* Get(int signal);
 
     bool RegisterHandler(HandlerFn_t handler);
-    bool IgnoreSignal();
-#ifdef DD_TEST
     bool UnRegisterHandler();
-#endif
+    bool IgnoreSignal();
     int32_t SendSignal(pid_t threadId);
     bool CheckSignalHandler();
     bool IsHandlerInPlace() const;
@@ -29,13 +27,9 @@ public:
 #ifdef DD_TEST
     void Reset()
     {
-        _handler.store(nullptr, std::memory_order_relaxed);
-        if (_previousActionCaptured)
-        {
-            sigaction(_signalToSend, &_previousAction, nullptr);
-        }
+        _handler = nullptr;
+        sigaction(_signalToSend, &_previousAction, nullptr);
         _isHandlerInPlace = false;
-        _previousActionCaptured = false;
         _canReplaceSignalHandler = true;
     }
 #endif
@@ -62,10 +56,9 @@ private:
 private:
     bool _canReplaceSignalHandler;
     int32_t _signalToSend;
-    std::atomic<HandlerFn_t> _handler;
+    HandlerFn_t _handler;
     pid_t _processId;
-    std::atomic<bool> _isHandlerInPlace;
-    bool _previousActionCaptured;
+    bool _isHandlerInPlace;
     struct sigaction _previousAction;
     std::mutex _handlerRegisterMutex;
 };

@@ -16,7 +16,6 @@ ProfilerSignalManager::ProfilerSignalManager() noexcept :
     _handler{nullptr},
     _processId{OpSysTools::GetProcId()},
     _isHandlerInPlace{false},
-    _previousActionCaptured{false},
     _previousAction{},
     _handlerRegisterMutex{}
 {
@@ -29,7 +28,7 @@ ProfilerSignalManager::~ProfilerSignalManager() noexcept
         _isHandlerInPlace = false;
         sigaction(_signalToSend, &_previousAction, nullptr);
     }
-    _handler.store(nullptr, std::memory_order_relaxed);
+    _handler = nullptr;
 }
 
 ProfilerSignalManager* ProfilerSignalManager::Get(int signal)
@@ -50,36 +49,31 @@ ProfilerSignalManager* ProfilerSignalManager::Get(int signal)
 
 bool ProfilerSignalManager::RegisterHandler(HandlerFn_t handler)
 {
-    if (_isHandlerInPlace)
-    {
-        assert(_handler.load(std::memory_order_acquire) == handler);
-        return true;
-    }
+    HandlerFn_t current = _handler;
 
+    if (current != nullptr)
+    {
+        assert(current == handler);
+        return current == handler;
+    }
     std::unique_lock<std::mutex> lock(_handlerRegisterMutex);
 
+    if (current != nullptr)
+    {
+        assert(current == handler);
+        return current == handler;
+    }
+
+    _isHandlerInPlace = SetupSignalHandler();
+
     if (_isHandlerInPlace)
     {
-        assert(_handler.load(std::memory_order_acquire) == handler);
-        return true;
+        _handler = handler;
     }
 
-    _handler.store(handler, std::memory_order_release);
-
-    bool installed = SetupSignalHandler();
-    if (installed)
-    {
-        _isHandlerInPlace = true;
-    }
-    else
-    {
-        _handler.store(nullptr, std::memory_order_release);
-    }
-
-    return installed;
+    return _isHandlerInPlace;
 }
 
-#ifdef DD_TEST
 bool ProfilerSignalManager::UnRegisterHandler()
 {
     if (!IsProfilerSignalHandlerInstalled())
@@ -98,7 +92,6 @@ bool ProfilerSignalManager::UnRegisterHandler()
     _isHandlerInPlace = false;
     return true;
 }
-#endif
 
 bool ProfilerSignalManager::IgnoreSignal() {
     struct sigaction sampleAction;
@@ -113,7 +106,6 @@ bool ProfilerSignalManager::IgnoreSignal() {
                    strerror(errno), ".");
         return false;
     }
-    _isHandlerInPlace = false;
     return true;
 }
 
@@ -148,7 +140,7 @@ bool ProfilerSignalManager::CheckSignalHandler()
 
     Log::Info("Profiler signal handler has been replaced. Restoring it.");
 
-    _previousActionCaptured = false;
+    // restore profiler handler
     _isHandlerInPlace = SetupSignalHandler();
 
     if (!_isHandlerInPlace)
@@ -183,15 +175,13 @@ bool ProfilerSignalManager::SetupSignalHandler()
     sigemptyset(&sampleAction.sa_mask);
     sigaddset(&sampleAction.sa_mask, _signalToSend);
 
-    struct sigaction* oldAction = _previousActionCaptured ? nullptr : &_previousAction;
-    int32_t result = sigaction(_signalToSend, &sampleAction, oldAction);
+    int32_t result = sigaction(_signalToSend, &sampleAction, &_previousAction);
     if (result != 0)
     {
         Log::Error("ProfilerSignalManager::SetupSignalHandler: Failed to setup signal handler for ", strsignal(_signalToSend), " signals. Reason: ",
                    strerror(errno), ".");
         return false;
     }
-    _previousActionCaptured = true;
 
     Log::Info("ProfilerSignalManager::SetupSignalHandler: Successfully setup signal handler for ", strsignal(_signalToSend), " signal.");
     return true;
@@ -214,7 +204,7 @@ void ProfilerSignalManager::SignalHandler(int signal, siginfo_t* info, void* con
 
 bool ProfilerSignalManager::CallCustomHandler(int32_t signal, siginfo_t* info, void* context)
 {
-    HandlerFn_t handler = _handler.load(std::memory_order_acquire);
+    HandlerFn_t handler = _handler;
     return handler != nullptr && handler(signal, info, context);
 }
 
