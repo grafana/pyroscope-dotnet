@@ -64,14 +64,19 @@ bool ProfilerSignalManager::RegisterHandler(HandlerFn_t handler)
         return true;
     }
 
-    _isHandlerInPlace = SetupSignalHandler();
+    _handler.store(handler, std::memory_order_release);
 
-    if (_isHandlerInPlace)
+    bool installed = SetupSignalHandler();
+    if (installed)
     {
-        _handler.store(handler, std::memory_order_release);
+        _isHandlerInPlace = true;
+    }
+    else
+    {
+        _handler.store(nullptr, std::memory_order_release);
     }
 
-    return _isHandlerInPlace;
+    return installed;
 }
 
 #ifdef DD_TEST
