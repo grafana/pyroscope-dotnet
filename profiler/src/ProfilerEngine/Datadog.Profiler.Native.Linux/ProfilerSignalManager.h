@@ -30,8 +30,12 @@ public:
     void Reset()
     {
         _handler.store(nullptr, std::memory_order_relaxed);
-        sigaction(_signalToSend, &_previousAction, nullptr);
+        if (_previousActionCaptured)
+        {
+            sigaction(_signalToSend, &_previousAction, nullptr);
+        }
         _isHandlerInPlace = false;
+        _previousActionCaptured = false;
         _canReplaceSignalHandler = true;
     }
 #endif
@@ -61,6 +65,7 @@ private:
     std::atomic<HandlerFn_t> _handler;
     pid_t _processId;
     std::atomic<bool> _isHandlerInPlace;
+    bool _previousActionCaptured;
     struct sigaction _previousAction;
     std::mutex _handlerRegisterMutex;
 };

@@ -16,6 +16,7 @@ ProfilerSignalManager::ProfilerSignalManager() noexcept :
     _handler{nullptr},
     _processId{OpSysTools::GetProcId()},
     _isHandlerInPlace{false},
+    _previousActionCaptured{false},
     _previousAction{},
     _handlerRegisterMutex{}
 {
@@ -177,13 +178,15 @@ bool ProfilerSignalManager::SetupSignalHandler()
     sigemptyset(&sampleAction.sa_mask);
     sigaddset(&sampleAction.sa_mask, _signalToSend);
 
-    int32_t result = sigaction(_signalToSend, &sampleAction, &_previousAction);
+    struct sigaction* oldAction = _previousActionCaptured ? nullptr : &_previousAction;
+    int32_t result = sigaction(_signalToSend, &sampleAction, oldAction);
     if (result != 0)
     {
         Log::Error("ProfilerSignalManager::SetupSignalHandler: Failed to setup signal handler for ", strsignal(_signalToSend), " signals. Reason: ",
                    strerror(errno), ".");
         return false;
     }
+    _previousActionCaptured = true;
 
     Log::Info("ProfilerSignalManager::SetupSignalHandler: Successfully setup signal handler for ", strsignal(_signalToSend), " signal.");
     return true;
