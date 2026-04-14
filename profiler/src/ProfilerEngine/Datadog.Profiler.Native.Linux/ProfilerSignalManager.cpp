@@ -74,6 +74,7 @@ bool ProfilerSignalManager::RegisterHandler(HandlerFn_t handler)
     return _isHandlerInPlace;
 }
 
+#ifdef DD_TEST
 bool ProfilerSignalManager::UnRegisterHandler()
 {
     if (!IsProfilerSignalHandlerInstalled())
@@ -92,6 +93,7 @@ bool ProfilerSignalManager::UnRegisterHandler()
     _isHandlerInPlace = false;
     return true;
 }
+#endif
 
 bool ProfilerSignalManager::IgnoreSignal() {
     struct sigaction sampleAction;

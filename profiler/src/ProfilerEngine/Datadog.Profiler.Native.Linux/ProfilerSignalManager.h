@@ -17,8 +17,10 @@ public:
     static ProfilerSignalManager* Get(int signal);
 
     bool RegisterHandler(HandlerFn_t handler);
-    bool UnRegisterHandler();
     bool IgnoreSignal();
+#ifdef DD_TEST
+    bool UnRegisterHandler();
+#endif
     int32_t SendSignal(pid_t threadId);
     bool CheckSignalHandler();
     bool IsHandlerInPlace() const;
