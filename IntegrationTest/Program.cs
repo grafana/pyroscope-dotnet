@@ -36,5 +36,27 @@ app.MapGet("/npe", () =>
     return "NPE work";
 });
 
+app.MapPost("/profiling/repro-dynamic-cpu-toggle", () =>
+{
+    Pyroscope.Profiler.Instance.SetCPUTrackingEnabled(false);
+    Pyroscope.Profiler.Instance.SetAllocationTrackingEnabled(false);
+    Pyroscope.Profiler.Instance.SetContentionTrackingEnabled(false);
+    Pyroscope.Profiler.Instance.SetExceptionTrackingEnabled(false);
+
+    Parallel.For(0, Environment.ProcessorCount * 4, _ =>
+    {
+        var value = 0d;
+        for (var i = 1; i < 50_000; i++)
+        {
+            value += Math.Sqrt(i);
+        }
+
+        GC.KeepAlive(value);
+    });
+
+    Pyroscope.Profiler.Instance.SetCPUTrackingEnabled(true);
+    return Results.Ok("CPU tracking re-enabled");
+});
+
 
 app.Run();

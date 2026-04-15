@@ -1,0 +1,1048 @@
+warning: Error disabling address space randomization: Operation not permitted
+[New LWP 22]
+[New LWP 23]
+[New LWP 24]
+[New LWP 25]
+[New LWP 26]
+[New LWP 27]
+[2026-04-13 04:08:37.743 | debug | PId: 19 | TId: 19] Buffering of logs disabled
+[2026-04-13 04:08:37.744 | info | PId: 19 | TId: 19] Configuration: DD_PROFILING_CONTENTION_ENABLED env var is set to 'true'
+[2026-04-13 04:08:37.744 | warning | PId: 19 | TId: 19] Managed configuration will be skipped to enable/disable the profiler: reading local configuration instead
+[2026-04-13 04:08:37.744 | info | PId: 19 | TId: 19] .NET Profiler deployment mode: Manual
+[2026-04-13 04:08:37.744 | info | PId: 19 | TId: 19] .NET Profiler is explicitly enabled.
+[2026-04-13 04:08:37.745 | info | PId: 19 | TId: 19] DllGetClassObject(): Returning an instance of CorProfilerCallbackFactory (hr=0x0)
+[2026-04-13 04:08:37.745 | info | PId: 19 | TId: 19] CorProfilerCallback is initializing.
+[2026-04-13 04:08:37.745 | info | PId: 19 | TId: 19] Enable debug log = 1 from ("DD_TRACE_DEBUG" environment variable)
+[2026-04-13 04:08:37.745 | debug | PId: 19 | TId: 19] ProcessStart(Manual)
+[2026-04-13 04:08:37.745 | info | PId: 19 | TId: 19] ICorProfilerInfo13 available. Profiling API compatibility: .NET Core 7.0 or later.
+[2026-04-13 04:08:37.745 | info | PId: 19 | TId: 19] Initializing the Profiler: Reported runtime version :{ clrInstanceId:0, runtimeType:CORE_CLR, majorVersion: 10, minorVersion: 0, buildNumber: 5, qfeVersion: 0 }
+[2026-04-13 04:08:37.745 | info | PId: 19 | TId: 19] No "DD_INTERNAL_OPERATIONAL_METRICS_ENABLED" environment variable has been found. Default: Operational metrics disabled.
+[2026-04-13 04:08:37.746 | info | PId: 19 | TId: 19] FrameStore will not rely on ManagedCodeCache to resolve function IDs.
+[2026-04-13 04:08:37.746 | info | PId: 19 | TId: 19] RingBuffer size estimate (bytes): 403968
+[New LWP 28]
+[2026-04-13 04:08:37.746 | info | PId: 19 | TId: 19] LiveObjectsProvider: Poisson heap sampling with mean interval of 524288 bytes
+[New LWP 29]
+[New LWP 30]
+[New LWP 31]
+[2026-04-13 04:08:37.747 | info | PId: 19 | TId: 19] ProfilerSignalManager::SetupSignalHandler: Successfully setup signal handler for User defined signal 1 signal.
+[2026-04-13 04:08:37.747 | info | PId: 19 | TId: 19] Cpu profiling interval: 9ms
+[2026-04-13 04:08:37.747 | info | PId: 19 | TId: 19] timer_create Cpu profiler is enabled
+[New LWP 32]
+[2026-04-13 04:08:37.748 | debug | PId: 19 | TId: 19] Listen to AllocationSampled event
+[2026-04-13 04:08:37.748 | debug | PId: 19 | TId: 19] DD_INTERNAL_NATIVE_LOADER_PATH variable not found. Inferring native loader path
+[2026-04-13 04:08:37.749 | warning | PId: 19 | TId: 19] The RuntimeID store service couldn't load the native proxy.
+[2026-04-13 04:08:37.749 | debug | PId: 19 | TId: 19] Service 'RuntimeID Store' started successfully.
+[2026-04-13 04:08:37.749 | info | PId: 19 | TId: 19] Linux System Calls Shield started successfully.
+[New LWP 33]
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] LibrariesInfoCache: Registered custom iterate_phdr_function with libunwind.
+[2026-04-13 04:08:37.750 | debug | PId: 19 | TId: 19] Service 'Libraries Info Cache' started successfully.
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] Libraries Info Cache started successfully.
+[2026-04-13 04:08:37.750 | debug | PId: 19 | TId: 19] Service 'ThreadsCpuManager' started successfully.
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] ThreadsCpuManager started successfully.
+[2026-04-13 04:08:37.750 | debug | PId: 19 | TId: 19] Service 'ManagedThreadList' started successfully.
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] ManagedThreadList started successfully.
+[2026-04-13 04:08:37.750 | debug | PId: 19 | TId: 19] Service 'ManagedThreadList' started successfully.
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] ManagedThreadList started successfully.
+[2026-04-13 04:08:37.750 | debug | PId: 19 | TId: 19] Service 'NativeThreadList' started successfully.
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] NativeThreadList started successfully.
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] RuntimeID Store is already started.
+[2026-04-13 04:08:37.750 | debug | PId: 19 | TId: 19] Service 'ThreadLifetimeProvider' started successfully.
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] ThreadLifetimeProvider started successfully.
+[2026-04-13 04:08:37.750 | debug | PId: 19 | TId: 19] Service 'WallTimeProvider' started successfully.
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] WallTimeProvider started successfully.
+[2026-04-13 04:08:37.750 | debug | PId: 19 | TId: 19] Service 'CpuSampleProvider' started successfully.
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] CpuSampleProvider started successfully.
+[2026-04-13 04:08:37.750 | debug | PId: 19 | TId: 19] Service 'ExceptionsProvider' started successfully.
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] ExceptionsProvider started successfully.
+[2026-04-13 04:08:37.750 | debug | PId: 19 | TId: 19] Service 'LiveObjectsProvider' started successfully.
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] LiveObjectsProvider started successfully.
+[2026-04-13 04:08:37.750 | debug | PId: 19 | TId: 19] Service 'AllocationsProvider' started successfully.
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] AllocationsProvider started successfully.
+[2026-04-13 04:08:37.750 | debug | PId: 19 | TId: 19] Service 'ContentionProvider' started successfully.
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] ContentionProvider started successfully.
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] Processor cores = 8
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] CPU and wall time sampling period = 9 ms
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] Wall time sampled threads = 5
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] Max CodeHotspots sampled threads = 10
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] Max CPU sampled threads = 64
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] Manual Cpu profiler is disabled
+[2026-04-13 04:08:37.750 | info | PId: 19 | TId: 19] Wall-time profiler is enabled
+[New LWP 34]
+[2026-04-13 04:08:37.751 | info | PId: 19 | TId: 34] StackSamplerLoopManager::WatcherLoop started.
+[2026-04-13 04:08:37.751 | debug | PId: 19 | TId: 19] Service 'StackSamplerLoopManager' started successfully.
+[2026-04-13 04:08:37.751 | debug | PId: 19 | TId: 34] Map (34) to DD_Watcher
+[2026-04-13 04:08:37.751 | info | PId: 19 | TId: 19] StackSamplerLoopManager started successfully.
+[2026-04-13 04:08:37.751 | debug | PId: 19 | TId: 19] Service 'ApplicationStore' started successfully.
+[2026-04-13 04:08:37.751 | info | PId: 19 | TId: 19] ApplicationStore started successfully.
+[2026-04-13 04:08:37.751 | info | PId: 19 | TId: 19] Starting the samples collector
+[New LWP 35]
+[2026-04-13 04:08:37.751 | debug | PId: 19 | TId: 35] StackSamplerLoop::MainLoop started.
+[2026-04-13 04:08:37.751 | debug | PId: 19 | TId: 34] Service 'StackSamplerLoop' started successfully.
+[2026-04-13 04:08:37.751 | debug | PId: 19 | TId: 35] Map (35) to DD_StackSampler
+[2026-04-13 04:08:37.751 | debug | PId: 19 | TId: 35] ResetThreadsCpuConsumption took 500ns ns
+[New LWP 36]
+[2026-04-13 04:08:37.751 | debug | PId: 19 | TId: 36] Map (36) to DD_worker
+[New LWP 37]
+[2026-04-13 04:08:37.751 | debug | PId: 19 | TId: 37] Map (37) to DD_exporter
+[2026-04-13 04:08:37.751 | debug | PId: 19 | TId: 19] Service 'SamplesCollector' started successfully.
+[2026-04-13 04:08:37.751 | info | PId: 19 | TId: 19] SamplesCollector started successfully.
+[2026-04-13 04:08:37.751 | info | PId: 19 | TId: 19] ProfilerSignalManager::SetupSignalHandler: Successfully setup signal handler for Profiling timer expired signal.
+[2026-04-13 04:08:37.751 | debug | PId: 19 | TId: 19] Service 'timer_create-based Cpu Profiler' started successfully.
+[2026-04-13 04:08:37.751 | info | PId: 19 | TId: 19] timer_create-based Cpu Profiler started successfully.
+[New LWP 38]
+[New LWP 39]
+[New LWP 40]
+[New LWP 41]
+[New LWP 42]
+[New LWP 43]
+[New LWP 44]
+[New LWP 45]
+[2026-04-13 04:08:37.755 | debug | PId: 19 | TId: 19] Callback invoked: ThreadCreated(threadId=0x73ae4ccdc030)
+[2026-04-13 04:08:37.755 | debug | PId: 19 | TId: 19] Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x73ae4ccdc030, osThreadId=19)
+[2026-04-13 04:08:37.755 | debug | PId: 19 | TId: 19] ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x73ae4ccdc030, osThreadId: 19, osThreadHandle: 0x0xc0) completed for ProfilerThreadInfoId=1.
+[2026-04-13 04:08:37.755 | debug | PId: 19 | TId: 19] Creating timer for thread 19
+[New LWP 46]
+[2026-04-13 04:08:37.755 | debug | PId: 19 | TId: 46] Callback invoked: ThreadCreated(threadId=0x73ae4ccdc360)
+[2026-04-13 04:08:37.755 | debug | PId: 19 | TId: 46] Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x73ae4ccdc360, osThreadId=46)
+[2026-04-13 04:08:37.755 | debug | PId: 19 | TId: 46] ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x73ae4ccdc360, osThreadId: 46, osThreadHandle: 0x0xe0) completed for ProfilerThreadInfoId=2.
+[2026-04-13 04:08:37.755 | debug | PId: 19 | TId: 46] Creating timer for thread 46
+[New LWP 47]
+[2026-04-13 04:08:37.762 | debug | PId: 19 | TId: 47] Callback invoked: ThreadCreated(threadId=0x73ae4ccdc650)
+[2026-04-13 04:08:37.762 | debug | PId: 19 | TId: 47] Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x73ae4ccdc650, osThreadId=47)
+[2026-04-13 04:08:37.762 | debug | PId: 19 | TId: 47] ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x73ae4ccdc650, osThreadId: 47, osThreadHandle: 0x0xf8) completed for ProfilerThreadInfoId=3.
+[2026-04-13 04:08:37.762 | debug | PId: 19 | TId: 47] Creating timer for thread 47
+[2026-04-13 04:08:37.770 | debug | PId: 19 | TId: 19] Event pipe provider: Microsoft-Windows-DotNETRuntime
+[2026-04-13 04:08:37.814 | debug | PId: 19 | TId: 19] Event pipe provider: System.Runtime
+[2026-04-13 04:08:37.814 | debug | PId: 19 | TId: 19] Event pipe provider: System.Diagnostics.Metrics
+[2026-04-13 04:08:37.846 | debug | PId: 19 | TId: 19] Event pipe provider: System.Buffers.ArrayPoolEventSource
+[2026-04-13 04:08:37.847 | debug | PId: 19 | TId: 19] CorProfilerCallback::ThreadNameChanged(threadId=0x73ae4b04c680, name=".NET File Watcher")
+[2026-04-13 04:08:37.847 | debug | PId: 19 | TId: 19] Map (0) to .NET File Watcher
+[2026-04-13 04:08:37.847 | debug | PId: 19 | TId: 19] ManagedThreadList::SetThreadName(clrThreadId: 0x73ae4b04c680, pThreadName: ".NET File Watcher") completed for ProfilerThreadInfoId=4.
+[New LWP 48]
+[2026-04-13 04:08:37.848 | debug | PId: 19 | TId: 48] Callback invoked: ThreadCreated(threadId=0x73ae4b04c680)
+[2026-04-13 04:08:37.848 | debug | PId: 19 | TId: 48] Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x73ae4b04c680, osThreadId=48)
+[2026-04-13 04:08:37.848 | debug | PId: 19 | TId: 48] ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x73ae4b04c680, osThreadId: 48, osThreadHandle: 0x0x254) completed for ProfilerThreadInfoId=4.
+[2026-04-13 04:08:37.848 | debug | PId: 19 | TId: 48] Creating timer for thread 48
+[2026-04-13 04:08:37.852 | debug | PId: 19 | TId: 19] Event pipe provider: Microsoft-Extensions-Logging
+[2026-04-13 04:08:37.883 | debug | PId: 19 | TId: 19] Event pipe provider: Private.InternalDiagnostics.System.Net.Quic
+[2026-04-13 04:08:37.901 | debug | PId: 19 | TId: 19] Event pipe provider: Microsoft-Diagnostics-DiagnosticSource
+[2026-04-13 04:08:37.908 | debug | PId: 19 | TId: 19] Event pipe provider: Microsoft-Extensions-DependencyInjection
+[2026-04-13 04:08:37.928 | debug | PId: 19 | TId: 19] CorProfilerCallback::ThreadNameChanged(threadId=0x73ae4b04cca0, name="Console logger queue processing thread")
+[2026-04-13 04:08:37.928 | debug | PId: 19 | TId: 19] Map (0) to Console logger queue processing thread
+[2026-04-13 04:08:37.928 | debug | PId: 19 | TId: 19] ManagedThreadList::SetThreadName(clrThreadId: 0x73ae4b04cca0, pThreadName: "Console logger queue processing thread") completed for ProfilerThreadInfoId=5.
+[New LWP 49]
+[2026-04-13 04:08:37.928 | debug | PId: 19 | TId: 49] Callback invoked: ThreadCreated(threadId=0x73ae4b04cca0)
+[2026-04-13 04:08:37.928 | debug | PId: 19 | TId: 49] Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x73ae4b04cca0, osThreadId=49)
+[2026-04-13 04:08:37.928 | debug | PId: 19 | TId: 49] ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x73ae4b04cca0, osThreadId: 49, osThreadHandle: 0x0x384) completed for ProfilerThreadInfoId=5.
+[2026-04-13 04:08:37.928 | debug | PId: 19 | TId: 49] Creating timer for thread 49
+[2026-04-13 04:08:37.943 | debug | PId: 19 | TId: 19] CorProfilerCallback::ThreadNameChanged(threadId=0x73ae4b04c990, name="Kestrel Timer")
+[2026-04-13 04:08:37.943 | debug | PId: 19 | TId: 19] Map (0) to Kestrel Timer
+[2026-04-13 04:08:37.943 | debug | PId: 19 | TId: 19] ManagedThreadList::SetThreadName(clrThreadId: 0x73ae4b04c990, pThreadName: "Kestrel Timer") completed for ProfilerThreadInfoId=6.
+[New LWP 50]
+[2026-04-13 04:08:37.955 | debug | PId: 19 | TId: 19] Event pipe provider: Microsoft.AspNetCore.Hosting
+[2026-04-13 04:08:37.959 | debug | PId: 19 | TId: 19] Event pipe provider: System.Diagnostics.Eventing.FrameworkEventSource
+[2026-04-13 04:08:37.960 | debug | PId: 19 | TId: 19] CorProfilerCallback::ThreadNameChanged(threadId=0x73ae4aac1040, name=".NET TP Worker")
+[2026-04-13 04:08:37.960 | debug | PId: 19 | TId: 19] Map (0) to .NET TP Worker
+[2026-04-13 04:08:37.960 | debug | PId: 19 | TId: 19] ManagedThreadList::SetThreadName(clrThreadId: 0x73ae4aac1040, pThreadName: ".NET TP Worker") completed for ProfilerThreadInfoId=7.
+[New LWP 51]
+[2026-04-13 04:08:37.960 | debug | PId: 19 | TId: 51] Callback invoked: ThreadCreated(threadId=0x73ae4aac1040)
+[2026-04-13 04:08:37.960 | debug | PId: 19 | TId: 51] Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x73ae4aac1040, osThreadId=51)
+[2026-04-13 04:08:37.960 | debug | PId: 19 | TId: 51] ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x73ae4aac1040, osThreadId: 51, osThreadHandle: 0x0x404) completed for ProfilerThreadInfoId=7.
+[2026-04-13 04:08:37.960 | debug | PId: 19 | TId: 51] Creating timer for thread 51
+[2026-04-13 04:08:37.960 | debug | PId: 19 | TId: 19] CorProfilerCallback::ThreadNameChanged(threadId=0x73ae4aac1330, name=".NET TP Gate")
+[2026-04-13 04:08:37.960 | debug | PId: 19 | TId: 19] Map (0) to .NET TP Gate
+[2026-04-13 04:08:37.960 | debug | PId: 19 | TId: 19] ManagedThreadList::SetThreadName(clrThreadId: 0x73ae4aac1330, pThreadName: ".NET TP Gate") completed for ProfilerThreadInfoId=8.
+[New LWP 52]
+[2026-04-13 04:08:37.961 | debug | PId: 19 | TId: 52] Callback invoked: ThreadCreated(threadId=0x73ae4aac1330)
+[2026-04-13 04:08:37.961 | debug | PId: 19 | TId: 52] Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x73ae4aac1330, osThreadId=52)
+[2026-04-13 04:08:37.961 | debug | PId: 19 | TId: 52] ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x73ae4aac1330, osThreadId: 52, osThreadHandle: 0x0x410) completed for ProfilerThreadInfoId=8.
+[2026-04-13 04:08:37.961 | debug | PId: 19 | TId: 52] Creating timer for thread 52
+[2026-04-13 04:08:37.961 | debug | PId: 19 | TId: 51] CorProfilerCallback::ThreadNameChanged(threadId=0x73ae4aac1670, name=".NET TP Worker")
+[2026-04-13 04:08:37.961 | debug | PId: 19 | TId: 51] Map (0) to .NET TP Worker
+[2026-04-13 04:08:37.961 | debug | PId: 19 | TId: 51] ManagedThreadList::SetThreadName(clrThreadId: 0x73ae4aac1670, pThreadName: ".NET TP Worker") completed for ProfilerThreadInfoId=9.
+[New LWP 53]
+[2026-04-13 04:08:37.962 | debug | PId: 19 | TId: 53] Callback invoked: ThreadCreated(threadId=0x73ae4aac1670)
+[2026-04-13 04:08:37.962 | debug | PId: 19 | TId: 53] Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x73ae4aac1670, osThreadId=53)
+[2026-04-13 04:08:37.962 | debug | PId: 19 | TId: 53] ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x73ae4aac1670, osThreadId: 53, osThreadHandle: 0x0x41c) completed for ProfilerThreadInfoId=9.
+[2026-04-13 04:08:37.962 | debug | PId: 19 | TId: 53] Creating timer for thread 53
+[New LWP 54]
+[2026-04-13 04:08:37.968 | debug | PId: 19 | TId: 54] Callback invoked: ThreadCreated(threadId=0x73ae4b04c990)
+[2026-04-13 04:08:37.968 | debug | PId: 19 | TId: 54] Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x73ae4b04c990, osThreadId=54)
+[2026-04-13 04:08:37.968 | debug | PId: 19 | TId: 54] ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x73ae4b04c990, osThreadId: 54, osThreadHandle: 0x0x450) completed for ProfilerThreadInfoId=6.
+[2026-04-13 04:08:37.968 | debug | PId: 19 | TId: 54] Creating timer for thread 54
+[2026-04-13 04:08:37.982 | debug | PId: 19 | TId: 19] Event pipe provider: Private.InternalDiagnostics.System.Net.Sockets
+[2026-04-13 04:08:37.983 | debug | PId: 19 | TId: 19] CorProfilerCallback::ThreadNameChanged(threadId=0x73ae4aac1980, name=".NET Sockets")
+[2026-04-13 04:08:37.983 | debug | PId: 19 | TId: 19] Map (0) to .NET Sockets
+[2026-04-13 04:08:37.983 | debug | PId: 19 | TId: 19] ManagedThreadList::SetThreadName(clrThreadId: 0x73ae4aac1980, pThreadName: ".NET Sockets") completed for ProfilerThreadInfoId=a.
+[New LWP 55]
+[2026-04-13 04:08:37.983 | debug | PId: 19 | TId: 55] Callback invoked: ThreadCreated(threadId=0x73ae4aac1980)
+[2026-04-13 04:08:37.983 | debug | PId: 19 | TId: 55] Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x73ae4aac1980, osThreadId=55)
+[2026-04-13 04:08:37.983 | debug | PId: 19 | TId: 55] ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x73ae4aac1980, osThreadId: 55, osThreadHandle: 0x0x490) completed for ProfilerThreadInfoId=10.
+[2026-04-13 04:08:37.983 | debug | PId: 19 | TId: 55] Creating timer for thread 55
+[2026-04-13 04:08:37.986 | debug | PId: 19 | TId: 51] Event pipe provider: System.Net.Sockets
+[2026-04-13 04:08:37.988 | debug | PId: 19 | TId: 19] Event pipe provider: Microsoft-AspNetCore-Server-Kestrel
+[2026-04-13 04:08:37.988 | debug | PId: 19 | TId: 51] Event pipe provider: System.Threading.Tasks.TplEventSource
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://[::]:8080
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Production
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: /dotnet
+[2026-04-13 04:08:38.078 | debug | PId: 19 | TId: 53] CorProfilerCallback::ThreadNameChanged(threadId=0x73ae4aac1ca0, name=".NET TP Worker")
+[2026-04-13 04:08:38.078 | debug | PId: 19 | TId: 53] Map (0) to .NET TP Worker
+[2026-04-13 04:08:38.078 | debug | PId: 19 | TId: 53] ManagedThreadList::SetThreadName(clrThreadId: 0x73ae4aac1ca0, pThreadName: ".NET TP Worker") completed for ProfilerThreadInfoId=b.
+[New LWP 56]
+[2026-04-13 04:08:38.078 | debug | PId: 19 | TId: 56] Callback invoked: ThreadCreated(threadId=0x73ae4aac1ca0)
+[2026-04-13 04:08:38.078 | debug | PId: 19 | TId: 56] Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x73ae4aac1ca0, osThreadId=56)
+[2026-04-13 04:08:38.078 | debug | PId: 19 | TId: 56] ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x73ae4aac1ca0, osThreadId: 56, osThreadHandle: 0x0x4d8) completed for ProfilerThreadInfoId=11.
+[2026-04-13 04:08:38.078 | debug | PId: 19 | TId: 56] Creating timer for thread 56
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 GET http://127.0.0.1:5012/bike - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'HTTP: GET /bike'
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[1]
+      Executed endpoint 'HTTP: GET /bike'
+[2026-04-13 04:08:38.513 | debug | PId: 19 | TId: 53] CorProfilerCallback::ThreadNameChanged(threadId=0x73ae48dea010, name=".NET TP Worker")
+[2026-04-13 04:08:38.513 | debug | PId: 19 | TId: 53] Map (0) to .NET TP Worker
+[2026-04-13 04:08:38.513 | debug | PId: 19 | TId: 53] ManagedThreadList::SetThreadName(clrThreadId: 0x73ae48dea010, pThreadName: ".NET TP Worker") completed for ProfilerThreadInfoId=c.
+[New LWP 57]
+[2026-04-13 04:08:38.513 | debug | PId: 19 | TId: 57] Callback invoked: ThreadCreated(threadId=0x73ae48dea010)
+[2026-04-13 04:08:38.513 | debug | PId: 19 | TId: 57] Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x73ae48dea010, osThreadId=57)
+[2026-04-13 04:08:38.513 | debug | PId: 19 | TId: 57] ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x73ae48dea010, osThreadId: 57, osThreadHandle: 0x0x594) completed for ProfilerThreadInfoId=12.
+[2026-04-13 04:08:38.513 | debug | PId: 19 | TId: 57] Creating timer for thread 57
+info: Microsoft.AspNetCore.Hosting.Diagnostics[2]
+      Request finished HTTP/1.1 GET http://127.0.0.1:5012/bike - 200 - text/plain;+charset=utf-8 401.6969ms
+info: Microsoft.AspNetCore.Hosting.Diagnostics[1]
+      Request starting HTTP/1.1 POST http://127.0.0.1:5012/profiling/repro-dynamic-cpu-toggle - - -
+info: Microsoft.AspNetCore.Routing.EndpointMiddleware[0]
+      Executing endpoint 'HTTP: POST /profiling/repro-dynamic-cpu-toggle'
+[2026-04-13 04:08:38.526 | debug | PId: 19 | TId: 57] CorProfilerCallback::SetStackSamplerEnabled: 0
+[2026-04-13 04:08:38.532 | debug | PId: 19 | TId: 35] StackSamplerLoop::MainLoop has ended.
+[2026-04-13 04:08:38.532 | debug | PId: 19 | TId: 57] Service 'StackSamplerLoop' stopped successfully. Current state : Stopped
+[LWP 35 exited]
+[2026-04-13 04:08:38.751 | info | PId: 19 | TId: 34] StackSamplerLoopManager::WatcherLoop finished.
+[2026-04-13 04:08:38.751 | debug | PId: 19 | TId: 57] Service 'StackSamplerLoopManager' stopped successfully. Current state : Init
+[LWP 34 exited]
+[2026-04-13 04:08:38.751 | debug | PId: 19 | TId: 57] CorProfilerCallback::SetAllocationTrackingEnabled: 0
+[2026-04-13 04:08:38.751 | debug | PId: 19 | TId: 57] CorProfilerCallback::SetContentionTrackingEnabled: 0
+[2026-04-13 04:08:38.751 | debug | PId: 19 | TId: 57] CorProfilerCallback::SetExceptionTrackingEnabled: 0
+[2026-04-13 04:08:38.753 | debug | PId: 19 | TId: 57] Event pipe provider: System.Threading.Tasks.Parallel.EventSource
+[2026-04-13 04:08:38.754 | debug | PId: 19 | TId: 51] CorProfilerCallback::ThreadNameChanged(threadId=0x73ae48deacc0, name=".NET TP Worker")
+[2026-04-13 04:08:38.754 | debug | PId: 19 | TId: 51] Map (0) to .NET TP Worker
+[2026-04-13 04:08:38.754 | debug | PId: 19 | TId: 51] ManagedThreadList::SetThreadName(clrThreadId: 0x73ae48deacc0, pThreadName: ".NET TP Worker") completed for ProfilerThreadInfoId=d.
+[New LWP 58]
+[2026-04-13 04:08:38.754 | debug | PId: 19 | TId: 58] Callback invoked: ThreadCreated(threadId=0x73ae48deacc0)
+[2026-04-13 04:08:38.754 | debug | PId: 19 | TId: 58] Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x73ae48deacc0, osThreadId=58)
+[2026-04-13 04:08:38.754 | debug | PId: 19 | TId: 58] ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x73ae48deacc0, osThreadId: 58, osThreadHandle: 0x0x5c0) completed for ProfilerThreadInfoId=13.
+[2026-04-13 04:08:38.754 | debug | PId: 19 | TId: 58] Creating timer for thread 58
+[2026-04-13 04:08:38.754 | debug | PId: 19 | TId: 58] CorProfilerCallback::ThreadNameChanged(threadId=0x73eee2097020, name=".NET TP Worker")
+[2026-04-13 04:08:38.754 | debug | PId: 19 | TId: 58] Map (0) to .NET TP Worker
+[2026-04-13 04:08:38.754 | debug | PId: 19 | TId: 58] ManagedThreadList::SetThreadName(clrThreadId: 0x73eee2097020, pThreadName: ".NET TP Worker") completed for ProfilerThreadInfoId=e.
+[New LWP 59]
+[2026-04-13 04:08:38.755 | debug | PId: 19 | TId: 59] Callback invoked: ThreadCreated(threadId=0x73eee2097020)
+[2026-04-13 04:08:38.755 | debug | PId: 19 | TId: 59] Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x73eee2097020, osThreadId=59)
+[2026-04-13 04:08:38.755 | debug | PId: 19 | TId: 59] ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x73eee2097020, osThreadId: 59, osThreadHandle: 0x0x5cc) completed for ProfilerThreadInfoId=14.
+[2026-04-13 04:08:38.755 | debug | PId: 19 | TId: 59] Creating timer for thread 59
+[2026-04-13 04:08:38.755 | debug | PId: 19 | TId: 59] CorProfilerCallback::ThreadNameChanged(threadId=0x73eee2097680, name=".NET TP Worker")
+[2026-04-13 04:08:38.755 | debug | PId: 19 | TId: 59] Map (0) to .NET TP Worker
+[2026-04-13 04:08:38.755 | debug | PId: 19 | TId: 59] ManagedThreadList::SetThreadName(clrThreadId: 0x73eee2097680, pThreadName: ".NET TP Worker") completed for ProfilerThreadInfoId=f.
+[New LWP 60]
+[2026-04-13 04:08:38.755 | debug | PId: 19 | TId: 60] Callback invoked: ThreadCreated(threadId=0x73eee2097680)
+[2026-04-13 04:08:38.755 | debug | PId: 19 | TId: 60] Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x73eee2097680, osThreadId=60)
+[2026-04-13 04:08:38.755 | debug | PId: 19 | TId: 60] ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x73eee2097680, osThreadId: 60, osThreadHandle: 0x0x5d8) completed for ProfilerThreadInfoId=15.
+[2026-04-13 04:08:38.755 | debug | PId: 19 | TId: 60] Creating timer for thread 60
+[2026-04-13 04:08:38.756 | debug | PId: 19 | TId: 60] CorProfilerCallback::ThreadNameChanged(threadId=0x73eee2097ca0, name=".NET TP Worker")
+[2026-04-13 04:08:38.756 | debug | PId: 19 | TId: 60] Map (0) to .NET TP Worker
+[2026-04-13 04:08:38.756 | debug | PId: 19 | TId: 60] ManagedThreadList::SetThreadName(clrThreadId: 0x73eee2097ca0, pThreadName: ".NET TP Worker") completed for ProfilerThreadInfoId=10.
+[New LWP 61]
+[2026-04-13 04:08:38.757 | debug | PId: 19 | TId: 61] Callback invoked: ThreadCreated(threadId=0x73eee2097ca0)
+[2026-04-13 04:08:38.757 | debug | PId: 19 | TId: 61] Callback invoked: ThreadAssignedToOSThread(managedThreadId=0x73eee2097ca0, osThreadId=61)
+[2026-04-13 04:08:38.757 | debug | PId: 19 | TId: 61] ManagedThreadList::SetThreadOsInfo(clrThreadId: 0x73eee2097ca0, osThreadId: 61, osThreadHandle: 0x0x5e4) completed for ProfilerThreadInfoId=16.
+[2026-04-13 04:08:38.757 | debug | PId: 19 | TId: 61] Creating timer for thread 61
+[2026-04-13 04:08:38.757 | debug | PId: 19 | TId: 57] CorProfilerCallback::SetStackSamplerEnabled: 1
+[2026-04-13 04:08:38.757 | info | PId: 19 | TId: 57] Processor cores = 8
+[2026-04-13 04:08:38.757 | info | PId: 19 | TId: 57] CPU and wall time sampling period = 9 ms
+[2026-04-13 04:08:38.757 | info | PId: 19 | TId: 57] Wall time sampled threads = 5
+[2026-04-13 04:08:38.757 | info | PId: 19 | TId: 57] Max CodeHotspots sampled threads = 10
+[2026-04-13 04:08:38.757 | info | PId: 19 | TId: 57] Max CPU sampled threads = 64
+[2026-04-13 04:08:38.757 | info | PId: 19 | TId: 57] Manual Cpu profiler is disabled
+[2026-04-13 04:08:38.757 | info | PId: 19 | TId: 57] Wall-time profiler is enabled
+[New LWP 62]
+[2026-04-13 04:08:38.757 | info | PId: 19 | TId: 62] StackSamplerLoopManager::WatcherLoop started.
+[2026-04-13 04:08:38.757 | debug | PId: 19 | TId: 57] Service 'StackSamplerLoopManager' started successfully.
+[2026-04-13 04:08:38.757 | debug | PId: 19 | TId: 62] Map (62) to DD_Watcher
+[2026-04-13 04:08:38.757 | debug | PId: 19 | TId: 63] StackSamplerLoop::MainLoop started.
+[New LWP 63]
+[2026-04-13 04:08:38.757 | debug | PId: 19 | TId: 62] Service 'StackSamplerLoop' started successfully.
+[2026-04-13 04:08:38.757 | debug | PId: 19 | TId: 63] Map (63) to DD_StackSampler
+info: Microsoft.AspNetCore.Http.Result.OkObjectResult[1]
+      Setting HTTP status code 200.
+
+Thread 43 "DD_StackSampler" received signal SIGSEGV, Segmentation fault.
+[Switching to LWP 63]
+0x000073eee253f668 in OsSpecificApi::IsRunning (pThreadInfo=0x0) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Linux/OsSpecificApi.cpp:195
+warning: 195	/profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Linux/OsSpecificApi.cpp: No such file or directory
+#0  0x000073eee253f668 in OsSpecificApi::IsRunning (pThreadInfo=0x0) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Linux/OsSpecificApi.cpp:195
+#1  0x000073eee26bfbea in StackSamplerLoop::ResetThreadsCpuConsumption (this=0x73ae489d8a80) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/StackSamplerLoop.cpp:621
+#2  0x000073eee26bf920 in StackSamplerLoop::MainLoop (this=0x73ae489d8a80) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/StackSamplerLoop.cpp:155
+#3  0x000073eee26c21bc in StackSamplerLoop::StartImpl()::$_0::operator()() const (this=0x73eee205d968) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/StackSamplerLoop.cpp:117
+#4  0x000073eee26c2185 in std::__invoke_impl<void, StackSamplerLoop::StartImpl()::$_0>(std::__invoke_other, StackSamplerLoop::StartImpl()::$_0&&) (__f=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:61
+#5  0x000073eee26c2145 in std::__invoke<StackSamplerLoop::StartImpl()::$_0>(StackSamplerLoop::StartImpl()::$_0&&) (__fn=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:96
+#6  0x000073eee26c211d in std::thread::_Invoker<std::tuple<StackSamplerLoop::StartImpl()::$_0> >::_M_invoke<0ul> (this=0x73eee205d968) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:258
+#7  0x000073eee26c20f5 in std::thread::_Invoker<std::tuple<StackSamplerLoop::StartImpl()::$_0> >::operator() (this=0x73eee205d968) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:265
+#8  0x000073eee26c2059 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<StackSamplerLoop::StartImpl()::$_0> > >::_M_run (this=0x73eee205d960) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:210
+#9  0x000073eee2dfde63 in std::execute_native_thread_routine (__p=0x73eee205d960) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/thread.cc:82
+#10 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee205d9a0) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#11 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#12 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 43 (LWP 63 "DD_StackSampler"):
+#0  0x000073eee253f668 in OsSpecificApi::IsRunning (pThreadInfo=0x0) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Linux/OsSpecificApi.cpp:195
+#1  0x000073eee26bfbea in StackSamplerLoop::ResetThreadsCpuConsumption (this=0x73ae489d8a80) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/StackSamplerLoop.cpp:621
+#2  0x000073eee26bf920 in StackSamplerLoop::MainLoop (this=0x73ae489d8a80) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/StackSamplerLoop.cpp:155
+#3  0x000073eee26c21bc in StackSamplerLoop::StartImpl()::$_0::operator()() const (this=0x73eee205d968) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/StackSamplerLoop.cpp:117
+#4  0x000073eee26c2185 in std::__invoke_impl<void, StackSamplerLoop::StartImpl()::$_0>(std::__invoke_other, StackSamplerLoop::StartImpl()::$_0&&) (__f=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:61
+#5  0x000073eee26c2145 in std::__invoke<StackSamplerLoop::StartImpl()::$_0>(StackSamplerLoop::StartImpl()::$_0&&) (__fn=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:96
+#6  0x000073eee26c211d in std::thread::_Invoker<std::tuple<StackSamplerLoop::StartImpl()::$_0> >::_M_invoke<0ul> (this=0x73eee205d968) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:258
+#7  0x000073eee26c20f5 in std::thread::_Invoker<std::tuple<StackSamplerLoop::StartImpl()::$_0> >::operator() (this=0x73eee205d968) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:265
+#8  0x000073eee26c2059 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<StackSamplerLoop::StartImpl()::$_0> > >::_M_run (this=0x73eee205d960) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:210
+#9  0x000073eee2dfde63 in std::execute_native_thread_routine (__p=0x73eee205d960) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/thread.cc:82
+#10 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee205d9a0) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#11 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#12 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 42 (LWP 62 "DD_Watcher"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=35, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a649c in __clock_nanosleep (clk=0, flags=0, req=0x0, rem=0x0) at src/time/clock_nanosleep.c:33
+#3  __clock_nanosleep (clk=clk@entry=0, flags=flags@entry=0, req=<optimized out>, rem=<optimized out>) at src/time/clock_nanosleep.c:8
+#4  0x000073ef636a6852 in nanosleep (req=<optimized out>, rem=<optimized out>) at src/time/nanosleep.c:6
+#5  0x000073eee2410e93 in std::this_thread::sleep_for<long, std::ratio<1l, 1000l> > (__rtime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/this_thread_sleep.h:80
+#6  0x000073eee26c4b2b in StackSamplerLoopManager::WatcherLoop (this=0x73eee22e9330) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/StackSamplerLoopManager.cpp:179
+#7  0x000073eee26c6b5f in StackSamplerLoopManager::RunWatcherAndSampler()::$_0::operator()() const (this=0x73eee205d768) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/StackSamplerLoopManager.cpp:153
+#8  0x000073eee26c6b25 in std::__invoke_impl<void, StackSamplerLoopManager::RunWatcherAndSampler()::$_0>(std::__invoke_other, StackSamplerLoopManager::RunWatcherAndSampler()::$_0&&) (__f=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:61
+#9  0x000073eee26c6ae5 in std::__invoke<StackSamplerLoopManager::RunWatcherAndSampler()::$_0>(StackSamplerLoopManager::RunWatcherAndSampler()::$_0&&) (__fn=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:96
+#10 0x000073eee26c6abd in std::thread::_Invoker<std::tuple<StackSamplerLoopManager::RunWatcherAndSampler()::$_0> >::_M_invoke<0ul> (this=0x73eee205d768) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:258
+#11 0x000073eee26c6a95 in std::thread::_Invoker<std::tuple<StackSamplerLoopManager::RunWatcherAndSampler()::$_0> >::operator() (this=0x73eee205d768) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:265
+#12 0x000073eee26c69f9 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<StackSamplerLoopManager::RunWatcherAndSampler()::$_0> > >::_M_run (this=0x73eee205d760) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:210
+#13 0x000073eee2dfde63 in std::execute_native_thread_routine (__p=0x73eee205d760) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/thread.cc:82
+#14 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee205d7a0) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#15 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#16 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 41 (LWP 61 ".NET TP Worker"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae4809b904, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae4809b904, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x73ae4809b950, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73eee20871a8, m=0x73eee2087180, ts=0x73ae4809b950) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef63141b25 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef631417af in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63146240 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef631463d4 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef62f85f71 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073eee3dac97f in ?? ()
+#11 0x000003f800000000 in ?? ()
+#12 0x00004e2000000000 in ?? ()
+#13 0x0000000000000001 in ?? ()
+#14 0x000073ae4809bfa0 in ?? ()
+#15 0x0000000000000000 in ?? ()
+
+Thread 40 (LWP 60 ".NET TP Worker"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae4825f904, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae4825f904, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x73ae4825f950, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73ae49ae56c8, m=0x73ae49ae56a0, ts=0x73ae4825f950) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef63141b25 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef631417af in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63146240 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef631463d4 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef62f85f71 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073eee3dac97f in ?? ()
+#11 0x000003f84825fc50 in ?? ()
+#12 0x00004e2000000000 in ?? ()
+#13 0x0000000000000001 in ?? ()
+#14 0x000073ae4825ffa0 in ?? ()
+#15 0x0000000000000000 in ?? ()
+
+Thread 39 (LWP 59 ".NET TP Worker"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae48423904, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae48423904, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x73ae48423950, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73ae4945c698, m=0x73ae4945c670, ts=0x73ae48423950) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef63141b25 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef631417af in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63146240 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef631463d4 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef62f85f71 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073eee3dac97f in ?? ()
+#11 0x000003f848423c50 in ?? ()
+#12 0x00004e2000000000 in ?? ()
+#13 0x0000000000000001 in ?? ()
+#14 0x000073ae48423fa0 in ?? ()
+#15 0x0000000000000000 in ?? ()
+
+Thread 38 (LWP 58 ".NET TP Worker"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae485e7904, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae485e7904, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x73ae485e7950, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73ae4945bc38, m=0x73ae4945bc10, ts=0x73ae485e7950) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef63141b25 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef631417af in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63146240 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef631463d4 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef62f85f71 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073eee3dac97f in ?? ()
+#11 0x000003f8485e7c50 in ?? ()
+#12 0x00004e2000000000 in ?? ()
+#13 0x0000000000000001 in ?? ()
+#14 0x000073ae485e7fa0 in ?? ()
+#15 0x0000000000000000 in ?? ()
+
+Thread 37 (LWP 57 ".NET TP Worker"):
+#0  ProfilerSignalManager::SignalHandler (signal=29678, info=0x30, context=0x73ae487a9d70) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Linux/ProfilerSignalManager.cpp:191
+#1  <signal handler called>
+#2  0x000073ef62e7c3c0 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#3  0x000073ef62fab977 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#4  0x000073ef62facfc8 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#5  0x000073ef62facd38 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef62f5405e in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef62f538bd in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef62ed0979 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef62e610c3 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073ef62f59fb9 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#11 0x000073ef62f58cad in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#12 0x000073ef62f589f3 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#13 0x000073ef62f0a958 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#14 0x000073ef62f0a6b8 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#15 0x000073ef62e77de4 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#16 0x000073ef62f0e029 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#17 0x000073ef62f0d96e in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#18 0x000073ef6310c884 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#19 0x000073eee6055760 in ?? ()
+#20 0x0000000000000000 in ?? ()
+
+Thread 36 (LWP 56 ".NET TP Worker"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae491f1904, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae491f1904, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x73ae491f1950, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73ae49ae6158, m=0x73ae49ae6130, ts=0x73ae491f1950) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef63141b25 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef631417af in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63146240 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef631463d4 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef62f85f71 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073eee3dac97f in ?? ()
+#11 0x000003f8491f1c50 in ?? ()
+#12 0x00004e2000000000 in ?? ()
+#13 0x0000000000000001 in ?? ()
+#14 0x000073ae491f1fa0 in ?? ()
+#15 0x0000000000000000 in ?? ()
+
+Thread 35 (LWP 55 ".NET Sockets"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=281, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=8) at src/thread/pthread_cancel.c:33
+#2  0x000073ef6368080c in epoll_pwait (fd=178, ev=0x73ae49447510, cnt=1024, to=-1, sigs=0x0) at src/linux/epoll.c:28
+#3  0x000073ae4b5d7af2 in SystemNative_WaitForSocketEvents () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libSystem.Native.so
+#4  0x000073eee685d4a3 in ?? ()
+#5  0x000073ae49444d30 in ?? ()
+#6  0x000073ae49444dc8 in ?? ()
+#7  0x000073ae49447510 in ?? ()
+#8  0x00000000000000b2 in ?? ()
+#9  0x0000000000000001 in ?? ()
+#10 0x000073ae49444fa0 in ?? ()
+#11 0x0000000000000000 in ?? ()
+
+Thread 34 (LWP 54 "Kestrel Timer"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae498cc5b4, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae498cc5b4, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x73ae498cc600, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73ae49ae51d8, m=0x73ae49ae51b0, ts=0x73ae498cc600) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef63141b25 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef631417af in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63146240 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef63146523 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef62f32862 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073ef62f2dfd4 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#11 0x000073ef63021f69 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#12 0x000073ef62f338cd in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#13 0x000073ef62f2c8e3 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#14 0x000073ef62df65a9 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#15 0x000073eee3da8f44 in ?? ()
+#16 0x0000000000000000 in ?? ()
+
+Thread 33 (LWP 53 ".NET TP Worker"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae49ae1904, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae49ae1904, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x73ae49ae1950, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73ae4ab5cbd8, m=0x73ae4ab5cbb0, ts=0x73ae49ae1950) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef63141b25 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef631417af in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63146240 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef631463d4 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef62f85f71 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073eee3dac97f in ?? ()
+#11 0x000003f849ae1c50 in ?? ()
+#12 0x00004e2000000000 in ?? ()
+#13 0x0000000000000001 in ?? ()
+#14 0x000073ae49ae1fa0 in ?? ()
+#15 0x0000000000000000 in ?? ()
+
+Thread 32 (LWP 52 ".NET TP Gate"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae49b77734, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae49b77734, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x73ae49b77780, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73ae4ab5bc48, m=0x73ae4ab5bc20, ts=0x73ae49b77780) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef63141b25 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef631417af in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63146240 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef63146523 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef62f32af2 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073ef62f2dfd4 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#11 0x000073ef62f85a94 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#12 0x000073eee3daba87 in ?? ()
+#13 0x000000000000042c in ?? ()
+#14 0x00000000000001f4 in ?? ()
+#15 0x000073aef2d49410 in ?? ()
+#16 0x0000000000000001 in ?? ()
+#17 0x000073ae49b77fa0 in ?? ()
+#18 0x0000000000000000 in ?? ()
+
+Thread 31 (LWP 51 ".NET TP Worker"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae49d3f904, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae49d3f904, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x73ae49d3f950, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73ae4ab5c678, m=0x73ae4ab5c650, ts=0x73ae49d3f950) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef63141b25 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef631417af in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63146240 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef631463d4 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef62f85f71 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073eee3dac97f in ?? ()
+#11 0x000003f849d3fc50 in ?? ()
+#12 0x00004e2000000000 in ?? ()
+#13 0x0000000000000001 in ?? ()
+#14 0x000073ae49d3ffa0 in ?? ()
+#15 0x0000000000000000 in ?? ()
+
+Thread 30 (LWP 50 ".NET SigHandler"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=0, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a7f92 in read (fd=<optimized out>, buf=<optimized out>, count=<optimized out>) at src/unistd/read.c:6
+#3  0x000073ae4b5da5cf in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libSystem.Native.so
+#4  0x000073ef63630305 in dd_pthread_entry (arg=0x73ae4a3db5b0) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#5  0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#6  0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 29 (LWP 49 "Console logger "):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae4a0be604, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae4a0be604, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x0, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73ae4ab5c168, m=0x73ae4ab5c140, ts=0x0) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef63141b82 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef631417af in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63146240 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef63146523 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef62f32862 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073ef62f2dfd4 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#11 0x000073ef63021f69 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#12 0x000073ef62f338cd in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#13 0x000073ef62f2c8e3 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#14 0x000073ef62df65a9 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#15 0x000073eee3da8f44 in ?? ()
+#16 0x0000000000000000 in ?? ()
+
+Thread 28 (LWP 48 ".NET File Watch"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=0, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a7f92 in read (fd=<optimized out>, buf=<optimized out>, count=<optimized out>) at src/unistd/read.c:6
+#3  0x000073ae4b5d442e in SystemNative_Read () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libSystem.Native.so
+#4  0x000073eee5c93925 in ?? ()
+#5  0xbeb45f5bab9af0f3 in ?? ()
+#6  0xf2cb089800000000 in ?? ()
+#7  0x0000005b000073ae in ?? ()
+#8  0x0000200000000000 in ?? ()
+#9  0x0000000000000001 in ?? ()
+#10 0x000073ae4aaa8fa0 in ?? ()
+#11 0x0000000000000000 in ?? ()
+
+Thread 27 (LWP 47 ".NET Tiered Com"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae4bbd1e04, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae4bbd1e04, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x73ae4bbd1e50, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73ae4cc986e8, m=0x73ae4cc986c0, ts=0x73ae4bbd1e50) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef63141b25 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef631417af in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef631469d9 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef62f397ca in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef62f39688 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073ef62f35edc in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#11 0x000073ef62f395b0 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#12 0x000073ef6314d209 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#13 0x000073ef63630305 in dd_pthread_entry (arg=0x73ae4cf03cf0) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#14 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#15 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 26 (LWP 46 ".NET Finalizer"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae4cc959c4, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae4cc959c4, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x73ae4cc95a10, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73ae4cc981c8, m=0x73ae4cc981a0, ts=0x73ae4cc95a10) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef63141b25 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef631417af in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63146240 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef63146449 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef63021feb in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073ef62fa326f in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#11 0x000073ef62fa33f7 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#12 0x000073ef62f35edc in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#13 0x000073ef62fa397a in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#14 0x000073ef6314d209 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#15 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee20e3ef0) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#16 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#17 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 25 (LWP 45 ".NET Server GC"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae4cd68fc4, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae4cd68fc4, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x0, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73eee22ebe40, m=0x73eee22ebe70, ts=0x0) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef62dfe7c2 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef63069d7b in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63069766 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef62fa7aae in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef6314d209 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee20e3dd0) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#11 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#12 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 24 (LWP 44 ".NET Server GC"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae4ce24fc4, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae4ce24fc4, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x0, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73eee22ebcf0, m=0x73eee22ebd20, ts=0x0) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef62dfe7c2 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef63069d7b in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63069766 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef62fa7aae in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef6314d209 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee20e3d70) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#11 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#12 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 23 (LWP 43 ".NET Server GC"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae4ced1fc4, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae4ced1fc4, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x0, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73eee22ebba0, m=0x73eee22ebbd0, ts=0x0) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef62dfe7c2 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef63069d7b in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63069766 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef62fa7aae in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef6314d209 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee20e3d10) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#11 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#12 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 22 (LWP 42 ".NET Server GC"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae4cf8bfc4, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae4cf8bfc4, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x0, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73eee22eba50, m=0x73eee22eba80, ts=0x0) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef62dfe7c2 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef63069d7b in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63069766 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef62fa7aae in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef6314d209 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee20e3cb0) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#11 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#12 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 21 (LWP 41 ".NET Server GC"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae4d049fc4, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae4d049fc4, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x0, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73eee22eb900, m=0x73eee22eb930, ts=0x0) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef62dfe7c2 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef63069d7b in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63069766 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef62fa7aae in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef6314d209 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee20e3c50) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#11 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#12 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 20 (LWP 40 ".NET Server GC"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae4d0fafc4, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae4d0fafc4, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x0, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73eee22eb7b0, m=0x73eee22eb7e0, ts=0x0) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef62dfe7c2 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef63069d7b in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63069766 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef62fa7aae in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef6314d209 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee20e3bf0) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#11 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#12 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 19 (LWP 39 ".NET Server GC"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae4d1acfc4, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae4d1acfc4, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x0, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73eee20e31d0, m=0x73eee20e3200, ts=0x0) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef62dfe7c2 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef63069d7b in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63069766 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef62fa7aae in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef6314d209 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee20e3b90) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#11 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#12 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 18 (LWP 38 ".NET Server GC"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73ae4d264fc4, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73ae4d264fc4, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x0, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73eee22d34a0, m=0x73eee22d34d0, ts=0x0) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef62dfe7c2 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef630699bb in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63069766 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef62fa7aae in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef6314d209 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee20e1aa0) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#11 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#12 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 17 (LWP 37 "DD_exporter"):
+#0  0x000073ef636937b1 in __syscall6 (n=<optimized out>, a1=<optimized out>, a2=<optimized out>, a3=<optimized out>, a4=<optimized out>, a5=<optimized out>, a6=<optimized out>) at ./arch/x86_64/syscall_arch.h:59
+#1  syscall (n=<optimized out>) at src/misc/syscall.c:20
+#2  0x000073eee2dd3876 in std::__atomic_futex_unsigned_base::_M_futex_wait_until_steady (this=<optimized out>, __addr=0x73eee22eaa30, __val=2147483648, __has_timeout=<optimized out>, __s=..., __ns=...) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/futex.cc:217
+#3  0x000073eee2615175 in std::__atomic_futex_unsigned<2147483648u>::_M_load_and_test_until_steady (this=0x73eee22eaa30, __assumed=0, __operand=1, __equal=true, __mo=std::memory_order::acquire, __has_timeout=true, __s=..., __ns=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:139
+#4  0x000073eee2614d97 in std::__atomic_futex_unsigned<2147483648u>::_M_load_and_test_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x73eee22eaa30, __assumed=0, __operand=1, __equal=true, __mo=std::memory_order::acquire, __atime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:189
+#5  0x000073eee26b51fb in std::__atomic_futex_unsigned<2147483648u>::_M_load_when_equal_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x73eee22eaa30, __val=1, __mo=std::memory_order::acquire, __atime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:269
+#6  std::__atomic_futex_unsigned<2147483648u>::_M_load_when_equal_for<long, std::ratio<1l, 1000l> > (this=0x73eee22eaa30, __val=1, __mo=std::memory_order::acquire, __rtime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:222
+#7  std::__future_base::_State_baseV2::wait_for<long, std::ratio<1l, 1000l> > (this=0x73eee22eaa20, __rel=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/future:355
+#8  0x000073eee26b3a92 in std::__basic_future<void>::wait_for<long, std::ratio<1l, 1000l> > (this=0x73eee20310d8, __rel=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/future:703
+#9  0x000073eee26b2273 in SamplesCollector::ExportWork (this=0x73eee22d3060) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/SamplesCollector.cpp:129
+#10 0x000073eee26b30b9 in SamplesCollector::StartImpl()::$_1::operator()() const (this=0x73eee22e6208) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/SamplesCollector.cpp:74
+#11 0x000073eee26b3085 in std::__invoke_impl<void, SamplesCollector::StartImpl()::$_1>(std::__invoke_other, SamplesCollector::StartImpl()::$_1&&) (__f=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:61
+#12 0x000073eee26b3045 in std::__invoke<SamplesCollector::StartImpl()::$_1>(SamplesCollector::StartImpl()::$_1&&) (__fn=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:96
+#13 0x000073eee26b301d in std::thread::_Invoker<std::tuple<SamplesCollector::StartImpl()::$_1> >::_M_invoke<0ul> (this=0x73eee22e6208) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:258
+#14 0x000073eee26b2ff5 in std::thread::_Invoker<std::tuple<SamplesCollector::StartImpl()::$_1> >::operator() (this=0x73eee22e6208) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:265
+#15 0x000073eee26b2f59 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<SamplesCollector::StartImpl()::$_1> > >::_M_run (this=0x73eee22e6200) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:210
+#16 0x000073eee2dfde63 in std::execute_native_thread_routine (__p=0x73eee22e6200) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/thread.cc:82
+#17 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee22e6220) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#18 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#19 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 16 (LWP 36 "DD_worker"):
+#0  0x000073ef636937b1 in __syscall6 (n=<optimized out>, a1=<optimized out>, a2=<optimized out>, a3=<optimized out>, a4=<optimized out>, a5=<optimized out>, a6=<optimized out>) at ./arch/x86_64/syscall_arch.h:59
+#1  syscall (n=<optimized out>) at src/misc/syscall.c:20
+#2  0x000073eee2dd3876 in std::__atomic_futex_unsigned_base::_M_futex_wait_until_steady (this=<optimized out>, __addr=0x73eee22eaa70, __val=2147483648, __has_timeout=<optimized out>, __s=..., __ns=...) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/futex.cc:217
+#3  0x000073eee2615175 in std::__atomic_futex_unsigned<2147483648u>::_M_load_and_test_until_steady (this=0x73eee22eaa70, __assumed=0, __operand=1, __equal=true, __mo=std::memory_order::acquire, __has_timeout=true, __s=..., __ns=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:139
+#4  0x000073eee2614d97 in std::__atomic_futex_unsigned<2147483648u>::_M_load_and_test_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x73eee22eaa70, __assumed=0, __operand=1, __equal=true, __mo=std::memory_order::acquire, __atime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:189
+#5  0x000073eee26b4e4b in std::__atomic_futex_unsigned<2147483648u>::_M_load_when_equal_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x73eee22eaa70, __val=1, __mo=std::memory_order::acquire, __atime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:269
+#6  std::__atomic_futex_unsigned<2147483648u>::_M_load_when_equal_for<long, std::ratio<1l, 1000000000l> > (this=0x73eee22eaa70, __val=1, __mo=std::memory_order::acquire, __rtime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:222
+#7  std::__future_base::_State_baseV2::wait_for<long, std::ratio<1l, 1000000000l> > (this=0x73eee22eaa60, __rel=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/future:355
+#8  0x000073eee26b3a52 in std::__basic_future<void>::wait_for<long, std::ratio<1l, 1000000000l> > (this=0x73eee20550d8, __rel=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/future:703
+#9  0x000073eee26b20c6 in SamplesCollector::SamplesWork (this=0x73eee22d3060) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/SamplesCollector.cpp:110
+#10 0x000073eee26b2df9 in SamplesCollector::StartImpl()::$_0::operator()() const (this=0x73eee22e6148) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/SamplesCollector.cpp:69
+#11 0x000073eee26b2dc5 in std::__invoke_impl<void, SamplesCollector::StartImpl()::$_0>(std::__invoke_other, SamplesCollector::StartImpl()::$_0&&) (__f=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:61
+#12 0x000073eee26b2d85 in std::__invoke<SamplesCollector::StartImpl()::$_0>(SamplesCollector::StartImpl()::$_0&&) (__fn=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:96
+#13 0x000073eee26b2d5d in std::thread::_Invoker<std::tuple<SamplesCollector::StartImpl()::$_0> >::_M_invoke<0ul> (this=0x73eee22e6148) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:258
+#14 0x000073eee26b2d35 in std::thread::_Invoker<std::tuple<SamplesCollector::StartImpl()::$_0> >::operator() (this=0x73eee22e6148) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:265
+#15 0x000073eee26b2c99 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<SamplesCollector::StartImpl()::$_0> > >::_M_run (this=0x73eee22e6140) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:210
+#16 0x000073eee2dfde63 in std::execute_native_thread_routine (__p=0x73eee22e6140) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/thread.cc:82
+#17 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee22e6180) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#18 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#19 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 13 (LWP 33 "DD_LibsCache"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73eee20cbf54, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73eee20cbf54, val=val@entry=2, clk=clk@entry=0, at=at@entry=0x0, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73eee22e4438, m=0x73eee22e4410, ts=0x0) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073eee2529591 in AutoResetEvent::Wait (this=0x73eee22d1cb0, timeout=...) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Linux/AutoResetEvent.cpp:76
+#6  0x000073eee253075e in LibrariesInfoCache::Work (this=0x73eee22d1c40, startEvent=...) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Linux/LibrariesInfoCache.cpp:112
+#7  0x000073eee25341aa in std::__invoke_impl<void, void (LibrariesInfoCache::*)(std::shared_ptr<AutoResetEvent>), LibrariesInfoCache*, std::shared_ptr<AutoResetEvent> > (__f=@0x73eee22ead70: (void (LibrariesInfoCache::*)(class LibrariesInfoCache * const, class std::shared_ptr<AutoResetEvent>)) 0x73eee2530690 <LibrariesInfoCache::Work(std::shared_ptr<AutoResetEvent>)>, __t=@0x73eee22ead68: 0x73eee22d1c40, __args=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:74
+#8  0x000073eee25340a5 in std::__invoke<void (LibrariesInfoCache::*)(std::shared_ptr<AutoResetEvent>), LibrariesInfoCache*, std::shared_ptr<AutoResetEvent> > (__fn=@0x73eee22ead70: (void (LibrariesInfoCache::*)(class LibrariesInfoCache * const, class std::shared_ptr<AutoResetEvent>)) 0x73eee2530690 <LibrariesInfoCache::Work(std::shared_ptr<AutoResetEvent>)>, __args=..., __args=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:96
+#9  0x000073eee2534073 in std::thread::_Invoker<std::tuple<void (LibrariesInfoCache::*)(std::shared_ptr<AutoResetEvent>), LibrariesInfoCache*, std::shared_ptr<AutoResetEvent> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x73eee22ead58) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:258
+#10 0x000073eee2534025 in std::thread::_Invoker<std::tuple<void (LibrariesInfoCache::*)(std::shared_ptr<AutoResetEvent>), LibrariesInfoCache*, std::shared_ptr<AutoResetEvent> > >::operator() (this=0x73eee22ead58) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:265
+#11 0x000073eee2533d19 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (LibrariesInfoCache::*)(std::shared_ptr<AutoResetEvent>), LibrariesInfoCache*, std::shared_ptr<AutoResetEvent> > > >::_M_run (this=0x73eee22ead50) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:210
+#12 0x000073eee2dfde63 in std::execute_native_thread_routine (__p=0x73eee22ead50) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/thread.cc:82
+#13 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee20e1b20) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#14 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#15 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 12 (LWP 32 "Pyroscope.Pprof"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73eee2106f84, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73eee2106f84, val=val@entry=2, clk=clk@entry=0, at=at@entry=0x0, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73eee22e2ae0, m=0x73eee22e2ab8, ts=0x0) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073eee2651f14 in LockingQueue<PyroscopePprofSink::PyroscopeRequest>::waitAndPop (this=0x73eee22e2a68, _value=...) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Linux/../Datadog.Profiler.Native/LockingQueue.h:43
+#6  0x000073eee264f0e2 in PyroscopePprofSink::work (this=0x73eee22e29d0) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/PyroscopePprofSink.cpp:83
+#7  0x000073eee267ec79 in std::__invoke_impl<void, void (PyroscopePprofSink::*)(), PyroscopePprofSink*> (__f=@0x73eee22d38d0: (void (PyroscopePprofSink::*)(PyroscopePprofSink * const)) 0x73eee264f060 <PyroscopePprofSink::work()>, __t=@0x73eee22d38c8: 0x73eee22e29d0) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:74
+#8  0x000073eee267ebbd in std::__invoke<void (PyroscopePprofSink::*)(), PyroscopePprofSink*> (__fn=@0x73eee22d38d0: (void (PyroscopePprofSink::*)(PyroscopePprofSink * const)) 0x73eee264f060 <PyroscopePprofSink::work()>, __args=@0x73eee22d38c8: 0x73eee22e29d0) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:96
+#9  0x000073eee267eb92 in std::thread::_Invoker<std::tuple<void (PyroscopePprofSink::*)(), PyroscopePprofSink*> >::_M_invoke<0ul, 1ul> (this=0x73eee22d38c8) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:258
+#10 0x000073eee267eb55 in std::thread::_Invoker<std::tuple<void (PyroscopePprofSink::*)(), PyroscopePprofSink*> >::operator() (this=0x73eee22d38c8) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:265
+#11 0x000073eee267ea39 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (PyroscopePprofSink::*)(), PyroscopePprofSink*> > >::_M_run (this=0x73eee22d38c0) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:210
+#12 0x000073eee2dfde63 in std::execute_native_thread_routine (__p=0x73eee22d38c0) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/thread.cc:82
+#13 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee22d1670) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#14 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#15 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 11 (LWP 31 "dotnet"):
+#0  0x000073ef636937b1 in __syscall6 (n=<optimized out>, a1=<optimized out>, a2=<optimized out>, a3=<optimized out>, a4=<optimized out>, a5=<optimized out>, a6=<optimized out>) at ./arch/x86_64/syscall_arch.h:59
+#1  syscall (n=<optimized out>) at src/misc/syscall.c:20
+#2  0x000073eee2dd3876 in std::__atomic_futex_unsigned_base::_M_futex_wait_until_steady (this=<optimized out>, __addr=0x73eee22d7b50, __val=2147483648, __has_timeout=<optimized out>, __s=..., __ns=...) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/futex.cc:217
+#3  0x000073eee2615175 in std::__atomic_futex_unsigned<2147483648u>::_M_load_and_test_until_steady (this=0x73eee22d7b50, __assumed=0, __operand=1, __equal=true, __mo=std::memory_order::acquire, __has_timeout=true, __s=..., __ns=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:139
+#4  0x000073eee2614d97 in std::__atomic_futex_unsigned<2147483648u>::_M_load_and_test_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x73eee22d7b50, __assumed=0, __operand=1, __equal=true, __mo=std::memory_order::acquire, __atime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:189
+#5  0x000073eee26b51fb in std::__atomic_futex_unsigned<2147483648u>::_M_load_when_equal_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x73eee22d7b50, __val=1, __mo=std::memory_order::acquire, __atime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:269
+#6  std::__atomic_futex_unsigned<2147483648u>::_M_load_when_equal_for<long, std::ratio<1l, 1000l> > (this=0x73eee22d7b50, __val=1, __mo=std::memory_order::acquire, __rtime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:222
+#7  std::__future_base::_State_baseV2::wait_for<long, std::ratio<1l, 1000l> > (this=0x73eee22d7b40, __rel=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/future:355
+#8  0x000073eee26b3a92 in std::__basic_future<void>::wait_for<long, std::ratio<1l, 1000l> > (this=0x73eee212b0b8, __rel=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/future:703
+#9  0x000073eee26d539f in Timer::ThreadProc (this=0x73eee22ddf48) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/Timer.Linux.cpp:37
+#10 0x000073eee26d58f9 in std::__invoke_impl<void, void (Timer::*)(), Timer*> (__f=@0x73eee22d2490: (void (Timer::*)(Timer * const)) 0x73eee26d5360 <Timer::ThreadProc()>, __t=@0x73eee22d2488: 0x73eee22ddf48) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:74
+#11 0x000073eee26d583d in std::__invoke<void (Timer::*)(), Timer*> (__fn=@0x73eee22d2490: (void (Timer::*)(Timer * const)) 0x73eee26d5360 <Timer::ThreadProc()>, __args=@0x73eee22d2488: 0x73eee22ddf48) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:96
+#12 0x000073eee26d5812 in std::thread::_Invoker<std::tuple<void (Timer::*)(), Timer*> >::_M_invoke<0ul, 1ul> (this=0x73eee22d2488) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:258
+#13 0x000073eee26d57d5 in std::thread::_Invoker<std::tuple<void (Timer::*)(), Timer*> >::operator() (this=0x73eee22d2488) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:265
+#14 0x000073eee26d56b9 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (Timer::*)(), Timer*> > >::_M_run (this=0x73eee22d2480) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:210
+#15 0x000073eee2dfde63 in std::execute_native_thread_routine (__p=0x73eee22d2480) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/thread.cc:82
+#16 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee22d15b0) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#17 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#18 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 10 (LWP 30 "dotnet"):
+#0  0x000073ef636937b1 in __syscall6 (n=<optimized out>, a1=<optimized out>, a2=<optimized out>, a3=<optimized out>, a4=<optimized out>, a5=<optimized out>, a6=<optimized out>) at ./arch/x86_64/syscall_arch.h:59
+#1  syscall (n=<optimized out>) at src/misc/syscall.c:20
+#2  0x000073eee2dd3876 in std::__atomic_futex_unsigned_base::_M_futex_wait_until_steady (this=<optimized out>, __addr=0x73eee22d7b10, __val=2147483648, __has_timeout=<optimized out>, __s=..., __ns=...) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/futex.cc:217
+#3  0x000073eee2615175 in std::__atomic_futex_unsigned<2147483648u>::_M_load_and_test_until_steady (this=0x73eee22d7b10, __assumed=0, __operand=1, __equal=true, __mo=std::memory_order::acquire, __has_timeout=true, __s=..., __ns=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:139
+#4  0x000073eee2614d97 in std::__atomic_futex_unsigned<2147483648u>::_M_load_and_test_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x73eee22d7b10, __assumed=0, __operand=1, __equal=true, __mo=std::memory_order::acquire, __atime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:189
+#5  0x000073eee26b51fb in std::__atomic_futex_unsigned<2147483648u>::_M_load_when_equal_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x73eee22d7b10, __val=1, __mo=std::memory_order::acquire, __atime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:269
+#6  std::__atomic_futex_unsigned<2147483648u>::_M_load_when_equal_for<long, std::ratio<1l, 1000l> > (this=0x73eee22d7b10, __val=1, __mo=std::memory_order::acquire, __rtime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:222
+#7  std::__future_base::_State_baseV2::wait_for<long, std::ratio<1l, 1000l> > (this=0x73eee22d7b00, __rel=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/future:355
+#8  0x000073eee26b3a92 in std::__basic_future<void>::wait_for<long, std::ratio<1l, 1000l> > (this=0x73eee214f0b8, __rel=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/future:703
+#9  0x000073eee26d539f in Timer::ThreadProc (this=0x73eee22dd3a0) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/Timer.Linux.cpp:37
+#10 0x000073eee26d58f9 in std::__invoke_impl<void, void (Timer::*)(), Timer*> (__f=@0x73eee22d2430: (void (Timer::*)(class Timer * const)) 0x73eee26d5360 <Timer::ThreadProc()>, __t=@0x73eee22d2428: 0x73eee22dd3a0) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:74
+#11 0x000073eee26d583d in std::__invoke<void (Timer::*)(), Timer*> (__fn=@0x73eee22d2430: (void (Timer::*)(class Timer * const)) 0x73eee26d5360 <Timer::ThreadProc()>, __args=@0x73eee22d2428: 0x73eee22dd3a0) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:96
+#12 0x000073eee26d5812 in std::thread::_Invoker<std::tuple<void (Timer::*)(), Timer*> >::_M_invoke<0ul, 1ul> (this=0x73eee22d2428) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:258
+#13 0x000073eee26d57d5 in std::thread::_Invoker<std::tuple<void (Timer::*)(), Timer*> >::operator() (this=0x73eee22d2428) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:265
+#14 0x000073eee26d56b9 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (Timer::*)(), Timer*> > >::_M_run (this=0x73eee22d2420) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:210
+#15 0x000073eee2dfde63 in std::execute_native_thread_routine (__p=0x73eee22d2420) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/thread.cc:82
+#16 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee22d1570) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#17 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#18 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 9 (LWP 29 "dotnet"):
+#0  0x000073ef636937b1 in __syscall6 (n=<optimized out>, a1=<optimized out>, a2=<optimized out>, a3=<optimized out>, a4=<optimized out>, a5=<optimized out>, a6=<optimized out>) at ./arch/x86_64/syscall_arch.h:59
+#1  syscall (n=<optimized out>) at src/misc/syscall.c:20
+#2  0x000073eee2dd3876 in std::__atomic_futex_unsigned_base::_M_futex_wait_until_steady (this=<optimized out>, __addr=0x73eee22d79d0, __val=2147483648, __has_timeout=<optimized out>, __s=..., __ns=...) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/futex.cc:217
+#3  0x000073eee2615175 in std::__atomic_futex_unsigned<2147483648u>::_M_load_and_test_until_steady (this=0x73eee22d79d0, __assumed=0, __operand=1, __equal=true, __mo=std::memory_order::acquire, __has_timeout=true, __s=..., __ns=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:139
+#4  0x000073eee2614d97 in std::__atomic_futex_unsigned<2147483648u>::_M_load_and_test_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x73eee22d79d0, __assumed=0, __operand=1, __equal=true, __mo=std::memory_order::acquire, __atime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:189
+#5  0x000073eee26b51fb in std::__atomic_futex_unsigned<2147483648u>::_M_load_when_equal_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x73eee22d79d0, __val=1, __mo=std::memory_order::acquire, __atime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:269
+#6  std::__atomic_futex_unsigned<2147483648u>::_M_load_when_equal_for<long, std::ratio<1l, 1000l> > (this=0x73eee22d79d0, __val=1, __mo=std::memory_order::acquire, __rtime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:222
+#7  std::__future_base::_State_baseV2::wait_for<long, std::ratio<1l, 1000l> > (this=0x73eee22d79c0, __rel=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/future:355
+#8  0x000073eee26b3a92 in std::__basic_future<void>::wait_for<long, std::ratio<1l, 1000l> > (this=0x73eee21730b8, __rel=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/future:703
+#9  0x000073eee26d539f in Timer::ThreadProc (this=0x73eee22df3a8) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/Timer.Linux.cpp:37
+#10 0x000073eee26d58f9 in std::__invoke_impl<void, void (Timer::*)(), Timer*> (__f=@0x73eee22d2280: (void (Timer::*)(class Timer * const)) 0x73eee26d5360 <Timer::ThreadProc()>, __t=@0x73eee22d2278: 0x73eee22df3a8) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:74
+#11 0x000073eee26d583d in std::__invoke<void (Timer::*)(), Timer*> (__fn=@0x73eee22d2280: (void (Timer::*)(class Timer * const)) 0x73eee26d5360 <Timer::ThreadProc()>, __args=@0x73eee22d2278: 0x73eee22df3a8) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:96
+#12 0x000073eee26d5812 in std::thread::_Invoker<std::tuple<void (Timer::*)(), Timer*> >::_M_invoke<0ul, 1ul> (this=0x73eee22d2278) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:258
+#13 0x000073eee26d57d5 in std::thread::_Invoker<std::tuple<void (Timer::*)(), Timer*> >::operator() (this=0x73eee22d2278) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:265
+#14 0x000073eee26d56b9 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (Timer::*)(), Timer*> > >::_M_run (this=0x73eee22d2270) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:210
+#15 0x000073eee2dfde63 in std::execute_native_thread_routine (__p=0x73eee22d2270) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/thread.cc:82
+#16 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee22d1510) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#17 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#18 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 8 (LWP 28 "dotnet"):
+#0  0x000073ef636937b1 in __syscall6 (n=<optimized out>, a1=<optimized out>, a2=<optimized out>, a3=<optimized out>, a4=<optimized out>, a5=<optimized out>, a6=<optimized out>) at ./arch/x86_64/syscall_arch.h:59
+#1  syscall (n=<optimized out>) at src/misc/syscall.c:20
+#2  0x000073eee2dd3876 in std::__atomic_futex_unsigned_base::_M_futex_wait_until_steady (this=<optimized out>, __addr=0x73eee22d7950, __val=2147483648, __has_timeout=<optimized out>, __s=..., __ns=...) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/futex.cc:217
+#3  0x000073eee2615175 in std::__atomic_futex_unsigned<2147483648u>::_M_load_and_test_until_steady (this=0x73eee22d7950, __assumed=0, __operand=1, __equal=true, __mo=std::memory_order::acquire, __has_timeout=true, __s=..., __ns=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:139
+#4  0x000073eee2614d97 in std::__atomic_futex_unsigned<2147483648u>::_M_load_and_test_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x73eee22d7950, __assumed=0, __operand=1, __equal=true, __mo=std::memory_order::acquire, __atime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:189
+#5  0x000073eee26b51fb in std::__atomic_futex_unsigned<2147483648u>::_M_load_when_equal_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x73eee22d7950, __val=1, __mo=std::memory_order::acquire, __atime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:269
+#6  std::__atomic_futex_unsigned<2147483648u>::_M_load_when_equal_for<long, std::ratio<1l, 1000l> > (this=0x73eee22d7950, __val=1, __mo=std::memory_order::acquire, __rtime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/atomic_futex.h:222
+#7  std::__future_base::_State_baseV2::wait_for<long, std::ratio<1l, 1000l> > (this=0x73eee22d7940, __rel=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/future:355
+#8  0x000073eee26b3a92 in std::__basic_future<void>::wait_for<long, std::ratio<1l, 1000l> > (this=0x73eee21970b8, __rel=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/future:703
+#9  0x000073eee26d539f in Timer::ThreadProc (this=0x73eee22e13f8) at /profiler/profiler/src/ProfilerEngine/Datadog.Profiler.Native/Timer.Linux.cpp:37
+#10 0x000073eee26d58f9 in std::__invoke_impl<void, void (Timer::*)(), Timer*> (__f=@0x73eee22d20d0: (void (Timer::*)(class Timer * const)) 0x73eee26d5360 <Timer::ThreadProc()>, __t=@0x73eee22d20c8: 0x73eee22e13f8) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:74
+#11 0x000073eee26d583d in std::__invoke<void (Timer::*)(), Timer*> (__fn=@0x73eee22d20d0: (void (Timer::*)(class Timer * const)) 0x73eee26d5360 <Timer::ThreadProc()>, __args=@0x73eee22d20c8: 0x73eee22e13f8) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:96
+#12 0x000073eee26d5812 in std::thread::_Invoker<std::tuple<void (Timer::*)(), Timer*> >::_M_invoke<0ul, 1ul> (this=0x73eee22d20c8) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:258
+#13 0x000073eee26d57d5 in std::thread::_Invoker<std::tuple<void (Timer::*)(), Timer*> >::operator() (this=0x73eee22d20c8) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:265
+#14 0x000073eee26d56b9 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (Timer::*)(), Timer*> > >::_M_run (this=0x73eee22d20c0) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:210
+#15 0x000073eee2dfde63 in std::execute_native_thread_routine (__p=0x73eee22d20c0) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/thread.cc:82
+#16 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee22d1490) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#17 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#18 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 7 (LWP 27 "dotnet"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73eee22cde24, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73eee22cde24, val=val@entry=2, clk=clk@entry=0, at=at@entry=0x73eee22cdf20, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73eee22e8a08, m=0x73eee22e89e0, ts=0x73eee22cdf20) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073eee240d2d5 in __gthread_cond_timedwait (__cond=0x73eee22e8a08, __mutex=0x73eee22e89e0, __abs_timeout=0x73eee22cdf20) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/x86_64-alpine-linux-musl/bits/gthr-default.h:872
+#6  0x000073eee2478b05 in std::__condvar::wait_until (this=0x73eee22e8a08, __m=..., __abs_time=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_mutex.h:162
+#7  0x000073eee247868b in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x73eee22e8a08, __lock=..., __atime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/condition_variable:221
+#8  0x000073eee24782de in std::condition_variable::wait_until<std::chrono::_V2::steady_clock, std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x73eee22e8a08, __lock=..., __atime=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/condition_variable:134
+#9  0x000073eee25232b6 in std::condition_variable::wait_until<std::chrono::_V2::steady_clock, std::chrono::duration<long, std::ratio<1l, 1000000000l> >, spdlog::details::periodic_worker::periodic_worker<long, std::ratio<1l, 1l> >(std::function<void ()> const&, std::chrono::duration<long, std::ratio<1l, 1l> >)::{lambda()#1}::operator()() const::{lambda()#1}>(std::unique_lock<std::mutex>&, std::chrono::time_point<std::chrono::_V2::steady_clock, std::chrono::duration<long, std::ratio<1l, 1000000000l> > > const&, spdlog::details::periodic_worker::periodic_worker<long, std::ratio<1l, 1l> >(std::function<void ()> const&, std::chrono::duration<long, std::ratio<1l, 1l> >)::{lambda()#1}::operator()() const::{lambda()#1}) (this=0x73eee22e8a08, __lock=..., __atime=..., __p=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/condition_variable:151
+#10 0x000073eee2523229 in std::condition_variable::wait_for<long, std::ratio<1l, 1l>, spdlog::details::periodic_worker::periodic_worker<long, std::ratio<1l, 1l> >(std::function<void ()> const&, std::chrono::duration<long, std::ratio<1l, 1l> >)::{lambda()#1}::operator()() const::{lambda()#1}>(std::unique_lock<std::mutex>&, std::chrono::duration<long, std::ratio<1l, 1l> > const&, spdlog::details::periodic_worker::periodic_worker<long, std::ratio<1l, 1l> >(std::function<void ()> const&, std::chrono::duration<long, std::ratio<1l, 1l> >)::{lambda()#1}::operator()() const::{lambda()#1}) (this=0x73eee22e8a08, __lock=..., __rtime=..., __p=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/condition_variable:174
+#11 0x000073eee25230e1 in spdlog::details::periodic_worker::periodic_worker<long, std::ratio<1l, 1l> >(std::function<void ()> const&, std::chrono::duration<long, std::ratio<1l, 1l> >)::{lambda()#1}::operator()() const (this=0x73ef63236e38) at /profiler/profiler/third_party/spdlog/include/spdlog/details/periodic_worker.h:34
+#12 0x000073eee2523075 in std::__invoke_impl<void, spdlog::details::periodic_worker::periodic_worker<long, std::ratio<1l, 1l> >(std::function<void ()> const&, std::chrono::duration<long, std::ratio<1l, 1l> >)::{lambda()#1}>(std::__invoke_other, spdlog::details::periodic_worker::periodic_worker<long, std::ratio<1l, 1l> >(std::function<void ()> const&, std::chrono::duration<long, std::ratio<1l, 1l> >)::{lambda()#1}&&) (__f=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:61
+#13 0x000073eee2523035 in std::__invoke<spdlog::details::periodic_worker::periodic_worker<long, std::ratio<1l, 1l> >(std::function<void ()> const&, std::chrono::duration<long, std::ratio<1l, 1l> >)::{lambda()#1}>(spdlog::details::periodic_worker::periodic_worker<long, std::ratio<1l, 1l> >(std::function<void ()> const&, std::chrono::duration<long, std::ratio<1l, 1l> >)::{lambda()#1}&&) (__fn=...) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/invoke.h:96
+#14 0x000073eee252300d in std::thread::_Invoker<std::tuple<spdlog::details::periodic_worker::periodic_worker<long, std::ratio<1l, 1l> >(std::function<void ()> const&, std::chrono::duration<long, std::ratio<1l, 1l> >)::{lambda()#1}> >::_M_invoke<0ul>(std::_Index_tuple<0ul>) (this=0x73ef63236e38) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:258
+#15 0x000073eee2522fe5 in std::thread::_Invoker<std::tuple<spdlog::details::periodic_worker::periodic_worker<long, std::ratio<1l, 1l> >(std::function<void ()> const&, std::chrono::duration<long, std::ratio<1l, 1l> >)::{lambda()#1}> >::operator()() (this=0x73ef63236e38) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:265
+#16 0x000073eee2522e69 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<spdlog::details::periodic_worker::periodic_worker<long, std::ratio<1l, 1l> >(std::function<void ()> const&, std::chrono::duration<long, std::ratio<1l, 1l> >)::{lambda()#1}> > >::_M_run() (this=0x73ef63236e30) at /usr/bin/../lib/gcc/x86_64-alpine-linux-musl/12.2.1/../../../../include/c++/12.2.1/bits/std_thread.h:210
+#17 0x000073eee2dfde63 in std::execute_native_thread_routine (__p=0x73ef63236e30) at /home/buildozer/aports/main/gcc/src/gcc-12-20220924/libstdc++-v3/src/c++11/thread.cc:82
+#18 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee22e4860) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#19 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#20 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 6 (LWP 26 "dotnet"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73eee34472a4, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73eee34472a4, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x0, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73eee3791c18, m=0x73eee3791bf0, ts=0x0) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef63141b82 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef631417af in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63146240 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef63146449 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef63021feb in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073ef62ff0fd5 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#11 0x000073ef62ff154a in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#12 0x000073ef6314d209 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#13 0x000073ef63630305 in dd_pthread_entry (arg=0x73eee3448040) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#14 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#15 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 5 (LWP 25 ".NET Debugger"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x73eee35d2334, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x73eee35d2334, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x0, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73eee3791198, m=0x73eee3791170, ts=0x0) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef63141b82 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef631417af in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63146240 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef63146523 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef62d86274 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073ef62d860d0 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#11 0x000073ef62d85dd5 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#12 0x000073ef6314d209 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#13 0x000073ef63630305 in dd_pthread_entry (arg=0x73ef63266610) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#14 0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#15 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 4 (LWP 24 ".NET DebugPipe"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=2, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef6367f267 in open (filename=<optimized out>, flags=0) at src/fcntl/open.c:16
+#3  0x000073ef62d8dbef in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#4  0x000073ef62d88997 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#5  0x000073ef62d87a65 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef6314d209 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63630305 in dd_pthread_entry (arg=0x73ef632665f0) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#8  0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#9  0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 3 (LWP 23 ".NET EventPipe"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=7, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef6369b2e7 in poll (fds=<optimized out>, n=<optimized out>, timeout=<optimized out>) at src/select/poll.c:9
+#3  0x000073ef636307f3 in poll (fds=0x73ef63297290, nfds=1, timeout=-1) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/socket_operations.c:54
+#4  0x000073ef62d8e1b8 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#5  0x000073ef62d072e9 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef62d0c132 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef6314d209 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef63630305 in dd_pthread_entry (arg=0x73ef63266490) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#9  0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#10 0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 2 (LWP 22 ".NET SynchManag"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=7, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef6369b2e7 in poll (fds=<optimized out>, n=<optimized out>, timeout=<optimized out>) at src/select/poll.c:9
+#3  0x000073ef636307f3 in poll (fds=0x73eee3b1e6a8, nfds=1, timeout=-1) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/socket_operations.c:54
+#4  0x000073ef63143a50 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#5  0x000073ef63143403 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef6314d209 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63630305 in dd_pthread_entry (arg=0x73ef63276cf0) at /profiler/profiler/src/ProfilerEngine/Datadog.Linux.ApiWrapper/functions_to_wrap.c:599
+#8  0x000073ef636a443a in start (p=<optimized out>) at src/thread/pthread_create.c:207
+#9  0x000073ef636a5d88 in __clone () at src/thread/x86_64/clone.s:22
+Backtrace stopped: frame did not save the PC
+
+Thread 1 (LWP 19 "dotnet"):
+#0  __cp_end () at src/thread/x86_64/syscall_cp.s:29
+#1  0x000073ef636a372f in __syscall_cp_c (nr=202, u=<optimized out>, v=<optimized out>, w=<optimized out>, x=<optimized out>, y=0, z=0) at src/thread/pthread_cancel.c:33
+#2  0x000073ef636a2beb in __futex4_cp (addr=0x7ffe8c0a1234, op=0, val=2, to=<optimized out>) at src/thread/__timedwait.c:24
+#3  __timedwait_cp (addr=addr@entry=0x7ffe8c0a1234, val=val@entry=2, clk=clk@entry=1, at=at@entry=0x0, priv=128, priv@entry=1) at src/thread/__timedwait.c:52
+#4  0x000073ef636a3acc in __pthread_cond_timedwait (c=0x73ef632986d8, m=0x73ef632986b0, ts=0x0) at src/thread/pthread_cond_timedwait.c:100
+#5  0x000073ef63141b82 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#6  0x000073ef631417af in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#7  0x000073ef63146240 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#8  0x000073ef63146523 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#9  0x000073ef62f32862 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#10 0x000073ef62f2dfd4 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#11 0x000073ef63021f69 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#12 0x000073ef62f338cd in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#13 0x000073ef62f2c8e3 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#14 0x000073ef62df65a9 in ?? () from /usr/share/dotnet/shared/Microsoft.NETCore.App/10.0.5/libcoreclr.so
+#15 0x000073eee3da8f44 in ?? ()
+#16 0xbf97bd3c30000000 in ?? ()
+#17 0x8c0a198000000000 in ?? ()
+#18 0xffffffff00007ffe in ?? ()
+#19 0x0000000000000001 in ?? ()
+#20 0xffffffffffffffff in ?? ()
+#21 0x0000000000000000 in ?? ()
