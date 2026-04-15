@@ -488,6 +488,125 @@ func TestTLSProfileUpload(t *testing.T) {
 	}
 }
 
+func startDynamicCPUApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork) string {
+	t.Helper()
+	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: testcontainers.ContainerRequest{
+			Image:         rideshareImage(),
+			ImagePlatform: "linux/amd64",
+			Networks:      []string{net.Name},
+			NetworkAliases: map[string][]string{
+				net.Name: {"rideshare"},
+			},
+			Env: map[string]string{
+				"REGION":                          "us-east",
+				"PYROSCOPE_APPLICATION_NAME":      "dynamic-cpu-test",
+				"PYROSCOPE_SERVER_ADDRESS":        "http://pyroscope:4040",
+				"PYROSCOPE_PROFILING_CPU_ENABLED": "true",
+				"DD_TRACE_DEBUG":                  "true",
+				"DYNAMIC_CPU_DISABLED_AT_START":   "true",
+			},
+			ExposedPorts: []string{"5000/tcp"},
+			WaitingFor:   wait.ForListeningPort("5000/tcp").WithStartupTimeout(120 * time.Second),
+		},
+		Started: true,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = c.Terminate(ctx) })
+
+	host, err := c.Host(ctx)
+	require.NoError(t, err)
+	port, err := c.MappedPort(ctx, "5000/tcp")
+	require.NoError(t, err)
+	return fmt.Sprintf("http://%s:%s", host, port.Port())
+}
+
+func queryProfileInWindow(t *testing.T, pyroscopeURL string, labelSelector string, window time.Duration) (string, error) {
+	t.Helper()
+	qc := querierv1connect.NewQuerierServiceClient(http.DefaultClient, pyroscopeURL)
+
+	to := time.Now()
+	from := to.Add(-window)
+	maxNodes := int64(65536)
+	resp, err := qc.SelectMergeStacktraces(context.Background(),
+		connect.NewRequest(&querierv1.SelectMergeStacktracesRequest{
+			ProfileTypeID: "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+			Start:         from.UnixMilli(),
+			End:           to.UnixMilli(),
+			LabelSelector: labelSelector,
+			MaxNodes:      &maxNodes,
+			Format:        querierv1.ProfileFormat_PROFILE_FORMAT_TREE,
+		}))
+	if err != nil {
+		return "", err
+	}
+	if len(resp.Msg.Tree) == 0 {
+		return "", nil
+	}
+	tt, err := model.UnmarshalTree(resp.Msg.Tree)
+	if err != nil {
+		return "", err
+	}
+	buf := bytes.NewBuffer(nil)
+	tt.WriteCollapsed(buf)
+	return buf.String(), nil
+}
+
+// TestDynamicCPUProfiling verifies that SetCPUTrackingEnabled actually controls
+// the timer_create-based CPU profiler. The app starts with CPU profiling enabled
+// in the environment but immediately disables it via SetCPUTrackingEnabled(false).
+// The test checks that no CPU profiles are generated while disabled, and that
+// profiles resume after re-enabling.
+func TestDynamicCPUProfiling(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	net, err := network.New(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = net.Remove(ctx) })
+
+	pyroscopeURL := startPyroscope(ctx, t, net)
+	appBaseURL := startDynamicCPUApp(ctx, t, net)
+
+	runLoadGenerator(ctx, t, appBaseURL)
+
+	svcName := "dynamic-cpu-test"
+	labelSelector := fmt.Sprintf(`{service_name="%s"}`, svcName)
+
+	// Wait for app to settle and any residual startup samples to drain.
+	// The profiler export period is ~10s; 45s gives several export cycles.
+	time.Sleep(45 * time.Second)
+
+	// Phase 1: CPU profiling is disabled — no CPU profiles should be generated.
+	// Query for profiles from the last 30 seconds (well after startup drain).
+	collapsed, err := queryProfileInWindow(t, pyroscopeURL, labelSelector, 30*time.Second)
+	require.NoError(t, err)
+	if collapsed != "" {
+		t.Fatalf("CPU profiles found while CPU profiling should be disabled.\n"+
+			"This means SetCPUTrackingEnabled(false) did not stop the timer_create CPU profiler.\n"+
+			"Profiles:\n%s", collapsed)
+	}
+	t.Log("Phase 1 passed: no CPU profiles while disabled")
+
+	// Phase 2: Re-enable CPU profiling and verify profiles appear.
+	resp, err := http.Post(appBaseURL+"/profiling/cpu/enable", "", nil)
+	require.NoError(t, err)
+	resp.Body.Close()
+
+	var lastCollapsed string
+	var lastErr error
+	ok := assert.Eventually(t, func() bool {
+		lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector)
+		return lastErr == nil && lastCollapsed != ""
+	}, 3*time.Minute, 5*time.Second)
+
+	if !ok {
+		t.Fatalf("No CPU profiles found after enabling CPU profiling via SetCPUTrackingEnabled(true).\n"+
+			"Last query error: %v\nLast collapsed profile: %s", lastErr, lastCollapsed)
+	}
+	t.Log("Phase 2 passed: CPU profiles appear after enabling")
+}
+
 // TestRideshareProfilesWithOTEL tests Pyroscope as a notification profiler
 // when OTEL .NET auto-instrumentation occupies the classic profiler slot.
 // This test is nearly identical to TestRideshareProfiles - the only difference
