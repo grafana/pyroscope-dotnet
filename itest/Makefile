@@ -192,6 +192,10 @@ itest/main-profiler/musl/9.0: build-app-main-profiler-musl-9.0
 itest/main-profiler/musl/10.0: build-app-main-profiler-musl-10.0
 	FLAVOUR=musl DOTNET_VERSION=10.0 go test -v -timeout 15m -count=1 ./... -run TestRideshareProfiles
 
+.PHONY: itest/dynamic-profiling/musl/10.0
+itest/dynamic-profiling/musl/10.0: build-app-main-profiler-musl-10.0
+	FLAVOUR=musl DOTNET_VERSION=10.0 go test -v -timeout 15m -count=1 ./... -run TestDynamicCPUProfilingCanBeReenabledAfterStartupDisable
+
 # Integration test targets - notification profiler (with OTEL)
 .PHONY: itest/notification-profiler/glibc/6.0
 itest/notification-profiler/glibc/6.0: build-app-notification-profiler-glibc-6.0

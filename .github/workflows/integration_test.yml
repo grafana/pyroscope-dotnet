@@ -36,6 +36,10 @@ jobs:
       - name: Run main profiler integration test
         run: make itest/main-profiler/${{ matrix.flavour }}/${{ matrix.dotnet_version }}
         working-directory: itest
+      - name: Run dynamic profiling integration test
+        if: matrix.flavour == 'musl' && matrix.dotnet_version == '10.0'
+        run: make itest/dynamic-profiling/musl/10.0
+        working-directory: itest
 
   run-integration-test-notification-profiler:
     name: itest notification-profiler ${{ matrix.flavour }} .NET ${{ matrix.dotnet_version }}
@@ -85,3 +89,4 @@ jobs:
       - name: Run TLS profile upload integration test
         run: make itest/tls-profile-upload/${{ matrix.flavour }}/8.0
         working-directory: itest
+
