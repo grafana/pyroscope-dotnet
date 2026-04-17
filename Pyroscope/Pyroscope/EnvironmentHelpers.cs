@@ -17,7 +17,7 @@ namespace Pyroscope
         /// </summary>
         /// <param name="key">Name of the environment variable to fetch</param>
         /// <param name="defaultValue">Value to return in case of error</param>
-        /// <returns>The value of the environment variable, or the default value if an error occured</returns>
+        /// <returns>The value of the environment variable, or the default value if an error occurred</returns>
         public static string? GetEnvironmentVariable(string key, string? defaultValue = null)
         {
             var keys = new List<string>();
