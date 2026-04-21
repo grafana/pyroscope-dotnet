@@ -163,10 +163,6 @@ build-app-notification-profiler-musl-10.0: build-profiler-musl
 # Tests build their own Docker images when run, so these are optional
 # pre-build targets for faster iteration.
 
-.PHONY: list-tests
-list-tests:
-	go test -list . -json ./...
-
 .PHONY: ci-matrix
 ci-matrix:
 	@go test -list . -json ./... | jq -sc '[.[] | select(.Action=="output") | .Output | rtrimstr("\n") | select(startswith("Test"))]'
