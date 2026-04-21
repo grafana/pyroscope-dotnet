@@ -2738,9 +2738,21 @@ void CorProfilerCallback::SetStackSamplerEnabled(bool enabled)
     if (enabled)
     {
         _pStackSamplerLoopManager->Start();
+#ifdef LINUX
+        if (_pCpuProfiler != nullptr)
+        {
+            _pCpuProfiler->Start();
+        }
+#endif
     }
     else
     {
+#ifdef LINUX
+        if (_pCpuProfiler != nullptr)
+        {
+            _pCpuProfiler->StopWithState(ServiceBase::State::Init);
+        }
+#endif
         _pStackSamplerLoopManager->StopWithState(ServiceBase::State::Init);
     }
 }
