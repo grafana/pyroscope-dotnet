@@ -124,7 +124,7 @@ std::tuple<std::shared_ptr<spdlog::logger>, bool> Logger::CreateInternalLogger()
     bool stderr_log_enabled = ::shared::StderrLogEnabled();
     if (stderr_log_enabled)
     {
-        stderr_logger = std::make_shared<spdlog::logger>(LoggerPolicy::file_name, std::make_shared<spdlog::sinks::ansicolor_stderr_sink_mt>());
+        stderr_logger = std::make_shared<spdlog::logger>(LoggerPolicy::file_name, std::make_shared<spdlog::sinks::stderr_color_sink_mt>());
     }
     else
     {
@@ -138,7 +138,7 @@ std::tuple<std::shared_ptr<spdlog::logger>, bool> Logger::CreateInternalLogger()
         if (stderr_log_enabled)
         {
             std::vector<spdlog::sink_ptr> sinks;
-            sinks.push_back(std::make_shared<spdlog::sinks::ansicolor_stderr_sink_mt>());
+            sinks.push_back(std::make_shared<spdlog::sinks::stderr_color_sink_mt>());
             if (buffering_enabled)
             {
                 sinks.push_back(std::make_shared<spdlog::sinks::lazy_rotating_file_sink_mt>(log_path, 1048576 * 5, 10));

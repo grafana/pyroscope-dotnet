@@ -6,6 +6,15 @@
     "dependencies": [
         {
             "name": "libdatadog"
+        },
+        {
+            "name": "protobuf"
+        }
+    ],
+    "overrides": [
+        {
+            "name": "protobuf",
+            "version": "3.21.12"
         }
     ]
 }

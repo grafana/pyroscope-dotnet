@@ -408,3 +408,4 @@ tools/dumps/
 
 # test optimization temp/run folder
 .dd/
+.sync-to-vm.sh

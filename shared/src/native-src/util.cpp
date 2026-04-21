@@ -149,7 +149,8 @@ namespace shared
     WSTRING GetEnvironmentValue(const WSTRING& name, bool& existed)
     {
 #ifdef _WIN32
-#error "not implemented"
+        // PYROSCOPE_WINDOWS_TODO: Windows branch does not implement the DD_ → PYROSCOPE_ env var
+        // aliasing that the Linux branch below does. Same-name lookup works; aliased lookups don't.
         const size_t max_buf_size = 4096;
         WSTRING buf(max_buf_size, 0);
         auto len = GetEnvironmentVariable((LPWSTR)name.data(), (LPWSTR)buf.data(), (DWORD)(buf.size()));

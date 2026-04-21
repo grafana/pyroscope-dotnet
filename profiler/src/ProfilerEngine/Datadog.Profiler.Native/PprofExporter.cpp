@@ -8,7 +8,9 @@
 #include "SamplesEnumerator.h"
 #include "Log.h"
 #include <cmath>
+#ifndef _WIN32
 #include <signal.h>
+#endif
 
 PprofExporter::PprofExporter(IApplicationStore* applicationStore,
                              std::shared_ptr<PProfExportSink> sink,
@@ -34,7 +36,10 @@ PprofExporter::PprofExporter(IApplicationStore* applicationStore,
         _entries.push_back(std::make_unique<ProfileTypeEntry>(startIndex, groupTypes.size(), currentType, std::move(groupTypes)));
     }
 
+#ifndef _WIN32
+    // SIGPIPE doesn't exist on Windows; a closed socket surfaces as WSAECONNRESET on send.
     signal(SIGPIPE, SIG_IGN);
+#endif
 }
 
 PProfExportSink::~PProfExportSink()
