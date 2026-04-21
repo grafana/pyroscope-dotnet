@@ -453,8 +453,5 @@ func runTLSProfileUploadTest(t *testing.T, libcType, version string) {
 }
 
 func TestTLSProfileUpload(t *testing.T) {
-	if v := envDotnetVersion(); v != "8.0" {
-		t.Skipf("TLS test only runs on .NET 8.0, got %s", v)
-	}
 	runTLSProfileUploadTest(t, envLibcType(), envDotnetVersion())
 }

@@ -18,7 +18,7 @@ func envOrDefault(key, defaultValue string) string {
 }
 
 func envLibcType() string      { return envOrDefault("LIBC_TYPE", "glibc") }
-func envDotnetVersion() string { return envOrDefault("DOTNET_VERSION", "8.0") }
+func envDotnetVersion() string { return envOrDefault("DOTNET_VERSION", "10.0") }
 
 func sdkImageSuffix(libcType, version string) string {
 	if libcType == "musl" {
@@ -27,8 +27,10 @@ func sdkImageSuffix(libcType, version string) string {
 	switch version {
 	case "6.0", "8.0":
 		return "-jammy"
-	default:
+	case "9.0", "10.0":
 		return "-noble"
+	default:
+		panic(fmt.Sprintf("unknown dotnet version %q: add the SDK image suffix mapping", version))
 	}
 }
 
