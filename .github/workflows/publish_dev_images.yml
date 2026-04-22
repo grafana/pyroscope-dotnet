@@ -14,15 +14,17 @@ jobs:
   publish-dev-x86_64:
     if:
       github.event_name == 'push' ||
-      contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker') &&
+      (contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker') &&
       github.event.pull_request.head.repo.full_name == github.repository &&
-      (github.event.action != 'labeled' || github.event.label.name == 'pr-publish-dev-docker')
+      (github.event.action != 'labeled' || github.event.label.name == 'pr-publish-dev-docker'))
     permissions:
       contents: read
       id-token: write
     runs-on: ubuntu-x64-large
     env:
       DOCKER_BUILDKIT: 1
+      ARCH: x86_64
+      LIBC: ${{ matrix.name }}
     strategy:
       fail-fast: false
       matrix:
@@ -33,7 +35,8 @@ jobs:
         with:
           submodules: 'true'
           persist-credentials: false
-      - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=x86_64 LIBC=${{ matrix.name }}  make docker/build
+      - run: echo "RELEASE_VERSION=dev-$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+      - run: make docker/build
       - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
         with:
           repo_secrets: |
@@ -44,15 +47,21 @@ jobs:
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_PASSWORD }}
-      - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=x86_64 LIBC=${{ matrix.name }}  make docker/push
+      - run: make docker/push
   publish-dev-aarch64:
-    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker') && github.event.pull_request.head.repo.full_name == github.repository && (github.event.action != 'labeled' || github.event.label.name == 'pr-publish-dev-docker')
+    if:
+      github.event_name == 'push' ||
+      (contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker') &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' || github.event.label.name == 'pr-publish-dev-docker'))
     permissions:
       contents: read
       id-token: write
     runs-on: ubuntu-arm64-large
     env:
       DOCKER_BUILDKIT: 1
+      ARCH: aarch64
+      LIBC: ${{ matrix.name }}
     strategy:
       fail-fast: false
       matrix:
@@ -64,7 +73,8 @@ jobs:
           submodules: 'true'
           persist-credentials: false
       - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
-      - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=aarch64 LIBC=${{ matrix.name }}  make docker/build
+      - run: echo "RELEASE_VERSION=dev-$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
+      - run: make docker/build
       - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
         with:
           repo_secrets: |
@@ -75,7 +85,7 @@ jobs:
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_PASSWORD }}
-      - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=aarch64 LIBC=${{ matrix.name }}  make docker/push
+      - run: make docker/push
   publish-dev-manifest:
     permissions:
       contents: read
@@ -84,6 +94,7 @@ jobs:
     runs-on: ubuntu-x64-small
     env:
       DOCKER_BUILDKIT: 1
+      LIBC: ${{ matrix.name }}
     strategy:
       fail-fast: false
       matrix:
@@ -94,6 +105,7 @@ jobs:
         with:
           submodules: 'true'
           persist-credentials: false
+      - run: echo "RELEASE_VERSION=dev-$(git rev-parse --short HEAD)" >> "$GITHUB_ENV"
       - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
         with:
           repo_secrets: |
@@ -104,4 +116,4 @@ jobs:
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_PASSWORD }}
-      - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) LIBC=${{ matrix.name }}  make docker/manifest
+      - run: make docker/manifest
