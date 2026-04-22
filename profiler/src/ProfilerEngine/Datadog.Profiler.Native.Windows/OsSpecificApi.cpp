@@ -8,6 +8,7 @@
 #include "OsSpecificApi.h"
 
 #include "IConfiguration.h"
+#include "IEtwEventsManager.h"
 #include "IThreadInfo.h"
 #include "Log.h"
 #include "OpSysTools.h"
@@ -18,12 +19,8 @@
 #include "Windows32BitStackFramesCollector.h"
 #include "Windows64BitStackFramesCollector.h"
 #include "WindowsThreadInfo.h"
-#include "EtwEventsManager.h"
 
-// PYROSCOPE_WINDOWS_TODO: upstream had #include "shared/src/native-src/loader.h" here, but
-// nothing in this file references symbols from it. The header is gone from the fork anyway
-// (deleted with the tracer). Dropping the include.
-
+#include <chrono>
 #include <memory>
 #include <sstream>
 
@@ -33,6 +30,8 @@
 class CallstackProvider;
 
 namespace OsSpecificApi {
+
+using namespace std::chrono_literals;
 
 // if a system message was not found for the last error code the message will contain GetLastError between ()
 std::pair<DWORD, std::string> GetLastErrorMessage()
@@ -340,8 +339,10 @@ std::unique_ptr<IEtwEventsManager> CreateEtwEventsManager(
     IGCSuspensionsListener* pGCSuspensionsListener,
     IConfiguration* pConfiguration)
 {
-    auto manager = std::make_unique<EtwEventsManager>(pAllocationListener, pContentionListener, pGCSuspensionsListener, pConfiguration);
-    return manager;
+    // Framework-only event-based profiling (alloc/contention/GC via ETW) is not
+    // supported in this fork — returning nullptr here causes CorProfilerCallback
+    // to skip the ETW path. Matches the Linux impl.
+    return nullptr;
 }
 
 double GetProcessLifetime()

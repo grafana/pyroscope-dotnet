@@ -231,7 +231,7 @@
       <OutputFile>$(OutDir)$(TargetName)$(TargetExt)</OutputFile>
     </Lib>
   </ItemDefinitionGroup>
-  <!-- PYROSCOPE_WINDOWS_TODO: source list replaced with globs to mirror Linux CMake file-glob approach.
+  <!-- PYROSCOPE_WINDOWS_NOTE: source list replaced with globs to mirror Linux CMake file-glob approach.
        Add explicit Exclude entries here if a *.cpp should not build on Windows. -->
   <ItemGroup>
     <ClInclude Include="*.h" />
@@ -240,7 +240,7 @@
   <ItemGroup>
     <ClCompile Include="*.cpp" Exclude="DllMain.cpp" />
     <ClCompile Include="gen\**\*.pb.cc" />
-    <!-- PYROSCOPE_WINDOWS_TODO: CxxUrl is a single-file .cpp lib in third_party; pulled in directly
+    <!-- PYROSCOPE_WINDOWS_NOTE: CxxUrl is a single-file .cpp lib in third_party; pulled in directly
          rather than as a separate static lib. Linux CMake handles this via add_subdirectory. -->
     <ClCompile Include="$(DOTNET-TRACER-REPO-ROOT-PATH)profiler\third_party\CxxUrl\url.cpp" />
   </ItemGroup>

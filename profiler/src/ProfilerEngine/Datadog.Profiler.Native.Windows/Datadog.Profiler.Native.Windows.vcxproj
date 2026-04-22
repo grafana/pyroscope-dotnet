@@ -214,20 +214,8 @@
     <ClInclude Include="..\Datadog.Profiler.Native\DllMain.h" />
     <ClInclude Include="..\Datadog.Profiler.Native.Windows\resource.h" />
     <ClInclude Include="chrono_helper.hpp" />
-    <!-- PYROSCOPE_WINDOWS_TODO: CrashReportingWindows.{cpp,h} need upstream's CrashReporting base class
-         (deleted from fork with the tracer). Excluded from build for phase-1 POC. Files stay on disk
-         for future crash reporter implementation. -->
     <ClInclude Include="DbgHelpParser.h" />
-    <ClInclude Include="EtwEventsManager.h" />
-    <ClInclude Include="ETW\EtwEventsHandler.h" />
-    <ClInclude Include="ETW\IIpcLogger.h" />
-    <ClInclude Include="ETW\INamedPipeHandler.h" />
-    <ClInclude Include="ETW\IpcClient.h" />
-    <ClInclude Include="ETW\IpcServer.h" />
-    <ClInclude Include="ETW\ProfilerLogger.h" />
-    <ClInclude Include="ETW\Protocol.h" />
     <ClInclude Include="framework.h" />
-    <ClInclude Include="SecurityDescriptorHelpers.h" />
     <ClInclude Include="SymPdbParser.h" />
     <ClInclude Include="SystemTime.h" />
     <ClInclude Include="Windows64BitStackFramesCollector.h" />
@@ -239,15 +227,8 @@
   <ItemGroup>
     <ClCompile Include="..\Datadog.Profiler.Native\DllMain.cpp" />
     <ClCompile Include="..\Datadog.Profiler.Native\ManagedCodeCache.cpp" />
-    <!-- PYROSCOPE_WINDOWS_TODO: CrashReportingWindows.cpp excluded, see ClInclude section above. -->
     <ClCompile Include="DbgHelpParser.cpp" />
-    <ClCompile Include="EtwEventsManager.cpp" />
-    <ClCompile Include="ETW\EtwEventsHandler.cpp" />
-    <ClCompile Include="ETW\IpcClient.cpp" />
-    <ClCompile Include="ETW\IpcServer.cpp" />
-    <ClCompile Include="ETW\ProfilerLogger.cpp" />
     <ClCompile Include="AutoResetEvent.cpp" />
-    <ClCompile Include="SecurityDescriptorHelpers.cpp" />
     <ClCompile Include="SymPdbParser.cpp" />
     <ClCompile Include="SystemTime.cpp" />
     <ClCompile Include="WindowsThreadInfo.cpp" />

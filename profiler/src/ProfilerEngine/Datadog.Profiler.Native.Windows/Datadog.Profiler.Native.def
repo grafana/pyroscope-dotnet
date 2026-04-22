@@ -10,7 +10,4 @@
   SetEndpointForTrace PRIVATE
   SetGitMetadataForApplication PRIVATE
   FlushProfile PRIVATE
-; PYROSCOPE_WINDOWS_TODO: CreateCrashReport export disabled — CrashReportingWindows.cpp is excluded
-; from the build until CrashReporting base class is ported over (see vcxproj comment).
-;  CreateCrashReport PRIVATE
   SetConfiguration PRIVATE

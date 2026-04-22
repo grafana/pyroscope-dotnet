@@ -188,12 +188,12 @@
       <DOTNET-TRACER-REPO-ROOT-PATH>$([System.IO.Path]::GetFullPath( $(EnlistmentRoot)/ ))</DOTNET-TRACER-REPO-ROOT-PATH>
       <SHARED-LIB-PATH>$(DOTNET-TRACER-REPO-ROOT-PATH)shared\src\native-lib\</SHARED-LIB-PATH>
       <CORECLR-PATH>$(SHARED-LIB-PATH)coreclr\src</CORECLR-PATH>
-      <!-- PYROSCOPE_WINDOWS_TODO: upstream bundles spdlog/fmt under shared\src\native-lib\. Fork vendors
+      <!-- PYROSCOPE_WINDOWS_NOTE: upstream bundles spdlog/fmt under shared\src\native-lib\. Fork vendors
            its third-party C++ deps under profiler\third_party\ as git submodules. The Linux CMake build
            picks them up via add_subdirectory; the Windows MSBuild needs explicit include paths. -->
       <PYROSCOPE-THIRDPARTY-PATH>$(DOTNET-TRACER-REPO-ROOT-PATH)profiler\third_party\</PYROSCOPE-THIRDPARTY-PATH>
       <PYROSCOPE-GEN-PATH>$(DOTNET-TRACER-REPO-ROOT-PATH)profiler\src\ProfilerEngine\Datadog.Profiler.Native\gen</PYROSCOPE-GEN-PATH>
-      <!-- PYROSCOPE_WINDOWS_TODO: protobuf headers come from vcpkg (see vcpkg.json override pinning
+      <!-- PYROSCOPE_WINDOWS_NOTE: protobuf headers come from vcpkg (see vcpkg.json override pinning
            3.21.12). Do NOT add profiler\third_party\protobuf\src here — having both would risk header
            vs. runtime mismatch if vcpkg protobuf moves in the future. -->
       <SHARED-LIB-INCLUDES>$(PYROSCOPE-THIRDPARTY-PATH)spdlog\include;$(PYROSCOPE-THIRDPARTY-PATH)cpp-httplib;$(PYROSCOPE-THIRDPARTY-PATH)CxxUrl;$(PYROSCOPE-THIRDPARTY-PATH)cppcodec;$(PYROSCOPE-THIRDPARTY-PATH)nlohmann_json\include;$(PYROSCOPE-GEN-PATH)</SHARED-LIB-INCLUDES>
@@ -206,12 +206,12 @@
     <ItemDefinitionGroup Condition=" '$(MSBuildProjectExtension)' == '.vcxproj' ">
       <ClCompile>
         <PreprocessorDefinitions>%(PreprocessorDefinitions);MICROSOFT_WINDOWS_WINBASE_H_DEFINE_INTERLOCKED_CPLUSPLUS_OVERLOADS=1</PreprocessorDefinitions>
-        <!-- PYROSCOPE_WINDOWS_TODO: force-include winsock2.h before anything else. httplib.h (cpp-httplib)
+        <!-- PYROSCOPE_WINDOWS_NOTE: force-include winsock2.h before anything else. httplib.h (cpp-httplib)
              needs winsock2, and <windows.h> auto-includes winsock v1 unless winsock2 has set _WINSOCKAPI_
              first. WIN32_LEAN_AND_MEAN is the usual workaround but breaks <atlbase.h>. Force-include is
              a narrower fix that keeps ATL happy. Upstream doesn't need this — no cpp-httplib there. -->
         <ForcedIncludeFiles>$(DOTNET-TRACER-REPO-ROOT-PATH)profiler\src\ProfilerEngine\Datadog.Profiler.Native\PyroscopeWindowsIncludeOrder.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
-        <!-- PYROSCOPE_WINDOWS_TODO: /utf-8 required by fmt (bundled with spdlog) for its Unicode
+        <!-- PYROSCOPE_WINDOWS_NOTE: /utf-8 required by fmt (bundled with spdlog) for its Unicode
              support static_assert. Equivalent to /source-charset:utf-8 /execution-charset:utf-8. -->
         <AdditionalOptions>%(AdditionalOptions) /utf-8</AdditionalOptions>
 	      <BuildStlModules>false</BuildStlModules>

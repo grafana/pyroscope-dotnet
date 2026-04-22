@@ -24,7 +24,7 @@
     <PropertyGroup Condition=" '$(MSBuildProjectExtension)' == '.vcxproj' ">
 
         <!-- Target base name to use for artifact produced by C++ project -->
-        <!-- PYROSCOPE_WINDOWS_TODO: matches Linux CMake PROFILER_BASENAME. Keep in sync. -->
+        <!-- PYROSCOPE_WINDOWS_NOTE: matches Linux CMake PROFILER_BASENAME. Keep in sync. -->
         <ProfilerEngineNativeTarget>Pyroscope.Profiler.Native</ProfilerEngineNativeTarget>
     </PropertyGroup>
 </Project>
