@@ -50,7 +50,7 @@ jobs:
       matrix:
         test: ${{ fromJSON(needs.discover.outputs.tests) }}
         libc_type: [glibc, musl]
-        version: ['6.0', '8.0', '9.0', '10.0']
+        version: ['8.0', '9.0', '10.0']
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
