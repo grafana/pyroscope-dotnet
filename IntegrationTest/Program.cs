@@ -27,6 +27,8 @@ app.MapGet("/car", (CarService service) =>
     return "Car ordered";
 });
 
+app.MapGet("/healthz", () => "ok");
+
 app.MapGet("/npe", () =>
 {
     for (var i = 0; i < 1_000_000; i++)
