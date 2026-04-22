@@ -34,6 +34,7 @@ type ContainerFile struct {
 type ContainerRequest struct {
 	Image          string
 	Platform       string
+	Cmd            []string
 	Env            map[string]string
 	ExposedPorts   []string
 	ExtraHosts     []string
@@ -83,6 +84,7 @@ func StartContainer(t *testing.T, req ContainerRequest) *Container {
 		}
 	}
 	args = append(args, req.Image)
+	args = append(args, req.Cmd...)
 
 	id := strings.TrimSpace(run(t, "docker", args...))
 	c := &Container{ID: id}
