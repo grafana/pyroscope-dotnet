@@ -12,7 +12,11 @@ permissions:
 
 jobs:
   publish-dev-x86_64:
-    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker') && github.event.pull_request.head.repo.full_name == github.repository && (github.event.action != 'labeled' || github.event.label.name == 'pr-publish-dev-docker')
+    if:
+      github.event_name == 'push' ||
+      contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker') &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      (github.event.action != 'labeled' || github.event.label.name == 'pr-publish-dev-docker')
     permissions:
       contents: read
       id-token: write
