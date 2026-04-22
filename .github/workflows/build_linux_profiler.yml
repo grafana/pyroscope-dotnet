@@ -1,8 +1,6 @@
 name: Build linux profiler
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
