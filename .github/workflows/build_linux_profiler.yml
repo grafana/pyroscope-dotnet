@@ -9,11 +9,13 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 
 jobs:
   build-linux-profiler-x86_64:
+    permissions:
+      contents: read
+      id-token: write
     runs-on: ubuntu-x64-large
     env:
       DOCKER_BUILDKIT: 1
@@ -43,6 +45,9 @@ jobs:
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker')
         run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=x86_64 LIBC=${{ matrix.name }}  make docker/push
   build-linux-profiler-aarch64:
+    permissions:
+      contents: read
+      id-token: write
     runs-on: ubuntu-arm64-large
     env:
       DOCKER_BUILDKIT: 1
@@ -75,6 +80,9 @@ jobs:
       - if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker')
         run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=aarch64 LIBC=${{ matrix.name }}  make docker/push
   publish-dev-manifest:
+    permissions:
+      contents: read
+      id-token: write
     if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker')
     needs: [build-linux-profiler-x86_64, build-linux-profiler-aarch64]
     runs-on: ubuntu-x64-small
