@@ -99,4 +99,9 @@ public:
 
     inline static const shared::WSTRING WaitHandleProfilingEnabled  = WStr("DD_INTERNAL_PROFILING_WAITHANDLE_ENABLED");
     inline static const shared::WSTRING UseManagedCodeCache         = WStr("DD_INTERNAL_PROFILING_USE_MANAGED_CODE_CACHE");
+
+    inline static const shared::WSTRING AllocationTypeLeafEnabled   = WStr("PYROSCOPE_ALLOCATION_TYPE_LEAF_ENABLED");
+    inline static const shared::WSTRING AllocationTypeLabelEnabled  = WStr("PYROSCOPE_ALLOCATION_TYPE_LABEL_ENABLED");
+    inline static const shared::WSTRING HeapTypeLeafEnabled         = WStr("PYROSCOPE_HEAP_TYPE_LEAF_ENABLED");
+    inline static const shared::WSTRING HeapTypeLabelEnabled        = WStr("PYROSCOPE_HEAP_TYPE_LABEL_ENABLED");
 };

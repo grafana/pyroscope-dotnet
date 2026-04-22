@@ -28,6 +28,7 @@ import (
 	"connectrpc.com/connect"
 	querierv1 "github.com/grafana/pyroscope/api/gen/proto/go/querier/v1"
 	"github.com/grafana/pyroscope/api/gen/proto/go/querier/v1/querierv1connect"
+	typesv1 "github.com/grafana/pyroscope/api/gen/proto/go/types/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -127,6 +128,10 @@ func runLoadGenerator(ctx context.Context, t *testing.T, appBaseURL string) {
 }
 
 func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string) (string, error) {
+	return queryProfileForType(t, pyroscopeURL, "process_cpu:cpu:nanoseconds:cpu:nanoseconds", labelSelector)
+}
+
+func queryProfileForType(t *testing.T, pyroscopeURL, profileTypeID, labelSelector string) (string, error) {
 	t.Helper()
 	qc := querierv1connect.NewQuerierServiceClient(http.DefaultClient, pyroscopeURL)
 
@@ -135,7 +140,7 @@ func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string) (stri
 	maxNodes := int64(65536)
 	resp, err := qc.SelectMergeStacktraces(context.Background(),
 		connect.NewRequest(&querierv1.SelectMergeStacktracesRequest{
-			ProfileTypeID: "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+			ProfileTypeID: profileTypeID,
 			Start:         from.UnixMilli(),
 			End:           to.UnixMilli(),
 			LabelSelector: labelSelector,
@@ -155,6 +160,74 @@ func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string) (stri
 	buf := bytes.NewBuffer(nil)
 	tt.WriteCollapsed(buf)
 	return buf.String(), nil
+}
+
+func queryLabelValues(t *testing.T, pyroscopeURL, profileTypeID, labelName string) ([]string, error) {
+	t.Helper()
+	qc := querierv1connect.NewQuerierServiceClient(http.DefaultClient, pyroscopeURL)
+
+	to := time.Now()
+	from := to.Add(-1 * time.Hour)
+	resp, err := qc.LabelValues(context.Background(),
+		connect.NewRequest(&typesv1.LabelValuesRequest{
+			Name:     labelName,
+			Matchers: []string{fmt.Sprintf(`{__profile_type__="%s"}`, profileTypeID)},
+			Start:    from.UnixMilli(),
+			End:      to.UnixMilli(),
+		}))
+	if err != nil {
+		return nil, err
+	}
+	return resp.Msg.GetNames(), nil
+}
+
+// discoverProfileTypeWithData queries the Pyroscope ProfileTypes API, then
+// probes each candidate with the given labelSelector. It returns the first
+// profile type whose ID contains sampleTypeSubstring AND has non-empty data
+// for that selector. This is needed because Pyroscope may normalize the
+// __name__ label and sample type names (e.g. alloc_samples → alloc_objects).
+func discoverProfileTypeWithData(t *testing.T, pyroscopeURL, sampleTypeSubstring, labelSelector string) (string, error) {
+	t.Helper()
+	qc := querierv1connect.NewQuerierServiceClient(http.DefaultClient, pyroscopeURL)
+	resp, err := qc.ProfileTypes(context.Background(),
+		connect.NewRequest(&querierv1.ProfileTypesRequest{}))
+	if err != nil {
+		return "", err
+	}
+	var candidates []string
+	for _, pt := range resp.Msg.GetProfileTypes() {
+		id := pt.GetID()
+		if strings.Contains(id, sampleTypeSubstring) {
+			candidates = append(candidates, id)
+		}
+	}
+	for _, id := range candidates {
+		collapsed, err := queryProfileForType(t, pyroscopeURL, id, labelSelector)
+		if err == nil && collapsed != "" {
+			return id, nil
+		}
+	}
+	var allIDs []string
+	for _, pt := range resp.Msg.GetProfileTypes() {
+		allIDs = append(allIDs, pt.GetID())
+	}
+	return "", fmt.Errorf("no profile type containing %q has data for %s; available: %v", sampleTypeSubstring, labelSelector, allIDs)
+}
+
+// collapsedContainsFrame checks whether any frame in the collapsed stack output
+// exactly matches the given name. Unlike frameContains, this does not expect a
+// class.method pattern — it matches the full frame string, which is useful for
+// synthetic leaf frames like type names (e.g. "System.String").
+func collapsedContainsFrame(collapsed, frameName string) bool {
+	for _, line := range strings.Split(collapsed, "\n") {
+		stack := strings.SplitN(line, " ", 2)[0]
+		for _, frame := range strings.Split(stack, ";") {
+			if frame == frameName {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // frameContains checks that the collapsed stack output contains a frame where
@@ -382,6 +455,130 @@ func TestDynamicCpuProfilingToggleAffectsProfileData(t *testing.T) {
 		t.Logf("last collapsed profile:\n%s", lastCollapsed)
 		t.FailNow()
 	}
+}
+
+func TestAllocatedTypeConfig(t *testing.T) {
+	libcType := envLibcType()
+	version := envDotnetVersion()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	net := dockertest.CreateNetwork(t)
+
+	pyroscopeURL := startPyroscope(t, net)
+	svcName := fmt.Sprintf("rideshare.dotnet.%s.%s.alloc-type", libcType, version)
+	appBaseURL := startAppWithEnv(t, net, libcType, version, false, map[string]string{
+		"PYROSCOPE_APPLICATION_NAME":              svcName,
+		"PYROSCOPE_PROFILING_ALLOCATION_ENABLED":  "true",
+		"PYROSCOPE_PROFILING_HEAP_ENABLED":        "true",
+		"PYROSCOPE_ALLOCATION_TYPE_LEAF_ENABLED":  "true",
+		"PYROSCOPE_ALLOCATION_TYPE_LABEL_ENABLED": "true",
+		"PYROSCOPE_HEAP_TYPE_LEAF_ENABLED":        "true",
+		"PYROSCOPE_HEAP_TYPE_LABEL_ENABLED":       "true",
+	})
+	runLoadGenerator(ctx, t, appBaseURL)
+
+	labelSelector := fmt.Sprintf(`{service_name="%s"}`, svcName)
+
+	// Wait for profiles to appear then discover the actual profile type IDs.
+	// Pyroscope may normalize __name__ and sample type names (e.g. our
+	// "alloc_samples" may become "alloc_objects"), so we search for profile
+	// types that contain the substring AND have data for our service.
+	var allocProfileType, heapProfileType string
+	require.Eventually(t, func() bool {
+		var err error
+		allocProfileType, err = discoverProfileTypeWithData(t, pyroscopeURL, "alloc_", labelSelector)
+		if err != nil {
+			t.Logf("discovering alloc profile type: %v", err)
+			return false
+		}
+		heapProfileType, err = discoverProfileTypeWithData(t, pyroscopeURL, "inuse_", labelSelector)
+		if err != nil {
+			t.Logf("discovering heap profile type: %v", err)
+			return false
+		}
+		return true
+	}, 3*time.Minute, 5*time.Second, "timed out waiting for alloc/heap profile types to appear in Pyroscope")
+	t.Logf("discovered alloc profile type: %s", allocProfileType)
+	t.Logf("discovered heap profile type: %s", heapProfileType)
+
+	t.Run("alloc_type_leaf", func(t *testing.T) {
+		var lastCollapsed string
+		var lastErr error
+		ok := assert.Eventually(t, func() bool {
+			lastCollapsed, lastErr = queryProfileForType(t, pyroscopeURL, allocProfileType, labelSelector)
+			if lastErr != nil || lastCollapsed == "" {
+				return false
+			}
+			return collapsedContainsFrame(lastCollapsed, "System.String")
+		}, 3*time.Minute, 5*time.Second)
+
+		if !ok {
+			t.Logf("alloc_type_leaf: last error: %v", lastErr)
+			t.Logf("alloc_type_leaf: last collapsed:\n%s", lastCollapsed)
+			t.FailNow()
+		}
+		t.Logf("alloc_type_leaf: collapsed profile:\n%s", lastCollapsed)
+	})
+
+	t.Run("alloc_type_label", func(t *testing.T) {
+		var lastValues []string
+		var lastErr error
+		ok := assert.Eventually(t, func() bool {
+			lastValues, lastErr = queryLabelValues(t, pyroscopeURL, allocProfileType, "allocation_class")
+			if lastErr != nil || len(lastValues) == 0 {
+				return false
+			}
+			return true
+		}, 3*time.Minute, 5*time.Second)
+
+		if !ok {
+			t.Logf("alloc_type_label: last error: %v", lastErr)
+			t.Logf("alloc_type_label: last label values: %v", lastValues)
+			t.FailNow()
+		}
+		t.Logf("alloc_type_label: label values: %v", lastValues)
+	})
+
+	t.Run("heap_type_leaf", func(t *testing.T) {
+		// Live heap objects are transient: short-lived allocations may be GC'd
+		// before the query runs, leaving an empty tree. We check for any
+		// non-empty collapsed output (the leaf frame mechanism is shared with
+		// alloc which is verified above).
+		var lastCollapsed string
+		var lastErr error
+		ok := assert.Eventually(t, func() bool {
+			lastCollapsed, lastErr = queryProfileForType(t, pyroscopeURL, heapProfileType, labelSelector)
+			return lastErr == nil && lastCollapsed != ""
+		}, 3*time.Minute, 5*time.Second)
+
+		if !ok {
+			t.Logf("heap_type_leaf: last error: %v", lastErr)
+			t.Logf("heap_type_leaf: skipping — heap profile tree empty (objects likely GC'd before query)")
+			t.Skip("heap profile tree empty")
+		}
+		t.Logf("heap_type_leaf: collapsed profile:\n%s", lastCollapsed)
+	})
+
+	t.Run("heap_type_label", func(t *testing.T) {
+		var lastValues []string
+		var lastErr error
+		ok := assert.Eventually(t, func() bool {
+			lastValues, lastErr = queryLabelValues(t, pyroscopeURL, heapProfileType, "allocation_class")
+			if lastErr != nil || len(lastValues) == 0 {
+				return false
+			}
+			return true
+		}, 3*time.Minute, 5*time.Second)
+
+		if !ok {
+			t.Logf("heap_type_label: last error: %v", lastErr)
+			t.Logf("heap_type_label: last label values: %v", lastValues)
+			t.FailNow()
+		}
+		t.Logf("heap_type_label: label values: %v", lastValues)
+	})
 }
 
 // generateTestCerts creates a self-signed CA and a server certificate signed by

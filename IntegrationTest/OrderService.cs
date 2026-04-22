@@ -14,6 +14,13 @@ internal class OrderService
 
             LabelsWrapper.Do(labels, static (state) =>
             {
+                // Allocate enough to trigger CLR AllocationTick events (~100KB threshold)
+                // so that the allocation and heap profilers produce samples.
+                for (int a = 0; a < 10; a++)
+                {
+                    _ = new byte[32 * 1024];
+                }
+
                 for (long i = 0; i < state.searchRadius * 1_000_000_000; i++)
                 {
                 }

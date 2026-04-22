@@ -92,6 +92,10 @@ public:
     uint64_t GetHeapSamplingRate() const override;
     bool UseManagedCodeCache() const override;
     bool IsMemoryFootprintEnabled() const override;
+    bool IsAllocationTypeLeafEnabled() const override;
+    bool IsAllocationTypeLabelEnabled() const override;
+    bool IsHeapTypeLeafEnabled() const override;
+    bool IsHeapTypeLabelEnabled() const override;
 
     std::string PyroscopeServerAddress() const override;
     std::string PyroscopeApplicationName() const override;
@@ -229,4 +233,8 @@ private:
     uint32_t _heapSnapshotMemoryPressureThreshold; // in % of used memory
     bool _useManagedCodeCache;
     bool _isMemoryFootprintEnabled;
+    bool _isAllocationTypeLeafEnabled;
+    bool _isAllocationTypeLabelEnabled;
+    bool _isHeapTypeLeafEnabled;
+    bool _isHeapTypeLabelEnabled;
 };

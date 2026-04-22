@@ -13,7 +13,7 @@ const std::string Sample::ProfileIdLabel = "profile_id";
 const std::string Sample::SpanIdLabel = "span id";
 const std::string Sample::ExceptionTypeLabel = "exception type";
 const std::string Sample::ExceptionMessageLabel = "exception message";
-const std::string Sample::AllocationClassLabel = "allocation class";
+const std::string Sample::AllocationClassLabel = "allocation_class";
 
 // garbage collection related labels
 const std::string Sample::TimelineEventTypeLabel = "event";
@@ -107,6 +107,11 @@ void Sample::AddValue(std::int64_t value, size_t index)
 void Sample::AddFrame(FrameInfoView const& frame)
 {
     _callstack.push_back(frame);
+}
+
+void Sample::PrependFrame(FrameInfoView const& frame)
+{
+    _callstack.insert(_callstack.begin(), frame);
 }
 
 const std::vector<FrameInfoView>& Sample::GetCallstack() const
