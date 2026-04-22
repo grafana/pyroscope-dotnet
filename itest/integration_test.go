@@ -336,6 +336,87 @@ func TestDynamicCpuToggleDoesNotCrash(t *testing.T) {
 	}, 30*time.Second, time.Second, "rideshare app is not reachable after dynamic CPU toggling")
 }
 
+func TestDynamicCpuProfilingToggleAffectsProfileData(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	net, err := network.New(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = net.Remove(ctx) })
+
+	pyroscopeURL := startPyroscope(ctx, t, net)
+	appName := fmt.Sprintf("rideshare.dynamic-cpu-toggle.%d", time.Now().UnixNano())
+	appBaseURL := startAppWithEnv(ctx, t, net, envLibcType(), envDotnetVersion(), false, map[string]string{
+		"PYROSCOPE_APPLICATION_NAME":            appName,
+		"PYROSCOPE_PROFILING_ENABLED":           "true",
+		"PYROSCOPE_PROFILING_CPU_ENABLED":       "true",
+		"PYROSCOPE_PROFILING_WALLTIME_ENABLED":  "true",
+		"PYROSCOPE_PROFILING_ALLOCATION_ENABLED": "true",
+		"PYROSCOPE_PROFILING_CONTENTION_ENABLED": "true",
+		"PYROSCOPE_PROFILING_EXCEPTION_ENABLED":  "true",
+	})
+	client := &http.Client{Timeout: 30 * time.Second}
+
+	disableResp, err := client.Post(appBaseURL+"/profiling?cpu=false", "text/plain", nil)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, disableResp.StatusCode)
+	_ = disableResp.Body.Close()
+
+	labelSelector := fmt.Sprintf(`{service_name="%s",vehicle="bike"}`, appName)
+	assert.Never(t, func() bool {
+		resp, err := client.Get(appBaseURL + "/bike")
+		if err != nil {
+			t.Logf("bike request failed while CPU disabled: %v", err)
+			return false
+		}
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Logf("bike request returned status %d while CPU disabled", resp.StatusCode)
+			return false
+		}
+
+		collapsed, err := queryProfile(t, pyroscopeURL, labelSelector)
+		if err != nil {
+			t.Logf("profile query failed while CPU disabled: %v", err)
+			return false
+		}
+		return collapsed != ""
+	}, 45*time.Second, 5*time.Second, "expected no CPU profile data while CPU profiling is disabled")
+
+	enableResp, err := client.Post(appBaseURL+"/profiling?cpu=true", "text/plain", nil)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, enableResp.StatusCode)
+	_ = enableResp.Body.Close()
+
+	var lastCollapsed string
+	var lastErr error
+	ok := assert.Eventually(t, func() bool {
+		resp, err := client.Get(appBaseURL + "/bike")
+		if err != nil {
+			lastErr = err
+			return false
+		}
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			lastErr = fmt.Errorf("bike request returned status %d", resp.StatusCode)
+			return false
+		}
+
+		lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector)
+		if lastErr != nil || lastCollapsed == "" {
+			return false
+		}
+		return frameContains(lastCollapsed, "OrderService", "FindNearestVehicle")
+	}, 2*time.Minute, 5*time.Second, "expected CPU profile data after CPU profiling is re-enabled")
+
+	if !ok {
+		t.Logf("label selector: %s", labelSelector)
+		t.Logf("last profile query error: %v", lastErr)
+		t.Logf("last collapsed profile:\n%s", lastCollapsed)
+		t.FailNow()
+	}
+}
+
 // generateTestCerts creates a self-signed CA and a server certificate signed by
 // it for the given hostname. Returns CA cert PEM, server cert PEM, server key PEM.
 func generateTestCerts(t *testing.T, hostname string) (caCertPEM, serverCertPEM, serverKeyPEM []byte) {
