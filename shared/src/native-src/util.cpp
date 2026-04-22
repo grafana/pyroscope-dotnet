@@ -149,13 +149,32 @@ namespace shared
     WSTRING GetEnvironmentValue(const WSTRING& name, bool& existed)
     {
 #ifdef _WIN32
-        // PYROSCOPE_WINDOWS_TODO: Windows branch does not implement the DD_ → PYROSCOPE_ env var
-        // aliasing that the Linux branch below does. Same-name lookup works; aliased lookups don't.
-        const size_t max_buf_size = 4096;
-        WSTRING buf(max_buf_size, 0);
-        auto len = GetEnvironmentVariable((LPWSTR)name.data(), (LPWSTR)buf.data(), (DWORD)(buf.size()));
-        existed = (len > 0 || ::GetLastError() != ERROR_ENVVAR_NOT_FOUND);
-        return Trim(buf.substr(0, len));
+        // Lookup chain mirrors the Linux branch below: exact name, then strip DD_
+        // prefix, then try PYROSCOPE_ + stripped suffix. Keeps env var compatibility
+        // between upstream (DD_*) and fork's Pyroscope-prefixed names.
+        auto tryLookup = [](const WSTRING& lookupName) -> std::pair<bool, WSTRING> {
+            const DWORD max_buf_size = 4096;
+            WSTRING buf(max_buf_size, 0);
+            auto len = ::GetEnvironmentVariable((LPCWSTR)lookupName.data(),
+                                                (LPWSTR)buf.data(),
+                                                (DWORD)buf.size());
+            bool exists = (len > 0 || ::GetLastError() != ERROR_ENVVAR_NOT_FOUND);
+            if (!exists) return {false, WStr("")};
+            return {true, Trim(buf.substr(0, len))};
+        };
+
+        auto [found, value] = tryLookup(name);
+        if (!found && name.find(WStr("DD_")) == 0)
+        {
+            auto secondName = name.substr(3);
+            std::tie(found, value) = tryLookup(secondName);
+            if (!found)
+            {
+                std::tie(found, value) = tryLookup(WStr("PYROSCOPE_") + secondName);
+            }
+        }
+        existed = found;
+        return value;
 #else
         auto cstr = std::getenv(ToString(name).c_str());
         if (cstr == nullptr)
