@@ -11,6 +11,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"math/big"
 	"net"
 	"net/http"
@@ -62,11 +63,20 @@ func startPyroscope(ctx context.Context, t *testing.T, net *testcontainers.Docke
 	return fmt.Sprintf("http://%s:%s", host, port.Port())
 }
 
-func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork, libcType, version string, otel bool) string {
+func startAppWithEnv(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork, libcType, version string, otel bool, extraEnv map[string]string) string {
 	t.Helper()
 	ensureProfilerImage(t, libcType)
 
 	svcName := rideshareServiceName(libcType, version, otel)
+	env := map[string]string{
+		"REGION":                     "us-east",
+		"PYROSCOPE_APPLICATION_NAME": svcName,
+		"PYROSCOPE_SERVER_ADDRESS":   "http://pyroscope:4040",
+		"DD_TRACE_DEBUG":             "true",
+	}
+	for k, v := range extraEnv {
+		env[k] = v
+	}
 	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			FromDockerfile: testcontainers.FromDockerfile{
@@ -86,12 +96,7 @@ func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwo
 			NetworkAliases: map[string][]string{
 				net.Name: {"rideshare"},
 			},
-			Env: map[string]string{
-				"REGION":                     "us-east",
-				"PYROSCOPE_APPLICATION_NAME": svcName,
-				"PYROSCOPE_SERVER_ADDRESS":   "http://pyroscope:4040",
-				"DD_TRACE_DEBUG":             "true",
-			},
+			Env:          env,
 			ExposedPorts: []string{"5000/tcp"},
 			WaitingFor:   wait.ForListeningPort("5000/tcp").WithStartupTimeout(120 * time.Second),
 		},
@@ -107,6 +112,13 @@ func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwo
 	return fmt.Sprintf("http://%s:%s", host, port.Port())
 }
 
+func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork, libcType, version string, otel bool) string {
+	t.Helper()
+	return startAppWithEnv(ctx, t, net, libcType, version, otel, nil)
+}
+
+// runLoadGenerator cycles through /bike, /scooter, /car requests in a goroutine
+// until ctx is cancelled.
 func runLoadGenerator(ctx context.Context, t *testing.T, appBaseURL string) {
 	t.Helper()
 	vehicles := []string{"bike", "scooter", "car"}
@@ -264,6 +276,64 @@ func TestRideshareProfiles(t *testing.T) {
 
 func TestRideshareProfilesWithOTEL(t *testing.T) {
 	runRideshareProfileTest(t, envLibcType(), envDotnetVersion(), true)
+}
+
+func TestDynamicCpuToggleDoesNotCrash(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	net, err := network.New(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = net.Remove(ctx) })
+
+	_ = startPyroscope(ctx, t, net)
+	appBaseURL := startAppWithEnv(ctx, t, net, envLibcType(), envDotnetVersion(), false, map[string]string{
+		"PYROSCOPE_PROFILING_ENABLED":           "true",
+		"PYROSCOPE_PROFILING_CPU_ENABLED":       "true",
+		"PYROSCOPE_PROFILING_WALLTIME_ENABLED":  "true",
+		"PYROSCOPE_PROFILING_ALLOCATION_ENABLED": "true",
+		"PYROSCOPE_PROFILING_CONTENTION_ENABLED": "true",
+		"PYROSCOPE_PROFILING_EXCEPTION_ENABLED":  "true",
+	})
+	client := &http.Client{Timeout: 30 * time.Second}
+
+	warmupResp, err := client.Get(appBaseURL + "/bike")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, warmupResp.StatusCode)
+	_ = warmupResp.Body.Close()
+
+	disableURL := appBaseURL + "/profiling?cpu=false&allocation=false&contention=false&exception=false"
+	enableURL := appBaseURL + "/profiling?cpu=true"
+
+	for i := 0; i < 3; i++ {
+		resp, err := client.Post(disableURL, "text/plain", nil)
+		require.NoError(t, err)
+		body, _ := io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		require.Equal(t, http.StatusOK, resp.StatusCode, "iteration %d body: %s", i, string(body))
+
+		for j := 0; j < 20; j++ {
+			loadResp, err := client.Get(appBaseURL + "/car")
+			require.NoError(t, err)
+			_ = loadResp.Body.Close()
+			require.Equal(t, http.StatusOK, loadResp.StatusCode)
+		}
+
+		resp, err = client.Post(enableURL, "text/plain", nil)
+		require.NoError(t, err)
+		body, _ = io.ReadAll(resp.Body)
+		_ = resp.Body.Close()
+		require.Equal(t, http.StatusOK, resp.StatusCode, "iteration %d body: %s", i, string(body))
+	}
+
+	require.Eventually(t, func() bool {
+		resp, err := client.Get(appBaseURL + "/car")
+		if err != nil {
+			return false
+		}
+		_ = resp.Body.Close()
+		return resp.StatusCode == http.StatusOK
+	}, 30*time.Second, time.Second, "rideshare app is not reachable after dynamic CPU toggling")
 }
 
 // generateTestCerts creates a self-signed CA and a server certificate signed by
