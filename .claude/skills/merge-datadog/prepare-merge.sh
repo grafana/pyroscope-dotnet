@@ -58,6 +58,10 @@ start_merge() {
 }
 
 # ── Remove directories we don't carry in the fork ────────────────────────────
+# NOTE: profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows IS carried
+# in the fork. Files we deliberately deleted inside it (CrashReportingWindows,
+# ETW/, EtwEventsManager, SecurityDescriptorHelpers) are kept deleted
+# automatically by resolve_du_conflicts below.
 remove_fork_dirs() {
   echo "==> Removing directories not carried in the fork..."
   git rm -rf --ignore-unmatch \
@@ -69,7 +73,6 @@ remove_fork_dirs() {
     .gitlab \
     docs \
     profiler/docs \
-    profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows \
     profiler/src/Tools \
     .gitlab-ci.yml
   # Remove C# integration/managed tests from profiler/test but keep C++ unit tests.

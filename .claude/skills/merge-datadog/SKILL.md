@@ -46,13 +46,17 @@ What we strip from DataDog on every merge:
 - `.claude/` additions from upstream — we keep only our own claude configuration
 - `.gitlab-ci.yml` — upstream CI config; we use GitHub Actions only
 - `docs/`, `profiler/docs/` — upstream documentation
-- `profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/` — Windows profiler; we only build for Linux
 - `shared/src/Datadog.Trace.ClrProfiler.Native` — not used in our fork
 - `build/cmake/FindSpdlog.cmake`, `shared/src/native-lib/spdlog`, `build/cmake/FindManagedLoader.cmake` — we use git submodules for these instead
 
 When resolving conflicts, keep this context in mind: if a conflict involves code paths
 related to the tracer, Azure CI, upstream demos, or upstream .github workflows, our side
 (deletion/absence) is correct.
+
+**Windows profiler** (`profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/`) is carried in the fork. Some files inside that directory are intentionally absent
+(crash reporting sources, the ETW/IPC subtree, `SecurityDescriptorHelpers`) — the DU
+auto-resolver keeps them deleted on each merge. Grep for `PYROSCOPE_WINDOWS_NOTE`
+and `PYROSCOPE_WINDOWS_TODO` to see the current Windows-specific state.
 
 **IMPORTANT — git safety rules:**
 - Never create PRs or push to the DataDog repo. All PRs must target
