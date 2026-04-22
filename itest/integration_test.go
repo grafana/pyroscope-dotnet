@@ -202,6 +202,28 @@ func queryLabelValues(t *testing.T, pyroscopeURL, profileTypeID, labelName strin
 	return resp.Msg.GetNames(), nil
 }
 
+// discoverProfileType queries the Pyroscope ProfileTypes API and returns the
+// first profile type ID whose string starts with the given prefix.
+func discoverProfileType(t *testing.T, pyroscopeURL, prefix string) (string, error) {
+	t.Helper()
+	qc := querierv1connect.NewQuerierServiceClient(http.DefaultClient, pyroscopeURL)
+	resp, err := qc.ProfileTypes(context.Background(),
+		connect.NewRequest(&querierv1.ProfileTypesRequest{}))
+	if err != nil {
+		return "", err
+	}
+	for _, pt := range resp.Msg.GetProfileTypes() {
+		if strings.HasPrefix(pt.GetID(), prefix) {
+			return pt.GetID(), nil
+		}
+	}
+	var ids []string
+	for _, pt := range resp.Msg.GetProfileTypes() {
+		ids = append(ids, pt.GetID())
+	}
+	return "", fmt.Errorf("no profile type with prefix %q found among %v", prefix, ids)
+}
+
 // collapsedContainsFrame checks whether any frame in the collapsed stack output
 // exactly matches the given name. Unlike frameContains, this does not expect a
 // class.method pattern — it matches the full frame string, which is useful for
@@ -479,9 +501,27 @@ func TestAllocatedTypeConfig(t *testing.T) {
 	})
 	runLoadGenerator(ctx, t, appBaseURL)
 
-	allocProfileType := "alloc:alloc_samples:count:cpu:nanoseconds"
-	heapProfileType := "heap:inuse_objects:count:cpu:nanoseconds"
 	labelSelector := fmt.Sprintf(`{service_name="%s"}`, svcName)
+
+	// Wait for profiles to appear then discover the actual profile type IDs
+	// from Pyroscope (the exact format depends on the server version).
+	var allocProfileType, heapProfileType string
+	require.Eventually(t, func() bool {
+		var err error
+		allocProfileType, err = discoverProfileType(t, pyroscopeURL, "alloc:")
+		if err != nil {
+			t.Logf("discovering alloc profile type: %v", err)
+			return false
+		}
+		heapProfileType, err = discoverProfileType(t, pyroscopeURL, "heap:")
+		if err != nil {
+			t.Logf("discovering heap profile type: %v", err)
+			return false
+		}
+		return true
+	}, 3*time.Minute, 5*time.Second, "timed out waiting for alloc/heap profile types to appear in Pyroscope")
+	t.Logf("discovered alloc profile type: %s", allocProfileType)
+	t.Logf("discovered heap profile type: %s", heapProfileType)
 
 	t.Run("alloc_type_leaf", func(t *testing.T) {
 		var lastCollapsed string
