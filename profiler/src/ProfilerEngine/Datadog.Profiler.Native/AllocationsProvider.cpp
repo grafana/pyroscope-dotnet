@@ -71,7 +71,9 @@ AllocationsProvider::AllocationsProvider(
     _sampleLimit(pConfiguration->AllocationSampleLimit()),
     _pConfiguration(pConfiguration),
     _callstackProvider{std::move(pool)},
-    _metricsRegistry{metricsRegistry}
+    _metricsRegistry{metricsRegistry},
+    _addTypeAsLeaf{pConfiguration->IsAllocationTypeLeafEnabled()},
+    _addTypeAsLabel{pConfiguration->IsAllocationTypeLabelEnabled()}
 {
     _allocationsCountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_allocations");
     _allocationsSizeMetric = metricsRegistry.GetOrRegister<MeanMaxMetric>("dotnet_allocations_size");
@@ -144,6 +146,8 @@ void AllocationsProvider::OnAllocation(uint32_t allocationKind,
         // So rely on the frame store to get a C#-like representation like what is done for frames
         rawSample.AllocationClass = shared::ToString(shared::WSTRING(typeName));
     }
+    rawSample.AddTypeAsLeaf = _addTypeAsLeaf;
+    rawSample.AddTypeAsLabel = _addTypeAsLabel;
 
     // the listener is the live objects profiler: could be null if disabled
     if (_pListener != nullptr)
@@ -228,6 +232,8 @@ void AllocationsProvider::OnAllocationSampled(
         // So rely on the frame store to get a C#-like representation like what is done for frames
         rawSample.AllocationClass = shared::ToString(shared::WSTRING(typeName));
     }
+    rawSample.AddTypeAsLeaf = _addTypeAsLeaf;
+    rawSample.AddTypeAsLabel = _addTypeAsLabel;
 
     // the listener is the live objects profiler: could be null if disabled
     if (_pListener != nullptr)
@@ -327,6 +333,8 @@ void AllocationsProvider::OnAllocation(std::chrono::nanoseconds timestamp,
     {
         rawSample.AllocationClass = typeName;
     }
+    rawSample.AddTypeAsLeaf = _addTypeAsLeaf;
+    rawSample.AddTypeAsLabel = _addTypeAsLabel;
 
     // the listener is the live objects profiler: could be null if disabled
     if (_pListener != nullptr)

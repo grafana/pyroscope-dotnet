@@ -100,4 +100,6 @@ public:
     virtual uint64_t GetHeapSamplingRate() const = 0;
     virtual bool UseManagedCodeCache() const = 0;
     virtual bool IsMemoryFootprintEnabled() const = 0;
+    virtual bool IsAllocationTypeLeafEnabled() const = 0;
+    virtual bool IsAllocationTypeLabelEnabled() const = 0;
 };

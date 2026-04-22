@@ -108,6 +108,8 @@ public:
     MOCK_METHOD(uint64_t, GetHeapSamplingRate, (), (const override));
     MOCK_METHOD(bool, UseManagedCodeCache, (), (const override));
     MOCK_METHOD(bool, IsMemoryFootprintEnabled, (), (const override));
+    MOCK_METHOD(bool, IsAllocationTypeLeafEnabled, (), (const override));
+    MOCK_METHOD(bool, IsAllocationTypeLabelEnabled, (), (const override));
 };
 
 class MockExporter : public IExporter
