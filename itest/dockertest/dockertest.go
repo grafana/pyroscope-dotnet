@@ -176,11 +176,14 @@ func normalizePort(port string) string {
 func run(t *testing.T, name string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command(name, args...)
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("dockertest: %s %s failed: %v\n%s", name, strings.Join(args, " "), err, out)
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("dockertest: %s %s failed: %v\nstdout: %s\nstderr: %s",
+			name, strings.Join(args, " "), err, stdout.String(), stderr.String())
 	}
-	return string(out)
+	return stdout.String()
 }
 
 func runQuiet(name string, args ...string) {
@@ -197,9 +200,10 @@ func copyFile(t *testing.T, containerID string, f ContainerFile) {
 	cmd := exec.Command("docker", "exec", "-i", containerID,
 		"sh", "-c", fmt.Sprintf("cat > %s", f.ContainerPath))
 	cmd.Stdin = strings.NewReader(string(content))
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("dockertest: copy to %s:%s: %v\n%s", containerID[:12], f.ContainerPath, err, out)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("dockertest: copy to %s:%s: %v\n%s", containerID[:12], f.ContainerPath, err, stderr.String())
 	}
 }
 
