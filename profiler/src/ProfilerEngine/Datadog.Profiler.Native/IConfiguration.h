@@ -102,4 +102,6 @@ public:
     virtual bool IsMemoryFootprintEnabled() const = 0;
     virtual bool IsAllocationTypeLeafEnabled() const = 0;
     virtual bool IsAllocationTypeLabelEnabled() const = 0;
+    virtual bool IsHeapTypeLeafEnabled() const = 0;
+    virtual bool IsHeapTypeLabelEnabled() const = 0;
 };

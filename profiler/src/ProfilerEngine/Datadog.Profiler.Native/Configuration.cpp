@@ -155,6 +155,8 @@ Configuration::Configuration()
     _isMemoryFootprintEnabled = GetEnvironmentValue(EnvironmentVariables::MemoryFootprintEnabled, false);
     _isAllocationTypeLeafEnabled = GetEnvironmentValue(EnvironmentVariables::AllocationTypeLeafEnabled, false);
     _isAllocationTypeLabelEnabled = GetEnvironmentValue(EnvironmentVariables::AllocationTypeLabelEnabled, false);
+    _isHeapTypeLeafEnabled = GetEnvironmentValue(EnvironmentVariables::HeapTypeLeafEnabled, false);
+    _isHeapTypeLabelEnabled = GetEnvironmentValue(EnvironmentVariables::HeapTypeLabelEnabled, false);
 }
 
 fs::path Configuration::ExtractLogDirectory()
@@ -363,6 +365,16 @@ bool Configuration::IsAllocationTypeLeafEnabled() const
 bool Configuration::IsAllocationTypeLabelEnabled() const
 {
     return _isAllocationTypeLabelEnabled;
+}
+
+bool Configuration::IsHeapTypeLeafEnabled() const
+{
+    return _isHeapTypeLeafEnabled;
+}
+
+bool Configuration::IsHeapTypeLabelEnabled() const
+{
+    return _isHeapTypeLabelEnabled;
 }
 
 bool Configuration::IsAllocationRecorderEnabled() const
