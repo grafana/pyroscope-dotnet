@@ -28,7 +28,7 @@ ProfilerSignalManager::~ProfilerSignalManager() noexcept
         _isHandlerInPlace = false;
         sigaction(_signalToSend, &_previousAction, nullptr);
     }
-    _handler = nullptr;
+    _handler.store(nullptr, std::memory_order_relaxed);
 }
 
 ProfilerSignalManager* ProfilerSignalManager::Get(int signal)
@@ -49,16 +49,17 @@ ProfilerSignalManager* ProfilerSignalManager::Get(int signal)
 
 bool ProfilerSignalManager::RegisterHandler(HandlerFn_t handler)
 {
-    HandlerFn_t current = _handler;
+    HandlerFn_t current = _handler.load(std::memory_order_acquire);
 
-    if (current != nullptr)
+    if (current != nullptr && _isHandlerInPlace)
     {
         assert(current == handler);
         return current == handler;
     }
     std::unique_lock<std::mutex> lock(_handlerRegisterMutex);
 
-    if (current != nullptr)
+    current = _handler.load(std::memory_order_acquire);
+    if (current != nullptr && _isHandlerInPlace)
     {
         assert(current == handler);
         return current == handler;
@@ -68,7 +69,7 @@ bool ProfilerSignalManager::RegisterHandler(HandlerFn_t handler)
 
     if (_isHandlerInPlace)
     {
-        _handler = handler;
+        _handler.store(handler, std::memory_order_release);
     }
 
     return _isHandlerInPlace;
@@ -106,6 +107,7 @@ bool ProfilerSignalManager::IgnoreSignal() {
                    strerror(errno), ".");
         return false;
     }
+    _isHandlerInPlace = false;
     return true;
 }
 
@@ -175,12 +177,18 @@ bool ProfilerSignalManager::SetupSignalHandler()
     sigemptyset(&sampleAction.sa_mask);
     sigaddset(&sampleAction.sa_mask, _signalToSend);
 
-    int32_t result = sigaction(_signalToSend, &sampleAction, &_previousAction);
+    struct sigaction oldAction;
+    int32_t result = sigaction(_signalToSend, &sampleAction, &oldAction);
     if (result != 0)
     {
         Log::Error("ProfilerSignalManager::SetupSignalHandler: Failed to setup signal handler for ", strsignal(_signalToSend), " signals. Reason: ",
                    strerror(errno), ".");
         return false;
+    }
+
+    if (oldAction.sa_handler != SIG_IGN)
+    {
+        _previousAction = oldAction;
     }
 
     Log::Info("ProfilerSignalManager::SetupSignalHandler: Successfully setup signal handler for ", strsignal(_signalToSend), " signal.");
@@ -204,7 +212,7 @@ void ProfilerSignalManager::SignalHandler(int signal, siginfo_t* info, void* con
 
 bool ProfilerSignalManager::CallCustomHandler(int32_t signal, siginfo_t* info, void* context)
 {
-    HandlerFn_t handler = _handler;
+    HandlerFn_t handler = _handler.load(std::memory_order_acquire);
     return handler != nullptr && handler(signal, info, context);
 }
 
