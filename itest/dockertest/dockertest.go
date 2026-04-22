@@ -159,7 +159,7 @@ func BuildImage(t *testing.T, req BuildRequest) string {
 func BridgeGatewayIP(t *testing.T) string {
 	t.Helper()
 	output := run(t, "docker", "network", "inspect", "bridge",
-		"--format", `{{range .IPAM.Config}}{{.Gateway}}{{end}}`)
+		"--format", `{{(index .IPAM.Config 0).Gateway}}`)
 	ip := strings.TrimSpace(output)
 	if ip == "" {
 		t.Fatal("dockertest: could not determine Docker bridge gateway IP")
@@ -198,7 +198,7 @@ func copyFile(t *testing.T, containerID string, f ContainerFile) {
 		t.Fatalf("dockertest: reading file for %s: %v", f.ContainerPath, err)
 	}
 	cmd := exec.Command("docker", "exec", "-i", containerID,
-		"sh", "-c", fmt.Sprintf("cat > %s", f.ContainerPath))
+		"sh", "-c", fmt.Sprintf("cat > '%s'", f.ContainerPath))
 	cmd.Stdin = strings.NewReader(string(content))
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
