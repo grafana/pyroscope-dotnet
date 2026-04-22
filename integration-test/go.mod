@@ -1,4 +1,4 @@
-module pyroscope-dotnet-itest
+module pyroscope-dotnet-integration-test
 
 go 1.24.6
 

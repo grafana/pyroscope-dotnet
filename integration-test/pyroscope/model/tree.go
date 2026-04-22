@@ -7,7 +7,7 @@ import (
 	"sort"
 	"strings"
 
-	"pyroscope-dotnet-itest/pyroscope/minheap"
+	"pyroscope-dotnet-integration-test/pyroscope/minheap"
 
 	dvarint "github.com/dennwc/varint"
 )

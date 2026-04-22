@@ -1,4 +1,4 @@
-package itest
+package integrationtest
 
 import (
 	"bytes"
@@ -22,8 +22,8 @@ import (
 	"testing"
 	"time"
 
-	"pyroscope-dotnet-itest/dockertest"
-	"pyroscope-dotnet-itest/pyroscope/model"
+	"pyroscope-dotnet-integration-test/dockertest"
+	"pyroscope-dotnet-integration-test/pyroscope/model"
 
 	"connectrpc.com/connect"
 	querierv1 "github.com/grafana/pyroscope/api/gen/proto/go/querier/v1"
@@ -46,9 +46,9 @@ func startPyroscope(t *testing.T, net *dockertest.Network) string {
 
 func buildAppImage(t *testing.T, libcType, version string, otel bool) string {
 	t.Helper()
-	tag := fmt.Sprintf("rideshare-app-%s:itest-%s", libcType, version)
+	tag := fmt.Sprintf("rideshare-app-%s:integration-test-%s", libcType, version)
 	if otel {
-		tag = fmt.Sprintf("rideshare-app-%s-otel:itest-%s", libcType, version)
+		tag = fmt.Sprintf("rideshare-app-%s-otel:integration-test-%s", libcType, version)
 	}
 	dockertest.BuildImage(t, dockertest.BuildRequest{
 		Context:    repoRoot(),
