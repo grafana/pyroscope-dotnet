@@ -36,5 +36,40 @@ app.MapGet("/npe", () =>
     return "NPE work";
 });
 
+// Example: POST /profiling?cpu=true&allocation=false&contention=true&exception=false
+app.MapPost("/profiling", (bool? cpu, bool? allocation, bool? contention, bool? exception, ILoggerFactory loggerFactory) =>
+{
+    var log = loggerFactory.CreateLogger("Pyroscope.Profiling");
+    var profiler = Pyroscope.Profiler.Instance;
+    var changed = new Dictionary<string, bool>();
+
+    if (cpu.HasValue)
+    {
+        log.LogInformation("Profiler.SetCPUTrackingEnabled({Value})", cpu.Value);
+        profiler.SetCPUTrackingEnabled(cpu.Value);
+        changed["cpu"] = cpu.Value;
+    }
+    if (allocation.HasValue)
+    {
+        log.LogInformation("Profiler.SetAllocationTrackingEnabled({Value})", allocation.Value);
+        profiler.SetAllocationTrackingEnabled(allocation.Value);
+        changed["allocation"] = allocation.Value;
+    }
+    if (contention.HasValue)
+    {
+        log.LogInformation("Profiler.SetContentionTrackingEnabled({Value})", contention.Value);
+        profiler.SetContentionTrackingEnabled(contention.Value);
+        changed["contention"] = contention.Value;
+    }
+    if (exception.HasValue)
+    {
+        log.LogInformation("Profiler.SetExceptionTrackingEnabled({Value})", exception.Value);
+        profiler.SetExceptionTrackingEnabled(exception.Value);
+        changed["exception"] = exception.Value;
+    }
+
+    return Results.Ok(changed);
+});
+
 
 app.Run();
