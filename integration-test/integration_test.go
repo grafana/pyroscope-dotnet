@@ -1,4 +1,4 @@
-package itest
+package integrationtest
 
 import (
 	"bytes"
@@ -15,58 +15,60 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
-	"pyroscope-dotnet-itest/pyroscope/model"
+	"pyroscope-dotnet-integration-test/dockertest"
+	"pyroscope-dotnet-integration-test/pyroscope/model"
 
 	"connectrpc.com/connect"
-	dockertypes "github.com/docker/docker/api/types"
-	dockercontainer "github.com/docker/docker/api/types/container"
-	dockernetwork "github.com/docker/docker/api/types/network"
-	dockerclient "github.com/docker/docker/client"
 	querierv1 "github.com/grafana/pyroscope/api/gen/proto/go/querier/v1"
 	"github.com/grafana/pyroscope/api/gen/proto/go/querier/v1/querierv1connect"
 	typesv1 "github.com/grafana/pyroscope/api/gen/proto/go/types/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/network"
-	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-func strPtr(s string) *string { return &s }
-
-func startPyroscope(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork) string {
+func startPyroscope(t *testing.T, net *dockertest.Network) string {
 	t.Helper()
-	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        "grafana/pyroscope@sha256:0ad897bb457228c7d1133ce7004f83052e635be9daf4a7cc90364317637e9754",
-			ExposedPorts: []string{"4040/tcp"},
-			Networks:     []string{net.Name},
-			NetworkAliases: map[string][]string{
-				net.Name: {"pyroscope"},
-			},
-			WaitingFor: wait.ForHTTP("/ready").WithPort("4040/tcp").WithStartupTimeout(60 * time.Second),
-		},
-		Started: true,
+	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
+		Image:          "grafana/pyroscope@sha256:0ad897bb457228c7d1133ce7004f83052e635be9daf4a7cc90364317637e9754",
+		ExposedPorts:   []string{"4040/tcp"},
+		Network:        net.Name,
+		NetworkAliases: []string{"pyroscope"},
+		WaitFor:        dockertest.WaitForHTTP("/ready", "4040/tcp", 60*time.Second),
 	})
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = c.Terminate(ctx) })
-
-	host, err := c.Host(ctx)
-	require.NoError(t, err)
-	port, err := c.MappedPort(ctx, "4040/tcp")
-	require.NoError(t, err)
-	return fmt.Sprintf("http://%s:%s", host, port.Port())
+	return fmt.Sprintf("http://%s", c.HostPort(t, "4040/tcp"))
 }
 
-func startAppWithEnv(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork, libcType, version string, otel bool, extraEnv map[string]string) string {
+func buildAppImage(t *testing.T, libcType, version string, otel bool) string {
+	t.Helper()
+	tag := fmt.Sprintf("rideshare-app-%s:integration-test-%s", libcType, version)
+	if otel {
+		tag = fmt.Sprintf("rideshare-app-%s-otel:integration-test-%s", libcType, version)
+	}
+	dockertest.BuildImage(t, dockertest.BuildRequest{
+		Context:    repoRoot(),
+		Dockerfile: filepath.Join(repoRoot(), appDockerfile(otel)),
+		Platform:   "linux/amd64",
+		Tag:        tag,
+		BuildArgs: map[string]string{
+			"PYROSCOPE_SDK_IMAGE": profilerImageTag(libcType),
+			"SDK_VERSION":         version,
+			"SDK_IMAGE_SUFFIX":    sdkImageSuffix(libcType, version),
+		},
+	})
+	return tag
+}
+
+func startAppWithEnv(t *testing.T, net *dockertest.Network, libcType, version string, otel bool, extraEnv map[string]string) string {
 	t.Helper()
 	ensureProfilerImage(t, libcType)
+	image := buildAppImage(t, libcType, version, otel)
 
 	svcName := rideshareServiceName(libcType, version, otel)
 	env := map[string]string{
@@ -78,44 +80,21 @@ func startAppWithEnv(ctx context.Context, t *testing.T, net *testcontainers.Dock
 	for k, v := range extraEnv {
 		env[k] = v
 	}
-	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			FromDockerfile: testcontainers.FromDockerfile{
-				Context:       repoRoot(),
-				Dockerfile:    appDockerfile(otel),
-				PrintBuildLog: true,
-				BuildArgs: map[string]*string{
-					"PYROSCOPE_SDK_IMAGE": strPtr(profilerImageTag(libcType)),
-					"SDK_VERSION":         strPtr(version),
-					"SDK_IMAGE_SUFFIX":    strPtr(sdkImageSuffix(libcType, version)),
-				},
-				BuildOptionsModifier: func(opts *dockertypes.ImageBuildOptions) {
-					opts.Platform = "linux/amd64"
-				},
-			},
-			Networks: []string{net.Name},
-			NetworkAliases: map[string][]string{
-				net.Name: {"rideshare"},
-			},
-			Env:          env,
-			ExposedPorts: []string{"5000/tcp"},
-			WaitingFor:   wait.ForListeningPort("5000/tcp").WithStartupTimeout(120 * time.Second),
-		},
-		Started: true,
+	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
+		Image:          image,
+		Platform:       "linux/amd64",
+		Network:        net.Name,
+		NetworkAliases: []string{"rideshare"},
+		Env:            env,
+		ExposedPorts:   []string{"5000/tcp"},
+		WaitFor:        dockertest.WaitForHTTP("/healthz", "5000/tcp", 120*time.Second),
 	})
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = c.Terminate(ctx) })
-
-	host, err := c.Host(ctx)
-	require.NoError(t, err)
-	port, err := c.MappedPort(ctx, "5000/tcp")
-	require.NoError(t, err)
-	return fmt.Sprintf("http://%s:%s", host, port.Port())
+	return fmt.Sprintf("http://%s", c.HostPort(t, "5000/tcp"))
 }
 
-func startApp(ctx context.Context, t *testing.T, net *testcontainers.DockerNetwork, libcType, version string, otel bool) string {
+func startApp(t *testing.T, net *dockertest.Network, libcType, version string, otel bool) string {
 	t.Helper()
-	return startAppWithEnv(ctx, t, net, libcType, version, otel, nil)
+	return startAppWithEnv(t, net, libcType, version, otel, nil)
 }
 
 // runLoadGenerator cycles through /bike, /scooter, /car requests in a goroutine
@@ -281,12 +260,10 @@ func runRideshareProfileTest(t *testing.T, libcType, version string, otel bool) 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	net, err := network.New(ctx)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = net.Remove(ctx) })
+	net := dockertest.CreateNetwork(t)
 
-	pyroscopeURL := startPyroscope(ctx, t, net)
-	appBaseURL := startApp(ctx, t, net, libcType, version, otel)
+	pyroscopeURL := startPyroscope(t, net)
+	appBaseURL := startApp(t, net, libcType, version, otel)
 	runLoadGenerator(ctx, t, appBaseURL)
 
 	svcName := rideshareServiceName(libcType, version, otel)
@@ -352,18 +329,13 @@ func TestRideshareProfilesWithOTEL(t *testing.T) {
 }
 
 func TestDynamicCpuToggleDoesNotCrash(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+	net := dockertest.CreateNetwork(t)
 
-	net, err := network.New(ctx)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = net.Remove(ctx) })
-
-	_ = startPyroscope(ctx, t, net)
-	appBaseURL := startAppWithEnv(ctx, t, net, envLibcType(), envDotnetVersion(), false, map[string]string{
-		"PYROSCOPE_PROFILING_ENABLED":           "true",
-		"PYROSCOPE_PROFILING_CPU_ENABLED":       "true",
-		"PYROSCOPE_PROFILING_WALLTIME_ENABLED":  "true",
+	_ = startPyroscope(t, net)
+	appBaseURL := startAppWithEnv(t, net, envLibcType(), envDotnetVersion(), false, map[string]string{
+		"PYROSCOPE_PROFILING_ENABLED":            "true",
+		"PYROSCOPE_PROFILING_CPU_ENABLED":        "true",
+		"PYROSCOPE_PROFILING_WALLTIME_ENABLED":   "true",
 		"PYROSCOPE_PROFILING_ALLOCATION_ENABLED": "true",
 		"PYROSCOPE_PROFILING_CONTENTION_ENABLED": "true",
 		"PYROSCOPE_PROFILING_EXCEPTION_ENABLED":  "true",
@@ -410,20 +382,15 @@ func TestDynamicCpuToggleDoesNotCrash(t *testing.T) {
 }
 
 func TestDynamicCpuProfilingToggleAffectsProfileData(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
+	net := dockertest.CreateNetwork(t)
 
-	net, err := network.New(ctx)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = net.Remove(ctx) })
-
-	pyroscopeURL := startPyroscope(ctx, t, net)
+	pyroscopeURL := startPyroscope(t, net)
 	appName := fmt.Sprintf("rideshare.dynamic-cpu-toggle.%d", time.Now().UnixNano())
-	appBaseURL := startAppWithEnv(ctx, t, net, envLibcType(), envDotnetVersion(), false, map[string]string{
-		"PYROSCOPE_APPLICATION_NAME":            appName,
-		"PYROSCOPE_PROFILING_ENABLED":           "true",
-		"PYROSCOPE_PROFILING_CPU_ENABLED":       "true",
-		"PYROSCOPE_PROFILING_WALLTIME_ENABLED":  "true",
+	appBaseURL := startAppWithEnv(t, net, envLibcType(), envDotnetVersion(), false, map[string]string{
+		"PYROSCOPE_APPLICATION_NAME":             appName,
+		"PYROSCOPE_PROFILING_ENABLED":            "true",
+		"PYROSCOPE_PROFILING_CPU_ENABLED":        "true",
+		"PYROSCOPE_PROFILING_WALLTIME_ENABLED":   "true",
 		"PYROSCOPE_PROFILING_ALLOCATION_ENABLED": "true",
 		"PYROSCOPE_PROFILING_CONTENTION_ENABLED": "true",
 		"PYROSCOPE_PROFILING_EXCEPTION_ENABLED":  "true",
@@ -693,93 +660,55 @@ func startTLSProfileReceiver(t *testing.T, hostname string) (port int, caCertPEM
 	return
 }
 
-func dockerBridgeGatewayIP(ctx context.Context, t *testing.T) string {
-	t.Helper()
-	cli, err := dockerclient.NewClientWithOpts(dockerclient.FromEnv, dockerclient.WithAPIVersionNegotiation())
-	require.NoError(t, err)
-	defer cli.Close()
-
-	info, err := cli.NetworkInspect(ctx, "bridge", dockernetwork.InspectOptions{})
-	require.NoError(t, err)
-	for _, cfg := range info.IPAM.Config {
-		if cfg.Gateway != "" {
-			return cfg.Gateway
-		}
-	}
-	t.Fatal("could not determine Docker bridge gateway IP")
-	return ""
-}
-
-func hostDockerInternalExtraHost(ctx context.Context, t *testing.T) string {
+// hostDockerInternalExtraHost returns the --add-host entry that makes
+// host.docker.internal reachable from inside a container.
+//
+// On macOS (Docker Desktop / OrbStack) host.docker.internal is configured
+// automatically by the runtime, so no extra entry is needed.
+// On Linux the hostname is not injected by default; we map it to the Docker
+// bridge gateway, which is the address containers use to reach the host.
+func hostDockerInternalExtraHost(t *testing.T) string {
 	t.Helper()
 	if runtime.GOOS != "linux" {
 		return ""
 	}
-	return "host.docker.internal:" + dockerBridgeGatewayIP(ctx, t)
+	return "host.docker.internal:" + dockertest.BridgeGatewayIP(t)
 }
 
-func startAppForTLSTest(ctx context.Context, t *testing.T, libcType, version, serverAddress string, caCertPEM []byte) string {
+func startAppForTLSTest(t *testing.T, libcType, version, serverAddress string, caCertPEM []byte) string {
 	t.Helper()
 	ensureProfilerImage(t, libcType)
+	image := buildAppImage(t, libcType, version, false)
 
-	extraHost := hostDockerInternalExtraHost(ctx, t)
+	extraHost := hostDockerInternalExtraHost(t)
+	var extraHosts []string
+	if extraHost != "" {
+		extraHosts = []string{extraHost}
+	}
 
-	c, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			FromDockerfile: testcontainers.FromDockerfile{
-				Context:       repoRoot(),
-				Dockerfile:    appDockerfile(false),
-				PrintBuildLog: true,
-				BuildArgs: map[string]*string{
-					"PYROSCOPE_SDK_IMAGE": strPtr(profilerImageTag(libcType)),
-					"SDK_VERSION":         strPtr(version),
-					"SDK_IMAGE_SUFFIX":    strPtr(sdkImageSuffix(libcType, version)),
-				},
-				BuildOptionsModifier: func(opts *dockertypes.ImageBuildOptions) {
-					opts.Platform = "linux/amd64"
-				},
-			},
-			Env: map[string]string{
-				"REGION":                     "us-east",
-				"PYROSCOPE_APPLICATION_NAME": "tls-test-app",
-				"PYROSCOPE_SERVER_ADDRESS":   serverAddress,
-				"DD_TRACE_DEBUG":             "true",
-			},
-			Files: []testcontainers.ContainerFile{
-				{
-					Reader:            bytes.NewReader(caCertPEM),
-					ContainerFilePath: "/tmp/ca.crt",
-					FileMode:          0644,
-				},
-			},
-			LifecycleHooks: []testcontainers.ContainerLifecycleHooks{
-				{
-					PostStarts: []testcontainers.ContainerHook{
-						func(ctx context.Context, c testcontainers.Container) error {
-							_, _, err := c.Exec(ctx, []string{"sh", "-c", "cat /tmp/ca.crt >> /etc/ssl/cert.pem"})
-							return err
-						},
-					},
-				},
-			},
-			HostConfigModifier: func(hc *dockercontainer.HostConfig) {
-				if extraHost != "" {
-					hc.ExtraHosts = append(hc.ExtraHosts, extraHost)
-				}
-			},
-			ExposedPorts: []string{"5000/tcp"},
-			WaitingFor:   wait.ForListeningPort("5000/tcp").WithStartupTimeout(120 * time.Second),
+	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
+		Image:    image,
+		Platform: "linux/amd64",
+		Env: map[string]string{
+			"REGION":                     "us-east",
+			"PYROSCOPE_APPLICATION_NAME": "tls-test-app",
+			"PYROSCOPE_SERVER_ADDRESS":   serverAddress,
+			"DD_TRACE_DEBUG":             "true",
 		},
-		Started: true,
+		ExtraHosts: extraHosts,
+		Files: []dockertest.ContainerFile{
+			{
+				Reader:        bytes.NewReader(caCertPEM),
+				ContainerPath: "/tmp/ca.crt",
+			},
+		},
+		PostStart: [][]string{
+			{"sh", "-c", "cat /tmp/ca.crt >> /etc/ssl/cert.pem"},
+		},
+		ExposedPorts: []string{"5000/tcp"},
+		WaitFor:      dockertest.WaitForHTTP("/healthz", "5000/tcp", 120*time.Second),
 	})
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = c.Terminate(ctx) })
-
-	host, err := c.Host(ctx)
-	require.NoError(t, err)
-	mappedPort, err := c.MappedPort(ctx, "5000/tcp")
-	require.NoError(t, err)
-	return fmt.Sprintf("http://%s:%s", host, mappedPort.Port())
+	return fmt.Sprintf("http://%s", c.HostPort(t, "5000/tcp"))
 }
 
 func runTLSProfileUploadTest(t *testing.T, libcType, version string) {
@@ -790,7 +719,7 @@ func runTLSProfileUploadTest(t *testing.T, libcType, version string) {
 	port, caCertPEM, received := startTLSProfileReceiver(t, hostname)
 	serverAddress := fmt.Sprintf("https://%s:%d", hostname, port)
 
-	appBaseURL := startAppForTLSTest(ctx, t, libcType, version, serverAddress, caCertPEM)
+	appBaseURL := startAppForTLSTest(t, libcType, version, serverAddress, caCertPEM)
 	runLoadGenerator(ctx, t, appBaseURL)
 
 	select {
