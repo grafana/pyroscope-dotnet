@@ -609,7 +609,7 @@ void StackSamplerLoop::ResetThreadsCpuConsumption()
         std::shared_ptr<ManagedThreadInfo> it = _pManagedThreadList->LoopNext(_iteratorCpuTime);
         if (it != nullptr)
         {
-            auto [isRunning, currentConsumption, failure] = OsSpecificApi::IsRunning(it.get());
+            auto [isRunning, currentConsumption, failure] = OsSpecificApi::IsRunning(_targetThread.get());
             if (!failure)
             {
                 it->SetCpuConsumption(currentConsumption, t1);
