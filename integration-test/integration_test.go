@@ -464,13 +464,11 @@ func TestAllocatedTypeConfig(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	net, err := network.New(ctx)
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = net.Remove(ctx) })
+	net := dockertest.CreateNetwork(t)
 
-	pyroscopeURL := startPyroscope(ctx, t, net)
+	pyroscopeURL := startPyroscope(t, net)
 	svcName := fmt.Sprintf("rideshare.dotnet.%s.%s.alloc-type", libcType, version)
-	appBaseURL := startAppWithEnv(ctx, t, net, libcType, version, false, map[string]string{
+	appBaseURL := startAppWithEnv(t, net, libcType, version, false, map[string]string{
 		"PYROSCOPE_APPLICATION_NAME":              svcName,
 		"PYROSCOPE_PROFILING_ALLOCATION_ENABLED":  "true",
 		"PYROSCOPE_PROFILING_HEAP_ENABLED":        "true",
