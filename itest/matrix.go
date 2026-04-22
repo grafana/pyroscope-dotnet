@@ -25,7 +25,7 @@ func sdkImageSuffix(libcType, version string) string {
 		return "-alpine"
 	}
 	switch version {
-	case "6.0", "8.0":
+	case "8.0":
 		return "-jammy"
 	case "9.0", "10.0":
 		return "-noble"
