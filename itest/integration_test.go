@@ -14,7 +14,6 @@ import (
 	"math/big"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -32,38 +31,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func envOrDefault(key, defaultValue string) string {
-	if v := os.Getenv(key); v != "" {
-		return v
-	}
-	return defaultValue
-}
-
-func repoRoot() string {
-	_, filename, _, _ := runtime.Caller(0)
-	return filepath.Dir(filepath.Dir(filename))
-}
-
-func flavour() string       { return envOrDefault("FLAVOUR", "glibc") }
-func dotnetVersion() string { return envOrDefault("DOTNET_VERSION", "8.0") }
-func isOTEL() bool          { return os.Getenv("OTEL") == "true" }
-
-func rideshareImage() string {
-	base := fmt.Sprintf("rideshare-app-%s", flavour())
-	if isOTEL() {
-		base += "-otel"
-	}
-	return fmt.Sprintf("%s:net%s", base, dotnetVersion())
-}
-
-func serviceName() string {
-	base := fmt.Sprintf("rideshare.dotnet.%s.%s.app", flavour(), dotnetVersion())
-	if isOTEL() {
-		base += "-otel"
-	}
-	return base
-}
-
 func startPyroscope(t *testing.T, net *dockertest.Network) string {
 	t.Helper()
 	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
@@ -76,16 +43,40 @@ func startPyroscope(t *testing.T, net *dockertest.Network) string {
 	return fmt.Sprintf("http://%s", c.HostPort(t, "4040/tcp"))
 }
 
-func startApp(t *testing.T, net *dockertest.Network) string {
+func buildAppImage(t *testing.T, libcType, version string, otel bool) string {
 	t.Helper()
+	tag := fmt.Sprintf("rideshare-app-%s:itest-%s", libcType, version)
+	if otel {
+		tag = fmt.Sprintf("rideshare-app-%s-otel:itest-%s", libcType, version)
+	}
+	dockertest.BuildImage(t, dockertest.BuildRequest{
+		Context:    repoRoot(),
+		Dockerfile: filepath.Join(repoRoot(), appDockerfile(otel)),
+		Platform:   "linux/amd64",
+		Tag:        tag,
+		BuildArgs: map[string]string{
+			"PYROSCOPE_SDK_IMAGE": profilerImageTag(libcType),
+			"SDK_VERSION":         version,
+			"SDK_IMAGE_SUFFIX":    sdkImageSuffix(libcType, version),
+		},
+	})
+	return tag
+}
+
+func startApp(t *testing.T, net *dockertest.Network, libcType, version string, otel bool) string {
+	t.Helper()
+	ensureProfilerImage(t, libcType)
+	image := buildAppImage(t, libcType, version, otel)
+
+	svcName := rideshareServiceName(libcType, version, otel)
 	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
-		Image:    rideshareImage(),
-		Platform: "linux/amd64",
-		Network:  net.Name,
+		Image:          image,
+		Platform:       "linux/amd64",
+		Network:        net.Name,
 		NetworkAliases: []string{"rideshare"},
 		Env: map[string]string{
 			"REGION":                     "us-east",
-			"PYROSCOPE_APPLICATION_NAME": serviceName(),
+			"PYROSCOPE_APPLICATION_NAME": svcName,
 			"PYROSCOPE_SERVER_ADDRESS":   "http://pyroscope:4040",
 			"DD_TRACE_DEBUG":             "true",
 		},
@@ -95,8 +86,6 @@ func startApp(t *testing.T, net *dockertest.Network) string {
 	return fmt.Sprintf("http://%s", c.HostPort(t, "5000/tcp"))
 }
 
-// runLoadGenerator cycles through /bike, /scooter, /car requests in a goroutine
-// until ctx is cancelled.
 func runLoadGenerator(ctx context.Context, t *testing.T, appBaseURL string) {
 	t.Helper()
 	vehicles := []string{"bike", "scooter", "car"}
@@ -182,17 +171,17 @@ type vehicleCheck struct {
 	expectedFrames [][2]string // each entry is [className, methodName]
 }
 
-func TestRideshareProfiles(t *testing.T) {
+func runRideshareProfileTest(t *testing.T, libcType, version string, otel bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
 	net := dockertest.CreateNetwork(t)
 
 	pyroscopeURL := startPyroscope(t, net)
-	appBaseURL := startApp(t, net)
+	appBaseURL := startApp(t, net, libcType, version, otel)
 	runLoadGenerator(ctx, t, appBaseURL)
 
-	svcName := serviceName()
+	svcName := rideshareServiceName(libcType, version, otel)
 
 	checks := []vehicleCheck{
 		{
@@ -244,6 +233,14 @@ func TestRideshareProfiles(t *testing.T) {
 			t.Logf("collapsed profile for %s:\n%s", check.vehicle, lastCollapsed)
 		})
 	}
+}
+
+func TestRideshareProfiles(t *testing.T) {
+	runRideshareProfileTest(t, envLibcType(), envDotnetVersion(), false)
+}
+
+func TestRideshareProfilesWithOTEL(t *testing.T) {
+	runRideshareProfileTest(t, envLibcType(), envDotnetVersion(), true)
 }
 
 // generateTestCerts creates a self-signed CA and a server certificate signed by
@@ -292,10 +289,6 @@ func generateTestCerts(t *testing.T, hostname string) (caCertPEM, serverCertPEM,
 	return
 }
 
-// startTLSProfileReceiver starts a Go TLS HTTP server on 0.0.0.0 and returns
-// the port it is listening on, the CA certificate PEM, and a channel that
-// receives a value when the first profile request arrives. The server is
-// stopped when the test finishes.
 func startTLSProfileReceiver(t *testing.T, hostname string) (port int, caCertPEM []byte, received <-chan struct{}) {
 	t.Helper()
 
@@ -343,12 +336,10 @@ func hostDockerInternalExtraHost(t *testing.T) string {
 	return "host.docker.internal:" + dockertest.BridgeGatewayIP(t)
 }
 
-// startAppForTLSTest starts the rideshare app configured to send profiles to
-// the Go TLS receiver running on the Docker host via host.docker.internal.
-// The CA certificate is appended to /etc/ssl/cert.pem (the default cert file
-// for our statically-linked OpenSSL build with --openssldir=/etc/ssl).
-func startAppForTLSTest(t *testing.T, imageName, serverAddress string, caCertPEM []byte) string {
+func startAppForTLSTest(t *testing.T, libcType, version, serverAddress string, caCertPEM []byte) string {
 	t.Helper()
+	ensureProfilerImage(t, libcType)
+	image := buildAppImage(t, libcType, version, false)
 
 	extraHost := hostDockerInternalExtraHost(t)
 	var extraHosts []string
@@ -357,7 +348,7 @@ func startAppForTLSTest(t *testing.T, imageName, serverAddress string, caCertPEM
 	}
 
 	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
-		Image:    imageName,
+		Image:    image,
 		Platform: "linux/amd64",
 		Env: map[string]string{
 			"REGION":                     "us-east",
@@ -381,103 +372,25 @@ func startAppForTLSTest(t *testing.T, imageName, serverAddress string, caCertPEM
 	return fmt.Sprintf("http://%s", c.HostPort(t, "5000/tcp"))
 }
 
-// TestTLSProfileUpload verifies that the profiler can deliver profiles over
-// HTTPS with TLS certificate verification enabled. A Go TLS server running on
-// the test host receives the profile; the app container reaches it via the
-// "profile-receiver" host alias (resolved to the Docker host gateway).
-//
-// The image under test is selected by FLAVOUR (glibc or musl) and
-// DOTNET_VERSION, following the same convention as the other integration tests.
-// Two Makefile targets drive this test: itest/tls-profile-upload/glibc/8.0 and
-// itest/tls-profile-upload/musl/8.0.
-func TestTLSProfileUpload(t *testing.T) {
+func runTLSProfileUploadTest(t *testing.T, libcType, version string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	imageName := fmt.Sprintf("rideshare-app-%s:net%s", flavour(), dotnetVersion())
-
-	// host.docker.internal is the standard hostname for reaching the Docker
-	// host from inside a container (macOS: built-in; Linux: mapped via ExtraHosts).
 	const hostname = "host.docker.internal"
 	port, caCertPEM, received := startTLSProfileReceiver(t, hostname)
 	serverAddress := fmt.Sprintf("https://%s:%d", hostname, port)
 
-	appBaseURL := startAppForTLSTest(t, imageName, serverAddress, caCertPEM)
+	appBaseURL := startAppForTLSTest(t, libcType, version, serverAddress, caCertPEM)
 	runLoadGenerator(ctx, t, appBaseURL)
 
 	select {
 	case <-received:
-		t.Logf("profile received over TLS from %s", imageName)
+		t.Logf("profile received over TLS (%s, .NET %s)", libcType, version)
 	case <-time.After(3 * time.Minute):
-		t.Fatalf("timed out waiting for profile upload from %s", imageName)
+		t.Fatalf("timed out waiting for TLS profile upload (%s, .NET %s)", libcType, version)
 	}
 }
 
-// TestRideshareProfilesWithOTEL tests Pyroscope as a notification profiler
-// when OTEL .NET auto-instrumentation occupies the classic profiler slot.
-// This test is nearly identical to TestRideshareProfiles - the only difference
-// is that OTEL=true environment variable is set by the Makefile, which causes
-// rideshareImage() and serviceName() to return OTEL variants.
-func TestRideshareProfilesWithOTEL(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	t.Cleanup(cancel)
-
-	net := dockertest.CreateNetwork(t)
-
-	pyroscopeURL := startPyroscope(t, net)
-	appBaseURL := startApp(t, net)
-	runLoadGenerator(ctx, t, appBaseURL)
-
-	svcName := serviceName()
-
-	checks := []vehicleCheck{
-		{
-			vehicle: "bike",
-			expectedFrames: [][2]string{
-				{"OrderService", "FindNearestVehicle"},
-			},
-		},
-		{
-			vehicle: "scooter",
-			expectedFrames: [][2]string{
-				{"OrderService", "FindNearestVehicle"},
-			},
-		},
-		{
-			vehicle: "car",
-			expectedFrames: [][2]string{
-				{"OrderService", "FindNearestVehicle"},
-				{"OrderService", "CheckDriverAvailability"},
-			},
-		},
-	}
-
-	for _, check := range checks {
-		check := check
-		t.Run(check.vehicle, func(t *testing.T) {
-			labelSelector := fmt.Sprintf(`{service_name="%s",vehicle="%s"}`, svcName, check.vehicle)
-			var lastCollapsed string
-			var lastErr error
-			ok := assert.Eventually(t, func() bool {
-				lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector)
-				if lastErr != nil || lastCollapsed == "" {
-					return false
-				}
-				for _, f := range check.expectedFrames {
-					if !frameContains(lastCollapsed, f[0], f[1]) {
-						return false
-					}
-				}
-				return true
-			}, 3*time.Minute, 5*time.Second)
-
-			if !ok {
-				t.Logf("label selector: %s", labelSelector)
-				t.Logf("last profile query error: %v", lastErr)
-				t.Logf("last collapsed profile:\n%s", lastCollapsed)
-				t.FailNow()
-			}
-			t.Logf("collapsed profile for %s:\n%s", check.vehicle, lastCollapsed)
-		})
-	}
+func TestTLSProfileUpload(t *testing.T) {
+	runTLSProfileUploadTest(t, envLibcType(), envDotnetVersion())
 }

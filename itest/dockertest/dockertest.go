@@ -126,6 +126,34 @@ func (c *Container) Exec(t *testing.T, cmd []string) string {
 	return run(t, "docker", args...)
 }
 
+type BuildRequest struct {
+	Context    string
+	Dockerfile string
+	BuildArgs  map[string]string
+	Platform   string
+	Tag        string
+}
+
+func BuildImage(t *testing.T, req BuildRequest) string {
+	t.Helper()
+	args := []string{"build"}
+	if req.Platform != "" {
+		args = append(args, "--platform", req.Platform)
+	}
+	if req.Tag != "" {
+		args = append(args, "-t", req.Tag)
+	}
+	if req.Dockerfile != "" {
+		args = append(args, "-f", req.Dockerfile)
+	}
+	for k, v := range req.BuildArgs {
+		args = append(args, "--build-arg", k+"="+v)
+	}
+	args = append(args, req.Context)
+	run(t, "docker", args...)
+	return req.Tag
+}
+
 func BridgeGatewayIP(t *testing.T) string {
 	t.Helper()
 	output := run(t, "docker", "network", "inspect", "bridge",

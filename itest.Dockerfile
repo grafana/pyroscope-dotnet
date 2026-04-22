@@ -1,7 +1,7 @@
+ARG BUILDPLATFORM=linux/amd64
 ARG SDK_VERSION=8.0
 ARG PYROSCOPE_SDK_IMAGE
 ARG SDK_IMAGE_SUFFIX
-# The build images takes an SDK image of the buildplatform, so the platform the build is running on.
 FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:$SDK_VERSION$SDK_IMAGE_SUFFIX AS build
 
 ARG TARGETPLATFORM
