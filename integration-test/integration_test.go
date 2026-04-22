@@ -86,7 +86,7 @@ func startAppWithEnv(t *testing.T, net *dockertest.Network, libcType, version st
 		NetworkAliases: []string{"rideshare"},
 		Env:            env,
 		ExposedPorts:   []string{"5000/tcp"},
-		WaitFor:        dockertest.WaitForPort("5000/tcp", 120*time.Second),
+		WaitFor:        dockertest.WaitForHTTP("/bike", "5000/tcp", 120*time.Second),
 	})
 	return fmt.Sprintf("http://%s", c.HostPort(t, "5000/tcp"))
 }
@@ -508,7 +508,7 @@ func startAppForTLSTest(t *testing.T, libcType, version, serverAddress string, c
 			{"sh", "-c", "cat /tmp/ca.crt >> /etc/ssl/cert.pem"},
 		},
 		ExposedPorts: []string{"5000/tcp"},
-		WaitFor:      dockertest.WaitForPort("5000/tcp", 120*time.Second),
+		WaitFor:      dockertest.WaitForHTTP("/bike", "5000/tcp", 120*time.Second),
 	})
 	return fmt.Sprintf("http://%s", c.HostPort(t, "5000/tcp"))
 }

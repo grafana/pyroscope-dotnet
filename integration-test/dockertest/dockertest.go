@@ -88,7 +88,18 @@ func StartContainer(t *testing.T, req ContainerRequest) *Container {
 
 	id := strings.TrimSpace(run(t, "docker", args...))
 	c := &Container{ID: id}
-	t.Cleanup(func() { runQuiet("docker", "rm", "-f", c.ID) })
+	t.Cleanup(func() {
+		if t.Failed() {
+			if out, err := exec.Command("docker", "inspect", c.ID, "--format",
+				"ExitCode={{.State.ExitCode}} OOMKilled={{.State.OOMKilled}} Running={{.State.Running}}").CombinedOutput(); err == nil {
+				t.Logf("dockertest: container %s state: %s", c.ID[:12], out)
+			}
+			if logs, err := exec.Command("docker", "logs", "--tail", "50", c.ID).CombinedOutput(); err == nil {
+				t.Logf("dockertest: container %s logs:\n%s", c.ID[:12], logs)
+			}
+		}
+		runQuiet("docker", "rm", "-f", c.ID)
+	})
 
 	for _, f := range req.Files {
 		copyFile(t, c.ID, f)
