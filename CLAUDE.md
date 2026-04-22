@@ -27,8 +27,6 @@ cmake .. \
 make -j$(nproc) Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64
 ```
 
-On hosts that ship only dynamic OpenSSL (e.g. Fedora's `openssl-devel`), add `-DUSE_STATIC_OPENSSL=OFF` to the `cmake` invocation.
-
 Output artifacts:
 - `profiler/_build/DDProf-Deploy/linux/Pyroscope.Profiler.Native.so`
 - `profiler/_build/DDProf-Deploy/linux/Datadog.Linux.ApiWrapper.x64.so`
