@@ -2,7 +2,7 @@ name: Build linux profiler
 
 on:
   push:
-    branches: [main, dev]
+    branches: [main]
   pull_request:
     types: [opened, synchronize, labeled]
     branches: [main]
@@ -29,18 +29,18 @@ jobs:
           persist-credentials: false
       - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=x86_64 LIBC=${{ matrix.name }}  make docker/build
       - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
-        if: github.event_name == 'push' && github.ref == 'refs/heads/dev' || github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker')
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker')
         with:
           repo_secrets: |
             DOCKERHUB_USERNAME=dockerhub:user
             DOCKERHUB_PASSWORD=dockerhub:token
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
-        if: github.event_name == 'push' && github.ref == 'refs/heads/dev' || github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker')
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker')
         name: Login to Docker Hub
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_PASSWORD }}
-      - if: github.event_name == 'push' && github.ref == 'refs/heads/dev' || github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker')
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker')
         run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=x86_64 LIBC=${{ matrix.name }}  make docker/push
   build-linux-profiler-aarch64:
     runs-on: ubuntu-arm64-large
@@ -61,21 +61,21 @@ jobs:
           dotnet-version: '8.0.412'
       - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=aarch64 LIBC=${{ matrix.name }}  make docker/build
       - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
-        if: github.event_name == 'push' && github.ref == 'refs/heads/dev' || github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker')
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker')
         with:
           repo_secrets: |
             DOCKERHUB_USERNAME=dockerhub:user
             DOCKERHUB_PASSWORD=dockerhub:token
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
-        if: github.event_name == 'push' && github.ref == 'refs/heads/dev' || github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker')
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker')
         name: Login to Docker Hub
         with:
           username: ${{ env.DOCKERHUB_USERNAME }}
           password: ${{ env.DOCKERHUB_PASSWORD }}
-      - if: github.event_name == 'push' && github.ref == 'refs/heads/dev' || github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker')
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker')
         run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=aarch64 LIBC=${{ matrix.name }}  make docker/push
   publish-dev-manifest:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev' || github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker')
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' || github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker')
     needs: [build-linux-profiler-x86_64, build-linux-profiler-aarch64]
     runs-on: ubuntu-x64-small
     env:
