@@ -202,9 +202,12 @@ func queryLabelValues(t *testing.T, pyroscopeURL, profileTypeID, labelName strin
 	return resp.Msg.GetNames(), nil
 }
 
-// discoverProfileType queries the Pyroscope ProfileTypes API and returns the
-// first profile type ID whose string starts with the given prefix.
-func discoverProfileType(t *testing.T, pyroscopeURL, prefix string) (string, error) {
+// discoverProfileTypeWithData queries the Pyroscope ProfileTypes API, then
+// probes each candidate with the given labelSelector. It returns the first
+// profile type whose ID contains sampleTypeSubstring AND has non-empty data
+// for that selector. This is needed because Pyroscope may normalize the
+// __name__ label and sample type names (e.g. alloc_samples → alloc_objects).
+func discoverProfileTypeWithData(t *testing.T, pyroscopeURL, sampleTypeSubstring, labelSelector string) (string, error) {
 	t.Helper()
 	qc := querierv1connect.NewQuerierServiceClient(http.DefaultClient, pyroscopeURL)
 	resp, err := qc.ProfileTypes(context.Background(),
@@ -212,16 +215,24 @@ func discoverProfileType(t *testing.T, pyroscopeURL, prefix string) (string, err
 	if err != nil {
 		return "", err
 	}
+	var candidates []string
 	for _, pt := range resp.Msg.GetProfileTypes() {
-		if strings.HasPrefix(pt.GetID(), prefix) {
-			return pt.GetID(), nil
+		id := pt.GetID()
+		if strings.Contains(id, sampleTypeSubstring) {
+			candidates = append(candidates, id)
 		}
 	}
-	var ids []string
-	for _, pt := range resp.Msg.GetProfileTypes() {
-		ids = append(ids, pt.GetID())
+	for _, id := range candidates {
+		collapsed, err := queryProfileForType(t, pyroscopeURL, id, labelSelector)
+		if err == nil && collapsed != "" {
+			return id, nil
+		}
 	}
-	return "", fmt.Errorf("no profile type with prefix %q found among %v", prefix, ids)
+	var allIDs []string
+	for _, pt := range resp.Msg.GetProfileTypes() {
+		allIDs = append(allIDs, pt.GetID())
+	}
+	return "", fmt.Errorf("no profile type containing %q has data for %s; available: %v", sampleTypeSubstring, labelSelector, allIDs)
 }
 
 // collapsedContainsFrame checks whether any frame in the collapsed stack output
@@ -494,6 +505,8 @@ func TestAllocatedTypeConfig(t *testing.T) {
 	svcName := fmt.Sprintf("rideshare.dotnet.%s.%s.alloc-type", libcType, version)
 	appBaseURL := startAppWithEnv(ctx, t, net, libcType, version, false, map[string]string{
 		"PYROSCOPE_APPLICATION_NAME":              svcName,
+		"PYROSCOPE_PROFILING_ALLOCATION_ENABLED":  "true",
+		"PYROSCOPE_PROFILING_HEAP_ENABLED":        "true",
 		"PYROSCOPE_ALLOCATION_TYPE_LEAF_ENABLED":  "true",
 		"PYROSCOPE_ALLOCATION_TYPE_LABEL_ENABLED": "true",
 		"PYROSCOPE_HEAP_TYPE_LEAF_ENABLED":        "true",
@@ -503,17 +516,19 @@ func TestAllocatedTypeConfig(t *testing.T) {
 
 	labelSelector := fmt.Sprintf(`{service_name="%s"}`, svcName)
 
-	// Wait for profiles to appear then discover the actual profile type IDs
-	// from Pyroscope (the exact format depends on the server version).
+	// Wait for profiles to appear then discover the actual profile type IDs.
+	// Pyroscope may normalize __name__ and sample type names (e.g. our
+	// "alloc_samples" may become "alloc_objects"), so we search for profile
+	// types that contain the substring AND have data for our service.
 	var allocProfileType, heapProfileType string
 	require.Eventually(t, func() bool {
 		var err error
-		allocProfileType, err = discoverProfileType(t, pyroscopeURL, "alloc:")
+		allocProfileType, err = discoverProfileTypeWithData(t, pyroscopeURL, "alloc_", labelSelector)
 		if err != nil {
 			t.Logf("discovering alloc profile type: %v", err)
 			return false
 		}
-		heapProfileType, err = discoverProfileType(t, pyroscopeURL, "heap:")
+		heapProfileType, err = discoverProfileTypeWithData(t, pyroscopeURL, "inuse_", labelSelector)
 		if err != nil {
 			t.Logf("discovering heap profile type: %v", err)
 			return false

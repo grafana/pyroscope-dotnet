@@ -106,12 +106,12 @@ static std::string_view ProfileTypeName(ProfileType type)
         case ProfileType::CpuSample:      return "process_cpu";
         case ProfileType::GcThreadsCpu:   return "gc";
         case ProfileType::WallTime:       return "wall";
-        case ProfileType::Alloc:          return "alloc";
-        case ProfileType::AllocFramework: return "alloc";
+        case ProfileType::Alloc:          return "memory";
+        case ProfileType::AllocFramework: return "memory";
         case ProfileType::Lock:           return "lock";
         case ProfileType::Exception:      return "exception";
         case ProfileType::Network:        return "network";
-        case ProfileType::Heap:           return "heap";
+        case ProfileType::Heap:           return "memory";
         case ProfileType::GcCpu:          return "gc";
         case ProfileType::GcStw:          return "gc";
         case ProfileType::ThreadLifetime: return "thread_lifetime";
