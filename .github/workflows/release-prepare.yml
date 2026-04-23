@@ -3,6 +3,9 @@ name: Prepare Release
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
+    types: [closed]
   workflow_dispatch:
     inputs:
       version_bump:
@@ -21,6 +24,7 @@ permissions:
 
 jobs:
   prepare:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-x64-small
     steps:
       - name: Checkout code
@@ -95,3 +99,30 @@ jobs:
           git push upstream v${VERSION}-pyroscope
           \`\`\`"
           fi
+
+  publish:
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.merged == true
+      && contains(github.event.pull_request.labels.*.name, 'release')
+    runs-on: ubuntu-x64-small
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Read version and create draft release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          version=$(grep '<PackageVersion>' Pyroscope/Pyroscope/Pyroscope.csproj \
+            | sed 's/.*<PackageVersion>\(.*\)<\/PackageVersion>.*/\1/')
+          tag="v${version}-pyroscope"
+          echo "Creating draft release ${tag} at ${MERGE_SHA}"
+          gh release create "${tag}" \
+            --target "${MERGE_SHA}" \
+            --title "${tag}" \
+            --draft \
+            --generate-notes
