@@ -37,8 +37,7 @@ jobs:
         env:
           VERSION_BUMP: ${{ inputs.version_bump || 'patch' }}
         run: |
-          current_version=$(grep '<PackageVersion>' Pyroscope/Pyroscope/Pyroscope.csproj \
-            | sed 's/.*<PackageVersion>\(.*\)<\/PackageVersion>.*/\1/')
+          current_version=$(make version)
           echo "Current version: $current_version"
           IFS='.' read -r major minor patch <<< "$current_version"
 
@@ -117,8 +116,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
-          version=$(grep '<PackageVersion>' Pyroscope/Pyroscope/Pyroscope.csproj \
-            | sed 's/.*<PackageVersion>\(.*\)<\/PackageVersion>.*/\1/')
+          version=$(make version)
           tag="v${version}-pyroscope"
           echo "Creating draft release ${tag} at ${MERGE_SHA}"
           gh release create "${tag}" \
