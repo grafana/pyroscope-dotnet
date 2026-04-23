@@ -3,12 +3,13 @@ ARCH ?= x86_64
 RELEASE_VERSION ?=
 DOCKER_IMAGE ?= pyroscope/pyroscope-dotnet
 
+ifneq ($(MAKECMDGOALS),version)
 ifeq ($(RELEASE_VERSION),)
   $(error "no release version specified")
 endif
 RELEASE_VERSION_TMP := $(shell echo $(RELEASE_VERSION) | sed -E 's/^v([0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?)(-pyroscope)?$$/\1/')
-#$(error "debug $(RELEASE_VERSION_TMP)")
 RELEASE_VERSION := $(RELEASE_VERSION_TMP)
+endif
 
 ifeq ($(LIBC),musl)
 	DOCKERFILE := Pyroscope.musl.Dockerfile
@@ -56,6 +57,10 @@ docker/manifest-latest:
 		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-aarch64
 	docker manifest push $(DOCKER_IMAGE):latest-$(LIBC)
 
+
+.phony: version
+version:
+	@grep '<PackageVersion>' Pyroscope/Pyroscope/Pyroscope.csproj | sed 's/.*<PackageVersion>\(.*\)<\/PackageVersion>.*/\1/'
 
 .phony: bump_version
 bump_version:

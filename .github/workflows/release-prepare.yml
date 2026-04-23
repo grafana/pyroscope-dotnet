@@ -1,0 +1,126 @@
+name: Prepare Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [closed]
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version Bump Type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prepare:
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-x64-small
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: true
+
+      - name: Compute new version
+        id: bump_version
+        env:
+          VERSION_BUMP: ${{ inputs.version_bump || 'patch' }}
+        run: |
+          current_version=$(make version)
+          echo "Current version: $current_version"
+          IFS='.' read -r major minor patch <<< "$current_version"
+
+          case "$VERSION_BUMP" in
+            "major")
+              major=$((major + 1))
+              minor=0
+              patch=0
+              ;;
+            "minor")
+              minor=$((minor + 1))
+              patch=0
+              ;;
+            "patch")
+              patch=$((patch + 1))
+              ;;
+          esac
+
+          new_version="${major}.${minor}.${patch}"
+          echo "New version: $new_version"
+          echo "version=$new_version" >> "$GITHUB_OUTPUT"
+
+      - name: Bump version in source files
+        env:
+          RELEASE_VERSION: ${{ steps.bump_version.outputs.version }}
+        run: make bump_version
+
+      - name: Create release branch and PR
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.bump_version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="prepare-release/v${VERSION}-pyroscope"
+          git checkout -b "${BRANCH}"
+          git add Pyroscope/Pyroscope/Pyroscope.csproj \
+                  profiler/src/ProfilerEngine/Datadog.Profiler.Native/PyroscopePprofSink.h
+          git commit -m "version ${VERSION}"
+          git push --force origin "${BRANCH}"
+
+          existing_pr=$(gh pr list --head "${BRANCH}" --json number --jq '.[0].number // empty')
+          if [ -n "$existing_pr" ]; then
+            echo "PR #${existing_pr} already exists for ${BRANCH}, branch has been force-pushed"
+          else
+            gh pr create \
+              --base main \
+              --head "${BRANCH}" \
+              --title "Release v${VERSION}-pyroscope" \
+              --label "prepare-release" \
+              --body "Automated release PR for version ${VERSION}.
+
+          Once this PR is merged, tag the merge commit and push it to trigger the release workflows:
+
+          \`\`\`
+          git tag v${VERSION}-pyroscope
+          git push upstream v${VERSION}-pyroscope
+          \`\`\`"
+          fi
+
+  publish:
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.merged == true
+      && contains(github.event.pull_request.labels.*.name, 'prepare-release')
+    runs-on: ubuntu-x64-small
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Read version and create draft release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          version=$(make version)
+          tag="v${version}-pyroscope"
+          echo "Creating draft release ${tag} at ${MERGE_SHA}"
+          gh release create "${tag}" \
+            --target "${MERGE_SHA}" \
+            --title "${tag}" \
+            --draft \
+            --generate-notes
