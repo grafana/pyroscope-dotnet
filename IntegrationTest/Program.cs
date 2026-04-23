@@ -38,6 +38,12 @@ app.MapGet("/npe", () =>
     return "NPE work";
 });
 
+app.MapGet("/alloc", () =>
+{
+    AllocWork.Work();
+    return "alloc work";
+});
+
 // Example: POST /profiling?cpu=true&allocation=false&contention=true&exception=false
 app.MapPost("/profiling", (bool? cpu, bool? allocation, bool? contention, bool? exception, ILoggerFactory loggerFactory) =>
 {

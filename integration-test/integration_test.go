@@ -126,7 +126,7 @@ func runLoadGenerator(ctx context.Context, t *testing.T, appBaseURL string) {
 	}()
 }
 
-func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string) (string, error) {
+func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string, profileTypeID string) (string, error) {
 	t.Helper()
 	qc := querierv1connect.NewQuerierServiceClient(http.DefaultClient, pyroscopeURL)
 
@@ -135,7 +135,7 @@ func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string) (stri
 	maxNodes := int64(65536)
 	resp, err := qc.SelectMergeStacktraces(context.Background(),
 		connect.NewRequest(&querierv1.SelectMergeStacktracesRequest{
-			ProfileTypeID: "process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+			ProfileTypeID: profileTypeID,
 			Start:         from.UnixMilli(),
 			End:           to.UnixMilli(),
 			LabelSelector: labelSelector,
@@ -224,7 +224,7 @@ func runRideshareProfileTest(t *testing.T, libcType, version string, otel bool) 
 			var lastCollapsed string
 			var lastErr error
 			ok := assert.Eventually(t, func() bool {
-				lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector)
+				lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector, "process_cpu:cpu:nanoseconds:cpu:nanoseconds")
 				if lastErr != nil || lastCollapsed == "" {
 					return false
 				}
@@ -342,7 +342,7 @@ func TestDynamicCpuProfilingToggleAffectsProfileData(t *testing.T) {
 			return false
 		}
 
-		collapsed, err := queryProfile(t, pyroscopeURL, labelSelector)
+		collapsed, err := queryProfile(t, pyroscopeURL, labelSelector, "process_cpu:cpu:nanoseconds:cpu:nanoseconds")
 		if err != nil {
 			t.Logf("profile query failed while CPU disabled: %v", err)
 			return false
@@ -369,7 +369,7 @@ func TestDynamicCpuProfilingToggleAffectsProfileData(t *testing.T) {
 			return false
 		}
 
-		lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector)
+		lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector, "process_cpu:cpu:nanoseconds:cpu:nanoseconds")
 		if lastErr != nil || lastCollapsed == "" {
 			return false
 		}
