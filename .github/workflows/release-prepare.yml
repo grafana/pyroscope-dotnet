@@ -80,7 +80,7 @@ jobs:
           git commit -m "version ${VERSION}"
           git push --force origin "${BRANCH}"
 
-          existing_pr=$(gh pr list --head "${BRANCH}" --json number --jq '.[0].number')
+          existing_pr=$(gh pr list --head "${BRANCH}" --json number --jq '.[0].number // empty')
           if [ -n "$existing_pr" ]; then
             echo "PR #${existing_pr} already exists for ${BRANCH}, branch has been force-pushed"
           else
