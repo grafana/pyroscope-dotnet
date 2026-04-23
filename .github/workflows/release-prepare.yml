@@ -74,7 +74,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          BRANCH="prepare/v${VERSION}-pyroscope"
+          BRANCH="prepare-release/v${VERSION}-pyroscope"
           git checkout -b "${BRANCH}"
           git add Pyroscope/Pyroscope/Pyroscope.csproj \
                   profiler/src/ProfilerEngine/Datadog.Profiler.Native/PyroscopePprofSink.h
@@ -89,7 +89,7 @@ jobs:
               --base main \
               --head "${BRANCH}" \
               --title "Release v${VERSION}-pyroscope" \
-              --label "release" \
+              --label "prepare-release" \
               --body "Automated release PR for version ${VERSION}.
 
           Once this PR is merged, tag the merge commit and push it to trigger the release workflows:
@@ -104,7 +104,7 @@ jobs:
     if: >-
       github.event_name == 'pull_request'
       && github.event.pull_request.merged == true
-      && contains(github.event.pull_request.labels.*.name, 'release')
+      && contains(github.event.pull_request.labels.*.name, 'prepare-release')
     runs-on: ubuntu-x64-small
     steps:
       - name: Checkout code
