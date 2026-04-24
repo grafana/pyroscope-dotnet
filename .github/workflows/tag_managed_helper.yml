@@ -1,17 +1,21 @@
 name: Release managed helper
 
 on:
-  release:
-    types: [created]
+  push:
+    tags:
+      - 'v*'
+      - '!v*opentelemetry'
+      - '!v*opentracing'
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   release-managed-helper:
-    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    runs-on: ubuntu-x64-small
     env:
-      RELEASE_VERSION: ${{ github.event.release.tag_name }}
+      RELEASE_VERSION: ${{  github.ref_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -23,7 +27,7 @@ jobs:
           global-json-file: global.json
       - run: make bump_version
       - name: Check version matches committed version
-        if: ${{ !contains(github.event.release.tag_name, '-rc') }}
+        if: ${{ !contains(github.ref_name, '-rc') }}
         run: git diff --exit-code
       - run: dotnet build -c Release ./Pyroscope
         working-directory: Pyroscope
@@ -33,9 +37,21 @@ jobs:
           name: packages
           path: ./Pyroscope/artifacts/package/release
           if-no-files-found: error
-      - name: Upload artifacts to release
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
+        if: ${{ !contains(github.ref_name, '-rc') }}
+        with:
+          repo_secrets: |
+            NUGET_API_KEY=nuget:api_key
+      - name: Publish the package to nuget.org
+        if: ${{ !contains(github.ref_name, '-rc') }}
+        run: dotnet nuget push ./Pyroscope/artifacts/package/release/*.nupkg -k "${NUGET_API_KEY}" -s https://api.nuget.org/v3/index.json
+        env:
+          NUGET_API_KEY: ${{ env.NUGET_API_KEY }}
+      - name: Release
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
+        if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
             ./Pyroscope/artifacts/bin/Pyroscope/release/Pyroscope.dll
             ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg
+          make_latest: ${{ !contains(github.ref_name, '-rc') }}
