@@ -5,7 +5,7 @@ go 1.24.6
 toolchain go1.26.2
 
 require (
-	connectrpc.com/connect v1.19.1
+	connectrpc.com/connect v1.19.2
 	github.com/dennwc/varint v1.0.0
 	github.com/grafana/pyroscope/api v1.3.0
 	github.com/stretchr/testify v1.11.1
