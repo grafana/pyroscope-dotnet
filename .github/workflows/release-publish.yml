@@ -7,6 +7,7 @@ on:
 jobs:
   docker-promote:
     permissions:
+      contents: read
       id-token: write
     if: contains(github.event.release.tag_name, '-pyroscope')
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}

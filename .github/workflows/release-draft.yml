@@ -36,6 +36,10 @@ jobs:
           tag="v${version}-pyroscope"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            echo "::error::Release ${tag} already exists. Delete it before re-running: gh release delete ${tag} --repo $GITHUB_REPOSITORY"
+            exit 1
+          fi
           echo "Creating draft release ${tag} at ${TARGET_SHA}"
           gh release create "${tag}" \
             --target "${TARGET_SHA}" \
@@ -55,7 +59,8 @@ jobs:
       DOCKER_IMAGE: ${{ github.repository_owner == 'grafana' && 'pyroscope/pyroscope-dotnet' || 'anatolykorniltsev622/pyroscope-dotnet' }}
       ARCH: ${{ matrix.arch }}
       LIBC: ${{ matrix.libc }}
-      RELEASE_VERSION: ${{ needs.create-draft.outputs.version }}-draft
+      RELEASE_VERSION: ${{ needs.create-draft.outputs.version }}
+      DOCKER_TAG_VERSION: ${{ needs.create-draft.outputs.version }}-draft
       TAG: ${{ needs.create-draft.outputs.tag }}
     strategy:
       matrix:
@@ -95,14 +100,14 @@ jobs:
     permissions:
       id-token: write
       contents: read
-      contents: read
     needs: [create-draft, build-profiler]
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     env:
       DOCKER_BUILDKIT: 1
       DOCKER_IMAGE: ${{ github.repository_owner == 'grafana' && 'pyroscope/pyroscope-dotnet' || 'anatolykorniltsev622/pyroscope-dotnet' }}
       LIBC: ${{ matrix.name }}
-      RELEASE_VERSION: ${{ needs.create-draft.outputs.version }}-draft
+      RELEASE_VERSION: ${{ needs.create-draft.outputs.version }}
+      DOCKER_TAG_VERSION: ${{ needs.create-draft.outputs.version }}-draft
     strategy:
       matrix:
         name: ['glibc', 'musl']
