@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   discover:
-    if: false
+
     name: discover tests
     runs-on: ubuntu-latest
     outputs:

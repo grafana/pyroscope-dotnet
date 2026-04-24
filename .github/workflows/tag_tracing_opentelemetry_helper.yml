@@ -10,7 +10,6 @@ jobs:
     permissions:
       contents: write
       id-token: write
-    if: false
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     steps:
       - name: Checkout
