@@ -80,11 +80,12 @@ jobs:
         with:
           username: ${{ env.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME }} # secrets used on forks
           password: ${{ env.DOCKERHUB_PASSWORD || secrets.DOCKERHUB_PASSWORD }} # secrets used on forks
-      - run: make docker/build
-      - run: make docker/push
-      - run: make docker/archive
-      - name: Upload artifacts to draft release
-        run: gh release upload "$TAG" ./*.tar.gz
+      - name: Build, push, and upload artifacts
+        run: |
+          make docker/build
+          make docker/push
+          make docker/archive
+          gh release upload "$TAG" ./*.tar.gz
 
   build-profiler-manifest:
     needs: [create-draft, build-profiler]
