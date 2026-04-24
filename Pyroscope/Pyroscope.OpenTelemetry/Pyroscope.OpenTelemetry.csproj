@@ -10,7 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="OpenTelemetry" Version="1.15.3" />
+    <PackageReference Include="OpenTelemetry" Version="1.15.2" />
     <ProjectReference Include="../Pyroscope/Pyroscope.csproj" />
     <None Include="README.md" Pack="true" PackagePath="\"/>
   </ItemGroup>
