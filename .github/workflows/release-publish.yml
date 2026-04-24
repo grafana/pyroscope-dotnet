@@ -12,7 +12,7 @@ jobs:
     if: contains(github.event.release.tag_name, '-pyroscope')
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     env:
-      DOCKER_IMAGE: ${{ github.repository_owner == 'grafana' && 'pyroscope/pyroscope-dotnet' || 'anatolykorniltsev622/pyroscope-dotnet' }}
+      DOCKER_IMAGE: pyroscope/pyroscope-dotnet
       LIBC: ${{ matrix.libc }}
     strategy:
       matrix:
