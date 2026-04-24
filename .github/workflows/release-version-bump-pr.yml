@@ -15,12 +15,11 @@ on:
           - minor
           - major
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   prepare:
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
