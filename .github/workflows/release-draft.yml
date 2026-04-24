@@ -109,7 +109,6 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
-          submodules: 'true'
           persist-credentials: false
       - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
         if: github.repository_owner == 'grafana'
@@ -137,7 +136,6 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
-          submodules: 'true'
           persist-credentials: false
       - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
         with:
