@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build-linux-profiler-x86_64:
-    runs-on: ubuntu-x64-large
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}
     env:
       DOCKER_BUILDKIT: 1
     strategy:
@@ -27,7 +27,7 @@ jobs:
           persist-credentials: false
       - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=x86_64 LIBC=${{ matrix.name }}  make docker/build
   build-linux-profiler-aarch64:
-    runs-on: ubuntu-arm64-large
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-arm64-large' || 'ubuntu-24.04-arm' }}
     env:
       DOCKER_BUILDKIT: 1
     strategy:
