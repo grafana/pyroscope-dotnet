@@ -95,6 +95,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      contents: read
     needs: [create-draft, build-profiler]
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     env:
