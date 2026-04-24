@@ -45,3 +45,8 @@ docker/manifest:
 		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-aarch64
 	docker manifest push $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)
 
+.phony: docker/promote
+docker/promote:
+	docker buildx imagetools create --tag $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC) $(DOCKER_IMAGE):$(RELEASE_VERSION)-draft-$(LIBC)
+	docker buildx imagetools create --tag $(DOCKER_IMAGE):latest-$(LIBC) $(DOCKER_IMAGE):$(RELEASE_VERSION)-draft-$(LIBC)
+
