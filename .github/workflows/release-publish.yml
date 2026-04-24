@@ -52,7 +52,6 @@ jobs:
       - name: Download NuGet package from release
         run: gh release download "$TAG_NAME" --pattern 'Pyroscope*.nupkg' --dir ./packages
         env:
-          GITHUB_TOKEN: ${{ github.token }}
           TAG_NAME: ${{ github.event.release.tag_name }}
       - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
         if: github.repository_owner == 'grafana'

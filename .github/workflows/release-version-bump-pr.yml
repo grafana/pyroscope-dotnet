@@ -29,6 +29,5 @@ jobs:
           persist-credentials: true
       - name: Create version bump PR
         env:
-          GITHUB_TOKEN: ${{ github.token }}
           VERSION_BUMP: ${{ inputs.version_bump || 'patch' }}
         run: .github/scripts/version-bump-pr.sh

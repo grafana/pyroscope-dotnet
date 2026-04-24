@@ -29,7 +29,6 @@ jobs:
       - name: Create draft release
         id: create
         env:
-          GITHUB_TOKEN: ${{ github.token }}
           TARGET_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
         run: |
           set -ex
@@ -86,7 +85,6 @@ jobs:
       - name: Upload artifacts to draft release
         run: gh release upload "$TAG" ./*.tar.gz
         env:
-          GITHUB_TOKEN: ${{ github.token }}
           TAG: ${{ needs.create-draft.outputs.tag }}
 
   build-profiler-manifest:
@@ -138,5 +136,4 @@ jobs:
       - name: Upload artifacts to draft release
         run: gh release upload "$TAG" ./Pyroscope/artifacts/bin/Pyroscope/release/Pyroscope.dll ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg
         env:
-          GITHUB_TOKEN: ${{ github.token }}
           TAG: ${{ needs.create-draft.outputs.tag }}
