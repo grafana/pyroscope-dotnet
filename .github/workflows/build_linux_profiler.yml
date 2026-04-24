@@ -44,7 +44,7 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
         with:
-          dotnet-version: '8.0.412'
+          global-json-file: global.json
       - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=aarch64 LIBC=${{ matrix.name }}  make docker/build
   build-managed-helper:
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
