@@ -36,19 +36,9 @@ jobs:
         run: |
           set -ex
           VERSION=$(echo "${TAG_NAME}" | sed -E 's/^v([0-9]+\.[0-9]+\.[0-9]+)(-pyroscope)?$/\1/')
-          docker buildx imagetools create \
-            --tag "${DOCKER_IMAGE}:${VERSION}-${LIBC}" \
-            "${DOCKER_IMAGE}:${VERSION}-draft-${LIBC}"
-      - name: Create latest manifest
-        env:
-          TAG_NAME: ${{ github.event.release.tag_name }}
-          LIBC: ${{ matrix.libc }}
-        run: |
-          set -ex
-          VERSION=$(echo "${TAG_NAME}" | sed -E 's/^v([0-9]+\.[0-9]+\.[0-9]+)(-pyroscope)?$/\1/')
-          docker buildx imagetools create \
-            --tag "${DOCKER_IMAGE}:latest-${LIBC}" \
-            "${DOCKER_IMAGE}:${VERSION}-draft-${LIBC}"
+          DRAFT="${DOCKER_IMAGE}:${VERSION}-draft-${LIBC}"
+          docker buildx imagetools create --tag "${DOCKER_IMAGE}:${VERSION}-${LIBC}" "${DRAFT}"
+          docker buildx imagetools create --tag "${DOCKER_IMAGE}:latest-${LIBC}" "${DRAFT}"
 
   # TODO: switch to trusted publishing https://github.com/grafana/pyroscope-dotnet/issues/119
   nuget-publish:
