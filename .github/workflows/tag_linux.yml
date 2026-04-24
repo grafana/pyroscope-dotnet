@@ -8,7 +8,7 @@ jobs:
   release-linux-profiler:
     permissions:
       contents: write
-    runs-on: ${{ matrix.arch == 'aarch64' && 'ubuntu-arm64-large' || 'ubuntu-x64-large' }}
+    runs-on: ${{ matrix.arch == 'aarch64' && (github.repository_owner == 'grafana' && 'ubuntu-arm64-large' || 'ubuntu-24.04-arm') || (github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest') }}
     env:
       DOCKER_BUILDKIT: 1
       ARCH: ${{ matrix.arch }}
