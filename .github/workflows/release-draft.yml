@@ -52,6 +52,7 @@ jobs:
       ARCH: ${{ matrix.arch }}
       LIBC: ${{ matrix.libc }}
       RELEASE_VERSION: ${{ needs.create-draft.outputs.version }}-draft
+      TAG: ${{ needs.create-draft.outputs.tag }}
     strategy:
       matrix:
         libc: ['glibc', 'musl']
@@ -84,8 +85,6 @@ jobs:
       - run: make docker/archive
       - name: Upload artifacts to draft release
         run: gh release upload "$TAG" ./*.tar.gz
-        env:
-          TAG: ${{ needs.create-draft.outputs.tag }}
 
   build-profiler-manifest:
     needs: [create-draft, build-profiler]
@@ -121,6 +120,8 @@ jobs:
   build-managed-helper:
     needs: create-draft
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    env:
+      TAG: ${{ needs.create-draft.outputs.tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -135,5 +136,3 @@ jobs:
         working-directory: Pyroscope
       - name: Upload artifacts to draft release
         run: gh release upload "$TAG" ./Pyroscope/artifacts/bin/Pyroscope/release/Pyroscope.dll ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg
-        env:
-          TAG: ${{ needs.create-draft.outputs.tag }}
