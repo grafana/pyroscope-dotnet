@@ -20,6 +20,10 @@ case "$VERSION_BUMP" in
   "patch")
     patch=$((patch + 1))
     ;;
+  *)
+    echo "Error: invalid VERSION_BUMP value '${VERSION_BUMP}'. Expected one of: major, minor, patch." >&2
+    exit 1
+    ;;
 esac
 
 VERSION="${major}.${minor}.${patch}"
