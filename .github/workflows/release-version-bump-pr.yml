@@ -66,6 +66,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.bump_version.outputs.version }}
         run: |
+          set -ex
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
