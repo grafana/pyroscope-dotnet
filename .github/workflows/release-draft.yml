@@ -143,4 +143,4 @@ jobs:
       - run: dotnet build -c Release ./Pyroscope
         working-directory: Pyroscope
       - name: Upload artifacts to draft release
-        run: gh release upload "$TAG" ./Pyroscope/artifacts/bin/Pyroscope/release/Pyroscope.dll ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg
+        run: gh release upload --clobber "$TAG" ./Pyroscope/artifacts/bin/Pyroscope/release/Pyroscope.dll ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg
