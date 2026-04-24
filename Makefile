@@ -4,10 +4,8 @@ RELEASE_VERSION ?=
 DOCKER_IMAGE ?= pyroscope/pyroscope-dotnet
 
 ifeq ($(RELEASE_VERSION),)
-  $(error "no release version specified")
+  $(error RELEASE_VERSION is required)
 endif
-RELEASE_VERSION_TMP := $(shell echo $(RELEASE_VERSION) | sed -E 's/^v([0-9]+\.[0-9]+\.[0-9]+)(-pyroscope)?$$/\1/')
-RELEASE_VERSION := $(RELEASE_VERSION_TMP)
 
 ifeq ($(LIBC),musl)
 	DOCKERFILE := Pyroscope.musl.Dockerfile
