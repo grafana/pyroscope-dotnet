@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   build-opentracing-lib:
+    if: false
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     steps:
       - name: Checkout
@@ -31,6 +32,7 @@ jobs:
           path: ./Pyroscope/artifacts/package/release
           if-no-files-found: error
   build-opentelemetry-lib:
+    if: false
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     steps:
       - name: Checkout

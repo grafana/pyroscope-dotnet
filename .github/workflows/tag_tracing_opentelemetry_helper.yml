@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   release-opentelemetry-lib:
+    if: false
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     steps:
       - name: Checkout
