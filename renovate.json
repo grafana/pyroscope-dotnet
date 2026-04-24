@@ -4,6 +4,10 @@
   "packageRules": [
     {
       "matchManagers": ["dockerfile"],
+      "separateMinorPatch": true
+    },
+    {
+      "matchManagers": ["dockerfile"],
       "matchUpdateTypes": ["major", "minor"],
       "enabled": false
     },
