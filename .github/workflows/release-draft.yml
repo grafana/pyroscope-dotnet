@@ -49,6 +49,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       DOCKER_BUILDKIT: 1
+      DOCKER_IMAGE: ${{ github.repository_owner == 'grafana' && 'pyroscope/pyroscope-dotnet' || 'korniltsev/pyroscope-dotnet' }}
       ARCH: ${{ matrix.arch }}
       LIBC: ${{ matrix.libc }}
       RELEASE_VERSION: ${{ needs.create-draft.outputs.version }}-draft
@@ -69,6 +70,7 @@ jobs:
           submodules: 'true'
           persist-credentials: false
       - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
+        if: github.repository_owner == 'grafana'
         with:
           repo_secrets: |
             DOCKERHUB_USERNAME=dockerhub:user
@@ -76,8 +78,8 @@ jobs:
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         name: Login to Docker Hub
         with:
-          username: ${{ env.DOCKERHUB_USERNAME }}
-          password: ${{ env.DOCKERHUB_PASSWORD }}
+          username: ${{ env.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_PASSWORD || secrets.DOCKERHUB_PASSWORD }}
       - run: make docker/build
       - run: make docker/push
       - run: make docker/archive
@@ -92,6 +94,7 @@ jobs:
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     env:
       DOCKER_BUILDKIT: 1
+      DOCKER_IMAGE: ${{ github.repository_owner == 'grafana' && 'pyroscope/pyroscope-dotnet' || 'korniltsev/pyroscope-dotnet' }}
       LIBC: ${{ matrix.name }}
       RELEASE_VERSION: ${{ needs.create-draft.outputs.version }}-draft
     strategy:
@@ -105,6 +108,7 @@ jobs:
           submodules: 'true'
           persist-credentials: false
       - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
+        if: github.repository_owner == 'grafana'
         with:
           repo_secrets: |
             DOCKERHUB_USERNAME=dockerhub:user
@@ -112,8 +116,8 @@ jobs:
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         name: Login to Docker Hub
         with:
-          username: ${{ env.DOCKERHUB_USERNAME }}
-          password: ${{ env.DOCKERHUB_PASSWORD }}
+          username: ${{ env.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_PASSWORD || secrets.DOCKERHUB_PASSWORD }}
       - run: make docker/manifest
 
   build-managed-helper:
