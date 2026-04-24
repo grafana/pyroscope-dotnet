@@ -3,13 +3,11 @@ ARCH ?= x86_64
 RELEASE_VERSION ?=
 DOCKER_IMAGE ?= pyroscope/pyroscope-dotnet
 
-ifneq ($(MAKECMDGOALS),version)
 ifeq ($(RELEASE_VERSION),)
   $(error "no release version specified")
 endif
 RELEASE_VERSION_TMP := $(shell echo $(RELEASE_VERSION) | sed -E 's/^v([0-9]+\.[0-9]+\.[0-9]+)(-pyroscope)?$$/\1/')
 RELEASE_VERSION := $(RELEASE_VERSION_TMP)
-endif
 
 ifeq ($(LIBC),musl)
 	DOCKERFILE := Pyroscope.musl.Dockerfile
@@ -56,15 +54,3 @@ docker/manifest-latest:
 		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-x86_64   \
 		--amend $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC)-aarch64
 	docker manifest push $(DOCKER_IMAGE):latest-$(LIBC)
-
-
-.phony: version
-version:
-	@grep '<PackageVersion>' Pyroscope/Pyroscope/Pyroscope.csproj | sed 's/.*<PackageVersion>\(.*\)<\/PackageVersion>.*/\1/'
-
-.phony: bump_version
-bump_version:
-	sed -i "Pyroscope/Pyroscope/Pyroscope.csproj" -e "s/<PackageVersion>.*<\/PackageVersion>/<PackageVersion>$(RELEASE_VERSION)<\/PackageVersion>/"
-	sed -i "Pyroscope/Pyroscope/Pyroscope.csproj" -e "s/<AssemblyVersion>.*<\/AssemblyVersion>/<AssemblyVersion>$(RELEASE_VERSION)<\/AssemblyVersion>/"
-	sed -i "Pyroscope/Pyroscope/Pyroscope.csproj" -e "s/<FileVersion>.*<\/FileVersion>/<FileVersion>$(RELEASE_VERSION)<\/FileVersion>/"
-	sed -i "profiler/src/ProfilerEngine/Datadog.Profiler.Native/PyroscopePprofSink.h" -e "s/#define PYROSCOPE_SPY_VERSION \".*\"/#define PYROSCOPE_SPY_VERSION \"$(RELEASE_VERSION)\"/"

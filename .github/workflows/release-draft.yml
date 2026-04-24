@@ -33,7 +33,7 @@ jobs:
           TARGET_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
         run: |
           set -ex
-          version=$(make version)
+          version=$(.github/scripts/version.sh)
           tag="v${version}-pyroscope"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "tag=${tag}" >> "$GITHUB_OUTPUT"

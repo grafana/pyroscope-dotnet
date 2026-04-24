@@ -3,7 +3,7 @@ set -ex
 
 VERSION_BUMP="${VERSION_BUMP:-patch}"
 
-current_version=$(make version)
+current_version=$(.github/scripts/version.sh)
 echo "Current version: $current_version"
 IFS='.' read -r major minor patch <<< "$current_version"
 
@@ -25,7 +25,10 @@ esac
 VERSION="${major}.${minor}.${patch}"
 echo "New version: $VERSION"
 
-RELEASE_VERSION="$VERSION" make bump_version
+sed -i "Pyroscope/Pyroscope/Pyroscope.csproj" -e "s/<PackageVersion>.*<\/PackageVersion>/<PackageVersion>${VERSION}<\/PackageVersion>/"
+sed -i "Pyroscope/Pyroscope/Pyroscope.csproj" -e "s/<AssemblyVersion>.*<\/AssemblyVersion>/<AssemblyVersion>${VERSION}<\/AssemblyVersion>/"
+sed -i "Pyroscope/Pyroscope/Pyroscope.csproj" -e "s/<FileVersion>.*<\/FileVersion>/<FileVersion>${VERSION}<\/FileVersion>/"
+sed -i "profiler/src/ProfilerEngine/Datadog.Profiler.Native/PyroscopePprofSink.h" -e "s/#define PYROSCOPE_SPY_VERSION \".*\"/#define PYROSCOPE_SPY_VERSION \"${VERSION}\"/"
 
 git config user.name "github-actions[bot]"
 git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
