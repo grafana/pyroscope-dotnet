@@ -14,6 +14,7 @@ jobs:
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     env:
       DOCKER_IMAGE: ${{ github.repository_owner == 'grafana' && 'pyroscope/pyroscope-dotnet' || 'anatolykorniltsev622/pyroscope-dotnet' }}
+      LIBC: ${{ matrix.libc }}
     strategy:
       matrix:
         libc: ['glibc', 'musl']
@@ -31,8 +32,6 @@ jobs:
           password: ${{ env.DOCKERHUB_PASSWORD || secrets.DOCKERHUB_PASSWORD }} # secrets used on forks
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Promote draft Docker tags
-        env:
-          LIBC: ${{ matrix.libc }}
         run: RELEASE_VERSION=$(.github/scripts/version.sh) make docker/promote
 
   # TODO: switch to trusted publishing https://github.com/grafana/pyroscope-dotnet/issues/119
