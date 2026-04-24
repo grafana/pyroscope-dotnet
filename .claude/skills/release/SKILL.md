@@ -59,7 +59,9 @@ gh pr view <number> --repo grafana/pyroscope-dotnet --json title -q .title
 Format the changelog as one bullet per PR. Only list the **latest** upstream
 merge (e.g. `merge upstream v3.39.0 (#NNN)`), not every intermediate one.
 
-Include Docker Hub image links. Update the draft release:
+Include Docker Hub image links for the published images. The images are
+published to `pyroscope/pyroscope-dotnet` on Docker Hub with tags
+`X.Y.Z-glibc` and `X.Y.Z-musl`. Update the draft release:
 
 ```bash
 gh release edit vX.Y.Z-pyroscope --repo grafana/pyroscope-dotnet \
