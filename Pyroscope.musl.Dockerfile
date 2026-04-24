@@ -1,4 +1,4 @@
-FROM alpine:3.18 AS builder
+FROM alpine:3.18.11 AS builder
 
 RUN apk add \
             clang \
