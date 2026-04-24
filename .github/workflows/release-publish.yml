@@ -1,0 +1,37 @@
+name: Publish Release
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: >-
+      github.event.pull_request.merged == true
+      && contains(github.event.pull_request.labels.*.name, 'prepare-release')
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha }}
+
+      - name: Create tag and draft release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+        run: |
+          version=$(make version)
+          tag="v${version}-pyroscope"
+          echo "Creating tag ${tag} at ${MERGE_SHA}"
+          git tag "${tag}" "${MERGE_SHA}"
+          git push origin "${tag}"
+          echo "Creating draft release ${tag}"
+          gh release create "${tag}" \
+            --title "${tag}" \
+            --draft \
+            --generate-notes

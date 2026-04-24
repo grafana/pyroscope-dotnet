@@ -3,9 +3,6 @@ name: Prepare Release
 on:
   push:
     branches: [main]
-  pull_request:
-    branches: [main]
-    types: [closed]
   workflow_dispatch:
     inputs:
       version_bump:
@@ -24,7 +21,6 @@ permissions:
 
 jobs:
   prepare:
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
@@ -91,36 +87,5 @@ jobs:
               --label "prepare-release" \
               --body "Automated release PR for version ${VERSION}.
 
-          Once this PR is merged, tag the merge commit and push it to trigger the release workflows:
-
-          \`\`\`
-          git tag v${VERSION}-pyroscope
-          git push upstream v${VERSION}-pyroscope
-          \`\`\`"
+          Once this PR is merged, a draft release will be created automatically."
           fi
-
-  publish:
-    if: >-
-      github.event_name == 'pull_request'
-      && github.event.pull_request.merged == true
-      && contains(github.event.pull_request.labels.*.name, 'prepare-release')
-    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
-
-      - name: Read version and create draft release
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
-        run: |
-          version=$(make version)
-          tag="v${version}-pyroscope"
-          echo "Creating draft release ${tag} at ${MERGE_SHA}"
-          gh release create "${tag}" \
-            --target "${MERGE_SHA}" \
-            --title "${tag}" \
-            --draft \
-            --generate-notes
