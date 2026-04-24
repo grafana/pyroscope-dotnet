@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   build-opentracing-lib:
+
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     steps:
       - name: Checkout
@@ -24,13 +25,8 @@ jobs:
           global-json-file: global.json
       - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTracing
-      - name: Publish NuGet packages
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: packages-OpenTracing
-          path: ./Pyroscope/artifacts/package/release
-          if-no-files-found: error
   build-opentelemetry-lib:
+
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     steps:
       - name: Checkout
@@ -43,9 +39,3 @@ jobs:
           global-json-file: global.json
       - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTelemetry
-      - name: Publish NuGet packages
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: packages-OpenTelemetry
-          path: ./Pyroscope/artifacts/package/release
-          if-no-files-found: error

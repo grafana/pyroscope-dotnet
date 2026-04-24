@@ -1,0 +1,153 @@
+name: Draft Release
+
+on:
+  pull_request:
+    branches: [main]
+    types: [closed]
+  workflow_dispatch:
+
+jobs:
+  create-draft:
+    permissions:
+      contents: write
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.event.pull_request.merged == true
+          && contains(github.event.pull_request.labels.*.name, 'prepare-release'))
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    outputs:
+      tag: ${{ steps.create.outputs.tag }}
+      version: ${{ steps.create.outputs.version }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+
+      - name: Create draft release
+        id: create
+        env:
+          TARGET_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+        run: |
+          set -ex
+          version=$(.github/scripts/version.sh)
+          tag="v${version}-pyroscope"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          if gh release view "${tag}" >/dev/null 2>&1; then
+            echo "::error::Release ${tag} already exists. Delete it before re-running: gh release delete ${tag} --repo $GITHUB_REPOSITORY"
+            exit 1
+          fi
+          echo "Creating draft release ${tag} at ${TARGET_SHA}"
+          gh release create "${tag}" \
+            --target "${TARGET_SHA}" \
+            --title "${tag}" \
+            --draft \
+            --generate-notes
+
+  build-profiler:
+    permissions:
+      contents: write
+      id-token: write
+    needs: create-draft
+    runs-on: ${{ matrix.runner }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DOCKER_BUILDKIT: 1
+      DOCKER_IMAGE: pyroscope/pyroscope-dotnet
+      ARCH: ${{ matrix.arch }}
+      LIBC: ${{ matrix.libc }}
+      RELEASE_VERSION: ${{ needs.create-draft.outputs.version }}
+      DOCKER_TAG_VERSION: ${{ needs.create-draft.outputs.version }}-draft
+      TAG: ${{ needs.create-draft.outputs.tag }}
+    strategy:
+      matrix:
+        libc: ['glibc', 'musl']
+        arch: ['x86_64', 'aarch64']
+        include:
+          - arch: x86_64
+            runner: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}
+          - arch: aarch64
+            runner: ${{ github.repository_owner == 'grafana' && 'ubuntu-arm64-large' || 'ubuntu-24.04-arm' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+          submodules: 'true'
+          persist-credentials: false
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
+        if: github.repository_owner == 'grafana'
+        with:
+          repo_secrets: |
+            DOCKERHUB_USERNAME=dockerhub:user
+            DOCKERHUB_PASSWORD=dockerhub:token
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        name: Login to Docker Hub
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME }} # secrets used on forks
+          password: ${{ env.DOCKERHUB_PASSWORD || secrets.DOCKERHUB_PASSWORD }} # secrets used on forks
+      - name: Build, push, and upload artifacts
+        run: |
+          make docker/build
+          make docker/push
+          make docker/archive
+          gh release upload --clobber "$TAG" ./*.tar.gz
+
+  build-profiler-manifest:
+    permissions:
+      id-token: write
+      contents: read
+    needs: [create-draft, build-profiler]
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    env:
+      DOCKER_BUILDKIT: 1
+      DOCKER_IMAGE: pyroscope/pyroscope-dotnet
+      LIBC: ${{ matrix.name }}
+      RELEASE_VERSION: ${{ needs.create-draft.outputs.version }}
+      DOCKER_TAG_VERSION: ${{ needs.create-draft.outputs.version }}-draft
+    strategy:
+      matrix:
+        name: ['glibc', 'musl']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+          persist-credentials: false
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
+        if: github.repository_owner == 'grafana'
+        with:
+          repo_secrets: |
+            DOCKERHUB_USERNAME=dockerhub:user
+            DOCKERHUB_PASSWORD=dockerhub:token
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        name: Login to Docker Hub
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME }} # secrets used on forks
+          password: ${{ env.DOCKERHUB_PASSWORD || secrets.DOCKERHUB_PASSWORD }} # secrets used on forks
+      - run: make docker/manifest
+
+  build-managed-helper:
+    permissions:
+      contents: write
+    needs: create-draft
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.create-draft.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
+        with:
+          global-json-file: global.json
+      - run: dotnet build -c Release ./Pyroscope
+        working-directory: Pyroscope
+      - name: Upload artifacts to draft release
+        run: gh release upload --clobber "$TAG" ./Pyroscope/artifacts/bin/Pyroscope/release/Pyroscope.dll ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg

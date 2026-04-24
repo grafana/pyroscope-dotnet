@@ -7,9 +7,9 @@ on:
 permissions:
   contents: read
 
-
 jobs:
   build-linux-profiler-x86_64:
+
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}
     env:
       DOCKER_BUILDKIT: 1
@@ -25,6 +25,7 @@ jobs:
           persist-credentials: false
       - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=x86_64 LIBC=${{ matrix.name }}  make docker/build
   build-linux-profiler-aarch64:
+
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-arm64-large' || 'ubuntu-24.04-arm' }}
     env:
       DOCKER_BUILDKIT: 1
@@ -40,5 +41,18 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
         with:
-          dotnet-version: '8.0.412'
+          global-json-file: global.json
       - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=aarch64 LIBC=${{ matrix.name }}  make docker/build
+  build-managed-helper:
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: 'true'
+          persist-credentials: false
+      - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
+        with:
+          global-json-file: global.json
+      - run: dotnet build -c Release
+        working-directory: Pyroscope

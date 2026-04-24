@@ -1,0 +1,32 @@
+name: Release Version Bump PR
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version_bump:
+        description: 'Version Bump Type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+jobs:
+  prepare:
+    permissions:
+      contents: write
+      pull-requests: write
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION_BUMP: ${{ inputs.version_bump || 'patch' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          persist-credentials: true
+      - run: .github/scripts/version-bump-pr.sh
