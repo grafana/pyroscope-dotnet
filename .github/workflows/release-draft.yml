@@ -44,54 +44,23 @@ jobs:
             --draft \
             --generate-notes
 
-  build-profiler-x86_64:
+  build-profiler:
     needs: create-draft
-    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}
+    runs-on: ${{ matrix.runner }}
     env:
       DOCKER_BUILDKIT: 1
-      ARCH: x86_64
-      LIBC: ${{ matrix.name }}
+      ARCH: ${{ matrix.arch }}
+      LIBC: ${{ matrix.libc }}
       RELEASE_VERSION: ${{ needs.create-draft.outputs.version }}-draft
     strategy:
       matrix:
-        name: ['glibc', 'musl']
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
-          submodules: 'true'
-          persist-credentials: false
-      - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
-        with:
-          repo_secrets: |
-            DOCKERHUB_USERNAME=dockerhub:user
-            DOCKERHUB_PASSWORD=dockerhub:token
-      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
-        name: Login to Docker Hub
-        with:
-          username: ${{ env.DOCKERHUB_USERNAME }}
-          password: ${{ env.DOCKERHUB_PASSWORD }}
-      - run: make docker/build
-      - run: make docker/push
-      - run: make docker/archive
-      - name: Upload artifacts to draft release
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
-        with:
-          tag_name: ${{ needs.create-draft.outputs.tag }}
-          files: ./*.tar.gz
-
-  build-profiler-aarch64:
-    needs: create-draft
-    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-arm64-large' || 'ubuntu-24.04-arm' }}
-    env:
-      DOCKER_BUILDKIT: 1
-      ARCH: aarch64
-      LIBC: ${{ matrix.name }}
-      RELEASE_VERSION: ${{ needs.create-draft.outputs.version }}-draft
-    strategy:
-      matrix:
-        name: ['glibc', 'musl']
+        libc: ['glibc', 'musl']
+        arch: ['x86_64', 'aarch64']
+        include:
+          - arch: x86_64
+            runner: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}
+          - arch: aarch64
+            runner: ${{ github.repository_owner == 'grafana' && 'ubuntu-arm64-large' || 'ubuntu-24.04-arm' }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -119,7 +88,7 @@ jobs:
           files: ./*.tar.gz
 
   build-profiler-manifest:
-    needs: [create-draft, build-profiler-x86_64, build-profiler-aarch64]
+    needs: [create-draft, build-profiler]
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     env:
       DOCKER_BUILDKIT: 1
