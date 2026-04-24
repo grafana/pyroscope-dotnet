@@ -1,4 +1,4 @@
-name: Release Version Bump PR
+name: Version Bump PR
 
 on:
   push:
