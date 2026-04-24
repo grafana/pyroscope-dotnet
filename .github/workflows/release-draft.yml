@@ -89,7 +89,7 @@ jobs:
           make docker/build
           make docker/push
           make docker/archive
-          gh release upload "$TAG" ./*.tar.gz
+          gh release upload --clobber "$TAG" ./*.tar.gz
 
   build-profiler-manifest:
     permissions:
