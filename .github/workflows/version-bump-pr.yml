@@ -88,5 +88,7 @@ jobs:
               --label "prepare-release" \
               --body "Automated release PR for version ${VERSION}.
 
+          The \`prepare-release\` label on this PR triggers draft release creation when merged.
+
           Once this PR is merged, a draft release will be created automatically."
           fi
