@@ -46,3 +46,22 @@ jobs:
         with:
           dotnet-version: '8.0.412'
       - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=aarch64 LIBC=${{ matrix.name }}  make docker/build
+  build-managed-helper:
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: 'true'
+          persist-credentials: false
+      - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
+        with:
+          global-json-file: global.json
+      - run: dotnet build -c Release
+        working-directory: Pyroscope
+      - name: Publish NuGet packages
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: packages
+          path: ./Pyroscope/artifacts/package/release
+          if-no-files-found: error
