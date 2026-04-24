@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   test-cpp-profiler:
-    runs-on: ubuntu-x64-large
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}
     env:
       DOCKER_BUILDKIT: 1
     strategy:
