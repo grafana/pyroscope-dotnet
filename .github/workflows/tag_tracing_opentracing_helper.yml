@@ -24,12 +24,6 @@ jobs:
           global-json-file: global.json
       - run: dotnet build -c Release ./Pyroscope.OpenTracing
         working-directory: Pyroscope/Pyroscope.OpenTracing
-      - name: Publish NuGet packages
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
-        with:
-          name: packages
-          path: ./Pyroscope/artifacts/package/release
-          if-no-files-found: error
       - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
         with:
           repo_secrets: |
