@@ -84,10 +84,10 @@ jobs:
       - run: make docker/push
       - run: make docker/archive
       - name: Upload artifacts to draft release
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
-        with:
-          tag_name: ${{ needs.create-draft.outputs.tag }}
-          files: ./*.tar.gz
+        run: gh release upload "$TAG" ./*.tar.gz
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.create-draft.outputs.tag }}
 
   build-profiler-manifest:
     needs: [create-draft, build-profiler]
@@ -136,9 +136,7 @@ jobs:
       - run: dotnet build -c Release ./Pyroscope
         working-directory: Pyroscope
       - name: Upload artifacts to draft release
-        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
-        with:
-          tag_name: ${{ needs.create-draft.outputs.tag }}
-          files: |
-            ./Pyroscope/artifacts/bin/Pyroscope/release/Pyroscope.dll
-            ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg
+        run: gh release upload "$TAG" ./Pyroscope/artifacts/bin/Pyroscope/release/Pyroscope.dll ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.create-draft.outputs.tag }}
