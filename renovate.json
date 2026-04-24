@@ -3,6 +3,11 @@
   "extends": ["config:recommended"],
   "packageRules": [
     {
+      "matchManagers": ["dockerfile"],
+      "matchUpdateTypes": ["major", "minor"],
+      "enabled": false
+    },
+    {
       "matchDepNames": ["openssl/openssl"],
       "separateMinorPatch": true
     },
