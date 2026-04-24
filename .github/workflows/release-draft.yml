@@ -15,6 +15,8 @@ jobs:
       || (github.event.pull_request.merged == true
           && contains(github.event.pull_request.labels.*.name, 'prepare-release'))
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    env:
+      GH_TOKEN: ${{ github.token }}
     outputs:
       tag: ${{ steps.create.outputs.tag }}
       version: ${{ steps.create.outputs.version }}
@@ -48,6 +50,7 @@ jobs:
     needs: create-draft
     runs-on: ${{ matrix.runner }}
     env:
+      GH_TOKEN: ${{ github.token }}
       DOCKER_BUILDKIT: 1
       DOCKER_IMAGE: ${{ github.repository_owner == 'grafana' && 'pyroscope/pyroscope-dotnet' || 'anatolykorniltsev622/pyroscope-dotnet' }}
       ARCH: ${{ matrix.arch }}
@@ -127,6 +130,7 @@ jobs:
     needs: create-draft
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     env:
+      GH_TOKEN: ${{ github.token }}
       TAG: ${{ needs.create-draft.outputs.tag }}
     steps:
       - name: Checkout
