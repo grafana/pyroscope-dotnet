@@ -16,13 +16,13 @@ Every push to `main` triggers `release-version-bump-pr.yml`, which creates a PR
 with the `prepare-release` label that bumps the patch version.
 
 ```bash
-gh pr list --label prepare-release
+gh pr list --repo grafana/pyroscope-dotnet --label prepare-release
 ```
 
 For a minor or major bump, trigger manually:
 
 ```bash
-gh workflow run release-version-bump-pr.yml -f version_bump=minor
+gh workflow run release-version-bump-pr.yml --repo grafana/pyroscope-dotnet -f version_bump=minor
 ```
 
 ### 2. Merge the version bump PR
@@ -35,8 +35,8 @@ Review and merge the PR. This triggers `release-draft.yml`, which:
 Wait for the workflow to complete:
 
 ```bash
-gh run list --workflow release-draft.yml
-gh run watch <run-id> --exit-status
+gh run list --repo grafana/pyroscope-dotnet --workflow release-draft.yml
+gh run watch <run-id> --repo grafana/pyroscope-dotnet --exit-status
 ```
 
 ### 3. Write the release changelog
@@ -53,7 +53,7 @@ git log vX.Y.(Z-1)-pyroscope..HEAD --oneline \
 For each merged PR, fetch its title:
 
 ```bash
-gh pr view <number> --json title -q .title
+gh pr view <number> --repo grafana/pyroscope-dotnet --json title -q .title
 ```
 
 Format the changelog as one bullet per PR. Only list the **latest** upstream
@@ -62,7 +62,7 @@ merge (e.g. `merge upstream v3.39.0 (#NNN)`), not every intermediate one.
 Include Docker Hub image links. Update the draft release:
 
 ```bash
-gh release edit vX.Y.Z-pyroscope \
+gh release edit vX.Y.Z-pyroscope --repo grafana/pyroscope-dotnet \
   --notes "$(cat <<'EOF'
 ## What's Changed
 
@@ -82,7 +82,7 @@ EOF
 ### 4. Publish the draft release
 
 ```bash
-gh release edit vX.Y.Z-pyroscope --draft=false
+gh release edit vX.Y.Z-pyroscope --repo grafana/pyroscope-dotnet --draft=false
 ```
 
 This triggers `release-publish.yml`, which:
