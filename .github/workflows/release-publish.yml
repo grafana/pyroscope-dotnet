@@ -49,6 +49,7 @@ jobs:
             --tag "${DOCKER_IMAGE}:latest-${LIBC}" \
             "${DOCKER_IMAGE}:${VERSION}-draft-${LIBC}"
 
+  # TODO: switch to trusted publishing https://github.com/grafana/pyroscope-dotnet/issues/119
   nuget-publish:
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     steps:
