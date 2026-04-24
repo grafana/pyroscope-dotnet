@@ -6,11 +6,10 @@ on:
   pull_request:
     branches: [main]
 
-permissions:
-  contents: read
-
 jobs:
   discover:
+    permissions:
+      contents: read
     if: false
     name: discover tests
     runs-on: ubuntu-latest
@@ -29,6 +28,8 @@ jobs:
         working-directory: integration-test
 
   unit-test:
+    permissions:
+      contents: read
     name: dockertest unit tests
     runs-on: ubuntu-latest
     steps:
@@ -43,6 +44,8 @@ jobs:
         working-directory: integration-test
 
   test:
+    permissions:
+      contents: read
     name: integration-test ${{ matrix.test }} ${{ matrix.libc_type }} .NET ${{ matrix.version }}
     needs: discover
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}

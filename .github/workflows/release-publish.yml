@@ -4,12 +4,10 @@ on:
   release:
     types: [published]
 
-permissions:
-  contents: read
-  id-token: write
-
 jobs:
   docker-promote:
+    permissions:
+      id-token: write
     if: contains(github.event.release.tag_name, '-pyroscope')
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     env:
@@ -36,6 +34,9 @@ jobs:
 
   # TODO: switch to trusted publishing https://github.com/grafana/pyroscope-dotnet/issues/119
   nuget-publish:
+    permissions:
+      contents: read
+      id-token: write
     if: contains(github.event.release.tag_name, '-pyroscope')
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     steps:

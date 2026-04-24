@@ -6,11 +6,10 @@ on:
   pull_request:
     branches: [main]
 
-permissions:
-  contents: read
-
 jobs:
   test-cpp-profiler:
+    permissions:
+      contents: read
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}
     env:
       DOCKER_BUILDKIT: 1

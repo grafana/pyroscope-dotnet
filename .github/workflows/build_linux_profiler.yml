@@ -6,12 +6,10 @@ on:
   pull_request:
     branches: [main]
 
-permissions:
-  contents: read
-
-
 jobs:
   build-linux-profiler-x86_64:
+    permissions:
+      contents: read
     if: false
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}
     env:
@@ -28,6 +26,8 @@ jobs:
           persist-credentials: false
       - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=x86_64 LIBC=${{ matrix.name }}  make docker/build
   build-linux-profiler-aarch64:
+    permissions:
+      contents: read
     if: false
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-arm64-large' || 'ubuntu-24.04-arm' }}
     env:
@@ -47,6 +47,8 @@ jobs:
           global-json-file: global.json
       - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=aarch64 LIBC=${{ matrix.name }}  make docker/build
   build-managed-helper:
+    permissions:
+      contents: read
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     steps:
       - name: Checkout
