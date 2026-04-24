@@ -1,35 +1,124 @@
 name: Release linux profiler
 
 on:
-  release:
-    types: [created]
-
+  push:
+    tags:
+      - 'v*'
+      - '!v*opentelemetry'
+      - '!v*opentracing'
 jobs:
-  release-linux-profiler:
+  release-linux-profiler-x86_64:
     permissions:
       contents: write
-    runs-on: ${{ matrix.arch == 'aarch64' && (github.repository_owner == 'grafana' && 'ubuntu-arm64-large' || 'ubuntu-24.04-arm') || (github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest') }}
+      id-token: write
+    runs-on: ubuntu-x64-large
     env:
       DOCKER_BUILDKIT: 1
-      ARCH: ${{ matrix.arch }}
-      LIBC: ${{ matrix.libc }}
-      RELEASE_VERSION: ${{ github.event.release.tag_name }}
+      ARCH: x86_64
+      LIBC: ${{ matrix.name }}
+      RELEASE_VERSION: ${{  github.ref_name }}
     strategy:
       matrix:
-        arch: ['x86_64', 'aarch64']
-        libc: ['glibc', 'musl']
+        name: ['glibc', 'musl']
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           submodules: 'true'
           persist-credentials: false
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
+        with:
+          repo_secrets: |
+            DOCKERHUB_USERNAME=dockerhub:user
+            DOCKERHUB_PASSWORD=dockerhub:token
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        name: Login to Docker Hub
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_PASSWORD }}
       - run: make bump_version
       - name: Check version matches committed version
-        if: ${{ !contains(github.event.release.tag_name, '-rc') }}
+        if: ${{ !contains(github.ref_name, '-rc') }}
         run: git diff --exit-code
+      - run: make docker/build
+      - run: make docker/push
       - run: make docker/archive
-      - name: Upload artifacts to release
+      - name: Release
         uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           files: ./*.tar.gz
+          make_latest: ${{ !contains(github.ref_name, '-rc') }}
+  release-linux-profiler-aarch64:
+    permissions:
+      contents: write
+      id-token: write
+    runs-on: ubuntu-arm64-large
+    env:
+      DOCKER_BUILDKIT: 1
+      ARCH: aarch64
+      LIBC: ${{ matrix.name }}
+      RELEASE_VERSION: ${{  github.ref_name }}
+    strategy:
+      matrix:
+        name: ['glibc', 'musl']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: 'true'
+          persist-credentials: false
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
+        with:
+          repo_secrets: |
+            DOCKERHUB_USERNAME=dockerhub:user
+            DOCKERHUB_PASSWORD=dockerhub:token
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        name: Login to Docker Hub
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_PASSWORD }}
+      - run: make bump_version
+      - name: Check version matches committed version
+        if: ${{ !contains(github.ref_name, '-rc') }}
+        run: git diff --exit-code
+      - run: make docker/build
+      - run: make docker/push
+      - run: make docker/archive
+      - name: Release
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
+        with:
+          files: ./*.tar.gz
+          make_latest: ${{ !contains(github.ref_name, '-rc') }}
+  release-linux-profiler:
+    permissions:
+      contents: read
+      id-token: write
+    needs: ['release-linux-profiler-x86_64', 'release-linux-profiler-aarch64']
+    runs-on: ubuntu-x64-small
+    env:
+      DOCKER_BUILDKIT: 1
+      LIBC: ${{ matrix.name }}
+      RELEASE_VERSION: ${{  github.ref_name }}
+    strategy:
+      matrix:
+        name: ['glibc', 'musl']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          submodules: 'true'
+          persist-credentials: false
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
+        with:
+          repo_secrets: |
+            DOCKERHUB_USERNAME=dockerhub:user
+            DOCKERHUB_PASSWORD=dockerhub:token
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        name: Login to Docker Hub
+        with:
+          username: ${{ env.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_PASSWORD }}
+      - run: make docker/manifest
+      - name: Push latest manifest
+        if: ${{ !contains(github.ref_name, '-rc') }}
+        run: make docker/manifest-latest
