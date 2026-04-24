@@ -1,4 +1,4 @@
-package itest
+package integrationtest
 
 import (
 	"fmt"
@@ -47,9 +47,9 @@ func profilerImageTag(libcType string) string {
 
 func appDockerfile(otel bool) string {
 	if otel {
-		return "itest-with-otel.Dockerfile"
+		return "integration-test-with-otel.Dockerfile"
 	}
-	return "itest.Dockerfile"
+	return "integration-test.Dockerfile"
 }
 
 func rideshareServiceName(libcType, version string, otel bool) string {
