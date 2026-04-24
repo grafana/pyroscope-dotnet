@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  publish-dev-x86_64:
+  publish-dev:
     if:
       github.event_name == 'push' ||
       (contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker') &&
@@ -20,54 +20,22 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    runs-on: ubuntu-x64-large
+    runs-on: ${{ matrix.runner }}
     env:
       DOCKER_BUILDKIT: 1
       RELEASE_VERSION: dev-${{ github.event.pull_request.head.sha || github.sha }}
-      ARCH: x86_64
-      LIBC: ${{ matrix.name }}
+      ARCH: ${{ matrix.arch }}
+      LIBC: ${{ matrix.libc }}
     strategy:
       fail-fast: false
       matrix:
-        name: ['glibc', 'musl']
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          submodules: 'true'
-          persist-credentials: false
-      - run: make docker/build
-      - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
-        with:
-          repo_secrets: |
-            DOCKERHUB_USERNAME=dockerhub:user
-            DOCKERHUB_PASSWORD=dockerhub:token
-      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
-        name: Login to Docker Hub
-        with:
-          username: ${{ env.DOCKERHUB_USERNAME }}
-          password: ${{ env.DOCKERHUB_PASSWORD }}
-      - run: make docker/push
-  publish-dev-aarch64:
-    if:
-      github.event_name == 'push' ||
-      (contains(github.event.pull_request.labels.*.name, 'pr-publish-dev-docker') &&
-      github.event.pull_request.head.repo.full_name == github.repository &&
-      (github.event.action != 'labeled' || github.event.label.name == 'pr-publish-dev-docker'))
-    permissions:
-      contents: read
-      id-token: write
-    runs-on: ubuntu-arm64-large
-    env:
-      DOCKER_BUILDKIT: 1
-      RELEASE_VERSION: dev-${{ github.event.pull_request.head.sha || github.sha }}
-      ARCH: aarch64
-      LIBC: ${{ matrix.name }}
-    strategy:
-      fail-fast: false
-      matrix:
-        name: ['glibc', 'musl']
+        libc: ['glibc', 'musl']
+        arch: ['x86_64', 'aarch64']
+        include:
+          - arch: x86_64
+            runner: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}
+          - arch: aarch64
+            runner: ${{ github.repository_owner == 'grafana' && 'ubuntu-arm64-large' || 'ubuntu-24.04-arm' }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -76,8 +44,10 @@ jobs:
           submodules: 'true'
           persist-credentials: false
       - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
+        if: matrix.arch == 'aarch64'
       - run: make docker/build
       - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
+        if: github.repository_owner == 'grafana'
         with:
           repo_secrets: |
             DOCKERHUB_USERNAME=dockerhub:user
@@ -85,23 +55,23 @@ jobs:
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         name: Login to Docker Hub
         with:
-          username: ${{ env.DOCKERHUB_USERNAME }}
-          password: ${{ env.DOCKERHUB_PASSWORD }}
+          username: ${{ env.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_PASSWORD || secrets.DOCKERHUB_PASSWORD }}
       - run: make docker/push
   publish-dev-manifest:
     permissions:
       contents: read
       id-token: write
-    needs: [publish-dev-x86_64, publish-dev-aarch64]
-    runs-on: ubuntu-x64-small
+    needs: [publish-dev]
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     env:
       DOCKER_BUILDKIT: 1
       RELEASE_VERSION: dev-${{ github.event.pull_request.head.sha || github.sha }}
-      LIBC: ${{ matrix.name }}
+      LIBC: ${{ matrix.libc }}
     strategy:
       fail-fast: false
       matrix:
-        name: ['glibc', 'musl']
+        libc: ['glibc', 'musl']
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
@@ -110,6 +80,7 @@ jobs:
           submodules: 'true'
           persist-credentials: false
       - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
+        if: github.repository_owner == 'grafana'
         with:
           repo_secrets: |
             DOCKERHUB_USERNAME=dockerhub:user
@@ -117,6 +88,6 @@ jobs:
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         name: Login to Docker Hub
         with:
-          username: ${{ env.DOCKERHUB_USERNAME }}
-          password: ${{ env.DOCKERHUB_PASSWORD }}
+          username: ${{ env.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME }}
+          password: ${{ env.DOCKERHUB_PASSWORD || secrets.DOCKERHUB_PASSWORD }}
       - run: make docker/manifest
