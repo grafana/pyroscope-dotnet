@@ -49,7 +49,7 @@ jobs:
     runs-on: ${{ matrix.runner }}
     env:
       DOCKER_BUILDKIT: 1
-      DOCKER_IMAGE: ${{ github.repository_owner == 'grafana' && 'pyroscope/pyroscope-dotnet' || 'korniltsev/pyroscope-dotnet' }}
+      DOCKER_IMAGE: ${{ github.repository_owner == 'grafana' && 'pyroscope/pyroscope-dotnet' || 'anatolykorniltsev622/pyroscope-dotnet' }}
       ARCH: ${{ matrix.arch }}
       LIBC: ${{ matrix.libc }}
       RELEASE_VERSION: ${{ needs.create-draft.outputs.version }}-draft
@@ -94,7 +94,7 @@ jobs:
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     env:
       DOCKER_BUILDKIT: 1
-      DOCKER_IMAGE: ${{ github.repository_owner == 'grafana' && 'pyroscope/pyroscope-dotnet' || 'korniltsev/pyroscope-dotnet' }}
+      DOCKER_IMAGE: ${{ github.repository_owner == 'grafana' && 'pyroscope/pyroscope-dotnet' || 'anatolykorniltsev622/pyroscope-dotnet' }}
       LIBC: ${{ matrix.name }}
       RELEASE_VERSION: ${{ needs.create-draft.outputs.version }}-draft
     strategy:
