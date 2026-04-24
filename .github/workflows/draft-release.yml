@@ -1,4 +1,4 @@
-name: Publish Release
+name: Draft Release
 
 on:
   pull_request:
