@@ -4,6 +4,7 @@ on:
   pull_request:
     branches: [main]
     types: [closed]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -11,25 +12,27 @@ permissions:
 jobs:
   publish:
     if: >-
-      github.event.pull_request.merged == true
-      && contains(github.event.pull_request.labels.*.name, 'prepare-release')
+      github.event_name == 'workflow_dispatch'
+      || (github.event.pull_request.merged == true
+          && contains(github.event.pull_request.labels.*.name, 'prepare-release'))
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          ref: ${{ github.event.pull_request.merge_commit_sha }}
+          ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
 
       - name: Create draft release
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+          TARGET_SHA: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
         run: |
+          set -ex
           version=$(make version)
           tag="v${version}-pyroscope"
-          echo "Creating draft release ${tag} at ${MERGE_SHA}"
+          echo "Creating draft release ${tag} at ${TARGET_SHA}"
           gh release create "${tag}" \
-            --target "${MERGE_SHA}" \
+            --target "${TARGET_SHA}" \
             --title "${tag}" \
             --draft \
             --generate-notes
