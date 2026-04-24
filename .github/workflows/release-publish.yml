@@ -20,18 +20,16 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha }}
 
-      - name: Create tag and draft release
+      - name: Create draft release
         env:
           GITHUB_TOKEN: ${{ github.token }}
           MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
         run: |
           version=$(make version)
           tag="v${version}-pyroscope"
-          echo "Creating tag ${tag} at ${MERGE_SHA}"
-          git tag "${tag}" "${MERGE_SHA}"
-          git push origin "${tag}"
-          echo "Creating draft release ${tag}"
+          echo "Creating draft release ${tag} at ${MERGE_SHA}"
           gh release create "${tag}" \
+            --target "${MERGE_SHA}" \
             --title "${tag}" \
             --draft \
             --generate-notes
