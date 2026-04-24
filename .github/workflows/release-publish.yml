@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   docker-promote:
+    if: contains(github.event.release.tag_name, '-pyroscope')
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     env:
       DOCKER_IMAGE: ${{ github.repository_owner == 'grafana' && 'pyroscope/pyroscope-dotnet' || 'korniltsev/pyroscope-dotnet' }}
@@ -51,6 +52,7 @@ jobs:
 
   # TODO: switch to trusted publishing https://github.com/grafana/pyroscope-dotnet/issues/119
   nuget-publish:
+    if: contains(github.event.release.tag_name, '-pyroscope')
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     steps:
       - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
