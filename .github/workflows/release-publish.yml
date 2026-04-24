@@ -27,8 +27,8 @@ jobs:
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         name: Login to Docker Hub
         with:
-          username: ${{ env.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME }}
-          password: ${{ env.DOCKERHUB_PASSWORD || secrets.DOCKERHUB_PASSWORD }}
+          username: ${{ env.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME }} # secrets used on forks
+          password: ${{ env.DOCKERHUB_PASSWORD || secrets.DOCKERHUB_PASSWORD }} # secrets used on forks
       - name: Promote draft Docker tags
         env:
           TAG_NAME: ${{ github.event.release.tag_name }}
