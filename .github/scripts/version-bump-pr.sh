@@ -49,6 +49,7 @@ if [ -n "$existing_pr" ]; then
   echo "PR #${existing_pr} already exists for ${BRANCH}, branch has been force-pushed"
 else
   gh pr create \
+    --draft \
     --base main \
     --head "${BRANCH}" \
     --title "Release v${VERSION}-pyroscope" \
