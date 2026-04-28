@@ -56,7 +56,6 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       DOCKER_BUILDKIT: 1
-      DOCKER_IMAGE: pyroscope/pyroscope-dotnet
       ARCH: ${{ matrix.arch }}
       LIBC: ${{ matrix.libc }}
       RELEASE_VERSION: ${{ needs.create-draft.outputs.version }}
@@ -104,7 +103,6 @@ jobs:
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     env:
       DOCKER_BUILDKIT: 1
-      DOCKER_IMAGE: pyroscope/pyroscope-dotnet
       LIBC: ${{ matrix.name }}
       RELEASE_VERSION: ${{ needs.create-draft.outputs.version }}
       DOCKER_TAG_VERSION: ${{ needs.create-draft.outputs.version }}-draft
