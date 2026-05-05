@@ -1,28 +1,33 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
+  "extends": [
+    "security:only-security-updates"
+  ],
   "packageRules": [
     {
-      "matchManagers": ["dockerfile"],
-      "matchUpdateTypes": ["major", "minor"],
-      "enabled": false
+      "description": "Always update openssl/openssl to latest. Overrides the wildcard enabled:false from security:only-security-updates.",
+      "matchPackageNames": ["openssl/openssl"],
+      "enabled": true
     },
     {
-      "matchDepNames": ["openssl/openssl"],
+      "description": "Split openssl/openssl patch updates into their own stream so they survive when minor/major are disabled below.",
+      "matchPackageNames": ["openssl/openssl"],
       "separateMinorPatch": true
     },
     {
-      "matchDepNames": ["openssl/openssl"],
+      "description": "Restrict openssl/openssl to patch-level updates only. Vulnerability alerts still bypass this and can produce minor/major bumps when needed for CVE fixes.",
+      "matchPackageNames": ["openssl/openssl"],
       "matchUpdateTypes": ["major", "minor"],
       "enabled": false
     }
   ],
   "customManagers": [
     {
+      "description": "Track the OpenSSL C library version pinned via ARG OPENSSL_VERSION in the Pyroscope Dockerfiles, resolved against openssl/openssl GitHub releases.",
       "customType": "regex",
       "managerFilePatterns": [
-        "/^Pyroscope\.Dockerfile$/",
-        "/^Pyroscope\.musl\.Dockerfile$/"
+        "/^Pyroscope\\.Dockerfile$/",
+        "/^Pyroscope\\.musl\\.Dockerfile$/"
       ],
       "matchStrings": ["ARG OPENSSL_VERSION=(?<currentValue>[\\d.]+)"],
       "depNameTemplate": "openssl/openssl",
