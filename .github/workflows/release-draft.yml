@@ -77,17 +77,8 @@ jobs:
           ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
           submodules: 'true'
           persist-credentials: false
-      - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
-        if: github.repository_owner == 'grafana'
-        with:
-          repo_secrets: |
-            DOCKERHUB_USERNAME=dockerhub:user
-            DOCKERHUB_PASSWORD=dockerhub:token
-      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
-        name: Login to Docker Hub
-        with:
-          username: ${{ env.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME }} # secrets used on forks
-          password: ${{ env.DOCKERHUB_PASSWORD || secrets.DOCKERHUB_PASSWORD }} # secrets used on forks
+      - name: Login to DockerHub (from vault)
+        uses: grafana/shared-workflows/actions/dockerhub-login@081a366728379fd0426b9cfef190e9a21c2d5418 # dockerhub-login/v1.0.3
       - name: Build, push, and upload artifacts
         run: |
           make docker/build
@@ -115,17 +106,8 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.merge_commit_sha || github.sha }}
           persist-credentials: false
-      - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
-        if: github.repository_owner == 'grafana'
-        with:
-          repo_secrets: |
-            DOCKERHUB_USERNAME=dockerhub:user
-            DOCKERHUB_PASSWORD=dockerhub:token
-      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
-        name: Login to Docker Hub
-        with:
-          username: ${{ env.DOCKERHUB_USERNAME || secrets.DOCKERHUB_USERNAME }} # secrets used on forks
-          password: ${{ env.DOCKERHUB_PASSWORD || secrets.DOCKERHUB_PASSWORD }} # secrets used on forks
+      - name: Login to DockerHub (from vault)
+        uses: grafana/shared-workflows/actions/dockerhub-login@081a366728379fd0426b9cfef190e9a21c2d5418 # dockerhub-login/v1.0.3
       - run: make docker/manifest
 
   build-managed-helper:
