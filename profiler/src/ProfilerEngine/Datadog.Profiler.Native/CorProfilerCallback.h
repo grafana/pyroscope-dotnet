@@ -42,7 +42,6 @@
 #endif
 #include "IEtwEventsManager.h"
 #include "ISsiLifetime.h"
-#include "IUnwinder.h"
 #include "HeapSnapshotManager.h"
 #include "GCThreadsCpuProvider.h"
 #include "PInvoke.h"
@@ -276,7 +275,6 @@ private :
 #ifdef LINUX
     SystemCallsShield* _systemCallsShield = nullptr;
     std::unique_ptr<TimerCreateCpuProfiler> _pCpuProfiler = nullptr;
-    std::unique_ptr<IUnwinder> _pUnwinder = nullptr;
     CpuSampleProvider* _pCpuSampleProvider = nullptr;
     std::unique_ptr<RingBuffer> _pCpuProfilerRb = nullptr;
 #endif
