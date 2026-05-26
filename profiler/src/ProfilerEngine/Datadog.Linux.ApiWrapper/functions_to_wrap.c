@@ -466,7 +466,7 @@ int ShouldCallCustomCreatedump(const char* pathname, char* const argv[])
         {
             return 1;
         }
-        previousWasNameOpt = strncmp(argv[i], "--name", strlen("--name")) == 0;
+        previousWasNameOpt = strcmp(argv[i], "--name") == 0;
     }
 
     return 0;
@@ -505,15 +505,22 @@ int execve(const char* pathname, char* const argv[], char* const envp[])
     size_t new_idx = 2;
     while (argv[idx] != NULL)
     {
-        if (strncmp(argv[idx], "--name", strlen("--name")) == 0)
+        if (strcmp(argv[idx], "--name") == 0)
         {
-            if (originalMiniDumpName != NULL)
+            if (argv[idx + 1] == NULL)
             {
-                newArgv[new_idx++] = "--name";
-                newArgv[new_idx++] = originalMiniDumpName; // no need to check for datadog_crashtracking, this was done in ShouldCallOurOwnCreatedump
+                idx++;
             }
+            else
+            {
+                if (originalMiniDumpName != NULL)
+                {
+                    newArgv[new_idx++] = "--name";
+                    newArgv[new_idx++] = originalMiniDumpName;
+                }
 
-            idx += 2;
+                idx += 2;
+            }
         }
         else
         {
