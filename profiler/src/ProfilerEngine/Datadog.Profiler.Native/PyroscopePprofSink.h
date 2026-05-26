@@ -31,6 +31,7 @@ public:
 
 private:
     static std::string SchemeHostPort(Url& url);
+    static std::string RedactedUrl(const Url& url);
 
     struct PyroscopeRequest
     {

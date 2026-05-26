@@ -158,7 +158,7 @@ void PyroscopePprofSink::upload(Pprof pprof)
     else
     {
         auto err = res.error();
-        Log::Error("PyroscopePprofSink err ", to_string(err), " ", _url);
+        Log::Error("PyroscopePprofSink err ", to_string(err), " ", RedactedUrl(_url));
     }
 }
 
@@ -195,7 +195,7 @@ std::string PyroscopePprofSink::SchemeHostPort(Url& url)
     std::stringstream url_builder;
     if (url.scheme().empty())
     {
-        Log::Error("PyroscopePprofSink: url scheme empty, falling back to http", url.str());
+        Log::Error("PyroscopePprofSink: url scheme empty, falling back to http", RedactedUrl(url));
         url_builder << "http";
     } else {
         url_builder << url.scheme();
@@ -203,7 +203,7 @@ std::string PyroscopePprofSink::SchemeHostPort(Url& url)
     url_builder << "://";
     if (url.host().empty())
     {
-        Log::Error("PyroscopePprofSink: url host empty, falling back to localhost", url.str());
+        Log::Error("PyroscopePprofSink: url host empty, falling back to localhost", RedactedUrl(url));
         url_builder << "localhost";
     } else {
         url_builder << url.host();
@@ -217,6 +217,21 @@ std::string PyroscopePprofSink::SchemeHostPort(Url& url)
     return res;
 }
 
+
+std::string PyroscopePprofSink::RedactedUrl(const Url& url)
+{
+    std::stringstream ss;
+    if (!url.scheme().empty())
+        ss << url.scheme() << "://";
+    if (!url.user_info().empty())
+        ss << "***@";
+    ss << url.host();
+    if (!url.port().empty())
+        ss << ":" << url.port();
+    if (!url.path().empty())
+        ss << url.path();
+    return ss.str();
+}
 
 std::map<std::string, std::string> PyroscopePprofSink::ParseHeadersJSON(std::string headers)
 {
