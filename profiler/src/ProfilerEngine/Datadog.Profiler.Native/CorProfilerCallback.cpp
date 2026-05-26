@@ -2097,7 +2097,7 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::JITCompilationStarted(FunctionID 
 
 HRESULT STDMETHODCALLTYPE CorProfilerCallback::JITCompilationFinished(FunctionID functionId, HRESULT hrStatus, BOOL fIsSafeToBlock)
 {
-    if (_managedCodeCache != nullptr)
+    if (_managedCodeCache != nullptr && SUCCEEDED(hrStatus))
     {
         _managedCodeCache->AddFunction(functionId);
     }
@@ -2623,7 +2623,7 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::GetReJITParameters(ModuleID modul
 
 HRESULT STDMETHODCALLTYPE CorProfilerCallback::ReJITCompilationFinished(FunctionID functionId, ReJITID rejitId, HRESULT hrStatus, BOOL fIsSafeToBlock)
 {
-    if (_managedCodeCache != nullptr)
+    if (_managedCodeCache != nullptr && SUCCEEDED(hrStatus))
     {
         _managedCodeCache->AddFunction(functionId);
     }
@@ -2668,7 +2668,7 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::DynamicMethodJITCompilationStarte
 
 HRESULT STDMETHODCALLTYPE CorProfilerCallback::DynamicMethodJITCompilationFinished(FunctionID functionId, HRESULT hrStatus, BOOL fIsSafeToBlock)
 {
-    if (_managedCodeCache != nullptr)
+    if (_managedCodeCache != nullptr && SUCCEEDED(hrStatus))
     {
         _managedCodeCache->AddFunction(functionId);
     }

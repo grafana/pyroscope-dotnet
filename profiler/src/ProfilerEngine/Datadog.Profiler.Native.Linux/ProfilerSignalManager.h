@@ -27,7 +27,7 @@ public:
 #ifdef DD_TEST
     void Reset()
     {
-        _handler.store(nullptr, std::memory_order_relaxed);
+        _handler.store(nullptr, std::memory_order_release);
         sigaction(_signalToSend, &_previousAction, nullptr);
         _isHandlerInPlace = false;
         _canReplaceSignalHandler = true;

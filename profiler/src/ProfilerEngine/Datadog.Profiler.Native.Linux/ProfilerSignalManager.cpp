@@ -28,7 +28,7 @@ ProfilerSignalManager::~ProfilerSignalManager() noexcept
         _isHandlerInPlace = false;
         sigaction(_signalToSend, &_previousAction, nullptr);
     }
-    _handler.store(nullptr, std::memory_order_relaxed);
+    _handler.store(nullptr, std::memory_order_release);
 }
 
 ProfilerSignalManager* ProfilerSignalManager::Get(int signal)
@@ -59,7 +59,7 @@ bool ProfilerSignalManager::RegisterHandler(HandlerFn_t handler)
     std::unique_lock<std::mutex> lock(_handlerRegisterMutex);
 
     current = _handler.load(std::memory_order_acquire);
-    if (current != nullptr && _isHandlerInPlace)
+    if (current != nullptr)
     {
         assert(current == handler);
         return current == handler;
