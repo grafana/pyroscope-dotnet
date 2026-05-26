@@ -646,7 +646,7 @@ void CorProfilerCallback::InitializeServices()
             _pManagedThreadList,
             _pCpuSampleProvider,
             _metricsRegistry,
-            _pUnwinder.get());
+            std::move(_pUnwinder));
     }
 #endif
 
