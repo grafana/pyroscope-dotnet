@@ -16,20 +16,17 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+
 	"regexp"
 	"runtime"
 	"strings"
 	"testing"
 	"time"
 
+	"pyroscope-dotnet-integration-test/api/querier"
 	"pyroscope-dotnet-integration-test/dockertest"
 	"pyroscope-dotnet-integration-test/pyroscope/model"
-
-	"connectrpc.com/connect"
-	querierv1 "github.com/grafana/pyroscope/api/gen/proto/go/querier/v1"
-	"github.com/grafana/pyroscope/api/gen/proto/go/querier/v1/querierv1connect"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"pyroscope-dotnet-integration-test/require"
 )
 
 func startPyroscope(t *testing.T, net *dockertest.Network) string {
@@ -128,27 +125,27 @@ func runLoadGenerator(ctx context.Context, t *testing.T, appBaseURL string) {
 
 func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string, profileTypeID string) (string, error) {
 	t.Helper()
-	qc := querierv1connect.NewQuerierServiceClient(http.DefaultClient, pyroscopeURL)
+	qc := querier.NewClient(http.DefaultClient, pyroscopeURL)
 
 	to := time.Now()
 	from := to.Add(-1 * time.Hour)
 	maxNodes := int64(65536)
 	resp, err := qc.SelectMergeStacktraces(context.Background(),
-		connect.NewRequest(&querierv1.SelectMergeStacktracesRequest{
+		&querier.SelectMergeStacktracesRequest{
 			ProfileTypeID: profileTypeID,
 			Start:         from.UnixMilli(),
 			End:           to.UnixMilli(),
 			LabelSelector: labelSelector,
 			MaxNodes:      &maxNodes,
-			Format:        querierv1.ProfileFormat_PROFILE_FORMAT_TREE,
-		}))
+			Format:        querier.ProfileFormat_PROFILE_FORMAT_TREE,
+		})
 	if err != nil {
 		return "", err
 	}
-	if len(resp.Msg.Tree) == 0 {
+	if len(resp.Tree) == 0 {
 		return "", nil
 	}
-	tt, err := model.UnmarshalTree(resp.Msg.Tree)
+	tt, err := model.UnmarshalTree(resp.Tree)
 	if err != nil {
 		return "", err
 	}
@@ -223,7 +220,7 @@ func runRideshareProfileTest(t *testing.T, libcType, version string, otel bool) 
 			labelSelector := fmt.Sprintf(`{service_name="%s",vehicle="%s"}`, svcName, check.vehicle)
 			var lastCollapsed string
 			var lastErr error
-			ok := assert.Eventually(t, func() bool {
+			require.Eventually(t, func() bool {
 				lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector, "process_cpu:cpu:nanoseconds:cpu:nanoseconds")
 				if lastErr != nil || lastCollapsed == "" {
 					return false
@@ -235,14 +232,6 @@ func runRideshareProfileTest(t *testing.T, libcType, version string, otel bool) 
 				}
 				return true
 			}, 3*time.Minute, 5*time.Second)
-
-			if !ok {
-				t.Logf("label selector: %s", labelSelector)
-				t.Logf("last profile query error: %v", lastErr)
-				t.Logf("last collapsed profile:\n%s", lastCollapsed)
-				t.FailNow()
-			}
-			t.Logf("collapsed profile for %s:\n%s", check.vehicle, lastCollapsed)
 		})
 	}
 }
@@ -280,9 +269,9 @@ func TestDynamicCpuToggleDoesNotCrash(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		resp, err := client.Post(disableURL, "text/plain", nil)
 		require.NoError(t, err)
-		body, _ := io.ReadAll(resp.Body)
+		_, _ = io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		require.Equal(t, http.StatusOK, resp.StatusCode, "iteration %d body: %s", i, string(body))
+		require.Equal(t, http.StatusOK, resp.StatusCode)
 
 		for j := 0; j < 20; j++ {
 			loadResp, err := client.Get(appBaseURL + "/car")
@@ -293,9 +282,9 @@ func TestDynamicCpuToggleDoesNotCrash(t *testing.T) {
 
 		resp, err = client.Post(enableURL, "text/plain", nil)
 		require.NoError(t, err)
-		body, _ = io.ReadAll(resp.Body)
+		_, _ = io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
-		require.Equal(t, http.StatusOK, resp.StatusCode, "iteration %d body: %s", i, string(body))
+		require.Equal(t, http.StatusOK, resp.StatusCode)
 	}
 
 	require.Eventually(t, func() bool {
@@ -330,7 +319,7 @@ func TestDynamicCpuProfilingToggleAffectsProfileData(t *testing.T) {
 	_ = disableResp.Body.Close()
 
 	labelSelector := fmt.Sprintf(`{service_name="%s",vehicle="bike"}`, appName)
-	assert.Never(t, func() bool {
+	require.Never(t, func() bool {
 		resp, err := client.Get(appBaseURL + "/bike")
 		if err != nil {
 			t.Logf("bike request failed while CPU disabled: %v", err)
@@ -357,7 +346,7 @@ func TestDynamicCpuProfilingToggleAffectsProfileData(t *testing.T) {
 
 	var lastCollapsed string
 	var lastErr error
-	ok := assert.Eventually(t, func() bool {
+	require.Eventually(t, func() bool {
 		resp, err := client.Get(appBaseURL + "/bike")
 		if err != nil {
 			lastErr = err
@@ -375,13 +364,6 @@ func TestDynamicCpuProfilingToggleAffectsProfileData(t *testing.T) {
 		}
 		return frameContains(lastCollapsed, "OrderService", "FindNearestVehicle")
 	}, 2*time.Minute, 5*time.Second, "expected CPU profile data after CPU profiling is re-enabled")
-
-	if !ok {
-		t.Logf("label selector: %s", labelSelector)
-		t.Logf("last profile query error: %v", lastErr)
-		t.Logf("last collapsed profile:\n%s", lastCollapsed)
-		t.FailNow()
-	}
 }
 
 // generateTestCerts creates a self-signed CA and a server certificate signed by
