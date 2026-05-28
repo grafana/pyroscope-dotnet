@@ -4,14 +4,13 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"pyroscope-dotnet-integration-test/require"
 	"regexp"
 	"strings"
 	"testing"
 	"time"
 
 	"pyroscope-dotnet-integration-test/dockertest"
-
-	"github.com/stretchr/testify/assert"
 )
 
 // stackContainsChain checks that at least one stack in the collapsed output
@@ -108,21 +107,13 @@ func TestAllocationProfileStacktraces(t *testing.T) {
 	}
 	var lastCollapsed string
 	var lastErr error
-	ok := assert.Eventually(t, func() bool {
+	require.Eventually(t, func() bool {
 		lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector, "alloc:alloc_samples:count:cpu:nanoseconds")
 		if lastErr != nil || lastCollapsed == "" {
 			return false
 		}
 		return stackContainsChain(lastCollapsed, expectedChain)
 	}, 3*time.Minute, 5*time.Second)
-
-	if !ok {
-		t.Logf("label selector: %s", labelSelector)
-		t.Logf("last profile query error: %v", lastErr)
-		t.Logf("last collapsed profile:\n%s", lastCollapsed)
-		t.FailNow()
-	}
-	t.Logf("collapsed allocation profile:\n%s", lastCollapsed)
 }
 
 func TestExceptionProfileStacktraces(t *testing.T) {
@@ -146,21 +137,13 @@ func TestExceptionProfileStacktraces(t *testing.T) {
 	}
 	var lastCollapsed string
 	var lastErr error
-	ok := assert.Eventually(t, func() bool {
+	require.Eventually(t, func() bool {
 		lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector, "exception:exception:count:cpu:nanoseconds")
 		if lastErr != nil || lastCollapsed == "" {
 			return false
 		}
 		return stackContainsChain(lastCollapsed, expectedChain)
 	}, 3*time.Minute, 5*time.Second)
-
-	if !ok {
-		t.Logf("label selector: %s", labelSelector)
-		t.Logf("last profile query error: %v", lastErr)
-		t.Logf("last collapsed profile:\n%s", lastCollapsed)
-		t.FailNow()
-	}
-	t.Logf("collapsed exception profile:\n%s", lastCollapsed)
 }
 
 func TestLockProfileStacktraces(t *testing.T) {
@@ -186,19 +169,11 @@ func TestLockProfileStacktraces(t *testing.T) {
 	}
 	var lastCollapsed string
 	var lastErr error
-	ok := assert.Eventually(t, func() bool {
+	require.Eventually(t, func() bool {
 		lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector, "lock:lock_count:count:cpu:nanoseconds")
 		if lastErr != nil || lastCollapsed == "" {
 			return false
 		}
 		return stackContainsChain(lastCollapsed, expectedChain)
 	}, 3*time.Minute, 5*time.Second)
-
-	if !ok {
-		t.Logf("label selector: %s", labelSelector)
-		t.Logf("last profile query error: %v", lastErr)
-		t.Logf("last collapsed profile:\n%s", lastCollapsed)
-		t.FailNow()
-	}
-	t.Logf("collapsed lock profile:\n%s", lastCollapsed)
 }
