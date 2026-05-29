@@ -2,6 +2,18 @@
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
   "draft": true,
   "skip-changelog": true,
+  "separate-pull-requests": true,
+  "changelog-sections": [
+    {"type": "feat", "section": "Features"},
+    {"type": "fix", "section": "Bug Fixes"},
+    {"type": "perf", "section": "Performance Improvements"},
+    {"type": "chore", "section": "Miscellaneous Chores"},
+    {"type": "revert", "section": "Reverts"},
+    {"type": "docs", "section": "Documentation"},
+    {"type": "refactor", "section": "Code Refactoring"},
+    {"type": "build", "section": "Build System"},
+    {"type": "ci", "section": "Continuous Integration"}
+  ],
   "packages": {
     ".": {
       "component": "pyroscope",
@@ -9,16 +21,9 @@
       "package-name": "pyroscope",
       "include-v-in-tag": false,
       "include-component-in-tag": true,
-      "changelog-sections": [
-        {"type": "feat", "section": "Features"},
-        {"type": "fix", "section": "Bug Fixes"},
-        {"type": "perf", "section": "Performance Improvements"},
-        {"type": "chore", "section": "Miscellaneous Chores"},
-        {"type": "revert", "section": "Reverts"},
-        {"type": "docs", "section": "Documentation"},
-        {"type": "refactor", "section": "Code Refactoring"},
-        {"type": "build", "section": "Build System"},
-        {"type": "ci", "section": "Continuous Integration"}
+      "exclude-paths": [
+        "Pyroscope/Pyroscope.OpenTracing",
+        "Pyroscope/Pyroscope.OpenTelemetry"
       ],
       "extra-files": [
         {
@@ -39,6 +44,54 @@
         {
           "type": "generic",
           "path": "profiler/src/ProfilerEngine/Datadog.Profiler.Native/PyroscopePprofSink.h"
+        }
+      ]
+    },
+    "Pyroscope/Pyroscope.OpenTracing": {
+      "component": "opentracing",
+      "release-type": "simple",
+      "package-name": "pyroscope-opentracing",
+      "include-v-in-tag": false,
+      "include-component-in-tag": true,
+      "extra-files": [
+        {
+          "type": "xml",
+          "path": "Pyroscope/Pyroscope.OpenTracing/Pyroscope.OpenTracing.csproj",
+          "xpath": "//PackageVersion"
+        },
+        {
+          "type": "xml",
+          "path": "Pyroscope/Pyroscope.OpenTracing/Pyroscope.OpenTracing.csproj",
+          "xpath": "//AssemblyVersion"
+        },
+        {
+          "type": "xml",
+          "path": "Pyroscope/Pyroscope.OpenTracing/Pyroscope.OpenTracing.csproj",
+          "xpath": "//FileVersion"
+        }
+      ]
+    },
+    "Pyroscope/Pyroscope.OpenTelemetry": {
+      "component": "opentelemetry",
+      "release-type": "simple",
+      "package-name": "pyroscope-opentelemetry",
+      "include-v-in-tag": false,
+      "include-component-in-tag": true,
+      "extra-files": [
+        {
+          "type": "xml",
+          "path": "Pyroscope/Pyroscope.OpenTelemetry/Pyroscope.OpenTelemetry.csproj",
+          "xpath": "//PackageVersion"
+        },
+        {
+          "type": "xml",
+          "path": "Pyroscope/Pyroscope.OpenTelemetry/Pyroscope.OpenTelemetry.csproj",
+          "xpath": "//AssemblyVersion"
+        },
+        {
+          "type": "xml",
+          "path": "Pyroscope/Pyroscope.OpenTelemetry/Pyroscope.OpenTelemetry.csproj",
+          "xpath": "//FileVersion"
         }
       ]
     }

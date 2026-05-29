@@ -13,10 +13,16 @@ jobs:
   release-please:
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     outputs:
-      release_created: ${{ steps.release.outputs.release_created }}
-      version: ${{ steps.release.outputs.version }}
-      tag_name: ${{ steps.release.outputs.tag_name }}
-      sha: ${{ steps.release.outputs.sha }}
+      pyroscope_release_created: ${{ steps.release.outputs.release_created }}
+      pyroscope_version: ${{ steps.release.outputs.version }}
+      pyroscope_tag_name: ${{ steps.release.outputs.tag_name }}
+      pyroscope_sha: ${{ steps.release.outputs.sha }}
+      opentracing_release_created: ${{ steps.release.outputs['Pyroscope/Pyroscope.OpenTracing--release_created'] }}
+      opentracing_tag_name: ${{ steps.release.outputs['Pyroscope/Pyroscope.OpenTracing--tag_name'] }}
+      opentracing_sha: ${{ steps.release.outputs['Pyroscope/Pyroscope.OpenTracing--sha'] }}
+      opentelemetry_release_created: ${{ steps.release.outputs['Pyroscope/Pyroscope.OpenTelemetry--release_created'] }}
+      opentelemetry_tag_name: ${{ steps.release.outputs['Pyroscope/Pyroscope.OpenTelemetry--tag_name'] }}
+      opentelemetry_sha: ${{ steps.release.outputs['Pyroscope/Pyroscope.OpenTelemetry--sha'] }}
     steps:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
         id: release
@@ -30,15 +36,15 @@ jobs:
     permissions:
       contents: write
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    if: ${{ needs.release-please.outputs.pyroscope_release_created == 'true' }}
     runs-on: ${{ matrix.runner }}
     env:
       GH_TOKEN: ${{ github.token }}
       DOCKER_BUILDKIT: 1
       ARCH: ${{ matrix.arch }}
       LIBC: ${{ matrix.libc }}
-      RELEASE_VERSION: ${{ needs.release-please.outputs.version }}
-      TAG: ${{ needs.release-please.outputs.tag_name }}
+      RELEASE_VERSION: ${{ needs.release-please.outputs.pyroscope_version }}
+      TAG: ${{ needs.release-please.outputs.pyroscope_tag_name }}
     strategy:
       matrix:
         libc: ['glibc', 'musl']
@@ -52,7 +58,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          ref: ${{ needs.release-please.outputs.sha }}
+          ref: ${{ needs.release-please.outputs.pyroscope_sha }}
           submodules: 'true'
           persist-credentials: false
       - name: Build and upload profiler artifacts
@@ -64,16 +70,16 @@ jobs:
     permissions:
       contents: write
     needs: release-please
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    if: ${{ needs.release-please.outputs.pyroscope_release_created == 'true' }}
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     env:
       GH_TOKEN: ${{ github.token }}
-      TAG: ${{ needs.release-please.outputs.tag_name }}
+      TAG: ${{ needs.release-please.outputs.pyroscope_tag_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          ref: ${{ needs.release-please.outputs.sha }}
+          ref: ${{ needs.release-please.outputs.pyroscope_sha }}
           persist-credentials: false
       - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
         with:
@@ -83,16 +89,16 @@ jobs:
       - name: Upload artifacts to draft release
         run: gh release upload --clobber "$TAG" ./Pyroscope/artifacts/bin/Pyroscope/release/Pyroscope.dll ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg
 
-  nuget-publish:
+  nuget-publish-pyroscope:
     permissions:
       contents: read
       id-token: write
     needs: [release-please, build-managed-helper]
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    if: ${{ needs.release-please.outputs.pyroscope_release_created == 'true' }}
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     env:
       GH_TOKEN: ${{ github.token }}
-      TAG: ${{ needs.release-please.outputs.tag_name }}
+      TAG: ${{ needs.release-please.outputs.pyroscope_tag_name }}
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
@@ -108,14 +114,140 @@ jobs:
       - name: Publish to nuget.org
         run: dotnet nuget push ./packages/Pyroscope*.nupkg -k "${NUGET_API_KEY}" -s https://api.nuget.org/v3/index.json
 
-  publish-release:
+  publish-pyroscope-release:
     permissions:
       contents: write
-    needs: [release-please, build-profiler, build-managed-helper, nuget-publish]
-    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    needs: [release-please, build-profiler, build-managed-helper, nuget-publish-pyroscope]
+    if: ${{ needs.release-please.outputs.pyroscope_release_created == 'true' }}
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Publish GitHub release
-        run: gh release edit "${{ needs.release-please.outputs.tag_name }}" --draft=false
+        run: gh release edit "${{ needs.release-please.outputs.pyroscope_tag_name }}" --draft=false
+
+  build-opentracing:
+    permissions:
+      contents: write
+    needs: release-please
+    if: ${{ needs.release-please.outputs.opentracing_release_created == 'true' }}
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.release-please.outputs.opentracing_tag_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ needs.release-please.outputs.opentracing_sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
+        with:
+          global-json-file: global.json
+      - run: dotnet build -c Release
+        working-directory: Pyroscope/Pyroscope.OpenTracing
+      - name: Upload artifacts to draft release
+        run: |
+          gh release upload --clobber "$TAG" \
+            ./Pyroscope/artifacts/bin/Pyroscope.OpenTracing/release/Pyroscope.OpenTracing.dll \
+            ./Pyroscope/artifacts/package/release/Pyroscope.OpenTracing*.nupkg
+
+  nuget-publish-opentracing:
+    permissions:
+      contents: read
+      id-token: write
+    needs: [release-please, build-opentracing]
+    if: ${{ needs.release-please.outputs.opentracing_release_created == 'true' }}
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.release-please.outputs.opentracing_tag_name }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
+        with:
+          global-json-file: global.json
+      - name: Download NuGet package from release
+        run: gh release download "$TAG" --pattern 'Pyroscope.OpenTracing*.nupkg' --dir ./packages
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
+        if: github.repository_owner == 'grafana'
+        with:
+          repo_secrets: |
+            NUGET_API_KEY=nuget:api_key
+      - name: Publish to nuget.org
+        run: dotnet nuget push ./packages/Pyroscope.OpenTracing*.nupkg -k "${NUGET_API_KEY}" -s https://api.nuget.org/v3/index.json
+
+  publish-opentracing-release:
+    permissions:
+      contents: write
+    needs: [release-please, build-opentracing, nuget-publish-opentracing]
+    if: ${{ needs.release-please.outputs.opentracing_release_created == 'true' }}
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Publish GitHub release
+        run: gh release edit "${{ needs.release-please.outputs.opentracing_tag_name }}" --draft=false
+
+  build-opentelemetry:
+    permissions:
+      contents: write
+    needs: release-please
+    if: ${{ needs.release-please.outputs.opentelemetry_release_created == 'true' }}
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.release-please.outputs.opentelemetry_tag_name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ needs.release-please.outputs.opentelemetry_sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
+        with:
+          global-json-file: global.json
+      - run: dotnet build -c Release
+        working-directory: Pyroscope/Pyroscope.OpenTelemetry
+      - name: Upload artifacts to draft release
+        run: |
+          gh release upload --clobber "$TAG" \
+            ./Pyroscope/artifacts/bin/Pyroscope.OpenTelemetry/release/Pyroscope.OpenTelemetry.dll \
+            ./Pyroscope/artifacts/package/release/Pyroscope.OpenTelemetry*.nupkg
+
+  nuget-publish-opentelemetry:
+    permissions:
+      contents: read
+      id-token: write
+    needs: [release-please, build-opentelemetry]
+    if: ${{ needs.release-please.outputs.opentelemetry_release_created == 'true' }}
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.release-please.outputs.opentelemetry_tag_name }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
+        with:
+          global-json-file: global.json
+      - name: Download NuGet package from release
+        run: gh release download "$TAG" --pattern 'Pyroscope.OpenTelemetry*.nupkg' --dir ./packages
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
+        if: github.repository_owner == 'grafana'
+        with:
+          repo_secrets: |
+            NUGET_API_KEY=nuget:api_key
+      - name: Publish to nuget.org
+        run: dotnet nuget push ./packages/Pyroscope.OpenTelemetry*.nupkg -k "${NUGET_API_KEY}" -s https://api.nuget.org/v3/index.json
+
+  publish-opentelemetry-release:
+    permissions:
+      contents: write
+    needs: [release-please, build-opentelemetry, nuget-publish-opentelemetry]
+    if: ${{ needs.release-please.outputs.opentelemetry_release_created == 'true' }}
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Publish GitHub release
+        run: gh release edit "${{ needs.release-please.outputs.opentelemetry_tag_name }}" --draft=false
