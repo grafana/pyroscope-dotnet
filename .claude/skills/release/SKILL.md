@@ -29,7 +29,7 @@ before merging.
 Review the version bumps, then merge the PR. The next
 push to `main` runs `release-please.yml`, which:
 
-1. Creates a **draft** GitHub release (via release-please, retagged to `vX.Y.Z-pyroscope`)
+1. Creates a **draft** GitHub release at `dotnet-X.Y.Z`
 2. Builds profiler `.so` tarballs and uploads them to the release
 3. Builds and uploads the managed helper (`.dll`, `.nupkg`)
 4. Publishes the NuGet package to nuget.org
@@ -45,7 +45,7 @@ gh run watch <run-id> --repo grafana/pyroscope-dotnet --exit-status
 ### 3. Verify the published release
 
 ```bash
-gh release view vX.Y.Z-pyroscope --repo grafana/pyroscope-dotnet
+gh release view dotnet-X.Y.Z --repo grafana/pyroscope-dotnet
 ```
 
 Release artifacts attached to the GitHub release:

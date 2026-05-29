@@ -1,16 +1,25 @@
 {
   "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
-  "release-type": "simple",
-  "include-v-in-tag": true,
-  "include-component-in-tag": false,
   "draft": true,
-  "force-tag-creation": true,
-  "draft-pull-request": true,
   "skip-changelog": true,
-  "pull-request-header": "Automated release PR for pyroscope-dotnet.",
-  "group-pull-request-title-pattern": "chore: release ${version}",
   "packages": {
     ".": {
+      "component": "dotnet",
+      "release-type": "simple",
+      "package-name": "pyroscope",
+      "include-v-in-tag": false,
+      "include-component-in-tag": true,
+      "changelog-sections": [
+        {"type": "feat", "section": "Features"},
+        {"type": "fix", "section": "Bug Fixes"},
+        {"type": "perf", "section": "Performance Improvements"},
+        {"type": "chore", "section": "Miscellaneous Chores"},
+        {"type": "revert", "section": "Reverts"},
+        {"type": "docs", "section": "Documentation"},
+        {"type": "refactor", "section": "Code Refactoring"},
+        {"type": "build", "section": "Build System"},
+        {"type": "ci", "section": "Continuous Integration"}
+      ],
       "extra-files": [
         {
           "type": "xml",
