@@ -4,7 +4,7 @@
   "skip-changelog": true,
   "packages": {
     ".": {
-      "component": "dotnet",
+      "component": "pyroscope",
       "release-type": "simple",
       "package-name": "pyroscope",
       "include-v-in-tag": false,
