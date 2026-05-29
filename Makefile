@@ -2,7 +2,7 @@ LIBC ?= glibc
 ARCH ?= x86_64
 RELEASE_VERSION ?=
 DOCKER_TAG_VERSION ?= $(RELEASE_VERSION)
-DOCKER_IMAGE ?= grafana/pyroscope-dotnet
+DOCKER_IMAGE ?= us-docker.pkg.dev/grafanalabs-global/dockerhub-pyroscope-dotnet-prod-mirror/pyroscope-dotnet
 
 ifeq ($(RELEASE_VERSION),)
   $(error RELEASE_VERSION is required)
