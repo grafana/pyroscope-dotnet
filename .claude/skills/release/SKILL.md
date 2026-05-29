@@ -5,89 +5,61 @@ allowed-tools: Bash(git *), Bash(gh *), Read, Edit
 
 # Release
 
-Prepare a new `vX.Y.Z-pyroscope` release. The process is mostly automated by
-three workflows; the human role is to review, write the changelog, and publish.
+Releases are automated with [release-please](https://github.com/googleapis/release-please).
+Every push to `main` opens or updates a release PR; merging it triggers the full
+release pipeline in a single workflow.
 
 ## Steps
 
-### 1. Check the version bump PR
+### 1. Check the release-please PR
 
-Every push to `main` triggers `release-version-bump-pr.yml`, which creates a PR
-with the `prepare-release` label that bumps the patch version.
-
-```bash
-gh pr list --repo grafana/pyroscope-dotnet --label prepare-release
-```
-
-For a minor or major bump, trigger manually:
+Every push to `main` triggers `release-please.yml`, which opens or updates a PR
+with the `autorelease: pending` label that bumps the version.
 
 ```bash
-gh workflow run release-version-bump-pr.yml --repo grafana/pyroscope-dotnet -f version_bump=minor
+gh pr list --repo grafana/pyroscope-dotnet --label "autorelease: pending"
 ```
 
-### 2. Merge the version bump PR
+To force a specific version bump on the next release PR, add a `Release-As: X.Y.Z`
+commit to `main` before the next release-please run, or edit the release PR
+before merging.
 
-Review and merge the PR. This triggers `release-draft.yml`, which:
-- Creates a draft GitHub release with auto-generated notes
-- Builds Docker images with a `-draft` tag suffix
-- Uploads profiler tarballs and managed helper (`.dll`, `.nupkg`) to the draft
+### 2. Review and merge the release PR
+
+Review the version bumps, then merge the PR. The next
+push to `main` runs `release-please.yml`, which:
+
+1. Creates a **draft** GitHub release (via release-please, retagged to `vX.Y.Z-pyroscope`)
+2. Builds profiler `.so` tarballs and uploads them to the release
+3. Builds and uploads the managed helper (`.dll`, `.nupkg`)
+4. Publishes the NuGet package to nuget.org
+5. Publishes the GitHub release and tag once all steps succeed
 
 Wait for the workflow to complete:
 
 ```bash
-gh run list --repo grafana/pyroscope-dotnet --workflow release-draft.yml
+gh run list --repo grafana/pyroscope-dotnet --workflow release-please.yml
 gh run watch <run-id> --repo grafana/pyroscope-dotnet --exit-status
 ```
 
-### 3. Write the release changelog
-
-Get the commits since the previous tag, skipping upstream dd-trace commits
-(those with `#8xxx` or `#7xxx` PR numbers) and chore(deps) bumps:
+### 3. Verify the published release
 
 ```bash
-git log vX.Y.(Z-1)-pyroscope..HEAD --oneline \
-  | grep -v '#[78][0-9]\{3\}' \
-  | grep -v 'chore(deps)'
+gh release view vX.Y.Z-pyroscope --repo grafana/pyroscope-dotnet
 ```
 
-For each merged PR, fetch its title:
+Release artifacts attached to the GitHub release:
 
-```bash
-gh pr view <number> --repo grafana/pyroscope-dotnet --json title -q .title
-```
+- `pyroscope.X.Y.Z-{glibc,musl}-{x86_64,aarch64}.tar.gz` — native profiler libraries
+- `Pyroscope.dll` and `Pyroscope*.nupkg` — managed helper
 
-Format the changelog as one bullet per PR. Only list the **latest** upstream
-merge (e.g. `merge upstream v3.39.0 (#NNN)`), not every intermediate one.
+## Configuration
 
-Include Docker Hub image links for the published images. The images are
-published to `pyroscope/pyroscope-dotnet` on Docker Hub with tags
-`X.Y.Z-glibc` and `X.Y.Z-musl`. Update the draft release:
+- `release-please-config.json` — release-please settings and files to bump
+- `.release-please-manifest.json` — current released version
 
-```bash
-gh release edit vX.Y.Z-pyroscope --repo grafana/pyroscope-dotnet \
-  --notes "$(cat <<'EOF'
-## What's Changed
+## OpenTracing / OpenTelemetry packages
 
-- <description> (#NNN)
-- ...
-
-## Docker images
-
-- [`pyroscope/pyroscope-dotnet:X.Y.Z-glibc`](https://hub.docker.com/r/pyroscope/pyroscope-dotnet/tags?name=X.Y.Z-glibc)
-- [`pyroscope/pyroscope-dotnet:X.Y.Z-musl`](https://hub.docker.com/r/pyroscope/pyroscope-dotnet/tags?name=X.Y.Z-musl)
-
-**Full Changelog**: https://github.com/grafana/pyroscope-dotnet/compare/vX.Y.(Z-1)-pyroscope...vX.Y.Z-pyroscope
-EOF
-)"
-```
-
-### 4. Publish the draft release
-
-```bash
-gh release edit vX.Y.Z-pyroscope --repo grafana/pyroscope-dotnet --draft=false
-```
-
-This triggers `release-publish.yml`, which:
-- Promotes Docker images by creating tags without the `-draft` suffix
-- Creates `latest-glibc` and `latest-musl` manifest tags
-- Publishes the NuGet package to nuget.org
+The main release workflow covers the core `Pyroscope` package and profiler
+artifacts only. OpenTracing and OpenTelemetry packages still use tag-triggered
+workflows (`tag_tracing_opentracing_helper.yml`, `tag_tracing_opentelemetry_helper.yml`).

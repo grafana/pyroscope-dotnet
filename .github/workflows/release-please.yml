@@ -1,0 +1,148 @@
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+jobs:
+  release-please:
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    outputs:
+      release_created: ${{ steps.release.outputs.release_created }}
+      version: ${{ steps.release.outputs.version }}
+      tag: ${{ steps.retag.outputs.tag }}
+      sha: ${{ steps.release.outputs.sha }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
+        id: release
+        with:
+          token: ${{ github.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          target-branch: main
+
+      # release-please tags releases as vX.Y.Z; this repo uses vX.Y.Z-pyroscope.
+      - name: Retag draft release
+        id: retag
+        if: ${{ steps.release.outputs.release_created }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.release.outputs.version }}
+          RP_TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          set -ex
+          tag="v${VERSION}-pyroscope"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          if [ "${RP_TAG}" = "${tag}" ]; then
+            exit 0
+          fi
+          target="$(gh release view "${RP_TAG}" --json targetCommitish -q .targetCommitish)"
+          gh release delete "${RP_TAG}" --yes
+          gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/${RP_TAG}" || true
+          gh release create "${tag}" \
+            --target "${target}" \
+            --title "${tag}" \
+            --draft \
+            --generate-notes
+
+  build-profiler:
+    permissions:
+      contents: write
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ${{ matrix.runner }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DOCKER_BUILDKIT: 1
+      ARCH: ${{ matrix.arch }}
+      LIBC: ${{ matrix.libc }}
+      RELEASE_VERSION: ${{ needs.release-please.outputs.version }}
+      TAG: ${{ needs.release-please.outputs.tag }}
+    strategy:
+      matrix:
+        libc: ['glibc', 'musl']
+        arch: ['x86_64', 'aarch64']
+        include:
+          - arch: x86_64
+            runner: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}
+          - arch: aarch64
+            runner: ${{ github.repository_owner == 'grafana' && 'ubuntu-arm64-large' || 'ubuntu-24.04-arm' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ needs.release-please.outputs.sha }}
+          submodules: 'true'
+          persist-credentials: false
+      - name: Build and upload profiler artifacts
+        run: |
+          make docker/archive
+          gh release upload --clobber "$TAG" ./*.tar.gz
+
+  build-managed-helper:
+    permissions:
+      contents: write
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.release-please.outputs.tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+        with:
+          ref: ${{ needs.release-please.outputs.sha }}
+          persist-credentials: false
+      - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
+        with:
+          global-json-file: global.json
+      - run: dotnet build -c Release ./Pyroscope
+        working-directory: Pyroscope
+      - name: Upload artifacts to draft release
+        run: gh release upload --clobber "$TAG" ./Pyroscope/artifacts/bin/Pyroscope/release/Pyroscope.dll ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg
+
+  nuget-publish:
+    permissions:
+      contents: read
+      id-token: write
+    needs: [release-please, build-managed-helper]
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.release-please.outputs.tag }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
+        with:
+          global-json-file: global.json
+      - name: Download NuGet package from release
+        run: gh release download "$TAG" --pattern 'Pyroscope*.nupkg' --dir ./packages
+      - uses: grafana/shared-workflows/actions/get-vault-secrets@e7a3275d4c4978a3514801ec55708f1c599a6906
+        if: github.repository_owner == 'grafana'
+        with:
+          repo_secrets: |
+            NUGET_API_KEY=nuget:api_key
+      - name: Publish to nuget.org
+        run: dotnet nuget push ./packages/Pyroscope*.nupkg -k "${NUGET_API_KEY}" -s https://api.nuget.org/v3/index.json
+
+  publish-release:
+    permissions:
+      contents: write
+    needs: [release-please, build-profiler, build-managed-helper, nuget-publish]
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.release-please.outputs.tag }}
+    steps:
+      - name: Publish GitHub release
+        run: gh release edit "$TAG" --draft=false

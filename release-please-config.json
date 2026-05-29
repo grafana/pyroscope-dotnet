@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "simple",
+  "include-v-in-tag": true,
+  "include-component-in-tag": false,
+  "draft": true,
+  "force-tag-creation": true,
+  "draft-pull-request": true,
+  "skip-changelog": true,
+  "pull-request-header": "Automated release PR for pyroscope-dotnet.",
+  "group-pull-request-title-pattern": "chore: release ${version}",
+  "packages": {
+    ".": {
+      "extra-files": [
+        {
+          "type": "xml",
+          "path": "Pyroscope/Pyroscope/Pyroscope.csproj",
+          "xpath": "//PackageVersion"
+        },
+        {
+          "type": "xml",
+          "path": "Pyroscope/Pyroscope/Pyroscope.csproj",
+          "xpath": "//AssemblyVersion"
+        },
+        {
+          "type": "xml",
+          "path": "Pyroscope/Pyroscope/Pyroscope.csproj",
+          "xpath": "//FileVersion"
+        },
+        {
+          "type": "generic",
+          "path": "profiler/src/ProfilerEngine/Datadog.Profiler.Native/PyroscopePprofSink.h"
+        }
+      ]
+    }
+  }
+}
