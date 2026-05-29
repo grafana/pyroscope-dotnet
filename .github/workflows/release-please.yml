@@ -4,13 +4,11 @@ on:
   push:
     branches: [main]
 
-permissions:
-  contents: write
-  pull-requests: write
-  id-token: write
-
 jobs:
   release-please:
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     outputs:
       pyroscope_release_created: ${{ steps.release.outputs.release_created }}
