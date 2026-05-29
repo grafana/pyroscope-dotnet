@@ -29,7 +29,7 @@ before merging.
 Review the version bumps, then merge the PR. The next
 push to `main` runs `release-please.yml`, which:
 
-1. Creates a **draft** GitHub release at `dotnet-X.Y.Z`
+1. Creates a **draft** GitHub release at `pyroscope-X.Y.Z`
 2. Builds profiler `.so` tarballs and uploads them to the release
 3. Builds and uploads the managed helper (`.dll`, `.nupkg`)
 4. Publishes the NuGet package to nuget.org
@@ -45,7 +45,7 @@ gh run watch <run-id> --repo grafana/pyroscope-dotnet --exit-status
 ### 3. Verify the published release
 
 ```bash
-gh release view dotnet-X.Y.Z --repo grafana/pyroscope-dotnet
+gh release view pyroscope-X.Y.Z --repo grafana/pyroscope-dotnet
 ```
 
 Release artifacts attached to the GitHub release:
@@ -53,13 +53,23 @@ Release artifacts attached to the GitHub release:
 - `pyroscope.X.Y.Z-{glibc,musl}-{x86_64,aarch64}.tar.gz` — native profiler libraries
 - `Pyroscope.dll` and `Pyroscope*.nupkg` — managed helper
 
+## Components
+
+Release-please manages three independently versioned components (`separate-pull-requests: true`):
+
+| Component | Tag format | Package path |
+|---|---|---|
+| Profiler + managed helper | `pyroscope-X.Y.Z` | `.` (excludes tracing packages) |
+| OpenTracing helper | `opentracing-X.Y.Z` | `Pyroscope/Pyroscope.OpenTracing` |
+| OpenTelemetry helper | `opentelemetry-X.Y.Z` | `Pyroscope/Pyroscope.OpenTelemetry` |
+
+Each component gets its own release PR when commits touch its path. Merging a release PR triggers the matching build, GitHub artifact upload, NuGet publish, and release publication jobs in `release-please.yml`.
+
+```bash
+gh pr list --repo grafana/pyroscope-dotnet --label "autorelease: pending"
+```
+
 ## Configuration
 
 - `release-please-config.json` — release-please settings and files to bump
-- `.release-please-manifest.json` — current released version
-
-## OpenTracing / OpenTelemetry packages
-
-The main release workflow covers the core `Pyroscope` package and profiler
-artifacts only. OpenTracing and OpenTelemetry packages still use tag-triggered
-workflows (`tag_tracing_opentracing_helper.yml`, `tag_tracing_opentelemetry_helper.yml`).
+- `.release-please-manifest.json` — current released version per component
