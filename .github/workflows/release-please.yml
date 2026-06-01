@@ -105,7 +105,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Publish GitHub release
-        run: gh release edit "${{ needs.release-please.outputs.pyroscope_tag_name }}" --draft=false
+        run: gh release edit "${{ needs.release-please.outputs.pyroscope_tag_name }}" --draft=false --repo "${{ github.repository }}"
 
   build-opentracing:
     permissions:
