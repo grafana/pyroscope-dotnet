@@ -9,6 +9,7 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      id-token: write
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     outputs:
       pyroscope_release_created: ${{ steps.release.outputs.release_created }}
@@ -22,10 +23,14 @@ jobs:
       opentelemetry_tag_name: ${{ steps.release.outputs['Pyroscope/Pyroscope.OpenTelemetry--tag_name'] }}
       opentelemetry_sha: ${{ steps.release.outputs['Pyroscope/Pyroscope.OpenTelemetry--sha'] }}
     steps:
+      - id: get-github-app-token
+        uses: grafana/shared-workflows/actions/create-github-app-token@580590a644e82e79bb2598bdaba0be245a14dda0 # create-github-app-token/v0.2.2
+        with:
+          github_app: pyroscope-development-app
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
         id: release
         with:
-          token: ${{ github.token }}
+          token: ${{ steps.get-github-app-token.outputs.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           target-branch: main
