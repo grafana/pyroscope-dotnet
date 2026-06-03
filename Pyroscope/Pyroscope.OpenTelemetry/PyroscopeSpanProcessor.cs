@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿// No-op change to trigger a release of the Pyroscope.OpenTelemetry package.
+using System.Diagnostics;
 using OpenTelemetry;
 
 namespace Pyroscope.OpenTelemetry;
