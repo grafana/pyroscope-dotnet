@@ -92,8 +92,13 @@ jobs:
         working-directory: Pyroscope
       - name: Upload artifacts to draft release
         run: gh release upload --clobber "$TAG" ./Pyroscope/artifacts/bin/Pyroscope/release/Pyroscope.dll ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg
+      - name: NuGet login
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: Pyroscope
       - name: Publish to nuget.org
-        run: dotnet nuget push ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg -s https://api.nuget.org/v3/index.json
+        run: dotnet nuget push ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg -k "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" -s https://api.nuget.org/v3/index.json
 
   publish-pyroscope-release:
     permissions:
@@ -133,8 +138,13 @@ jobs:
           gh release upload --clobber "$TAG" \
             ./Pyroscope/artifacts/bin/Pyroscope.OpenTracing/release/Pyroscope.OpenTracing.dll \
             ./Pyroscope/artifacts/package/release/Pyroscope.OpenTracing*.nupkg
+      - name: NuGet login
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: Pyroscope
       - name: Publish to nuget.org
-        run: dotnet nuget push ./Pyroscope/artifacts/package/release/Pyroscope.OpenTracing*.nupkg -s https://api.nuget.org/v3/index.json
+        run: dotnet nuget push ./Pyroscope/artifacts/package/release/Pyroscope.OpenTracing*.nupkg -k "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" -s https://api.nuget.org/v3/index.json
       - name: Publish GitHub release
         run: gh release edit "$TAG" --draft=false
 
@@ -164,7 +174,12 @@ jobs:
           gh release upload --clobber "$TAG" \
             ./Pyroscope/artifacts/bin/Pyroscope.OpenTelemetry/release/Pyroscope.OpenTelemetry.dll \
             ./Pyroscope/artifacts/package/release/Pyroscope.OpenTelemetry*.nupkg
+      - name: NuGet login
+        id: nuget-login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: Pyroscope
       - name: Publish to nuget.org
-        run: dotnet nuget push ./Pyroscope/artifacts/package/release/Pyroscope.OpenTelemetry*.nupkg -s https://api.nuget.org/v3/index.json
+        run: dotnet nuget push ./Pyroscope/artifacts/package/release/Pyroscope.OpenTelemetry*.nupkg -k "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" -s https://api.nuget.org/v3/index.json
       - name: Publish GitHub release
         run: gh release edit "$TAG" --draft=false
