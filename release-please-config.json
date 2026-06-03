@@ -56,17 +56,17 @@
       "extra-files": [
         {
           "type": "xml",
-          "path": "Pyroscope/Pyroscope.OpenTracing/Pyroscope.OpenTracing.csproj",
+          "path": "Pyroscope.OpenTracing.csproj",
           "xpath": "//PackageVersion"
         },
         {
           "type": "xml",
-          "path": "Pyroscope/Pyroscope.OpenTracing/Pyroscope.OpenTracing.csproj",
+          "path": "Pyroscope.OpenTracing.csproj",
           "xpath": "//AssemblyVersion"
         },
         {
           "type": "xml",
-          "path": "Pyroscope/Pyroscope.OpenTracing/Pyroscope.OpenTracing.csproj",
+          "path": "Pyroscope.OpenTracing.csproj",
           "xpath": "//FileVersion"
         }
       ]
@@ -80,17 +80,17 @@
       "extra-files": [
         {
           "type": "xml",
-          "path": "Pyroscope/Pyroscope.OpenTelemetry/Pyroscope.OpenTelemetry.csproj",
+          "path": "Pyroscope.OpenTelemetry.csproj",
           "xpath": "//PackageVersion"
         },
         {
           "type": "xml",
-          "path": "Pyroscope/Pyroscope.OpenTelemetry/Pyroscope.OpenTelemetry.csproj",
+          "path": "Pyroscope.OpenTelemetry.csproj",
           "xpath": "//AssemblyVersion"
         },
         {
           "type": "xml",
-          "path": "Pyroscope/Pyroscope.OpenTelemetry/Pyroscope.OpenTelemetry.csproj",
+          "path": "Pyroscope.OpenTelemetry.csproj",
           "xpath": "//FileVersion"
         }
       ]
