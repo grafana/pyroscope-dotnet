@@ -90,6 +90,8 @@ private:
     // WeakHandle are checked after each GC
     std::vector<SampleValueTypeProvider::Offset> _valueOffsets;
 
+    bool _addTypeAsLeaf;
+
     static const std::string Gen1;
     static const std::string Gen2;
 };

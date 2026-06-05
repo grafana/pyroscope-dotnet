@@ -21,11 +21,11 @@ SampleValueTypeProvider::SampleValueTypeProvider() :
         {"wall", "nanoseconds", ProfileType::WallTime, -1}
     },
     AllocDefinitions{
-        {"alloc_samples", "count", ProfileType::Alloc, -1},
-        {"alloc_size", "bytes", ProfileType::Alloc, -1}
+        {"alloc_objects", "count", ProfileType::Alloc, -1},
+        {"alloc_space", "bytes", ProfileType::Alloc, -1}
     },
     AllocFrameworkDefinitions{
-        {"alloc_samples", "count", ProfileType::AllocFramework, -1}
+        {"alloc_objects", "count", ProfileType::AllocFramework, -1}
     },
     ContentionDefinitions{
         {"lock_count", "count", ProfileType::Lock, -1},
