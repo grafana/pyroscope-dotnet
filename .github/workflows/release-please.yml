@@ -13,7 +13,6 @@ jobs:
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     outputs:
       pyroscope_release_created: ${{ steps.release.outputs.release_created }}
-      pyroscope_version: ${{ steps.release.outputs.version }}
       pyroscope_tag_name: ${{ steps.release.outputs.tag_name }}
       pyroscope_sha: ${{ steps.release.outputs.sha }}
       opentracing_release_created: ${{ steps.release.outputs['Pyroscope/Pyroscope.OpenTracing--release_created'] }}
@@ -46,7 +45,6 @@ jobs:
       DOCKER_BUILDKIT: 1
       ARCH: ${{ matrix.arch }}
       LIBC: ${{ matrix.libc }}
-      RELEASE_VERSION: ${{ needs.release-please.outputs.pyroscope_version }}
       TAG: ${{ needs.release-please.outputs.pyroscope_tag_name }}
     strategy:
       matrix:

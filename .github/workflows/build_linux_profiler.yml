@@ -24,7 +24,7 @@ jobs:
         with:
           submodules: 'true'
           persist-credentials: false
-      - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=x86_64 LIBC=${{ matrix.name }}  make docker/build
+      - run: ARCH=x86_64 LIBC=${{ matrix.name }} make docker/archive
   build-linux-profiler-aarch64:
 
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-arm64-large' || 'ubuntu-24.04-arm' }}
@@ -43,7 +43,7 @@ jobs:
       - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
         with:
           global-json-file: global.json
-      - run: RELEASE_VERSION=dev-$(git rev-parse --short HEAD) ARCH=aarch64 LIBC=${{ matrix.name }}  make docker/build
+      - run: ARCH=aarch64 LIBC=${{ matrix.name }} make docker/archive
   build-managed-helper:
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     steps:

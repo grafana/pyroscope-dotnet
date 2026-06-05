@@ -1,11 +1,11 @@
 LIBC ?= glibc
 ARCH ?= x86_64
-RELEASE_VERSION ?=
-DOCKER_TAG_VERSION ?= $(RELEASE_VERSION)
-DOCKER_IMAGE ?= us-docker.pkg.dev/grafanalabs-global/dockerhub-pyroscope-dotnet-prod-mirror/pyroscope-dotnet
+# Defaults to the profiler version tracked by release-please. The release
+# workflow overrides it on the command line with the version being released.
+RELEASE_VERSION ?= $(shell jq -r '."."' .release-please-manifest.json)
 
 ifeq ($(RELEASE_VERSION),)
-  $(error RELEASE_VERSION is required)
+  $(error RELEASE_VERSION is required but could not be read from .release-please-manifest.json)
 endif
 
 ifeq ($(LIBC),musl)
@@ -22,32 +22,9 @@ else
     $(error ARCH must be either x86_64, aarch64)
 endif
 
-.PHONY: docker/build
-docker/build:
-	docker run --rm  debian:10 uname -a
-	docker run --rm  debian:10 uname -a | grep $(ARCH)
-	docker build -f $(DOCKERFILE) -t $(DOCKER_IMAGE):$(DOCKER_TAG_VERSION)-$(LIBC)-$(ARCH) .
-
 .PHONY: docker/archive
 docker/archive:
 	docker build -f $(DOCKERFILE) -o out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH)  .
 	cd out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH) && tar -czvf ../pyroscope.$(RELEASE_VERSION)-$(LIBC)-$(ARCH).tar.gz *.so 
 	rm -rf out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH)
-
-.PHONY: docker/push
-docker/push:
-	docker push $(DOCKER_IMAGE):$(DOCKER_TAG_VERSION)-$(LIBC)-$(ARCH)
-
-.PHONY: docker/manifest
-docker/manifest:
-	docker manifest create \
-		$(DOCKER_IMAGE):$(DOCKER_TAG_VERSION)-$(LIBC)                 \
-		--amend $(DOCKER_IMAGE):$(DOCKER_TAG_VERSION)-$(LIBC)-x86_64   \
-		--amend $(DOCKER_IMAGE):$(DOCKER_TAG_VERSION)-$(LIBC)-aarch64
-	docker manifest push $(DOCKER_IMAGE):$(DOCKER_TAG_VERSION)-$(LIBC)
-
-.PHONY: docker/promote
-docker/promote:
-	docker buildx imagetools create --tag $(DOCKER_IMAGE):$(RELEASE_VERSION)-$(LIBC) $(DOCKER_IMAGE):$(RELEASE_VERSION)-draft-$(LIBC)
-	docker buildx imagetools create --tag $(DOCKER_IMAGE):latest-$(LIBC) $(DOCKER_IMAGE):$(RELEASE_VERSION)-draft-$(LIBC)
 
