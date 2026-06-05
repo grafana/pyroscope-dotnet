@@ -145,8 +145,11 @@ jobs:
         with:
           user: Pyroscope
       - name: Publish to nuget.org
+        env:
+          API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+          SOURCE: 'https://api.nuget.org/v3/index.json'
         run: |
-          dotnet nuget push ./Pyroscope/artifacts/package/release/Pyroscope.OpenTracing*.nupkg -k "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" -s https://api.nuget.org/v3/index.json
-          dotnet nuget push ./Pyroscope/artifacts/package/release/Pyroscope.OpenTelemetry*.nupkg -k "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" -s https://api.nuget.org/v3/index.json
+          dotnet nuget push "./Pyroscope/artifacts/package/release/Pyroscope.OpenTracing*.nupkg" -k "${API_KEY}" -s "${SOURCE}"
+          dotnet nuget push "./Pyroscope/artifacts/package/release/Pyroscope.OpenTelemetry*.nupkg" -k "${API_KEY}" -s "${SOURCE}"
       - name: Publish GitHub release
         run: gh release edit "$TAG" --draft=false
