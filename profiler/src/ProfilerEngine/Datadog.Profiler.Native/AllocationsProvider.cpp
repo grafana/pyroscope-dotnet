@@ -143,7 +143,9 @@ void AllocationsProvider::OnAllocation(uint32_t allocationKind,
     {
         // The provided type name contains the metadata-based `xx syntax for generics instead of <>
         // So rely on the frame store to get a C#-like representation like what is done for frames
-        rawSample.AllocationClass = shared::ToString(shared::WSTRING(typeName));
+        // TODO THIS IS a use-after-free after change to string_view. Should we store this into FrameStore?
+        // rawSample.AllocationClass = shared::ToString(shared::WSTRING(typeName));
+        Log::Error("TODO ", shared::ToString(shared::WSTRING(typeName)));
     }
     rawSample.AddTypeAsLeaf = _addTypeAsLeaf;
 
@@ -228,7 +230,9 @@ void AllocationsProvider::OnAllocationSampled(
     {
         // The provided type name contains the metadata-based `xx syntax for generics instead of <>
         // So rely on the frame store to get a C#-like representation like what is done for frames
-        rawSample.AllocationClass = shared::ToString(shared::WSTRING(typeName));
+        // TODO THIS IS a use-after-free after change to string_view
+        // rawSample.AllocationClass = shared::ToString(shared::WSTRING(typeName));
+        Log::Error("TODO ", shared::ToString(shared::WSTRING(typeName)));
     }
     rawSample.AddTypeAsLeaf = _addTypeAsLeaf;
 
