@@ -154,6 +154,7 @@ bool Tags::Init() {
     }
     empty_async_string = new AsyncRefCountedString();
     keys = new std::vector<std::string>();
+    keys->reserve(kMaxNumTags);
     key_to_id = new std::unordered_map<std::string, int32_t>();
     empty_tags = new Tags();
   }
