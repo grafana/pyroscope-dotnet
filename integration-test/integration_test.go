@@ -435,7 +435,6 @@ func TestAllocatedTypeConfig(t *testing.T) {
 		"PYROSCOPE_PROFILING_ALLOCATION_ENABLED":  "true",
 		"PYROSCOPE_PROFILING_HEAP_ENABLED":        "true",
 		"PYROSCOPE_ALLOCATION_TYPE_LEAF_ENABLED": "true",
-		"PYROSCOPE_HEAP_TYPE_LEAF_ENABLED":       "true",
 	})
 	runLoadGenerator(ctx, t, appBaseURL)
 
@@ -485,8 +484,8 @@ func TestAllocatedTypeConfig(t *testing.T) {
 	t.Run("heap_type_leaf", func(t *testing.T) {
 		// Live heap objects are transient: short-lived allocations may be GC'd
 		// before the query runs, leaving an empty tree. We check for any
-		// non-empty collapsed output (the leaf frame mechanism is shared with
-		// alloc which is verified above).
+		// non-empty collapsed output (type-leaf is controlled by the same
+		// PYROSCOPE_ALLOCATION_TYPE_LEAF_ENABLED knob as alloc above).
 		var lastCollapsed string
 		var lastErr error
 		ok := assert.Eventually(t, func() bool {

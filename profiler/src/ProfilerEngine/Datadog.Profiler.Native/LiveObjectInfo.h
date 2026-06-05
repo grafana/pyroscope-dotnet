@@ -15,7 +15,7 @@
 class LiveObjectInfo
 {
 public:
-    LiveObjectInfo(std::shared_ptr<Sample> sample, uintptr_t address, std::chrono::nanoseconds timestamp, std::string allocationClass);
+    LiveObjectInfo(const std::shared_ptr<Sample>& sample, uintptr_t address, std::chrono::nanoseconds timestamp, std::string_view allocationClass);
 
     // accessors
     void SetHandle(ObjectHandleID handle);
@@ -34,7 +34,7 @@ private:
     // Just keep to remind us to finish the implementation.
     std::chrono::nanoseconds _timestamp;
     uint64_t _gcCount;
-    std::string _allocationClass;
+    std::string_view _allocationClass;
 
     static std::atomic<uint64_t> s_nextObjectId;
 };

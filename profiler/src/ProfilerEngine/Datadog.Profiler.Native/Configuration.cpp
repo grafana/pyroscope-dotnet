@@ -154,7 +154,6 @@ Configuration::Configuration()
     _useManagedCodeCache = GetEnvironmentValue(EnvironmentVariables::UseManagedCodeCache, defaultUseManagedCodeCache);
     _isMemoryFootprintEnabled = GetEnvironmentValue(EnvironmentVariables::MemoryFootprintEnabled, false);
     _isAllocationTypeLeafEnabled = GetEnvironmentValue(EnvironmentVariables::AllocationTypeLeafEnabled, false);
-    _isHeapTypeLeafEnabled = GetEnvironmentValue(EnvironmentVariables::HeapTypeLeafEnabled, false);
 }
 
 fs::path Configuration::ExtractLogDirectory()
@@ -358,11 +357,6 @@ bool Configuration::IsMemoryFootprintEnabled() const
 bool Configuration::IsAllocationTypeLeafEnabled() const
 {
     return _isAllocationTypeLeafEnabled;
-}
-
-bool Configuration::IsHeapTypeLeafEnabled() const
-{
-    return _isHeapTypeLeafEnabled;
 }
 
 bool Configuration::IsAllocationRecorderEnabled() const

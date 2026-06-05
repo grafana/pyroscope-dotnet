@@ -101,5 +101,4 @@ public:
     virtual bool UseManagedCodeCache() const = 0;
     virtual bool IsMemoryFootprintEnabled() const = 0;
     virtual bool IsAllocationTypeLeafEnabled() const = 0;
-    virtual bool IsHeapTypeLeafEnabled() const = 0;
 };

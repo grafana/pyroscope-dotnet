@@ -109,7 +109,6 @@ public:
     MOCK_METHOD(bool, UseManagedCodeCache, (), (const override));
     MOCK_METHOD(bool, IsMemoryFootprintEnabled, (), (const override));
     MOCK_METHOD(bool, IsAllocationTypeLeafEnabled, (), (const override));
-    MOCK_METHOD(bool, IsHeapTypeLeafEnabled, (), (const override));
 };
 
 class MockExporter : public IExporter

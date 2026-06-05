@@ -22,19 +22,18 @@ LiveObjectsProvider::LiveObjectsProvider(
     ICorProfilerInfo13* pCorProfilerInfo,
     SampleValueTypeProvider& valueTypeProvider,
     RawSampleTransformer* rawSampleTransformer,
-    IConfiguration* pConfiguration)
-    :
+    IConfiguration* pConfiguration) :
     _pCorProfilerInfo(pCorProfilerInfo),
     _rawSampleTransformer{rawSampleTransformer},
     _valueOffsets{valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.LiveObjectsDefinitions)},
     _sampler(pConfiguration->GetHeapSamplingRate()),
-    _addTypeAsLeaf(pConfiguration->IsHeapTypeLeafEnabled())
+    _addTypeAsLeaf(pConfiguration->IsAllocationTypeLeafEnabled()),
+    _heapHandleLimit{pConfiguration->GetHeapHandleLimit()},
+    _heapSamplingRate{pConfiguration->GetHeapSamplingRate()}
 {
-    _heapHandleLimit = pConfiguration->GetHeapHandleLimit();
-    _heapSamplingRate = pConfiguration->GetHeapSamplingRate();
+
     Log::Info("LiveObjectsProvider: Poisson heap sampling with mean interval of ", _heapSamplingRate, " bytes");
 }
-
 const char* LiveObjectsProvider::GetName()
 {
     return "LiveObjectsProvider";
@@ -198,21 +197,21 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
                 sample->AddValue(static_cast<int64_t>(std::llround(static_cast<double>(values[_valueOffsets[1]]) * weight)), _valueOffsets[1]);
             }
 
-            std::string allocClass = (_addTypeAsLeaf && !rawSample.AllocationClass.empty())
-                ? rawSample.AllocationClass : std::string{};
+            std::string_view allocClass = (_addTypeAsLeaf && !rawSample.AllocationClass.empty())
+                ? rawSample.AllocationClass : "";
 
             LiveObjectInfo info(
                 sample,
                 rawSample.Address,
                 rawSample.Timestamp,
-                std::move(allocClass));
+                allocClass);
             info.SetHandle(handle);
             _monitoredObjects.push_back(std::move(info));
 
             if (!_monitoredObjects.back().GetAllocationClass().empty())
             {
                 static const std::string LeafModule = "";
-                sample->PrependFrame({LeafModule, _monitoredObjects.back().GetAllocationClass(), "", 0});
+                sample->PrependFrame({LeafModule, _monitoredObjects.back().GetAllocationClass(), "", 0}); //todo this is garbage
             }
         }
         else
