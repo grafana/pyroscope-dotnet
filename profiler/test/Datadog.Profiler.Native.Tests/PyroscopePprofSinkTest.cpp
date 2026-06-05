@@ -103,3 +103,30 @@ TEST(PyroscopePprofSinkTest, UploadUsesNormalizedPathForNestedPaths)
 {
     ValidatePushPath("/api/profiles/", "/api/profiles/push.v1.PusherService/Push");
 }
+
+TEST(PyroscopePprofSinkTest, ParseHeadersJSONReturnsEmptyMapForEmptyInput)
+{
+    const auto headers = PyroscopePprofSink::ParseHeadersJSON("");
+    EXPECT_TRUE(headers.empty());
+}
+
+TEST(PyroscopePprofSinkTest, ParseHeadersJSONParsesValidObject)
+{
+    const auto headers = PyroscopePprofSink::ParseHeadersJSON(R"({"X-Header": "Value", "Authorization": "Bearer token"})");
+    EXPECT_EQ(headers.size(), 2);
+    EXPECT_EQ(headers.at("X-Header"), "Value");
+    EXPECT_EQ(headers.at("Authorization"), "Bearer token");
+}
+
+TEST(PyroscopePprofSinkTest, ParseHeadersJSONReturnsEmptyMapForInvalidJson)
+{
+    const auto headers = PyroscopePprofSink::ParseHeadersJSON("not-json");
+    EXPECT_TRUE(headers.empty());
+}
+
+TEST(PyroscopePprofSinkTest, ParseHeadersJSONSkipsNonStringValues)
+{
+    const auto headers = PyroscopePprofSink::ParseHeadersJSON(R"({"X-Header": "Value", "X-Number": 42})");
+    EXPECT_EQ(headers.size(), 1);
+    EXPECT_EQ(headers.at("X-Header"), "Value");
+}
