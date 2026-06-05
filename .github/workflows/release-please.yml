@@ -15,12 +15,9 @@ jobs:
       pyroscope_release_created: ${{ steps.release.outputs.release_created }}
       pyroscope_tag_name: ${{ steps.release.outputs.tag_name }}
       pyroscope_sha: ${{ steps.release.outputs.sha }}
-      opentracing_release_created: ${{ steps.release.outputs['Pyroscope/Pyroscope.OpenTracing--release_created'] }}
-      opentracing_tag_name: ${{ steps.release.outputs['Pyroscope/Pyroscope.OpenTracing--tag_name'] }}
-      opentracing_sha: ${{ steps.release.outputs['Pyroscope/Pyroscope.OpenTracing--sha'] }}
-      opentelemetry_release_created: ${{ steps.release.outputs['Pyroscope/Pyroscope.OpenTelemetry--release_created'] }}
-      opentelemetry_tag_name: ${{ steps.release.outputs['Pyroscope/Pyroscope.OpenTelemetry--tag_name'] }}
-      opentelemetry_sha: ${{ steps.release.outputs['Pyroscope/Pyroscope.OpenTelemetry--sha'] }}
+      tracing_release_created: ${{ steps.release.outputs['Pyroscope--release_created'] }}
+      tracing_tag_name: ${{ steps.release.outputs['Pyroscope--tag_name'] }}
+      tracing_sha: ${{ steps.release.outputs['Pyroscope--sha'] }}
     steps:
       - id: get-github-app-token
         uses: grafana/shared-workflows/actions/create-github-app-token@580590a644e82e79bb2598bdaba0be245a14dda0 # create-github-app-token/v0.2.2
@@ -110,67 +107,35 @@ jobs:
       - name: Publish GitHub release
         run: gh release edit "${{ needs.release-please.outputs.pyroscope_tag_name }}" --draft=false --repo "${{ github.repository }}"
 
-  build-opentracing:
+  build-tracing:
     permissions:
       contents: write
       id-token: write
     needs: release-please
-    if: ${{ needs.release-please.outputs.opentracing_release_created == 'true' }}
+    if: ${{ needs.release-please.outputs.tracing_release_created == 'true' }}
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     env:
       GH_TOKEN: ${{ github.token }}
-      TAG: ${{ needs.release-please.outputs.opentracing_tag_name }}
+      TAG: ${{ needs.release-please.outputs.tracing_tag_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
-          ref: ${{ needs.release-please.outputs.opentracing_sha }}
+          ref: ${{ needs.release-please.outputs.tracing_sha }}
           persist-credentials: false
       - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
         with:
           global-json-file: global.json
       - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTracing
-      - name: Upload artifacts to draft release
-        run: |
-          gh release upload --clobber "$TAG" \
-            ./Pyroscope/artifacts/bin/Pyroscope.OpenTracing/release/Pyroscope.OpenTracing.dll \
-            ./Pyroscope/artifacts/package/release/Pyroscope.OpenTracing*.nupkg
-      - name: NuGet login
-        id: nuget-login
-        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
-        with:
-          user: Pyroscope
-      - name: Publish to nuget.org
-        run: dotnet nuget push ./Pyroscope/artifacts/package/release/Pyroscope.OpenTracing*.nupkg -k "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" -s https://api.nuget.org/v3/index.json
-      - name: Publish GitHub release
-        run: gh release edit "$TAG" --draft=false
-
-  build-opentelemetry:
-    permissions:
-      contents: write
-      id-token: write
-    needs: release-please
-    if: ${{ needs.release-please.outputs.opentelemetry_release_created == 'true' }}
-    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
-    env:
-      GH_TOKEN: ${{ github.token }}
-      TAG: ${{ needs.release-please.outputs.opentelemetry_tag_name }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
-        with:
-          ref: ${{ needs.release-please.outputs.opentelemetry_sha }}
-          persist-credentials: false
-      - uses: actions/setup-dotnet@131b410979e0b49e2162c0718030257b22d6dc2c
-        with:
-          global-json-file: global.json
       - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTelemetry
       - name: Upload artifacts to draft release
         run: |
           gh release upload --clobber "$TAG" \
+            ./Pyroscope/artifacts/bin/Pyroscope.OpenTracing/release/Pyroscope.OpenTracing.dll \
             ./Pyroscope/artifacts/bin/Pyroscope.OpenTelemetry/release/Pyroscope.OpenTelemetry.dll \
+            ./Pyroscope/artifacts/package/release/Pyroscope.OpenTracing*.nupkg \
             ./Pyroscope/artifacts/package/release/Pyroscope.OpenTelemetry*.nupkg
       - name: NuGet login
         id: nuget-login
@@ -178,6 +143,11 @@ jobs:
         with:
           user: Pyroscope
       - name: Publish to nuget.org
-        run: dotnet nuget push ./Pyroscope/artifacts/package/release/Pyroscope.OpenTelemetry*.nupkg -k "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" -s https://api.nuget.org/v3/index.json
+        env:
+          API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+          SOURCE: 'https://api.nuget.org/v3/index.json'
+        run: |
+          dotnet nuget push "./Pyroscope/artifacts/package/release/Pyroscope.OpenTracing*.nupkg" -k "${API_KEY}" -s "${SOURCE}"
+          dotnet nuget push "./Pyroscope/artifacts/package/release/Pyroscope.OpenTelemetry*.nupkg" -k "${API_KEY}" -s "${SOURCE}"
       - name: Publish GitHub release
         run: gh release edit "$TAG" --draft=false

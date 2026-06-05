@@ -1,5 +1,4 @@
 {
   ".": "1.0.0",
-  "Pyroscope/Pyroscope.OpenTracing": "0.4.1",
-  "Pyroscope/Pyroscope.OpenTelemetry": "0.4.0"
+  "Pyroscope": "0.4.1"
 }
