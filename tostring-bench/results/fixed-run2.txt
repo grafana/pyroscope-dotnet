@@ -1,0 +1,10 @@
+(sink=1245500000)
+sanity: ToString("System.String") = "System.String" (len=13)
+
+input             u16_chars    ns/call    ns/char       MB/s
+-----             ---------    -------    -------       ----
+short                    12       22.4       1.87       1022
+class                    13       22.2       1.71       1117
+generic-list             49      106.0       2.16        882
+generic-dict            108      208.8       1.93        986
+non-ascii                27       65.2       2.41        790

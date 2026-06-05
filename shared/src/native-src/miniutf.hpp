@@ -23,6 +23,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 namespace miniutf {
 
@@ -44,8 +45,8 @@ void utf16_encode(char32_t pt, std::u16string & out);
 char32_t utf8_decode(const std::string & str,
                      std::string::size_type & pos,
                      bool * replacement_flag = nullptr);
-char32_t utf16_decode(const std::u16string & str,
-                      std::u16string::size_type & pos,
+char32_t utf16_decode(const std::u16string_view str,
+                      std::u16string_view::size_type & pos,
                       bool * replacement_flag = nullptr);
 
 /*
@@ -71,7 +72,7 @@ bool utf32_check(const std::string & str);
  */
 std::u32string to_utf32(const std::string & str);
 std::u16string to_utf16(const std::string & str);
-std::string to_utf8(const std::u16string & str);
+std::string to_utf8(const std::u16string_view str);
 std::string to_utf8(const std::u32string & str);
 
 /*

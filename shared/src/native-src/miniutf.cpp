@@ -138,9 +138,10 @@ static inline bool is_low_surrogate(char16_t c) {
 /*
  * Like utf8_decode_check, but for UTF-16.
  */
-static offset_pt utf16_decode_check(const std::u16string& str,
-                                    std::u16string::size_type i) {
-  if (is_high_surrogate(str[i]) && is_low_surrogate(str[i + 1])) {
+static offset_pt utf16_decode_check(const std::u16string_view str,
+                                    std::u16string_view::size_type i) {
+  if (is_high_surrogate(str[i]) && i + 1 < str.size() &&
+      is_low_surrogate(str[i + 1])) {
     // High surrogate followed by low surrogate
     char32_t pt = (((str[i] - 0xD800) << 10) | (str[i + 1] - 0xDC00)) + 0x10000;
     return {2, pt};
@@ -181,7 +182,7 @@ char32_t utf8_decode(const std::string& str, std::string::size_type& i,
   }
 }
 
-char32_t utf16_decode(const std::u16string& str, std::u16string::size_type& i,
+char32_t utf16_decode(const std::u16string_view str, std::u16string_view::size_type& i,
                       bool* replacement_flag) {
   offset_pt res = utf16_decode_check(str, i);
   if (res.offset < 0) {
@@ -238,10 +239,10 @@ std::u16string to_utf16(const std::string& str) {
   return out;
 }
 
-std::string to_utf8(const std::u16string& str) {
+std::string to_utf8(const std::u16string_view str) {
   std::string out;
   out.reserve(str.length() * 3 / 2);  // estimate
-  for (std::u16string::size_type i = 0; i < str.length();)
+  for (std::u16string_view::size_type i = 0; i < str.length();)
     utf8_encode(utf16_decode(str, i), out);
   return out;
 }

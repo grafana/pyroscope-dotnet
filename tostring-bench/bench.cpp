@@ -1,15 +1,15 @@
 // Microbenchmark for shared::ToString(const WSTRING&).
 //
-// Models the real call site in
+// Models the (optimized) call site in
 // profiler/src/ProfilerEngine/Datadog.Profiler.Native/AllocationsProvider.cpp:
 //
 //     const WCHAR* typeName;
-//     ... shared::ToString(shared::WSTRING(typeName)) ...
+//     ... shared::ToString(typeName) ...
 //
-// where typeName is a null-terminated .NET type name. The timed body is
-// exactly that expression, so the WSTRING(const WCHAR*) construction (a
-// char_traits<char16_t>::length scan + heap allocation) is included along
-// with the UTF-16 -> UTF-8 conversion done by miniutf::to_utf8.
+// where typeName is a null-terminated .NET type name. The intermediate
+// shared::WSTRING(typeName) allocation has been removed (it was in the
+// baseline); ToString now converts the source buffer to UTF-8 directly via
+// miniutf::to_utf8(std::u16string_view).
 //
 // Built standalone (see build.sh): bench.cpp + string.cpp + miniutf.cpp,
 // no linkage to any profiler target. The logger from the real call site is
@@ -61,7 +61,7 @@ int main()
 
     // Correctness sanity check: one known type name should round-trip to ASCII.
     {
-        std::string s = shared::ToString(shared::WSTRING(WStr("System.String")));
+        std::string s = shared::ToString(WStr("System.String"));
         std::printf("sanity: ToString(\"System.String\") = \"%s\" (len=%zu)\n\n", s.c_str(), s.size());
     }
 
@@ -75,14 +75,14 @@ int main()
         // Warm up (also primes any allocator state).
         for (int i = 0; i < kWarmup; ++i)
         {
-            std::string s = shared::ToString(shared::WSTRING(in.typeName));
+            std::string s = shared::ToString(in.typeName);
             g_sink += s.size();
         }
 
         const double t0 = NowNs();
         for (int i = 0; i < kIterations; ++i)
         {
-            std::string s = shared::ToString(shared::WSTRING(in.typeName));
+            std::string s = shared::ToString(in.typeName);
             g_sink += s.size() + static_cast<unsigned char>(s.empty() ? 0 : s[0]);
         }
         const double t1 = NowNs();
