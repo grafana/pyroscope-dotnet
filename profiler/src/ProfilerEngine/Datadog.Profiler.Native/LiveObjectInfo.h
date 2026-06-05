@@ -15,7 +15,7 @@
 class LiveObjectInfo
 {
 public:
-    LiveObjectInfo(std::shared_ptr<Sample> sample, uintptr_t address, std::chrono::nanoseconds timestamp, std::string allocationClass = {});
+    LiveObjectInfo(std::shared_ptr<Sample> sample, uintptr_t address, std::chrono::nanoseconds timestamp, std::string allocationClass);
 
     // accessors
     void SetHandle(ObjectHandleID handle);
