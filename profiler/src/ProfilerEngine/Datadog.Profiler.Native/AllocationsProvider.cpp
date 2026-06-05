@@ -142,7 +142,7 @@ void AllocationsProvider::OnAllocation(uint32_t allocationKind,
     {
         // The provided type name contains the metadata-based `xx syntax for generics instead of <>
         // So rely on the frame store to get a C#-like representation like what is done for frames
-        rawSample.AllocationClass = shared::ToString(shared::WSTRING(typeName));
+        rawSample.AllocationClass = shared::ToString(typeName);
     }
 
     // the listener is the live objects profiler: could be null if disabled
@@ -226,7 +226,7 @@ void AllocationsProvider::OnAllocationSampled(
     {
         // The provided type name contains the metadata-based `xx syntax for generics instead of <>
         // So rely on the frame store to get a C#-like representation like what is done for frames
-        rawSample.AllocationClass = shared::ToString(shared::WSTRING(typeName));
+        rawSample.AllocationClass = shared::ToString(typeName);
     }
 
     // the listener is the live objects profiler: could be null if disabled
