@@ -57,6 +57,9 @@ public:
     bool GetTypeName(ClassID classId, std::string& name) override;
     bool GetTypeName(ClassID classId, std::string_view& name, const std::u16string_view &name_fallback) override;
 
+    static std::string fullTypeName(const std::u16string_view& name_fallback);
+    static std::string fullTypeName(const TypeDesc *pTypeDesc);
+
     // Memory measurement (IMemoryFootprintProvider)
     size_t GetMemorySize() const override;
     void LogMemoryBreakdown() const override;

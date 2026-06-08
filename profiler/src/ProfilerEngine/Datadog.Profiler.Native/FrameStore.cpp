@@ -271,6 +271,21 @@ bool FrameStore::GetTypeName(ClassID classId, std::string& name)
     return true;
 }
 
+static constexpr std::string_view fullTypeNamePrefix = "cls:";
+
+std::string FrameStore::fullTypeName(const std::u16string_view& name_fallback)
+{
+    std::string out;
+    out.reserve(fullTypeNamePrefix.length() + name_fallback.length() * 3 / 2); // estimate
+    out += fullTypeNamePrefix;
+    miniutf::to_utf8(name_fallback, out);
+    return out;
+}
+
+std::string FrameStore::fullTypeName(const TypeDesc* pTypeDesc)
+{
+    return shared::Concat({fullTypeNamePrefix, pTypeDesc->Type, pTypeDesc->Parameters});
+}
 
 // FOR ALLOCATIONS RECORDER ONLY
 //
@@ -281,9 +296,9 @@ bool FrameStore::GetTypeName(ClassID classId, std::string& name)
 // This is why it is needed to get a pointer to the TypeDesc held by the cache
 bool FrameStore::GetTypeName(ClassID classId, std::string_view& name, const std::u16string_view& name_fallback)
 {
+    name = "";
     if (classId == 0)
     {
-        name = "";
         return false;
     }
     std::lock_guard<std::mutex> lock(_fullTypeNamesLock);
@@ -299,34 +314,25 @@ bool FrameStore::GetTypeName(ClassID classId, std::string_view& name, const std:
         // ensure that the string_view is pointing to the string in the cache
         auto& entry = _fullTypeNames[classId];
         entry = std::move(str);
-        name = {entry.data(), entry.size()};
+        name = std::string_view{entry};
 
-        // Incrementally track item size
         _cachedItemsSize.fetch_add(entry.capacity(), std::memory_order_relaxed);
     };
 
-    static constexpr std::string_view prefix = "cls:";
     TypeDesc* pTypeDesc = nullptr;
     if (!GetTypeDesc(classId, pTypeDesc))
     {
         if (!name_fallback.empty())
         {
-            std::string out; // todo this is ugly and does not work on windows?
-            out.reserve(prefix.length() + name_fallback.length() * 3 / 2); // estimate
-            out += prefix;
-            miniutf::to_utf8(name_fallback, out);
-            store(std::move(out));
+            store(fullTypeName(name_fallback));
             return true;
         }
-        name = "";
         return false;
     }
 
-
-    store(shared::Concat({prefix, pTypeDesc->Type, pTypeDesc->Parameters}));
+    store(fullTypeName(pTypeDesc));
     return true;
 }
-
 
 bool FrameStore::GetCachedTypeDesc(ClassID classId, TypeDesc*& typeDesc)
 {
