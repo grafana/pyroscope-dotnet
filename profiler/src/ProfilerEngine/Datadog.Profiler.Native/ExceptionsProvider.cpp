@@ -10,7 +10,6 @@
 #include "Log.h"
 #include "OsSpecificApi.h"
 #include "RawSampleTransformer.h"
-#include "ScopeFinalizer.h"
 #include "SampleValueTypeProvider.h"
 #include "shared/src/native-src/com_ptr.h"
 #include "shared/src/native-src/string.h"

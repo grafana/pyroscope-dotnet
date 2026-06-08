@@ -5,28 +5,19 @@
 #include "cor.h"
 #include "corprof.h"
 
+#include "FrameInfoView.h"
 #include "IMemoryFootprintProvider.h"
-
-#include <string>
 #include <cstdint>
-
-struct FrameInfoView
-{
-public:
-    std::string_view ModuleName;
-    std::string_view Frame;
-    std::string_view Filename;
-    std::uint32_t StartLine;
-};
+#include <string>
 
 class IFrameStore : public IMemoryFootprintProvider
 {
 public:
-    virtual ~IFrameStore() = default;
+    ~IFrameStore() override = default;
 
     // return
     //  - true if managed frame
     virtual std::pair<bool, FrameInfoView> GetFrame(uintptr_t instructionPointer) = 0;
     virtual bool GetTypeName(ClassID classId, std::string& name) = 0;
-    virtual bool GetTypeName(ClassID classId, std::string_view& name) = 0;
+    virtual bool GetTypeName(ClassID classId, std::string_view& name, const std::u16string_view& name_fallback) = 0;
 };

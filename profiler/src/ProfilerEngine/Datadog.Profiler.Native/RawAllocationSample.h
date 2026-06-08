@@ -47,9 +47,13 @@ public:
             auto allocationSizeIndex = valueOffsets[1];
             sample->AddValue(AllocationSize, allocationSizeIndex);
         }
+
+        sample->SetLeafFrame(FrameInfoView{
+            .Frame = AllocationClass,
+        });
     }
 
-    std::string AllocationClass;
+    std::string_view AllocationClass;
     int64_t AllocationSize;
     uint64_t AllocationAmount = 0;  // bytes in the CLR sampling window (~100KB for AllocationTick)
     uintptr_t Address;

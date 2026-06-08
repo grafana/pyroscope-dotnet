@@ -3,11 +3,8 @@
 
 #pragma once
 
-#include "IAppDomainStore.h"
 #include "ICollector.h"
 #include "IConfiguration.h"
-#include "IFrameStore.h"
-#include "IRuntimeIdStore.h"
 #include "IThreadsCpuManager.h"
 #include "Log.h"
 #include "OpSysTools.h"
@@ -20,12 +17,9 @@
 #include "ServiceBase.h"
 
 #include "shared/src/native-src/dd_memory_resource.hpp"
-#include "shared/src/native-src/string.h"
 
 #include <list>
-#include <mutex>
 #include <string>
-#include <thread>
 #include <vector>
 
 // forward declarations
@@ -120,7 +114,7 @@ private:
                 return false;
 
             _rawSampleTransformer->Transform(*_currentRawSample, sample, _valueOffsets);
-            _currentRawSample++;
+            ++_currentRawSample;
 
             return true;
         }

@@ -33,7 +33,7 @@ void AllocationsRecorder::OnObjectAllocated(ObjectID objectId, ClassID classId)
     //           ICorProfilerInfo::GetObjectSize(objectId)
 
     std::string_view typeName;
-    if (!_pFrameStore->GetTypeName(classId, typeName))
+    if (!_pFrameStore->GetTypeName(classId, typeName, std::u16string_view{}))
     {
         _missed.fetch_add(1);
 

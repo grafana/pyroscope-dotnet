@@ -28,3 +28,5 @@ docker/archive:
 	cd out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH) && tar -czvf ../pyroscope.$(RELEASE_VERSION)-$(LIBC)-$(ARCH).tar.gz *.so 
 	rm -rf out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH)
 
+
+include dev.mk

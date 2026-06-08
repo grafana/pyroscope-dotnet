@@ -18,15 +18,15 @@
   // Configure tool-specific properties.
   "customizations": {
     "vscode": {
-        "extensions": [
-            "ms-dotnettools.csdevkit",
-            "ms-vscode.cpptools",
-            "EditorConfig.EditorConfig",
-            "ms-vscode.cmake-tools"
-        ],
-    "settings": {
-      "csharp.preview.improvedLaunchExperience": true
-    }
+      "extensions": [
+        "ms-dotnettools.csdevkit",
+        "ms-vscode.cpptools",
+        "EditorConfig.EditorConfig",
+        "ms-vscode.cmake-tools"
+      ],
+      "settings": {
+        "csharp.preview.improvedLaunchExperience": true
+      }
     }
   }
 

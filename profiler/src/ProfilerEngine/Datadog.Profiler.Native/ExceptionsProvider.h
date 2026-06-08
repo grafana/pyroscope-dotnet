@@ -5,18 +5,13 @@
 
 #include "CallstackProvider.h"
 #include "CollectorBase.h"
-#include "IFrameStore.h"
 #include "IManagedThreadList.h"
 #include "IUpscaleProvider.h"
 #include "RawExceptionSample.h"
-#include "cor.h"
-#include "corprof.h"
 #include "GroupSampler.h"
 #include "OsSpecificApi.h"
-#include "StackSnapshotResultBuffer.h"
 #include "MetricsRegistry.h"
 #include "CounterMetric.h"
-#include "IUpscaleProvider.h"
 
 #include "shared/src/native-src/dd_memory_resource.hpp"
 

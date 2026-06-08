@@ -3,12 +3,11 @@
 
 #pragma once
 
-#include "IFrameStore.h"
+#include "FrameInfoView.h"
 
 #include <algorithm>
 #include <array>
 #include <chrono>
-#include <iostream>
 #include <list>
 #include <string>
 #include <string_view>
@@ -63,7 +62,8 @@ LabelsVisitor(Ts...) -> LabelsVisitor<Ts...>;
 
 using namespace std::chrono_literals;
 
-class Sample final
+class
+Sample final
 {
 public:
     static size_t ValuesCount;
@@ -96,6 +96,7 @@ public:
     // and a Sample in each Provider (this is behind CollectorBase template class)
     void AddValue(std::int64_t value, size_t index);
     void AddFrame(FrameInfoView const& frame);
+    void SetLeafFrame(FrameInfoView const& frame);
 
     template <typename T>
     void AddLabel(T&& label)
@@ -160,7 +161,13 @@ public:
         _callstack.clear();
         _runtimeId = {};
         _allLabels.clear();
-        std::fill(_values.begin(), _values.end(), 0);
+        _leafFrame = FrameInfoView{};
+        std::ranges::fill(_values, 0);
+    }
+
+    FrameInfoView const &GetLeafFrame() const
+    {
+        return _leafFrame;
     }
     // well known labels
 public:
@@ -206,10 +213,12 @@ public:
     static const std::string ProfileIdLabel;
 
 
+
 private:
     std::chrono::nanoseconds _timestamp;
     std::vector<FrameInfoView> _callstack;
     Values _values;
     Labels _allLabels;
     std::string_view _runtimeId;
+    FrameInfoView _leafFrame;
 };

@@ -1,8 +1,8 @@
 PROFILER_DIR := $(CURDIR)/../profiler/_build/DDProf-Deploy/linux
 DOTNET := ~/.dotnet/dotnet
 
-.PHONY: run
-run:
+.PHONY: dev
+dev:
 	CORECLR_ENABLE_NOTIFICATION_PROFILERS=1 \
 	CORECLR_NOTIFICATION_PROFILERS=$(PROFILER_DIR)/Pyroscope.Profiler.Native.so={BD1A650D-AC5D-4896-B64F-D6FA25D6B26A} \
 	LD_PRELOAD=$(PROFILER_DIR)/Datadog.Linux.ApiWrapper.x64.so \

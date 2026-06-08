@@ -15,14 +15,21 @@ PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions) :
 void PprofBuilder::AddSample(const Sample& sample, std::span<const int64_t> values)
 {
     assert(values.size() == _sampleTypeDefinitions.size());
-    std::lock_guard<std::mutex> lock(this->_lock);
+    std::lock_guard lock(this->_lock);
     auto* pSample = _profile.add_sample();
+    auto addFrame = [&](const FrameInfoView &frame) {
+        const auto moduleName = AddString(frame.ModuleName);
+        const auto functionName = AddString(frame.Frame);
+        const auto locId = AddLocation(functionName, moduleName);
+        pSample->add_location_id(locId);
+    };
+    if (auto frame = sample.GetLeafFrame(); !frame.Frame.empty())
+    {
+        addFrame(frame);
+    }
     for (auto const& frame : sample.GetCallstack())
     {
-        auto moduleName = AddString(frame.ModuleName);
-        auto functionName = AddString(frame.Frame);
-        auto locId = AddLocation(functionName, moduleName);
-        pSample->add_location_id(locId);
+        addFrame(frame);
     }
     for (const auto& value : values)
     {
@@ -111,7 +118,19 @@ void PprofBuilder::Reset()
     }
     _profile.set_period(1);
     auto* pPeriodType = new google::v1::ValueType();
-    pPeriodType->set_type(AddString("cpu"));
-    pPeriodType->set_unit(AddString("nanoseconds"));
+    bool isMemoryProfile = !_sampleTypeDefinitions.empty() &&
+        (_sampleTypeDefinitions[0].Type == ProfileType::Alloc ||
+         _sampleTypeDefinitions[0].Type == ProfileType::AllocFramework ||
+         _sampleTypeDefinitions[0].Type == ProfileType::Heap);
+    if (isMemoryProfile)
+    {
+        pPeriodType->set_type(AddString("space"));
+        pPeriodType->set_unit(AddString("bytes"));
+    }
+    else
+    {
+        pPeriodType->set_type(AddString("cpu"));
+        pPeriodType->set_unit(AddString("nanoseconds"));
+    }
     _profile.set_allocated_period_type(pPeriodType);
 }
