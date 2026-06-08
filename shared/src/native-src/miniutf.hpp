@@ -72,7 +72,8 @@ bool utf32_check(const std::string & str);
  */
 std::u32string to_utf32(const std::string & str);
 std::u16string to_utf16(const std::string & str);
-std::string to_utf8(const std::u16string_view str);
+std::string to_utf8(std::u16string_view str);
+void to_utf8(std::u16string_view str, std::string &out);
 std::string to_utf8(const std::u32string & str);
 
 /*

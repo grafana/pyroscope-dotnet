@@ -56,6 +56,21 @@ namespace shared {
 #endif
     }
 
+    std::string Concat(std::initializer_list<std::string_view> ss)
+    {
+        std::string res{};
+        size_t sz = 0;
+        for (auto s : ss)
+        {
+            sz += s.length();
+        }
+        for (auto s : ss)
+        {
+            res += s;
+        }
+        return std::move(res);
+    }
+
     std::string ToString(const GUID& uid)
     {
         std::stringstream txt;

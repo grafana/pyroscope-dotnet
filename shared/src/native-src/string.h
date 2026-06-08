@@ -53,6 +53,9 @@ std::string ToString(const WCHAR* wstr);
 std::string ToString(const WCHAR* wstr, std::size_t nbChars);
 std::string ToString(const GUID& uid);
 
+std::string Concat(std::initializer_list<std::string_view> ss);
+
+
 WSTRING ToWSTRING(const std::string& str);
 WSTRING ToWSTRING(uint64_t i);
 

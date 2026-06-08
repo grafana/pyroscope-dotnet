@@ -247,6 +247,12 @@ std::string to_utf8(const std::u16string_view str) {
   return out;
 }
 
+void to_utf8(const std::u16string_view str, std::string &out) {
+    out.reserve(str.length() * 3 / 2 + out.length());  // estimate
+    for (std::u16string_view::size_type i = 0; i < str.length();)
+        utf8_encode(utf16_decode(str, i), out);
+}
+
 std::string to_utf8(const std::u32string& str) {
   std::string out;
   out.reserve(str.length() * 3 / 2);  // estimate
