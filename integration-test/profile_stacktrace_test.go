@@ -198,7 +198,7 @@ func TestAllocationTypeLeafProfileStacktraces(t *testing.T) {
 		{"AllocWork", "Work"},
 		{"AllocWork", "Allocate"},
 	}
-	expectedLeafType := "cls:AllocatedLeafPayload"
+	expectedLeafType := "cls:AllocatedLeaPayload"
 	var lastCollapsed string
 	var lastErr error
 	require.Eventually(t, func() bool {
