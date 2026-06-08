@@ -12,8 +12,8 @@
 #include "OpSysTools.h"
 #include "RawSampleTransformer.h"
 #include "Sample.h"
-#include "SamplesEnumerator.h"
 #include "SampleValueTypeProvider.h"
+#include "SamplesEnumerator.h"
 
 const std::string LiveObjectsProvider::Gen1("1");
 const std::string LiveObjectsProvider::Gen2("2");
@@ -43,8 +43,7 @@ void LiveObjectsProvider::OnGarbageCollectionStart(
     int32_t number,
     uint32_t generation,
     GCReason reason,
-    GCType type
-)
+    GCType type)
 {
     // The address provided during AllocationTick event is not pointing to real object
     // so we tried to wait for the next garbage collection to create a wrapping weak handle.
@@ -171,8 +170,8 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
         if (handle != nullptr)
         {
             uint64_t objectSize = (rawSample.AllocationSize > 0)
-                ? static_cast<uint64_t>(rawSample.AllocationSize)
-                : 1;
+                                      ? static_cast<uint64_t>(rawSample.AllocationSize)
+                                      : 1;
 
             auto sample = _rawSampleTransformer->Transform(rawSample, _valueOffsets);
 
@@ -189,7 +188,9 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
                 sample->AddValue(static_cast<int64_t>(std::llround(static_cast<double>(values[_valueOffsets[1]]) * weight)), _valueOffsets[1]);
             }
 
-            sample->SetLeafFrame(rawSample.AllocationClass);
+            sample->SetLeafFrame(FrameInfoView{
+                .Frame = rawSample.AllocationClass,
+            });
             LiveObjectInfo info(
                 sample,
                 rawSample.Address,

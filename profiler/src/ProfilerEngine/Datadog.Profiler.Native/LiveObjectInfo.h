@@ -33,7 +33,6 @@ private:
     // Just keep to remind us to finish the implementation.
     std::chrono::nanoseconds _timestamp;
     uint64_t _gcCount;
-    std::string_view _allocationClass;
 
     static std::atomic<uint64_t> s_nextObjectId;
 };

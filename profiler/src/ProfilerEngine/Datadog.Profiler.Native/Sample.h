@@ -62,7 +62,8 @@ LabelsVisitor(Ts...) -> LabelsVisitor<Ts...>;
 
 using namespace std::chrono_literals;
 
-class Sample final
+class
+Sample final
 {
 public:
     static size_t ValuesCount;
@@ -95,7 +96,7 @@ public:
     // and a Sample in each Provider (this is behind CollectorBase template class)
     void AddValue(std::int64_t value, size_t index);
     void AddFrame(FrameInfoView const& frame);
-    void SetLeafFrame(std::string_view const& frame);
+    void SetLeafFrame(FrameInfoView const& frame);
 
     template <typename T>
     void AddLabel(T&& label)
@@ -160,11 +161,11 @@ public:
         _callstack.clear();
         _runtimeId = {};
         _allLabels.clear();
-        _leafFrame = "";
+        _leafFrame = FrameInfoView{};
         std::ranges::fill(_values, 0);
     }
 
-    std::string_view GetLeafFrame() const
+    FrameInfoView const &GetLeafFrame() const
     {
         return _leafFrame;
     }
@@ -219,5 +220,5 @@ private:
     Values _values;
     Labels _allLabels;
     std::string_view _runtimeId;
-    std::string_view _leafFrame;
+    FrameInfoView _leafFrame;
 };

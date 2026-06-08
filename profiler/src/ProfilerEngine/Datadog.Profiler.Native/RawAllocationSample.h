@@ -48,7 +48,9 @@ public:
             sample->AddValue(AllocationSize, allocationSizeIndex);
         }
 
-        sample->SetLeafFrame(AllocationClass);
+        sample->SetLeafFrame(FrameInfoView{
+            .Frame = AllocationClass,
+        });
     }
 
     std::string_view AllocationClass;

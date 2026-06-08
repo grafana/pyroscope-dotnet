@@ -8,7 +8,6 @@
 
 struct FrameInfoView
 {
-public:
     std::string_view ModuleName;
     std::string_view Frame;
     std::string_view Filename;
