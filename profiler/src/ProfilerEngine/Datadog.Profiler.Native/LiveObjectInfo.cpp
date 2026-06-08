@@ -6,13 +6,12 @@
 std::atomic<uint64_t> LiveObjectInfo::s_nextObjectId = 1;
 
 
-LiveObjectInfo::LiveObjectInfo(const std::shared_ptr<Sample>& sample, uintptr_t address, std::chrono::nanoseconds timestamp, std::string_view allocationClass)
+LiveObjectInfo::LiveObjectInfo(const std::shared_ptr<Sample>& sample, uintptr_t address, std::chrono::nanoseconds timestamp)
     :
     _address(address),
     _weakHandle(nullptr),
     _timestamp(timestamp),
     _gcCount(0),
-    _allocationClass(std::move(allocationClass)),
     _sample{sample}
 {
 
@@ -41,11 +40,6 @@ std::shared_ptr<Sample> LiveObjectInfo::GetSample() const
 void LiveObjectInfo::IncrementGC()
 {
     _gcCount++;
-}
-
-std::string_view LiveObjectInfo::GetAllocationClass() const
-{
-    return _allocationClass;
 }
 
 bool LiveObjectInfo::IsGen2() const

@@ -48,11 +48,7 @@ public:
             sample->AddValue(AllocationSize, allocationSizeIndex);
         }
 
-        if (!AllocationClass.empty())
-        {
-            static const std::string LeafModule = "";
-            sample->PrependFrame({LeafModule, AllocationClass, "", 0});
-        }
+        sample->SetLeafFrame(AllocationClass);
     }
 
     std::string_view AllocationClass;

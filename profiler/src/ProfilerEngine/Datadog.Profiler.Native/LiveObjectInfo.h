@@ -15,14 +15,13 @@
 class LiveObjectInfo
 {
 public:
-    LiveObjectInfo(const std::shared_ptr<Sample>& sample, uintptr_t address, std::chrono::nanoseconds timestamp, std::string_view allocationClass);
+    LiveObjectInfo(const std::shared_ptr<Sample>& sample, uintptr_t address, std::chrono::nanoseconds timestamp);
 
     // accessors
     void SetHandle(ObjectHandleID handle);
     ObjectHandleID GetHandle() const;
     uintptr_t GetAddress() const;
     std::shared_ptr<Sample> GetSample() const;
-    std::string_view GetAllocationClass() const;
     void IncrementGC();
     bool IsGen2() const;
 

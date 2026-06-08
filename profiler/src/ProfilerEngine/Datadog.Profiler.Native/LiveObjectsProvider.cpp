@@ -190,22 +190,14 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
                 sample->AddValue(static_cast<int64_t>(std::llround(static_cast<double>(values[_valueOffsets[1]]) * weight)), _valueOffsets[1]);
             }
 
-            std::string_view allocClass = (_addTypeAsLeaf && !rawSample.AllocationClass.empty())
-                ? rawSample.AllocationClass : "";
-
+            sample->SetLeafFrame(rawSample.AllocationClass);
             LiveObjectInfo info(
                 sample,
                 rawSample.Address,
-                rawSample.Timestamp,
-                allocClass);
+                rawSample.Timestamp);
             info.SetHandle(handle);
-            _monitoredObjects.push_back(std::move(info));
 
-            if (!_monitoredObjects.back().GetAllocationClass().empty())
-            {
-                static const std::string LeafModule = "";
-                sample->PrependFrame({LeafModule, _monitoredObjects.back().GetAllocationClass(), "", 0}); //todo this is garbage
-            }
+            _monitoredObjects.push_back(std::move(info));
         }
         else
         {

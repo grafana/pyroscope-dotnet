@@ -109,9 +109,9 @@ void Sample::AddFrame(FrameInfoView const& frame)
     _callstack.push_back(frame);
 }
 
-void Sample::PrependFrame(FrameInfoView const& frame)
+void Sample::SetLeafFrame(const std::string_view & frame)
 {
-    _callstack.insert(_callstack.begin(), frame);
+    _leafFrame = frame;
 }
 
 const std::vector<FrameInfoView>& Sample::GetCallstack() const
