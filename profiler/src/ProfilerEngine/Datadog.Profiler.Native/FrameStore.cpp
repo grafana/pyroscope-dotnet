@@ -278,8 +278,13 @@ bool FrameStore::GetTypeName(ClassID classId, std::string& name)
 // For example if 4 instances of MyType are allocated, the string_view for these 4 allocations
 // will point to the same "MyType" string.
 // This is why it is needed to get a pointer to the TypeDesc held by the cache
-bool FrameStore::GetTypeName(ClassID classId, std::string_view& name)
+bool FrameStore::GetTypeName(ClassID classId, std::string_view& name, const std::u16string_view& name_fallback)
 {
+    if (classId == 0)
+    {
+        name = "";
+        return false;
+    }
     std::lock_guard<std::mutex> lock(_fullTypeNamesLock);
 
     auto typeEntry = _fullTypeNames.find(classId);
@@ -289,21 +294,29 @@ bool FrameStore::GetTypeName(ClassID classId, std::string_view& name)
         name = {typeEntry->second.data(), typeEntry->second.size()};
         return true;
     }
+    auto store = [&](std::string str) {
+        // ensure that the string_view is pointing to the string in the cache
+        auto& entry = _fullTypeNames[classId];
+        entry = std::move(str);
+        name = {entry.data(), entry.size()};
+
+        // Incrementally track item size
+        _cachedItemsSize.fetch_add(entry.capacity(), std::memory_order_relaxed);
+    };
 
     TypeDesc* pTypeDesc = nullptr;
     if (!GetTypeDesc(classId, pTypeDesc))
     {
+        if (!name_fallback.empty())
+        {
+            store(shared::ToString(name_fallback.data(), name_fallback.size()));
+            return true;
+        }
+        name = "";
         return false;
     }
 
-    // ensure that the string_view is pointing to the string in the cache
-    auto& entry = _fullTypeNames[classId];
-    entry = pTypeDesc->Type + pTypeDesc->Parameters;
-    name = {entry.data(), entry.size()};
-
-    // Incrementally track item size
-    _cachedItemsSize.fetch_add(entry.capacity(), std::memory_order_relaxed);
-
+    store(pTypeDesc->Type + pTypeDesc->Parameters);
     return true;
 }
 

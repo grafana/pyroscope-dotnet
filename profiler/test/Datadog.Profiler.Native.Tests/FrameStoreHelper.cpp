@@ -41,7 +41,7 @@ bool FrameStoreHelper::GetTypeName(ClassID classId, std::string& name)
     return false;
 }
 
-bool FrameStoreHelper::GetTypeName(ClassID classId, std::string_view& name)
+bool FrameStoreHelper::GetTypeName(ClassID classId, std::string_view& name, const std::u16string_view &name_fallback)
 {
     return false;
 }

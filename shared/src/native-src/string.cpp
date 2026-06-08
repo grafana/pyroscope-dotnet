@@ -27,6 +27,11 @@ namespace shared {
         return ToString(wstr, WStrLen(wstr));
     }
 
+    std::string ToString(const std::u16string_view& wstr)
+    {
+        return ToString(wstr.data(), wstr.length());
+    }
+
     std::string ToString(const WCHAR* wstr, std::size_t nbChars)
     {
 #ifdef _WIN32

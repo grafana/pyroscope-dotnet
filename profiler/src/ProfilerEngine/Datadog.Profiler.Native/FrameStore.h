@@ -55,7 +55,7 @@ public:
 public:
     std::pair<bool, FrameInfoView> GetFrame(uintptr_t instructionPointer) override;
     bool GetTypeName(ClassID classId, std::string& name) override;
-    bool GetTypeName(ClassID classId, std::string_view& name) override;
+    bool GetTypeName(ClassID classId, std::string_view& name, const std::u16string_view &name_fallback) override;
 
     // Memory measurement (IMemoryFootprintProvider)
     size_t GetMemorySize() const override;

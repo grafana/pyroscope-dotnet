@@ -175,14 +175,7 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
                 ? static_cast<uint64_t>(rawSample.AllocationSize)
                 : 1;
 
-            // Suppress allocation-specific type flags during Transform so OnTransform
-            // does not bake allocation-pipeline frames into the heap sample.
-            bool savedLeaf = rawSample.AddTypeAsLeaf;
-            rawSample.AddTypeAsLeaf = false;
-
             auto sample = _rawSampleTransformer->Transform(rawSample, _valueOffsets);
-
-            rawSample.AddTypeAsLeaf = savedLeaf;
 
             // Bake the two-layer Poisson upscale weight into the sample at ingestion.
             // Layer 1: object-size-proportional CLR AllocationTick bias (w_clr).

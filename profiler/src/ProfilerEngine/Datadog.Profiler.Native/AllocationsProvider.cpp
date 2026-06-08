@@ -138,16 +138,10 @@ void AllocationsProvider::OnAllocation(uint32_t allocationKind,
     rawSample.Address = address;
     rawSample.MethodTable = classId;
 
-    // the classID can be null when events are replayed in integration tests
-    if ((classId == 0) || !_pFrameStore->GetTypeName(classId, rawSample.AllocationClass))
+    if (_addTypeAsLeaf)
     {
-        // The provided type name contains the metadata-based `xx syntax for generics instead of <>
-        // So rely on the frame store to get a C#-like representation like what is done for frames
-        // TODO THIS IS a use-after-free after change to string_view. Should we store this into FrameStore?
-        // rawSample.AllocationClass = shared::ToString(shared::WSTRING(typeName));
-        Log::Error("TODO ", shared::ToString(shared::WSTRING(typeName)));
+        _pFrameStore->GetTypeName(classId, rawSample.AllocationClass, std::u16string_view{typeName});
     }
-    rawSample.AddTypeAsLeaf = _addTypeAsLeaf;
 
     // the listener is the live objects profiler: could be null if disabled
     if (_pListener != nullptr)
@@ -225,16 +219,10 @@ void AllocationsProvider::OnAllocationSampled(
     rawSample.MethodTable = classId;
     rawSample.Tags.AsyncSafeCopy(threadInfo->GetTags());
 
-    // the classID can be null when events are replayed in integration tests
-    if ((classId == 0) || !_pFrameStore->GetTypeName(classId, rawSample.AllocationClass))
-    {
-        // The provided type name contains the metadata-based `xx syntax for generics instead of <>
-        // So rely on the frame store to get a C#-like representation like what is done for frames
-        // TODO THIS IS a use-after-free after change to string_view
-        // rawSample.AllocationClass = shared::ToString(shared::WSTRING(typeName));
-        Log::Error("TODO ", shared::ToString(shared::WSTRING(typeName)));
+
+    if (_addTypeAsLeaf) {
+        _pFrameStore->GetTypeName(classId, rawSample.AllocationClass, std::u16string_view{typeName});
     }
-    rawSample.AddTypeAsLeaf = _addTypeAsLeaf;
 
     // the listener is the live objects profiler: could be null if disabled
     if (_pListener != nullptr)
@@ -328,13 +316,15 @@ void AllocationsProvider::OnAllocation(std::chrono::nanoseconds timestamp,
     // rawSample.Address = address;
     rawSample.MethodTable = classId;
 
-    // The provided type name contains the metadata-based `xx syntax for generics instead of <>
-    // So rely on the frame store to get a C#-like representation like what is done for frames
-    if (!_pFrameStore->GetTypeName(classId, rawSample.AllocationClass))
+    if (_addTypeAsLeaf)
     {
-        rawSample.AllocationClass = typeName;
+        // The provided type name contains the metadata-based `xx syntax for generics instead of <>
+        // So rely on the frame store to get a C#-like representation like what is done for frames
+        if (!_pFrameStore->GetTypeName(classId, rawSample.AllocationClass))
+        {
+            // rawSample.AllocationClass = typeName; // not implemented
+        }
     }
-    rawSample.AddTypeAsLeaf = _addTypeAsLeaf;
 
     // the listener is the live objects profiler: could be null if disabled
     if (_pListener != nullptr)

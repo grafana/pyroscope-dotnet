@@ -18,8 +18,7 @@ public:
         AllocationSize(other.AllocationSize),
         AllocationAmount(other.AllocationAmount),
         Address(other.Address),
-        MethodTable(other.MethodTable),
-        AddTypeAsLeaf(other.AddTypeAsLeaf)
+        MethodTable(other.MethodTable)
     {
     }
 
@@ -33,7 +32,6 @@ public:
             AllocationAmount = other.AllocationAmount;
             Address = other.Address;
             MethodTable = other.MethodTable;
-            AddTypeAsLeaf = other.AddTypeAsLeaf;
         }
         return *this;
     }
@@ -50,7 +48,7 @@ public:
             sample->AddValue(AllocationSize, allocationSizeIndex);
         }
 
-        if (AddTypeAsLeaf && !AllocationClass.empty())
+        if (!AllocationClass.empty())
         {
             static const std::string LeafModule = "";
             sample->PrependFrame({LeafModule, AllocationClass, "", 0});
@@ -62,5 +60,4 @@ public:
     uint64_t AllocationAmount = 0;  // bytes in the CLR sampling window (~100KB for AllocationTick)
     uintptr_t Address;
     ClassID MethodTable;
-    bool AddTypeAsLeaf = false;
 };
