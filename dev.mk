@@ -8,7 +8,7 @@ dev/dotnet:
 	curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
 	chmod +x /tmp/dotnet-install.sh
 	/tmp/dotnet-install.sh --channel 8.0
-	/tmp/dotnet-install.sh --version 10.0.203
+	/tmp/dotnet-install.sh --channel 10.0
 	dotnet --list-sdks
 	rm /tmp/dotnet-install.sh
 
