@@ -275,8 +275,10 @@ private :
 
 #ifdef LINUX
     SystemCallsShield* _systemCallsShield = nullptr;
-    std::unique_ptr<TimerCreateCpuProfiler> _pCpuProfiler = nullptr;
+    // _pCpuProfiler borrows _pUnwinder. Keep this declaration order so reverse member destruction
+    // destroys the borrower before the unwinder it uses.
     std::unique_ptr<IUnwinder> _pUnwinder = nullptr;
+    std::unique_ptr<TimerCreateCpuProfiler> _pCpuProfiler = nullptr;
     CpuSampleProvider* _pCpuSampleProvider = nullptr;
     std::unique_ptr<RingBuffer> _pCpuProfilerRb = nullptr;
 #endif
