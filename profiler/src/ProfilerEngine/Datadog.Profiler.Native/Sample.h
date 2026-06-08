@@ -163,6 +163,11 @@ public:
         _leafFrame = "";
         std::ranges::fill(_values, 0);
     }
+
+    std::string_view GetLeafFrame() const
+    {
+        return _leafFrame;
+    }
     // well known labels
 public:
     static const std::string ThreadIdLabel;
@@ -205,6 +210,7 @@ public:
 
 
     static const std::string ProfileIdLabel;
+
 
 
 private:

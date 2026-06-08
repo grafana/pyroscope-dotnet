@@ -15,8 +15,13 @@ PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions) :
 void PprofBuilder::AddSample(const Sample& sample, std::span<const int64_t> values)
 {
     assert(values.size() == _sampleTypeDefinitions.size());
-    std::lock_guard<std::mutex> lock(this->_lock);
+    std::lock_guard lock(this->_lock);
     auto* pSample = _profile.add_sample();
+    if (auto leafFrame = sample.GetLeafFrame(); !leafFrame.empty())
+    {
+        auto locId = AddLocation(AddString(leafFrame), 0);
+        pSample->add_location_id(locId);
+    }
     for (auto const& frame : sample.GetCallstack())
     {
         auto moduleName = AddString(frame.ModuleName);
