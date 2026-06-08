@@ -150,12 +150,12 @@ void BclEventsParser::OnRequestStart(std::chrono::nanoseconds timestamp, LPCGUID
         return;
     }
 
-    std::string url = shared::ToString(shared::WSTRING(scheme)) + std::string("://") + shared::ToString(shared::WSTRING(host));
+    std::string url = shared::ToString(scheme) + std::string("://") + shared::ToString(host);
     if (port != 0)
     {
         url = url + ":" + std::to_string(port);
     }
-    url = url + shared::ToString(shared::WSTRING(path));
+    url = url + shared::ToString(path);
 
     _pNetworkListener->OnRequestStart(timestamp, pActivityId, url);
 }
@@ -187,7 +187,7 @@ void BclEventsParser::OnRequestFailed(std::chrono::nanoseconds timestamp, LPCGUI
         return;
     }
 
-    _pNetworkListener->OnRequestFailed(timestamp, pActivityId, shared::ToString(shared::WSTRING(message)));
+    _pNetworkListener->OnRequestFailed(timestamp, pActivityId, shared::ToString(message));
 }
 
 void BclEventsParser::OnRequestFailedDetailed(std::chrono::nanoseconds timestamp, LPCGUID pActivityId, LPCGUID pRelatedActivityId, LPCBYTE pEventData, ULONG cbEventData)
@@ -283,7 +283,7 @@ void BclEventsParser::OnRedirect(std::chrono::nanoseconds timestamp, LPCGUID pAc
         return;
     }
 
-    _pNetworkListener->OnRedirect(timestamp, pActivityId, shared::ToString(shared::WSTRING(redirectUrl)));
+    _pNetworkListener->OnRedirect(timestamp, pActivityId, shared::ToString(redirectUrl));
 }
 
 
@@ -431,7 +431,7 @@ void BclEventsParser::OnHandshakeStart(std::chrono::nanoseconds timestamp, LPCGU
         return;
     }
 
-    _pNetworkListener->OnHandshakeStart(timestamp, pActivityId, shared::ToString(shared::WSTRING(targetHost)));
+    _pNetworkListener->OnHandshakeStart(timestamp, pActivityId, shared::ToString(targetHost));
 }
 
 void BclEventsParser::OnHandshakeStop(std::chrono::nanoseconds timestamp, LPCGUID pActivityId, LPCGUID pRelatedActivityId, LPCBYTE pEventData, ULONG cbEventData)
@@ -464,5 +464,5 @@ void BclEventsParser::OnHandshakeFailed(std::chrono::nanoseconds timestamp, LPCG
         return;
     }
 
-    _pNetworkListener->OnHandshakeFailed(timestamp, pActivityId, shared::ToString(shared::WSTRING(message)));
+    _pNetworkListener->OnHandshakeFailed(timestamp, pActivityId, shared::ToString(message));
 }

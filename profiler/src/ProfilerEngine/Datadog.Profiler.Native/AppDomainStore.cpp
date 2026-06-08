@@ -45,7 +45,7 @@ void AppDomainStore::Register(AppDomainID appDomainId)
     hr = _pProfilerInfo->GetAppDomainInfo(appDomainId, characterCount, &characterCount, pBuffer.get(), nullptr);
     if (FAILED(hr)) { return; }
 
-    auto appDomainName = shared::ToString(shared::WSTRING(pBuffer.get()));
+    auto appDomainName = shared::ToString(pBuffer.get());
 
     std::unique_lock lock{_lock};
     _appDomainToName[appDomainId] = std::move(appDomainName);

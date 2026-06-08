@@ -21,10 +21,6 @@
       "package-name": "pyroscope",
       "include-v-in-tag": false,
       "include-component-in-tag": true,
-      "exclude-paths": [
-        "Pyroscope/Pyroscope.OpenTracing",
-        "Pyroscope/Pyroscope.OpenTelemetry"
-      ],
       "extra-files": [
         {
           "type": "xml",
@@ -47,50 +43,44 @@
         }
       ]
     },
-    "Pyroscope/Pyroscope.OpenTracing": {
-      "component": "opentracing",
-      "release-type": "simple",
-      "package-name": "pyroscope-opentracing",
-      "include-v-in-tag": false,
-      "include-component-in-tag": true,
-      "extra-files": [
-        {
-          "type": "xml",
-          "path": "Pyroscope.OpenTracing.csproj",
-          "xpath": "//PackageVersion"
-        },
-        {
-          "type": "xml",
-          "path": "Pyroscope.OpenTracing.csproj",
-          "xpath": "//AssemblyVersion"
-        },
-        {
-          "type": "xml",
-          "path": "Pyroscope.OpenTracing.csproj",
-          "xpath": "//FileVersion"
-        }
-      ]
-    },
-    "Pyroscope/Pyroscope.OpenTelemetry": {
+    "Pyroscope": {
       "component": "opentelemetry",
       "release-type": "simple",
       "package-name": "pyroscope-opentelemetry",
       "include-v-in-tag": false,
       "include-component-in-tag": true,
+      "exclude-paths": [
+        "Pyroscope/Pyroscope"
+      ],
       "extra-files": [
         {
           "type": "xml",
-          "path": "Pyroscope.OpenTelemetry.csproj",
+          "path": "Pyroscope.OpenTracing/Pyroscope.OpenTracing.csproj",
           "xpath": "//PackageVersion"
         },
         {
           "type": "xml",
-          "path": "Pyroscope.OpenTelemetry.csproj",
+          "path": "Pyroscope.OpenTracing/Pyroscope.OpenTracing.csproj",
           "xpath": "//AssemblyVersion"
         },
         {
           "type": "xml",
-          "path": "Pyroscope.OpenTelemetry.csproj",
+          "path": "Pyroscope.OpenTracing/Pyroscope.OpenTracing.csproj",
+          "xpath": "//FileVersion"
+        },
+        {
+          "type": "xml",
+          "path": "Pyroscope.OpenTelemetry/Pyroscope.OpenTelemetry.csproj",
+          "xpath": "//PackageVersion"
+        },
+        {
+          "type": "xml",
+          "path": "Pyroscope.OpenTelemetry/Pyroscope.OpenTelemetry.csproj",
+          "xpath": "//AssemblyVersion"
+        },
+        {
+          "type": "xml",
+          "path": "Pyroscope.OpenTelemetry/Pyroscope.OpenTelemetry.csproj",
           "xpath": "//FileVersion"
         }
       ]
