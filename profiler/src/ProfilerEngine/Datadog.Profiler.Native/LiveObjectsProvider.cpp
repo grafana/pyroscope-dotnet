@@ -27,7 +27,6 @@ LiveObjectsProvider::LiveObjectsProvider(
     _rawSampleTransformer{rawSampleTransformer},
     _valueOffsets{valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.LiveObjectsDefinitions)},
     _sampler(pConfiguration->GetHeapSamplingRate()),
-    _addTypeAsLeaf(pConfiguration->IsAllocationTypeLeafEnabled()),
     _heapHandleLimit{pConfiguration->GetHeapHandleLimit()},
     _heapSamplingRate{pConfiguration->GetHeapSamplingRate()}
 {

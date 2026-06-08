@@ -8,8 +8,6 @@
 #include "RawCpuSample.h"
 #include "RingBuffer.h"
 
-#include <memory>
-#include <vector>
 
 // forward declarations
 class SampleValueTypeProvider;

@@ -320,10 +320,7 @@ void AllocationsProvider::OnAllocation(std::chrono::nanoseconds timestamp,
     {
         // The provided type name contains the metadata-based `xx syntax for generics instead of <>
         // So rely on the frame store to get a C#-like representation like what is done for frames
-        if (!_pFrameStore->GetTypeName(classId, rawSample.AllocationClass))
-        {
-            // rawSample.AllocationClass = typeName; // not implemented
-        }
+        _pFrameStore->GetTypeName(classId, rawSample.AllocationClass, std::u16string_view{});
     }
 
     // the listener is the live objects profiler: could be null if disabled

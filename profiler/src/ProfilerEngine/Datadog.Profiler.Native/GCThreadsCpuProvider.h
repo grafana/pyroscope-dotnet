@@ -3,14 +3,12 @@
 
 #pragma once
 
-#include "IFrameStore.h"
 #include "IGcSettingsProvider.h"
 #include "ISamplesProvider.h"
 #include "IThreadInfo.h"
 #include "NativeThreadsCpuProviderBase.h"
 #include "MetricsRegistry.h"
 #include "MeanMaxMetric.h"
-
 class RawSampleTransformer;
 
 class GCThreadsCpuProvider
