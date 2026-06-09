@@ -18,9 +18,9 @@ void PprofBuilder::AddSample(const Sample& sample, std::span<const int64_t> valu
     std::lock_guard lock(this->_lock);
     auto* pSample = _profile.add_sample();
     auto addLocation = [&](std::string_view frame, std::string_view module) {
-        const auto moduleName = AddString(module);
-        const auto functionName = AddString(frame);
-        const auto locId = AddLocation(functionName, moduleName);
+        const auto moduleNameStringId = AddString(module);
+        const auto functionNameStringId = AddString(frame);
+        const auto locId = AddLocation(functionNameStringId, moduleNameStringId);
         pSample->add_location_id(locId);
     };
     auto addFrame = [&](const FrameInfoView &frame) {
