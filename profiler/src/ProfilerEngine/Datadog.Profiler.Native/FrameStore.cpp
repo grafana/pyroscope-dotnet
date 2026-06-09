@@ -12,7 +12,6 @@
 
 #include "shared/src/native-src/com_ptr.h"
 #include "shared/src/native-src/dd_filesystem.hpp"
-#include "shared/src/native-src/miniutf.hpp"
 // namespace fs is an alias defined in "dd_filesystem.hpp"
 
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
@@ -271,22 +270,6 @@ bool FrameStore::GetTypeName(ClassID classId, std::string& name)
     return true;
 }
 
-static constexpr std::string_view fullTypeNamePrefix = "cls:";
-
-std::string FrameStore::fullTypeName(const std::u16string_view& name_fallback)
-{
-    std::string out;
-    out.reserve(fullTypeNamePrefix.length() + name_fallback.length() * 3 / 2); // estimate
-    out += fullTypeNamePrefix;
-    miniutf::to_utf8(name_fallback, out);
-    return out;
-}
-
-std::string FrameStore::fullTypeName(const TypeDesc* pTypeDesc)
-{
-    return shared::Concat({fullTypeNamePrefix, pTypeDesc->Type, pTypeDesc->Parameters});
-}
-
 // FOR ALLOCATIONS RECORDER ONLY
 //
 // This method is supposed to return a string_view over a string in the types cache
@@ -294,13 +277,8 @@ std::string FrameStore::fullTypeName(const TypeDesc* pTypeDesc)
 // For example if 4 instances of MyType are allocated, the string_view for these 4 allocations
 // will point to the same "MyType" string.
 // This is why it is needed to get a pointer to the TypeDesc held by the cache
-bool FrameStore::GetTypeName(ClassID classId, std::string_view& name, const std::u16string_view& name_fallback)
+bool FrameStore::GetTypeName(ClassID classId, std::string_view& name)
 {
-    name = "";
-    if (classId == 0)
-    {
-        return false;
-    }
     std::lock_guard<std::mutex> lock(_fullTypeNamesLock);
 
     auto typeEntry = _fullTypeNames.find(classId);
@@ -310,27 +288,21 @@ bool FrameStore::GetTypeName(ClassID classId, std::string_view& name, const std:
         name = {typeEntry->second.data(), typeEntry->second.size()};
         return true;
     }
-    auto store = [&](std::string str) {
-        // ensure that the string_view is pointing to the string in the cache
-        auto& entry = _fullTypeNames[classId];
-        entry = std::move(str);
-        name = std::string_view{entry};
-
-        _cachedItemsSize.fetch_add(entry.capacity(), std::memory_order_relaxed);
-    };
 
     TypeDesc* pTypeDesc = nullptr;
     if (!GetTypeDesc(classId, pTypeDesc))
     {
-        if (!name_fallback.empty())
-        {
-            store(fullTypeName(name_fallback));
-            return true;
-        }
         return false;
     }
 
-    store(fullTypeName(pTypeDesc));
+    // ensure that the string_view is pointing to the string in the cache
+    auto& entry = _fullTypeNames[classId];
+    entry = pTypeDesc->Type + pTypeDesc->Parameters;
+    name = {entry.data(), entry.size()};
+
+    // Incrementally track item size
+    _cachedItemsSize.fetch_add(entry.capacity(), std::memory_order_relaxed);
+
     return true;
 }
 

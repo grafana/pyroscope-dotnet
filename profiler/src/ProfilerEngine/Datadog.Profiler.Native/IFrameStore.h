@@ -28,5 +28,5 @@ public:
     //  - true if managed frame
     virtual std::pair<bool, FrameInfoView> GetFrame(uintptr_t instructionPointer) = 0;
     virtual bool GetTypeName(ClassID classId, std::string& name) = 0;
-    virtual bool GetTypeName(ClassID classId, std::string_view& name, const std::u16string_view& name_fallback) = 0;
+    virtual bool GetTypeName(ClassID classId, std::string_view& name) = 0;
 };
