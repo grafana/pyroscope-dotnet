@@ -17,15 +17,18 @@ void PprofBuilder::AddSample(const Sample& sample, std::span<const int64_t> valu
     assert(values.size() == _sampleTypeDefinitions.size());
     std::lock_guard lock(this->_lock);
     auto* pSample = _profile.add_sample();
-    auto addFrame = [&](const FrameInfoView &frame) {
-        const auto moduleName = AddString(frame.ModuleName);
-        const auto functionName = AddString(frame.Frame);
+    auto addLocation = [&](std::string_view frame, std::string_view module) {
+        const auto moduleName = AddString(module);
+        const auto functionName = AddString(frame);
         const auto locId = AddLocation(functionName, moduleName);
         pSample->add_location_id(locId);
     };
-    if (auto frame = sample.GetLeafFrame(); !frame.Frame.empty())
+    auto addFrame = [&](const FrameInfoView &frame) {
+        addLocation(frame.Frame, frame.ModuleName);
+    };
+    if (auto frame = sample.GetLeafFrame(); !frame.empty())
     {
-        addFrame(frame);
+        addLocation(frame, {});
     }
     for (auto const& frame : sample.GetCallstack())
     {

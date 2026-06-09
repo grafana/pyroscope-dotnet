@@ -188,9 +188,7 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
                 sample->AddValue(static_cast<int64_t>(std::llround(static_cast<double>(values[_valueOffsets[1]]) * weight)), _valueOffsets[1]);
             }
 
-            sample->SetLeafFrame(FrameInfoView{
-                .Frame = rawSample.AllocationClass,
-            });
+            sample->SetLeafFrame(rawSample.AllocationClass);
             LiveObjectInfo info(
                 sample,
                 rawSample.Address,

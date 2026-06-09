@@ -97,7 +97,7 @@ public:
     // and a Sample in each Provider (this is behind CollectorBase template class)
     void AddValue(std::int64_t value, size_t index);
     void AddFrame(FrameInfoView const& frame);
-    void SetLeafFrame(FrameInfoView const& frame);
+    void SetLeafFrame(std::string_view frame);
 
     template <typename T>
     void AddLabel(T&& label)
@@ -162,11 +162,11 @@ public:
         _callstack.clear();
         _runtimeId = {};
         _allLabels.clear();
-        _leafFrame = FrameInfoView{};
+        _leafFrame = {};
         std::ranges::fill(_values, 0);
     }
 
-    FrameInfoView const &GetLeafFrame() const
+    std::string_view GetLeafFrame() const
     {
         return _leafFrame;
     }
@@ -221,5 +221,5 @@ private:
     Values _values;
     Labels _allLabels;
     std::string_view _runtimeId;
-    FrameInfoView _leafFrame;
+    std::string_view _leafFrame;
 };

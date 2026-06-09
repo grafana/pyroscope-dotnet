@@ -109,7 +109,7 @@ void Sample::AddFrame(FrameInfoView const& frame)
     _callstack.push_back(frame);
 }
 
-void Sample::SetLeafFrame(FrameInfoView const& frame)
+void Sample::SetLeafFrame(std::string_view frame)
 {
     _leafFrame = frame;
 }
