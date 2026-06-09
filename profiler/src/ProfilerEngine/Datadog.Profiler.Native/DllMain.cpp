@@ -35,6 +35,7 @@ extern "C" BOOL STDMETHODCALLTYPE DllMain(HINSTANCE hInstDll, DWORD reason, PVOI
     switch (reason)
     {
         case DLL_PROCESS_ATTACH:
+        {
             Log::Info("Profiler DLL loaded.");
             Log::Info("Profiler version = ", PROFILER_VERSION);
             Log::Info("Pointer size: ", 8 * sizeof(void*), " bits.");
@@ -46,6 +47,7 @@ extern "C" BOOL STDMETHODCALLTYPE DllMain(HINSTANCE hInstDll, DWORD reason, PVOI
             delete[] asanProbe;
 #endif
             break;
+        }
 
         case DLL_PROCESS_DETACH:
             Log::Info("Profiler DLL unloaded.");
