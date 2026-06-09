@@ -118,19 +118,7 @@ void PprofBuilder::Reset()
     }
     _profile.set_period(1);
     auto* pPeriodType = new google::v1::ValueType();
-    bool isMemoryProfile = !_sampleTypeDefinitions.empty() &&
-        (_sampleTypeDefinitions[0].Type == ProfileType::Alloc ||
-         _sampleTypeDefinitions[0].Type == ProfileType::AllocFramework ||
-         _sampleTypeDefinitions[0].Type == ProfileType::Heap);
-    if (isMemoryProfile)
-    {
-        pPeriodType->set_type(AddString("space"));
-        pPeriodType->set_unit(AddString("bytes"));
-    }
-    else
-    {
-        pPeriodType->set_type(AddString("cpu"));
-        pPeriodType->set_unit(AddString("nanoseconds"));
-    }
+    pPeriodType->set_type(AddString("cpu"));
+    pPeriodType->set_unit(AddString("nanoseconds"));
     _profile.set_allocated_period_type(pPeriodType);
 }
