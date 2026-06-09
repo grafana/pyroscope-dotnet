@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "IFrameStore.h"
 #include "IGcSettingsProvider.h"
 #include "ISamplesProvider.h"
 #include "IThreadInfo.h"

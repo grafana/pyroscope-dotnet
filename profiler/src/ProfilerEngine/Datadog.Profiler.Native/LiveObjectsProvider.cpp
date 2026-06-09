@@ -12,8 +12,8 @@
 #include "OpSysTools.h"
 #include "RawSampleTransformer.h"
 #include "Sample.h"
-#include "SampleValueTypeProvider.h"
 #include "SamplesEnumerator.h"
+#include "SampleValueTypeProvider.h"
 
 const std::string LiveObjectsProvider::Gen1("1");
 const std::string LiveObjectsProvider::Gen2("2");

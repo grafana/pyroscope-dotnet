@@ -7,8 +7,9 @@
 
 #include "FrameInfoView.h"
 #include "IMemoryFootprintProvider.h"
-#include <cstdint>
+
 #include <string>
+#include <cstdint>
 
 class IFrameStore : public IMemoryFootprintProvider
 {

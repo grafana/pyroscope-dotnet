@@ -3,11 +3,13 @@
 
 #pragma once
 
+#include "IFrameStore.h"
 #include "FrameInfoView.h"
 
 #include <algorithm>
 #include <array>
 #include <chrono>
+#include <iostream>
 #include <list>
 #include <string>
 #include <string_view>
