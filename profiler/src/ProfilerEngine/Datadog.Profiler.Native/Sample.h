@@ -4,7 +4,6 @@
 #pragma once
 
 #include "IFrameStore.h"
-#include "FrameInfoView.h"
 
 #include <algorithm>
 #include <array>

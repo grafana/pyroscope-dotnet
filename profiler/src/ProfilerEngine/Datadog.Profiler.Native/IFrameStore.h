@@ -5,11 +5,19 @@
 #include "cor.h"
 #include "corprof.h"
 
-#include "FrameInfoView.h"
 #include "IMemoryFootprintProvider.h"
 
 #include <string>
 #include <cstdint>
+
+struct FrameInfoView
+{
+public:
+    std::string_view ModuleName;
+    std::string_view Frame;
+    std::string_view Filename;
+    std::uint32_t StartLine;
+};
 
 class IFrameStore : public IMemoryFootprintProvider
 {
