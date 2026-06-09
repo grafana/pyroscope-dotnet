@@ -17,9 +17,9 @@
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
 FrameStore::FrameStore(ICorProfilerInfo4* pCorProfilerInfo,
-                       IConfiguration* pConfiguration,
-                       IDebugInfoStore* debugInfoStore,
-                       ManagedCodeCache* pManagedCodeCache) :
+    IConfiguration* pConfiguration,
+    IDebugInfoStore* debugInfoStore,
+    ManagedCodeCache* pManagedCodeCache) :
     _pCorProfilerInfo{pCorProfilerInfo},
     _pDebugInfoStore{debugInfoStore},
     _pManagedCodeCache{pManagedCodeCache},
@@ -83,15 +83,16 @@ std::pair<bool, FrameInfoView> FrameStore::GetFrame(uintptr_t instructionPointer
         // switch/case does not support compile-time constants
         if (instructionPointer == FrameStore::FakeLockContentionIP)
         {
-            return {true, {FakeModuleName, FakeContentionFrame, "", 0}};
+            return { true, {FakeModuleName, FakeContentionFrame, "", 0} };
         }
-        else if (instructionPointer == FrameStore::FakeAllocationIP)
+        else
+        if (instructionPointer == FrameStore::FakeAllocationIP)
         {
-            return {true, {FakeModuleName, FakeAllocationFrame, "", 0}};
+            return { true, {FakeModuleName, FakeAllocationFrame, "", 0} };
         }
         else
         {
-            return {true, {FakeModuleName, UnknownManagedFrame, "", 0}};
+            return { true, {FakeModuleName, UnknownManagedFrame, "", 0} };
         }
     }
 
@@ -195,8 +196,8 @@ FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId)
 
     // get type related description (assembly, namespace and type name)
     // look into the cache first
-    TypeDesc* pTypeDesc = nullptr; // if already in the cache
-    TypeDesc typeDesc;             // if needed to be built from a given classId
+    TypeDesc* pTypeDesc = nullptr;  // if already in the cache
+    TypeDesc typeDesc;              // if needed to be built from a given classId
 
     bool typeInCache = GetCachedTypeDesc(classId, pTypeDesc);
     // TODO: would it be interesting to have a (moduleId + mdTokenDef) -> TypeDesc cache for the non cached generic types?
@@ -249,6 +250,7 @@ bool FrameStore::GetTypeName(ClassID classId, std::string& name)
     TypeDesc* pTypeDesc = nullptr;
     if (!GetTypeDesc(classId, pTypeDesc))
     {
+        name = "";
         return false;
     }
 
@@ -298,6 +300,7 @@ bool FrameStore::GetTypeName(ClassID classId, std::string_view& name)
     TypeDesc* pTypeDesc = nullptr;
     if (!GetTypeDesc(classId, pTypeDesc))
     {
+        name = "";
         return false;
     }
 
@@ -716,7 +719,7 @@ std::vector<std::string> GetGenericTypeParameters(IMetaDataImport2* pMetadata, m
 {
     std::vector<std::string> parameters;
 
-    // Get all generic parameters definition (ex: "{|ct:K, |ct:V}" for Dictionary<K,V>)
+        // Get all generic parameters definition (ex: "{|ct:K, |ct:V}" for Dictionary<K,V>)
     // --> need to iterate on the generic arguments definition with metadata API
     HCORENUM hEnum = nullptr;
 
@@ -729,7 +732,7 @@ std::vector<std::string> GetGenericTypeParameters(IMetaDataImport2* pMetadata, m
     mdGenericParam genericParams[MaxGenericParametersCount];
     HRESULT hr = pMetadata->EnumGenericParams(&hEnum, mdTokenType, genericParams, MaxGenericParametersCount, &genericParamsCount);
 
-    if (hr == S_OK) // S_FALSE is return if there is no generic parameters
+    if (hr == S_OK)  // S_FALSE is return if there is no generic parameters
     {
         WCHAR paramName[64];
         ULONG paramNameLen = 64;
@@ -749,6 +752,7 @@ std::vector<std::string> GetGenericTypeParameters(IMetaDataImport2* pMetadata, m
                 // this should never happen if the enum succeeded: no need to count the parameters
                 parameters.push_back("T");
             }
+
         }
         pMetadata->CloseEnum(hEnum);
     }
