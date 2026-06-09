@@ -127,15 +127,11 @@ jobs:
         with:
           global-json-file: global.json
       - run: dotnet build -c Release
-        working-directory: Pyroscope/Pyroscope.OpenTracing
-      - run: dotnet build -c Release
         working-directory: Pyroscope/Pyroscope.OpenTelemetry
       - name: Upload artifacts to draft release
         run: |
           gh release upload --clobber "$TAG" \
-            ./Pyroscope/artifacts/bin/Pyroscope.OpenTracing/release/Pyroscope.OpenTracing.dll \
             ./Pyroscope/artifacts/bin/Pyroscope.OpenTelemetry/release/Pyroscope.OpenTelemetry.dll \
-            ./Pyroscope/artifacts/package/release/Pyroscope.OpenTracing*.nupkg \
             ./Pyroscope/artifacts/package/release/Pyroscope.OpenTelemetry*.nupkg
       - name: NuGet login
         id: nuget-login
@@ -147,7 +143,6 @@ jobs:
           API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
           SOURCE: 'https://api.nuget.org/v3/index.json'
         run: |
-          dotnet nuget push "./Pyroscope/artifacts/package/release/Pyroscope.OpenTracing*.nupkg" -k "${API_KEY}" -s "${SOURCE}"
           dotnet nuget push "./Pyroscope/artifacts/package/release/Pyroscope.OpenTelemetry*.nupkg" -k "${API_KEY}" -s "${SOURCE}"
       - name: Publish GitHub release
         run: gh release edit "$TAG" --draft=false

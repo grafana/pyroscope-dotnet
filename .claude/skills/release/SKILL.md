@@ -55,12 +55,11 @@ Release artifacts attached to the GitHub release:
 
 ## Components
 
-Release-please manages three independently versioned components (`separate-pull-requests: true`):
+Release-please manages two independently versioned components (`separate-pull-requests: true`):
 
 | Component | Tag format | Package path |
 |---|---|---|
 | Profiler + managed helper | `pyroscope-X.Y.Z` | `.` (excludes tracing packages) |
-| OpenTracing helper | `opentracing-X.Y.Z` | `Pyroscope/Pyroscope.OpenTracing` |
 | OpenTelemetry helper | `opentelemetry-X.Y.Z` | `Pyroscope/Pyroscope.OpenTelemetry` |
 
 Each component gets its own release PR when commits touch its path. Merging a release PR triggers the matching build, GitHub artifact upload, NuGet publish, and release publication jobs in `release-please.yml`.

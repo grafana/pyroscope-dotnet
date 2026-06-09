@@ -55,21 +55,6 @@
       "extra-files": [
         {
           "type": "xml",
-          "path": "Pyroscope.OpenTracing/Pyroscope.OpenTracing.csproj",
-          "xpath": "//PackageVersion"
-        },
-        {
-          "type": "xml",
-          "path": "Pyroscope.OpenTracing/Pyroscope.OpenTracing.csproj",
-          "xpath": "//AssemblyVersion"
-        },
-        {
-          "type": "xml",
-          "path": "Pyroscope.OpenTracing/Pyroscope.OpenTracing.csproj",
-          "xpath": "//FileVersion"
-        },
-        {
-          "type": "xml",
           "path": "Pyroscope.OpenTelemetry/Pyroscope.OpenTelemetry.csproj",
           "xpath": "//PackageVersion"
         },
