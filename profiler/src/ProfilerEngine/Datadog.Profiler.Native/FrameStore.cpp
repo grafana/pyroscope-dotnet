@@ -279,6 +279,12 @@ bool FrameStore::GetTypeName(ClassID classId, std::string& name)
 // This is why it is needed to get a pointer to the TypeDesc held by the cache
 bool FrameStore::GetTypeName(ClassID classId, std::string_view& name)
 {
+    if (classId == 0)
+    {
+        name = "";
+        return true;
+    }
+
     std::lock_guard<std::mutex> lock(_fullTypeNamesLock);
 
     auto typeEntry = _fullTypeNames.find(classId);

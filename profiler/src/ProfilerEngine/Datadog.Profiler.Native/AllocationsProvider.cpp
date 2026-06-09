@@ -318,8 +318,6 @@ void AllocationsProvider::OnAllocation(std::chrono::nanoseconds timestamp,
 
     if (_addTypeAsLeaf)
     {
-        // The provided type name contains the metadata-based `xx syntax for generics instead of <>
-        // So rely on the frame store to get a C#-like representation like what is done for frames
         _pFrameStore->GetTypeName(classId, rawSample.AllocationClass);
     }
 
