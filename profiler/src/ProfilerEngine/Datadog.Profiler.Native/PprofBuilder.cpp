@@ -6,6 +6,11 @@
 #include "IExporter.h"
 #include "Log.h"
 
+namespace
+{
+constexpr std::string_view ClassLeafPrefix = "cls!";
+}
+
 PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions) :
     _sampleTypeDefinitions(std::move(sampleTypeDefinitions))
 {
@@ -28,7 +33,11 @@ void PprofBuilder::AddSample(const Sample& sample, std::span<const int64_t> valu
     };
     if (auto frame = sample.GetLeafFrame(); !frame.empty())
     {
-        addLocation(frame, {});
+        _leafFrameScratch.clear();
+        _leafFrameScratch.reserve(ClassLeafPrefix.size() + frame.size());
+        _leafFrameScratch.append(ClassLeafPrefix);
+        _leafFrameScratch.append(frame);
+        addLocation(_leafFrameScratch, {});
     }
     for (auto const& frame : sample.GetCallstack())
     {
@@ -68,18 +77,17 @@ std::string PprofBuilder::Build(ProfileTime& startTime, ProfileTime& endTime)
     return std::move(res);
 }
 
-int64_t PprofBuilder::AddString(const std::string_view& sv)
+int64_t PprofBuilder::AddString(const std::string_view& keyNotOwned)
 {
-    auto it = _strings.find(sv);
-    if (it != _strings.end())
+    if (const auto it = _strings.find(keyNotOwned); it != _strings.end())
     {
         return it->second;
     }
-    int64_t id = (int64_t)_profile.string_table_size();
-    assert(_strings.size() == id);
-    _profile.add_string_table(sv.data(), sv.size());
-    auto& back = _profile.string_table(id);
-    _strings.insert(std::make_pair(std::string_view(back), id));
+    int64_t id = _profile.string_table_size();
+    auto *back = _profile.add_string_table();
+    *back = std::string{keyNotOwned}; // make a copy
+    auto key = std::string_view{*back}; // key view into pprof string table entry
+    _strings.insert(std::make_pair(key, id));
     return id;
 }
 
