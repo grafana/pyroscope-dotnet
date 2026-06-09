@@ -163,7 +163,7 @@ public:
         _runtimeId = {};
         _allLabels.clear();
         _leafFrame = {};
-        std::ranges::fill(_values, 0);
+        std::fill(_values.begin(), _values.end(), 0);
     }
 
     std::string_view GetLeafFrame() const

@@ -22,17 +22,18 @@ LiveObjectsProvider::LiveObjectsProvider(
     ICorProfilerInfo13* pCorProfilerInfo,
     SampleValueTypeProvider& valueTypeProvider,
     RawSampleTransformer* rawSampleTransformer,
-    IConfiguration* pConfiguration) :
+    IConfiguration* pConfiguration)
+    :
     _pCorProfilerInfo(pCorProfilerInfo),
     _rawSampleTransformer{rawSampleTransformer},
     _valueOffsets{valueTypeProvider.RegisterPyroscopeSampleType(valueTypeProvider.LiveObjectsDefinitions)},
-    _sampler(pConfiguration->GetHeapSamplingRate()),
-    _heapHandleLimit{pConfiguration->GetHeapHandleLimit()},
-    _heapSamplingRate{pConfiguration->GetHeapSamplingRate()}
+    _sampler(pConfiguration->GetHeapSamplingRate())
 {
-
+    _heapHandleLimit = pConfiguration->GetHeapHandleLimit();
+    _heapSamplingRate = pConfiguration->GetHeapSamplingRate();
     Log::Info("LiveObjectsProvider: Poisson heap sampling with mean interval of ", _heapSamplingRate, " bytes");
 }
+
 const char* LiveObjectsProvider::GetName()
 {
     return "LiveObjectsProvider";
@@ -43,7 +44,8 @@ void LiveObjectsProvider::OnGarbageCollectionStart(
     int32_t number,
     uint32_t generation,
     GCReason reason,
-    GCType type)
+    GCType type
+)
 {
     // The address provided during AllocationTick event is not pointing to real object
     // so we tried to wait for the next garbage collection to create a wrapping weak handle.
@@ -170,8 +172,8 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
         if (handle != nullptr)
         {
             uint64_t objectSize = (rawSample.AllocationSize > 0)
-                                      ? static_cast<uint64_t>(rawSample.AllocationSize)
-                                      : 1;
+                ? static_cast<uint64_t>(rawSample.AllocationSize)
+                : 1;
 
             auto sample = _rawSampleTransformer->Transform(rawSample, _valueOffsets);
 
@@ -194,7 +196,6 @@ void LiveObjectsProvider::OnAllocation(RawAllocationSample& rawSample)
                 rawSample.Address,
                 rawSample.Timestamp);
             info.SetHandle(handle);
-
             _monitoredObjects.push_back(std::move(info));
         }
         else

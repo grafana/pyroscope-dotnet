@@ -71,7 +71,7 @@ public:
 public:
     DebugInfoStore(ICorProfilerInfo4* profilerInfo, IConfiguration* configuration) noexcept;
 
-    SymbolDebugInfo Get(ModuleID moduleId, mdMethodDef methodDef) override;
+    SymbolDebugInfo Get(ModuleID moduleId, mdMethodDef methodDef);
 
     // Memory measurement (IMemoryFootprintProvider)
     size_t GetMemorySize() const override;

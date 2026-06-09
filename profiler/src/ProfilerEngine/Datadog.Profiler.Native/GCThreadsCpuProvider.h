@@ -10,6 +10,7 @@
 #include "NativeThreadsCpuProviderBase.h"
 #include "MetricsRegistry.h"
 #include "MeanMaxMetric.h"
+
 class RawSampleTransformer;
 
 class GCThreadsCpuProvider
