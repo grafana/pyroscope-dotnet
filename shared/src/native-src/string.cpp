@@ -27,11 +27,6 @@ namespace shared {
         return ToString(wstr, WStrLen(wstr));
     }
 
-    std::string ToString(const std::u16string_view& wstr)
-    {
-        return ToString(wstr.data(), wstr.length());
-    }
-
     std::string ToString(const WCHAR* wstr, std::size_t nbChars)
     {
 #ifdef _WIN32
@@ -54,21 +49,6 @@ namespace shared {
 #else
         return miniutf::to_utf8(std::u16string_view(reinterpret_cast<const char16_t*>(wstr), nbChars));
 #endif
-    }
-
-    std::string Concat(std::initializer_list<std::string_view> ss)
-    {
-        std::string res{};
-        size_t sz = 0;
-        for (auto s : ss)
-        {
-            sz += s.length();
-        }
-        for (auto s : ss)
-        {
-            res += s;
-        }
-        return std::move(res);
     }
 
     std::string ToString(const GUID& uid)
