@@ -47,7 +47,7 @@ RUN if command -v apt-get > /dev/null 2>&1; then \
 
 COPY build/install-llvm.sh /tmp/install-llvm.sh
 RUN if [ "${RUN_ASAN}" = "ON" ]; then \
-        sh /tmp/install-llvm.sh "${LLVM_VERSION}"; \
+        LINK_ASAN_RUNTIME=ON sh /tmp/install-llvm.sh "${LLVM_VERSION}"; \
     fi && \
     rm -f /tmp/install-llvm.sh
 

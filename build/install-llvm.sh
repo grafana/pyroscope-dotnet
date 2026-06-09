@@ -2,7 +2,19 @@
 set -eu
 
 LLVM_VERSION="${1:-22}"
+LINK_ASAN_RUNTIME="${LINK_ASAN_RUNTIME:-OFF}"
 ASAN_RUNTIME_DIR="${ASAN_RUNTIME_DIR:-/opt/llvm-asan}"
+
+asan_runtime_arch() {
+    case "$(uname -m)" in
+        x86_64) echo "x86_64" ;;
+        aarch64|arm64) echo "aarch64" ;;
+        *)
+            echo "unsupported architecture for ASAN runtime: $(uname -m)" >&2
+            exit 1
+            ;;
+    esac
+}
 
 prefer_versioned_clang() {
     if command -v "clang-${LLVM_VERSION}" >/dev/null 2>&1; then
@@ -26,12 +38,13 @@ link_asan_runtime() {
         exit 1
     fi
 
-    runtime="$("${compiler}" -print-file-name=libclang_rt.asan-x86_64.so)"
+    asan_arch="$(asan_runtime_arch)"
+    runtime="$("${compiler}" -print-file-name=libclang_rt.asan-${asan_arch}.so)"
     if [ ! -f "${runtime}" ]; then
-        runtime="$(find /usr /opt -name libclang_rt.asan-x86_64.so -type f 2>/dev/null | sort | tail -n 1 || true)"
+        runtime="$(find /usr /opt -name "libclang_rt.asan-${asan_arch}.so" -type f 2>/dev/null | sort | tail -n 1 || true)"
     fi
     if [ -z "${runtime}" ] || [ ! -f "${runtime}" ]; then
-        echo "libclang_rt.asan-x86_64.so was not found after installing LLVM" >&2
+        echo "libclang_rt.asan-${asan_arch}.so was not found after installing LLVM" >&2
         exit 1
     fi
 
@@ -46,7 +59,6 @@ install_debian_llvm() {
     chmod +x /tmp/llvm.sh
     /tmp/llvm.sh "${LLVM_VERSION}"
     apt-get install -y --no-install-recommends "clang-${LLVM_VERSION}" "libclang-rt-${LLVM_VERSION}-dev"
-    link_asan_runtime
     rm -rf /var/lib/apt/lists/* /tmp/llvm.sh
 }
 
@@ -58,10 +70,9 @@ install_alpine_llvm() {
     # apt.llvm.org's script is Debian/Ubuntu-oriented. Try it first so Alpine
     # picks up support automatically if the script grows it, then fall back.
     if bash /tmp/llvm.sh "${LLVM_VERSION}"; then
-        link_asan_runtime
+        :
     else
         apk add --no-cache clang llvm compiler-rt
-        link_asan_runtime
     fi
 
     rm -f /tmp/llvm.sh
@@ -75,3 +86,9 @@ else
     echo "unsupported package manager: expected apt-get or apk" >&2
     exit 1
 fi
+
+case "${LINK_ASAN_RUNTIME}" in
+    ON|on|1|true|TRUE|yes|YES)
+        link_asan_runtime
+        ;;
+esac
