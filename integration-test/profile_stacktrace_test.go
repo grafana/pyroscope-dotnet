@@ -108,7 +108,7 @@ func TestAllocationProfileStacktraces(t *testing.T) {
 	var lastCollapsed string
 	var lastErr error
 	require.Eventually(t, func() bool {
-		lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector, "alloc:alloc_samples:count:cpu:nanoseconds")
+		lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector, "memory:alloc_samples:count:space:bytes")
 		if lastErr != nil || lastCollapsed == "" {
 			return false
 		}
