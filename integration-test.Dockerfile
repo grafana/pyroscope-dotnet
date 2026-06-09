@@ -35,9 +35,8 @@ FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/aspnet:$SDK_VERSION$SDK_IMA
 
 ARG RUN_ASAN=OFF
 ARG LLVM_VERSION=22
-ARG ASAN_PRELOAD_PREFIX=
+ARG LD_PRELOAD_VALUE=/dotnet/subfolder/Pyroscope.Linux.ApiWrapper.x64.so
 ENV RUN_ASAN=${RUN_ASAN}
-ENV LD_PRELOAD=${ASAN_PRELOAD_PREFIX}/dotnet/subfolder/Pyroscope.Linux.ApiWrapper.x64.so
 
 COPY build/install-llvm.sh /tmp/install-llvm.sh
 RUN if [ "${RUN_ASAN}" = "ON" ]; then \
@@ -52,6 +51,11 @@ WORKDIR /dotnet
 COPY --from=sdk /Pyroscope.Profiler.Native.so ./subfolder/Pyroscope.Profiler.Native.so
 COPY --from=sdk /Pyroscope.Linux.ApiWrapper.x64.so ./subfolder/Pyroscope.Linux.ApiWrapper.x64.so
 COPY --from=build /dotnet/publish ./
+
+# Under ASAN this is just the ASAN runtime (the API wrapper is dropped because
+# the ASAN runtime segfaults when another library shares LD_PRELOAD); otherwise
+# it is the API wrapper.
+ENV LD_PRELOAD=${LD_PRELOAD_VALUE}
 
 # Fix for alpine not being able to dlopen an already loaded library
 ENV LD_LIBRARY_PATH=/dotnet/subfolder/

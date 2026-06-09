@@ -42,11 +42,18 @@ func asanImageSuffix() string {
 	return ""
 }
 
-func asanRuntimePreloadPrefix() string {
+// ldPreloadValue returns the LD_PRELOAD the app container should run with.
+//
+// Under ASAN we preload only the ASAN runtime and intentionally drop the
+// Pyroscope API wrapper: the ASAN runtime segfaults at load time when another
+// library is present in LD_PRELOAD. This matches upstream dd-trace-dotnet,
+// which runs its ASAN profiler demo with LD_PRELOAD=libasan.so only.
+func ldPreloadValue() string {
+	const wrapper = "/dotnet/subfolder/Pyroscope.Linux.ApiWrapper.x64.so"
 	if runASANEnabled() {
-		return "/opt/llvm-asan/libasan.so:"
+		return "/opt/llvm-asan/libasan.so"
 	}
-	return ""
+	return wrapper
 }
 
 func sdkImageSuffix(libcType, version string) string {

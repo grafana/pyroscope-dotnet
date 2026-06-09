@@ -57,7 +57,7 @@ func buildAppImage(t *testing.T, libcType, version string, otel bool) string {
 			"SDK_VERSION":         version,
 			"SDK_IMAGE_SUFFIX":    sdkImageSuffix(libcType, version),
 			"RUN_ASAN":            envRunASAN(),
-			"ASAN_PRELOAD_PREFIX": asanRuntimePreloadPrefix(),
+			"LD_PRELOAD_VALUE":    ldPreloadValue(),
 		},
 	})
 	return tag

@@ -91,12 +91,10 @@ func StartContainer(t *testing.T, req ContainerRequest) *Container {
 	t.Cleanup(func() {
 		if t.Failed() {
 			if out, err := exec.Command("docker", "inspect", c.ID, "--format",
-				"ExitCode={{.State.ExitCode}} OOMKilled={{.State.OOMKilled}} Running={{.State.Running}}").CombinedOutput(); err == nil {
+				"ExitCode={{.State.ExitCode}} OOMKilled={{.State.OOMKilled}} Running={{.State.Running}} Error={{.State.Error}}").CombinedOutput(); err == nil {
 				t.Logf("dockertest: container %s state: %s", c.ID[:12], out)
 			}
-			if logs, err := exec.Command("docker", "logs", "--tail", "50", c.ID).CombinedOutput(); err == nil {
-				t.Logf("dockertest: container %s logs:\n%s", c.ID[:12], logs)
-			}
+			dumpContainerLogs(t, c.ID)
 		}
 		runQuiet("docker", "rm", "-f", c.ID)
 	})
@@ -195,6 +193,23 @@ func run(t *testing.T, name string, args ...string) string {
 			name, strings.Join(args, " "), err, stdout.String(), stderr.String())
 	}
 	return stdout.String()
+}
+
+// dumpContainerLogs writes the container's full stdout and stderr to the test
+// log. stdout and stderr are captured separately so AddressSanitizer reports
+// (which go to stderr) are easy to spot.
+func dumpContainerLogs(t *testing.T, id string) {
+	t.Helper()
+	cmd := exec.Command("docker", "logs", id)
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		t.Logf("dockertest: container %s docker logs failed: %v", id[:12], err)
+		return
+	}
+	t.Logf("dockertest: container %s stdout:\n%s", id[:12], stdout.String())
+	t.Logf("dockertest: container %s stderr:\n%s", id[:12], stderr.String())
 }
 
 func runQuiet(name string, args ...string) {
