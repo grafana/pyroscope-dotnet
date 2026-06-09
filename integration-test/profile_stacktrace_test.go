@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	allocationProfileTypeID = "alloc:alloc_samples:count:space:bytes"
+	allocationProfileTypeID = "alloc:alloc_samples:count:cpu:nanoseconds"
 	allocationProfileWait   = 2 * time.Minute
 )
 
