@@ -120,7 +120,7 @@ private:
                 return false;
 
             _rawSampleTransformer->Transform(*_currentRawSample, sample, _valueOffsets);
-            ++_currentRawSample;
+            _currentRawSample++;
 
             return true;
         }
