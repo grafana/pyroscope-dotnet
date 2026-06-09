@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"testing"
 )
@@ -19,6 +20,34 @@ func envOrDefault(key, defaultValue string) string {
 
 func envLibcType() string      { return envOrDefault("LIBC_TYPE", "glibc") }
 func envDotnetVersion() string { return envOrDefault("DOTNET_VERSION", "10.0") }
+
+func envRunASAN() string {
+	value := envOrDefault("RUN_ASAN", "OFF")
+	switch strings.ToUpper(value) {
+	case "1", "TRUE", "YES", "ON":
+		return "ON"
+	case "0", "FALSE", "NO", "OFF":
+		return "OFF"
+	default:
+		panic(fmt.Sprintf("unknown RUN_ASAN value %q: expected ON or OFF", value))
+	}
+}
+
+func runASANEnabled() bool { return envRunASAN() == "ON" }
+
+func asanImageSuffix() string {
+	if runASANEnabled() {
+		return "-asan"
+	}
+	return ""
+}
+
+func asanRuntimePreloadPrefix() string {
+	if runASANEnabled() {
+		return "/opt/llvm-asan/libasan.so:"
+	}
+	return ""
+}
 
 func sdkImageSuffix(libcType, version string) string {
 	if libcType == "musl" {
@@ -42,7 +71,7 @@ func profilerDockerfile(libcType string) string {
 }
 
 func profilerImageTag(libcType string) string {
-	return fmt.Sprintf("pyroscope-dotnet-%s:test", libcType)
+	return fmt.Sprintf("pyroscope-dotnet-%s%s:test", libcType, asanImageSuffix())
 }
 
 func appDockerfile(otel bool) string {
@@ -74,7 +103,9 @@ var profilerBuilds sync.Map
 
 func ensureProfilerImage(t *testing.T, libcType string) {
 	t.Helper()
-	val, _ := profilerBuilds.LoadOrStore(libcType, &profilerBuildResult{})
+	runASAN := envRunASAN()
+	key := libcType + "-" + runASAN
+	val, _ := profilerBuilds.LoadOrStore(key, &profilerBuildResult{})
 	pb := val.(*profilerBuildResult)
 	pb.once.Do(func() {
 		tag := profilerImageTag(libcType)
@@ -84,6 +115,7 @@ func ensureProfilerImage(t *testing.T, libcType string) {
 			"-t", tag,
 			"-f", filepath.Join(repoRoot(), profilerDockerfile(libcType)),
 			"--build-arg", "CMAKE_BUILD_TYPE=Debug",
+			"--build-arg", "RUN_ASAN="+runASAN,
 			repoRoot(),
 		)
 		out, err := cmd.CombinedOutput()

@@ -33,11 +33,23 @@ ARG PYROSCOPE_SDK_IMAGE
 # Runtime only image of the targetplatfrom, so the platform the image will be running on.
 FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/aspnet:$SDK_VERSION$SDK_IMAGE_SUFFIX
 
+ARG RUN_ASAN=OFF
+ARG LLVM_VERSION=22
+ARG ASAN_PRELOAD_PREFIX=
+ENV RUN_ASAN=${RUN_ASAN}
+ENV LD_PRELOAD=${ASAN_PRELOAD_PREFIX}/dotnet/subfolder/Pyroscope.Linux.ApiWrapper.x64.so
+
 RUN if command -v apt-get > /dev/null 2>&1; then \
         apt-get update && apt-get install -y --no-install-recommends curl unzip && rm -rf /var/lib/apt/lists/*; \
     else \
         apk add --no-cache curl unzip; \
     fi
+
+COPY build/install-llvm.sh /tmp/install-llvm.sh
+RUN if [ "${RUN_ASAN}" = "ON" ]; then \
+        sh /tmp/install-llvm.sh "${LLVM_VERSION}"; \
+    fi && \
+    rm -f /tmp/install-llvm.sh
 
 ARG OTEL_VERSION=1.14.1
 ENV OTEL_DOTNET_AUTO_HOME=/opt/otel-dotnet
@@ -72,7 +84,6 @@ ENV CORECLR_ENABLE_NOTIFICATION_PROFILERS=1
 # single-entry lists without trailing ';' are never processed).
 # See https://github.com/dotnet/runtime/issues/126197
 ENV CORECLR_NOTIFICATION_PROFILERS=/dotnet/subfolder/Pyroscope.Profiler.Native.so={BD1A650D-AC5D-4896-B64F-D6FA25D6B26A};
-ENV LD_PRELOAD=/dotnet/subfolder/Pyroscope.Linux.ApiWrapper.x64.so
 
 ENV PYROSCOPE_SERVER_ADDRESS=http://pyroscope:4040
 ENV PYROSCOPE_LOG_LEVEL=debug

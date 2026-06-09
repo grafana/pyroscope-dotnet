@@ -12,6 +12,10 @@
 
 #include "dd_profiler_version.h"
 
+#ifndef __has_feature
+#define __has_feature(x) 0
+#endif
+
 HINSTANCE DllHandle;
 
 const IID IID_IUnknown = {0x00000000,
@@ -34,6 +38,13 @@ extern "C" BOOL STDMETHODCALLTYPE DllMain(HINSTANCE hInstDll, DWORD reason, PVOI
             Log::Info("Profiler DLL loaded.");
             Log::Info("Profiler version = ", PROFILER_VERSION);
             Log::Info("Pointer size: ", 8 * sizeof(void*), " bits.");
+#if defined(__SANITIZE_ADDRESS__) || __has_feature(address_sanitizer)
+            // Intentional CI probe: ASAN integration jobs should fail here.
+            auto* asanProbe = new char[1];
+            volatile char* volatileAsanProbe = asanProbe;
+            volatileAsanProbe[1] = 'x';
+            delete[] asanProbe;
+#endif
             break;
 
         case DLL_PROCESS_DETACH:

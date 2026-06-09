@@ -1,4 +1,6 @@
+ARG LLVM_VERSION=22
 FROM debian:bullseye-20260406@sha256:bf53effcacca31b60ce97dabc67578f37e43075d716dc90804d3da3a80d2996c AS builder
+ARG LLVM_VERSION
 
 RUN apt-get update && apt-get -y install cmake make git curl golang libtool wget perl
 
@@ -13,13 +15,10 @@ RUN wget -q "https://github.com/openssl/openssl/releases/download/openssl-${OPEN
     ln -s /usr/local/openssl/lib64 /usr/local/openssl/lib && \
     cd .. && rm -rf openssl-${OPENSSL_VERSION} openssl-${OPENSSL_VERSION}.tar.gz
 
-RUN apt-get -y install lsb-release wget software-properties-common gnupg
+COPY build/install-llvm.sh /tmp/install-llvm.sh
+RUN sh /tmp/install-llvm.sh "${LLVM_VERSION}" && rm -f /tmp/install-llvm.sh
 
-RUN wget https://apt.llvm.org/llvm.sh && \
-  chmod +x llvm.sh && \
-  ./llvm.sh 18
-
-ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/lib/llvm-18/bin/
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/lib/llvm-${LLVM_VERSION}/bin/
 
 FROM builder as build
 
@@ -32,6 +31,7 @@ ADD CMakeLists.txt CMakeLists.txt
 
 # Allow build type to be passed as build arg, default to Release
 ARG CMAKE_BUILD_TYPE=Release
+ARG RUN_ASAN=OFF
 
 RUN mkdir build-${CMAKE_BUILD_TYPE} && \
     cd build-${CMAKE_BUILD_TYPE} && \
@@ -41,6 +41,7 @@ RUN mkdir build-${CMAKE_BUILD_TYPE} && \
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
         -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" \
         -DCMAKE_C_FLAGS_DEBUG="-g -O0" \
+        -DRUN_ASAN=${RUN_ASAN} \
         -DOPENSSL_ROOT_DIR=/usr/local/openssl
 
 RUN cd build-${CMAKE_BUILD_TYPE} && make -j16 Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64

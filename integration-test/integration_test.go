@@ -43,9 +43,9 @@ func startPyroscope(t *testing.T, net *dockertest.Network) string {
 
 func buildAppImage(t *testing.T, libcType, version string, otel bool) string {
 	t.Helper()
-	tag := fmt.Sprintf("rideshare-app-%s:integration-test-%s", libcType, version)
+	tag := fmt.Sprintf("rideshare-app-%s%s:integration-test-%s", libcType, asanImageSuffix(), version)
 	if otel {
-		tag = fmt.Sprintf("rideshare-app-%s-otel:integration-test-%s", libcType, version)
+		tag = fmt.Sprintf("rideshare-app-%s%s-otel:integration-test-%s", libcType, asanImageSuffix(), version)
 	}
 	dockertest.BuildImage(t, dockertest.BuildRequest{
 		Context:    repoRoot(),
@@ -56,6 +56,8 @@ func buildAppImage(t *testing.T, libcType, version string, otel bool) string {
 			"PYROSCOPE_SDK_IMAGE": profilerImageTag(libcType),
 			"SDK_VERSION":         version,
 			"SDK_IMAGE_SUFFIX":    sdkImageSuffix(libcType, version),
+			"RUN_ASAN":            envRunASAN(),
+			"ASAN_PRELOAD_PREFIX": asanRuntimePreloadPrefix(),
 		},
 	})
 	return tag
@@ -72,6 +74,9 @@ func startAppWithEnv(t *testing.T, net *dockertest.Network, libcType, version st
 		"PYROSCOPE_APPLICATION_NAME": svcName,
 		"PYROSCOPE_SERVER_ADDRESS":   "http://pyroscope:4040",
 		"DD_TRACE_DEBUG":             "true",
+	}
+	if runASANEnabled() {
+		env["ASAN_OPTIONS"] = "detect_leaks=0:abort_on_error=1"
 	}
 	for k, v := range extraEnv {
 		env[k] = v
@@ -470,15 +475,20 @@ func startAppForTLSTest(t *testing.T, libcType, version, serverAddress string, c
 		extraHosts = []string{extraHost}
 	}
 
+	env := map[string]string{
+		"REGION":                     "us-east",
+		"PYROSCOPE_APPLICATION_NAME": "tls-test-app",
+		"PYROSCOPE_SERVER_ADDRESS":   serverAddress,
+		"DD_TRACE_DEBUG":             "true",
+	}
+	if runASANEnabled() {
+		env["ASAN_OPTIONS"] = "detect_leaks=0:abort_on_error=1"
+	}
+
 	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
-		Image:    image,
-		Platform: "linux/amd64",
-		Env: map[string]string{
-			"REGION":                     "us-east",
-			"PYROSCOPE_APPLICATION_NAME": "tls-test-app",
-			"PYROSCOPE_SERVER_ADDRESS":   serverAddress,
-			"DD_TRACE_DEBUG":             "true",
-		},
+		Image:      image,
+		Platform:   "linux/amd64",
+		Env:        env,
 		ExtraHosts: extraHosts,
 		Files: []dockertest.ContainerFile{
 			{

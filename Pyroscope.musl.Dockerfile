@@ -1,7 +1,8 @@
+ARG LLVM_VERSION=22
 FROM alpine:3.18 AS builder
+ARG LLVM_VERSION
 
 RUN apk add \
-            clang \
             cmake \
             git \
             bash \
@@ -16,7 +17,8 @@ RUN apk add \
             perl \
             linux-headers
 
-RUN apk add wget
+COPY build/install-llvm.sh /tmp/install-llvm.sh
+RUN sh /tmp/install-llvm.sh "${LLVM_VERSION}" && rm -f /tmp/install-llvm.sh
 RUN apk add go
 
 # Build OpenSSL from source with static libs
@@ -42,6 +44,7 @@ ADD CMakeLists.txt CMakeLists.txt
 
 # Allow build type to be passed as build arg, default to Release
 ARG CMAKE_BUILD_TYPE=Release
+ARG RUN_ASAN=OFF
 RUN mkdir build-${CMAKE_BUILD_TYPE} && \
     cd build-${CMAKE_BUILD_TYPE} && \
     cmake .. \
@@ -50,6 +53,7 @@ RUN mkdir build-${CMAKE_BUILD_TYPE} && \
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
         -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" \
         -DCMAKE_C_FLAGS_DEBUG="-g -O0" \
+        -DRUN_ASAN=${RUN_ASAN} \
         -DOPENSSL_ROOT_DIR=/usr/local/openssl
 
 RUN cd build-${CMAKE_BUILD_TYPE} && make -j16 Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64
