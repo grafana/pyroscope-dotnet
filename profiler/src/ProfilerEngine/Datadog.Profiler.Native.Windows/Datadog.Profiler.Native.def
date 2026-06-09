@@ -1,0 +1,13 @@
+﻿EXPORTS
+  DllMain PRIVATE
+  DllGetClassObject PRIVATE
+  DllCanUnloadNow PRIVATE
+
+  ThreadsCpuManager_Map PRIVATE
+  GetNativeProfilerIsReadyPtr PRIVATE
+  GetPointerToNativeTraceContext PRIVATE
+  SetApplicationInfoForAppDomain PRIVATE
+  SetEndpointForTrace PRIVATE
+  SetGitMetadataForApplication PRIVATE
+  FlushProfile PRIVATE
+  SetConfiguration PRIVATE
