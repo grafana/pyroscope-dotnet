@@ -22,7 +22,7 @@ public:
 class IFrameStore : public IMemoryFootprintProvider
 {
 public:
-    ~IFrameStore() override = default;
+    virtual ~IFrameStore() = default;
 
     // return
     //  - true if managed frame
