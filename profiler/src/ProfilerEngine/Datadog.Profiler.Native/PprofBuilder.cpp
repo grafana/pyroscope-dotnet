@@ -8,7 +8,7 @@
 
 namespace
 {
-constexpr std::string_view ClassLeafPrefix = "cls!";
+constexpr std::string_view ClassLeafPrefix = "cls:";
 }
 
 PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions) :
