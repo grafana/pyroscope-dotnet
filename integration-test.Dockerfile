@@ -33,6 +33,17 @@ ARG PYROSCOPE_SDK_IMAGE
 # Runtime only image of the targetplatfrom, so the platform the image will be running on.
 FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/aspnet:$SDK_VERSION$SDK_IMAGE_SUFFIX
 
+ARG RUN_ASAN=OFF
+ARG LLVM_VERSION=22
+ARG LD_PRELOAD_VALUE=/dotnet/subfolder/Pyroscope.Linux.ApiWrapper.x64.so
+ENV RUN_ASAN=${RUN_ASAN}
+
+COPY build/install-llvm.sh /tmp/install-llvm.sh
+RUN if [ "${RUN_ASAN}" = "ON" ]; then \
+        LINK_ASAN_RUNTIME=ON sh /tmp/install-llvm.sh "${LLVM_VERSION}"; \
+    fi && \
+    rm -f /tmp/install-llvm.sh
+
 WORKDIR /dotnet
 
 # place the binaries in a subfolder - to rigger a problme when SONAME was Datadog.Profiler.Native
@@ -41,13 +52,17 @@ COPY --from=sdk /Pyroscope.Profiler.Native.so ./subfolder/Pyroscope.Profiler.Nat
 COPY --from=sdk /Pyroscope.Linux.ApiWrapper.x64.so ./subfolder/Pyroscope.Linux.ApiWrapper.x64.so
 COPY --from=build /dotnet/publish ./
 
+# Under ASAN this is just the ASAN runtime (the API wrapper is dropped because
+# the ASAN runtime segfaults when another library shares LD_PRELOAD); otherwise
+# it is the API wrapper.
+ENV LD_PRELOAD=${LD_PRELOAD_VALUE}
+
 # Fix for alpine not being able to dlopen an already loaded library
 ENV LD_LIBRARY_PATH=/dotnet/subfolder/
 
 ENV CORECLR_ENABLE_PROFILING=1
 ENV CORECLR_PROFILER={BD1A650D-AC5D-4896-B64F-D6FA25D6B26A}
 ENV CORECLR_PROFILER_PATH=/dotnet/subfolder/Pyroscope.Profiler.Native.so
-ENV LD_PRELOAD=/dotnet/subfolder/Pyroscope.Linux.ApiWrapper.x64.so
 
 ENV PYROSCOPE_SERVER_ADDRESS=http://pyroscope:4040
 ENV PYROSCOPE_LOG_LEVEL=debug

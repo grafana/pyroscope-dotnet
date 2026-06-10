@@ -44,7 +44,7 @@ jobs:
         working-directory: integration-test
 
   test:
-    name: integration-test ${{ matrix.test }} ${{ matrix.libc_type }} .NET ${{ matrix.version }}
+    name: integration-test ${{ matrix.test }} ${{ matrix.libc_type }} .NET ${{ matrix.version }} ASAN ${{ matrix.run_asan }}
     needs: discover
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}
     strategy:
@@ -53,6 +53,7 @@ jobs:
         test: ${{ fromJSON(needs.discover.outputs.tests) }}
         libc_type: [glibc, musl]
         version: ['8.0', '9.0', '10.0']
+        run_asan: ['OFF', 'ON']
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -67,4 +68,5 @@ jobs:
         env:
           LIBC_TYPE: ${{ matrix.libc_type }}
           DOTNET_VERSION: ${{ matrix.version }}
+          RUN_ASAN: ${{ matrix.run_asan }}
         working-directory: integration-test
