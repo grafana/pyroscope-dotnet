@@ -284,7 +284,7 @@ bool FrameStore::GetTypeName(ClassID classId, std::string_view& name)
     if (classId == 0)
     {
         name = "";
-        return true;
+        return false;
     }
 
     std::lock_guard<std::mutex> lock(_fullTypeNamesLock);
