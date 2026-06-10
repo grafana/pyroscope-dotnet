@@ -12,6 +12,7 @@
 #include <memory>
 #include <mutex>
 #include <span>
+#include <string>
 #include <string_view>
 
 class PprofBuilder
@@ -34,5 +35,6 @@ private:
     std::map<std::string_view, int64_t> _strings;
     std::map<std::pair<int64_t, int64_t>, int64_t> _locations;
     std::vector<SampleValueType> _sampleTypeDefinitions;
+    std::string _leafFrameScratch;
 
 };

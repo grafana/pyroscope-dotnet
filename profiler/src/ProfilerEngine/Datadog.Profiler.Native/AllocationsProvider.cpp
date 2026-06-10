@@ -71,7 +71,8 @@ AllocationsProvider::AllocationsProvider(
     _sampleLimit(pConfiguration->AllocationSampleLimit()),
     _pConfiguration(pConfiguration),
     _callstackProvider{std::move(pool)},
-    _metricsRegistry{metricsRegistry}
+    _metricsRegistry{metricsRegistry},
+    _addTypeAsLeaf{pConfiguration->IsAllocationTypeLeafEnabled()}
 {
     _allocationsCountMetric = metricsRegistry.GetOrRegister<CounterMetric>("dotnet_allocations");
     _allocationsSizeMetric = metricsRegistry.GetOrRegister<MeanMaxMetric>("dotnet_allocations_size");
@@ -137,12 +138,9 @@ void AllocationsProvider::OnAllocation(uint32_t allocationKind,
     rawSample.Address = address;
     rawSample.MethodTable = classId;
 
-    // the classID can be null when events are replayed in integration tests
-    if ((classId == 0) || !_pFrameStore->GetTypeName(classId, rawSample.AllocationClass))
+    if (_addTypeAsLeaf)
     {
-        // The provided type name contains the metadata-based `xx syntax for generics instead of <>
-        // So rely on the frame store to get a C#-like representation like what is done for frames
-        rawSample.AllocationClass = shared::ToString(typeName);
+        _pFrameStore->GetTypeName(classId, rawSample.AllocationClass);
     }
 
     // the listener is the live objects profiler: could be null if disabled
@@ -221,12 +219,9 @@ void AllocationsProvider::OnAllocationSampled(
     rawSample.MethodTable = classId;
     rawSample.Tags.AsyncSafeCopy(threadInfo->GetTags());
 
-    // the classID can be null when events are replayed in integration tests
-    if ((classId == 0) || !_pFrameStore->GetTypeName(classId, rawSample.AllocationClass))
-    {
-        // The provided type name contains the metadata-based `xx syntax for generics instead of <>
-        // So rely on the frame store to get a C#-like representation like what is done for frames
-        rawSample.AllocationClass = shared::ToString(typeName);
+
+    if (_addTypeAsLeaf) {
+        _pFrameStore->GetTypeName(classId, rawSample.AllocationClass);
     }
 
     // the listener is the live objects profiler: could be null if disabled
@@ -321,11 +316,9 @@ void AllocationsProvider::OnAllocation(std::chrono::nanoseconds timestamp,
     // rawSample.Address = address;
     rawSample.MethodTable = classId;
 
-    // The provided type name contains the metadata-based `xx syntax for generics instead of <>
-    // So rely on the frame store to get a C#-like representation like what is done for frames
-    if (!_pFrameStore->GetTypeName(classId, rawSample.AllocationClass))
+    if (_addTypeAsLeaf)
     {
-        rawSample.AllocationClass = typeName;
+        _pFrameStore->GetTypeName(classId, rawSample.AllocationClass);
     }
 
     // the listener is the live objects profiler: could be null if disabled

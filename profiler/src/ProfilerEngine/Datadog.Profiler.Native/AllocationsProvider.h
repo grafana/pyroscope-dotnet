@@ -108,4 +108,5 @@ private:
     std::shared_ptr<SumMetric> _totalAllocationsSizeMetric;
     CallstackProvider _callstackProvider;
     MetricsRegistry& _metricsRegistry;
+    bool _addTypeAsLeaf;
 };
