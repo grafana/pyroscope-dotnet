@@ -20,7 +20,8 @@
 #include "WindowsThreadInfo.h"
 #include "EtwEventsManager.h"
 
-#include "shared/src/native-src/loader.h"
+// PYROSCOPE_WINDOWS_NOTE: upstream includes shared/src/native-src/loader.h here, but the
+// loader was removed with the tracer in this fork and nothing in this file uses it.
 
 #include <memory>
 #include <sstream>
