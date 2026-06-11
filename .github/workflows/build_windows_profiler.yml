@@ -1,0 +1,52 @@
+name: Build windows profiler
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-profiler-x64:
+    runs-on: windows-2022
+    env:
+      VCPKG_DEFAULT_BINARY_CACHE: ${{ runner.temp }}\vcpkg-bincache
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: 'true'
+          persist-credentials: false
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ runner.temp }}\vcpkg-bincache
+          key: vcpkg-windows-x64-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'build/vcpkg_local_ports/**') }}
+          restore-keys: vcpkg-windows-x64-
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
+      - name: Build profiler (Release x64)
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
+          vcpkg integrate install
+          msbuild profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows\Datadog.Profiler.Native.Windows.vcxproj /p:Configuration=Release /p:Platform=x64 /p:VcpkgEnableManifest=true /m /v:m
+      - name: Verify DLL exports match the .def
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          $ver = (Get-Content "$vs\VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt").Trim()
+          $exports = & "$vs\VC\Tools\MSVC\$ver\bin\Hostx64\x64\dumpbin.exe" /EXPORTS profiler\_build\bin\Release-x64\profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows\Pyroscope.Profiler.Native.dll | Out-String
+          $missing = Select-String -Path profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows\Datadog.Profiler.Native.def -Pattern '^\s*(\w+)\s+PRIVATE' |
+            ForEach-Object { $_.Matches[0].Groups[1].Value } |
+            Where-Object { $exports -notmatch "\b$([regex]::Escape($_))\b" }
+          if ($missing) { throw "exports missing from the DLL: $missing" }
+      - name: Upload artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pyroscope-profiler-windows-x64
+          path: |
+            profiler/_build/bin/Release-x64/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/Pyroscope.Profiler.Native.dll
+            profiler/_build/bin/Release-x64/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/Pyroscope.Profiler.Native.pdb
+          if-no-files-found: error
