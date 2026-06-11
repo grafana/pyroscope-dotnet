@@ -17,7 +17,8 @@ namespace Pyroscope
 
         public ProfilerStatus()
         {
-            var isSupported = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) &&
+            var isSupported = (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ||
+                               RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) &&
                               RuntimeInformation.ProcessArchitecture == Architecture.X64;
 
             _isProfilingEnabled =
