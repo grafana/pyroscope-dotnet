@@ -15,6 +15,7 @@ import (
 	"math/big"
 	"net"
 	"net/http"
+	"os"
 	"path/filepath"
 
 	"regexp"
@@ -61,12 +62,14 @@ func buildAppImage(t *testing.T, libcType, version string, otel bool) string {
 	return tag
 }
 
-func startAppWithEnv(t *testing.T, net *dockertest.Network, libcType, version string, otel bool, extraEnv map[string]string) string {
+func startAppWithEnv(t *testing.T, net *dockertest.Network, pyroscopeURL, libcType, version string, otel bool, extraEnv map[string]string) string {
 	t.Helper()
+	svcName := rideshareServiceName(libcType, version, otel)
+	if runtime.GOOS == "windows" {
+		return startHostApp(t, version, otel, svcName, pyroscopeURL, extraEnv)
+	}
 	ensureProfilerImage(t, libcType)
 	image := buildAppImage(t, libcType, version, otel)
-
-	svcName := rideshareServiceName(libcType, version, otel)
 	env := map[string]string{
 		"REGION":                     "us-east",
 		"PYROSCOPE_APPLICATION_NAME": svcName,
@@ -88,9 +91,9 @@ func startAppWithEnv(t *testing.T, net *dockertest.Network, libcType, version st
 	return fmt.Sprintf("http://%s", c.HostPort(t, "5000/tcp"))
 }
 
-func startApp(t *testing.T, net *dockertest.Network, libcType, version string, otel bool) string {
+func startApp(t *testing.T, net *dockertest.Network, pyroscopeURL, libcType, version string, otel bool) string {
 	t.Helper()
-	return startAppWithEnv(t, net, libcType, version, otel, nil)
+	return startAppWithEnv(t, net, pyroscopeURL, libcType, version, otel, nil)
 }
 
 // runLoadGenerator cycles through /bike, /scooter, /car requests in a goroutine
@@ -187,7 +190,7 @@ func runRideshareProfileTest(t *testing.T, libcType, version string, otel bool) 
 	net := dockertest.CreateNetwork(t)
 
 	pyroscopeURL := startPyroscope(t, net)
-	appBaseURL := startApp(t, net, libcType, version, otel)
+	appBaseURL := startApp(t, net, pyroscopeURL, libcType, version, otel)
 	runLoadGenerator(ctx, t, appBaseURL)
 
 	svcName := rideshareServiceName(libcType, version, otel)
@@ -247,8 +250,8 @@ func TestRideshareProfilesWithOTEL(t *testing.T) {
 func TestDynamicCpuToggleDoesNotCrash(t *testing.T) {
 	net := dockertest.CreateNetwork(t)
 
-	_ = startPyroscope(t, net)
-	appBaseURL := startAppWithEnv(t, net, envLibcType(), envDotnetVersion(), false, map[string]string{
+	pyroscopeURL := startPyroscope(t, net)
+	appBaseURL := startAppWithEnv(t, net, pyroscopeURL, envLibcType(), envDotnetVersion(), false, map[string]string{
 		"PYROSCOPE_PROFILING_ENABLED":            "true",
 		"PYROSCOPE_PROFILING_CPU_ENABLED":        "true",
 		"PYROSCOPE_PROFILING_WALLTIME_ENABLED":   "true",
@@ -302,7 +305,7 @@ func TestDynamicCpuProfilingToggleAffectsProfileData(t *testing.T) {
 
 	pyroscopeURL := startPyroscope(t, net)
 	appName := fmt.Sprintf("rideshare.dynamic-cpu-toggle.%d", time.Now().UnixNano())
-	appBaseURL := startAppWithEnv(t, net, envLibcType(), envDotnetVersion(), false, map[string]string{
+	appBaseURL := startAppWithEnv(t, net, pyroscopeURL, envLibcType(), envDotnetVersion(), false, map[string]string{
 		"PYROSCOPE_APPLICATION_NAME":             appName,
 		"PYROSCOPE_PROFILING_ENABLED":            "true",
 		"PYROSCOPE_PROFILING_CPU_ENABLED":        "true",
@@ -461,6 +464,18 @@ func hostDockerInternalExtraHost(t *testing.T) string {
 
 func startAppForTLSTest(t *testing.T, libcType, version, serverAddress string, caCertPEM []byte) string {
 	t.Helper()
+	if runtime.GOOS == "windows" {
+		caPath := filepath.Join(t.TempDir(), "ca.crt")
+		if err := os.WriteFile(caPath, caCertPEM, 0o644); err != nil {
+			t.Fatalf("writing CA cert: %v", err)
+		}
+		// SSL_CERT_FILE steers OpenSSL-based exporters to the test CA. If the
+		// Windows exporter turns out to use schannel instead, this test will
+		// say so and the CA needs to go into the machine store instead.
+		return startHostApp(t, version, false, "tls-test-app", serverAddress, map[string]string{
+			"SSL_CERT_FILE": caPath,
+		})
+	}
 	ensureProfilerImage(t, libcType)
 	image := buildAppImage(t, libcType, version, false)
 
@@ -499,7 +514,11 @@ func runTLSProfileUploadTest(t *testing.T, libcType, version string) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	const hostname = "host.docker.internal"
+	hostname := "host.docker.internal"
+	if runtime.GOOS == "windows" {
+		// The app is a host process; it reaches the in-test receiver directly.
+		hostname = "127.0.0.1"
+	}
 	port, caCertPEM, received := startTLSProfileReceiver(t, hostname)
 	serverAddress := fmt.Sprintf("https://%s:%d", hostname, port)
 
