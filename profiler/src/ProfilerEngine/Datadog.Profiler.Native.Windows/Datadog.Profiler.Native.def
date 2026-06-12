@@ -1,0 +1,24 @@
+﻿EXPORTS
+  DllMain PRIVATE
+  DllGetClassObject PRIVATE
+  DllCanUnloadNow PRIVATE
+
+  ThreadsCpuManager_Map PRIVATE
+  GetNativeProfilerIsReadyPtr PRIVATE
+  GetPointerToNativeTraceContext PRIVATE
+  SetApplicationInfoForAppDomain PRIVATE
+  SetEndpointForTrace PRIVATE
+  SetGitMetadataForApplication PRIVATE
+  FlushProfile PRIVATE
+  SetConfiguration PRIVATE
+
+; PYROSCOPE_WINDOWS_NOTE: fork-added managed API (P/Invoked from Pyroscope/Pyroscope/NativeInterop.cs).
+; Keep in sync with the Linux export list in Datadog.Profiler.Native.Linux/datadog_profiling.version.
+  SetDynamicTag PRIVATE
+  ClearDynamicTags PRIVATE
+  SetCPUTrackingEnabled PRIVATE
+  SetAllocationTrackingEnabled PRIVATE
+  SetContentionTrackingEnabled PRIVATE
+  SetExceptionTrackingEnabled PRIVATE
+  SetPyroscopeAuthToken PRIVATE
+  SetPyroscopeBasicAuth PRIVATE
