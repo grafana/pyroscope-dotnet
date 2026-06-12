@@ -58,13 +58,33 @@ jobs:
             profiler/_build/bin/Release-x64/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/Pyroscope.Profiler.Native.pdb
           if-no-files-found: error
 
+  discover:
+    name: discover tests
+    runs-on: ubuntu-latest
+    outputs:
+      tests: ${{ steps.tests.outputs.tests }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
+        with:
+          go-version: 'stable'
+          cache-dependency-path: integration-test/go.sum
+      - name: Generate test matrix
+        id: tests
+        run: echo "tests=$(make ci-matrix)" >> "$GITHUB_OUTPUT"
+        working-directory: integration-test
+
   integration-test-windows:
-    name: integration-test-windows .NET ${{ matrix.version }}
-    needs: build-windows-profiler-x64
+    name: integration-test-windows ${{ matrix.test }} .NET ${{ matrix.version }}
+    needs: [discover, build-windows-profiler-x64]
     runs-on: windows-2025
     strategy:
       fail-fast: false
       matrix:
+        test: ${{ fromJSON(needs.discover.outputs.tests) }}
         version: ['8.0', '9.0', '10.0']
     steps:
       - name: Checkout
@@ -108,8 +128,9 @@ jobs:
       - name: Run integration tests
         env:
           DOTNET_VERSION: ${{ matrix.version }}
+          TEST_NAME: ${{ matrix.test }}
           WINDOWS_PROFILER_DIR: ${{ github.workspace }}\profiler-bin
           DOCKERTEST_DOCKER_COMMAND: wsl -d Ubuntu -u root -- docker
           DOCKERTEST_HOST_IP: 127.0.0.1
-        run: go test -v -timeout 45m -count=1 .
+        run: go test -v -timeout 45m -count=1 -run ('^' + $env:TEST_NAME + '$') .
         working-directory: integration-test
