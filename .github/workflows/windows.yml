@@ -1,4 +1,4 @@
-name: Build windows profiler
+name: Windows
 
 on:
   push:
