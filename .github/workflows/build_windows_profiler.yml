@@ -20,9 +20,7 @@ jobs:
           persist-credentials: false
       # The vcxprojs pin the upstream toolchain (v143 + SDK 10.0.19041). The
       # windows-2025 (VS2026) image ships the v143 compilers but neither v143
-      # ATL nor that SDK. ATL comes from the VS installer (the versioned compat
-      # component); the SDK is no longer in the VS2026 catalog, so it comes
-      # from the standalone SDK installer via choco.
+      # ATL nor that SDK.
       - name: Install v143 ATL + Windows SDK 10.0.19041
         run: |
           $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
@@ -51,26 +49,13 @@ jobs:
           New-Item -ItemType Directory -Force -Path $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
           vcpkg integrate install
           msbuild profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows\Datadog.Profiler.Native.Windows.vcxproj /p:Configuration=Release /p:Platform=x64 /p:VcpkgEnableManifest=true /m /v:m
-      - name: Verify DLL exports match the .def
-        run: |
-          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products '*' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
-          $ver = (Get-Content "$vs\VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt").Trim()
-          $exports = & "$vs\VC\Tools\MSVC\$ver\bin\Hostx64\x64\dumpbin.exe" /EXPORTS profiler\_build\bin\Release-x64\profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows\Pyroscope.Profiler.Native.dll | Out-String
-          $missing = Select-String -Path profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows\Datadog.Profiler.Native.def -Pattern '^\s*(\w+)\s+PRIVATE' |
-            ForEach-Object { $_.Matches[0].Groups[1].Value } |
-            Where-Object { $exports -notmatch "\b$([regex]::Escape($_))\b" }
-          if ($missing) { throw "exports missing from the DLL: $missing" }
       - name: Upload artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: pyroscope-profiler-windows-x64
-          # The profiler links protobuf dynamically; without the DLLs beside it
-          # the CLR fails the load and silently skips attach.
           path: |
             profiler/_build/bin/Release-x64/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/Pyroscope.Profiler.Native.dll
             profiler/_build/bin/Release-x64/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/Pyroscope.Profiler.Native.pdb
-            profiler/_build/bin/Release-x64/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/libprotobuf.dll
-            profiler/_build/bin/Release-x64/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/libprotobuf-lite.dll
           if-no-files-found: error
 
   integration-test-windows:

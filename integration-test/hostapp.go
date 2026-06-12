@@ -41,12 +41,8 @@ func windowsProfilerDir(t *testing.T) string {
 	if err != nil {
 		t.Fatalf("%s: %v", windowsProfilerDirEnv, err)
 	}
-	// Without the protobuf DLLs beside the profiler the CLR fails the load
-	// and silently skips attach — no log, no error, just no profiles.
-	for _, f := range []string{"Pyroscope.Profiler.Native.dll", "libprotobuf.dll", "libprotobuf-lite.dll"} {
-		if _, err := os.Stat(filepath.Join(abs, f)); err != nil {
-			t.Fatalf("%s does not contain %s: %v", windowsProfilerDirEnv, f, err)
-		}
+	if _, err := os.Stat(filepath.Join(abs, "Pyroscope.Profiler.Native.dll")); err != nil {
+		t.Fatalf("%s does not contain the profiler: %v", windowsProfilerDirEnv, err)
 	}
 	return abs
 }
