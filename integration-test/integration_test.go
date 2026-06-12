@@ -247,6 +247,26 @@ func TestRideshareProfilesWithOTEL(t *testing.T) {
 	runRideshareProfileTest(t, envLibcType(), envDotnetVersion(), true)
 }
 
+// postOK posts to url, tolerating transient transport errors: on busy
+// runners the loopback connection can be reset under load (keep-alive reuse
+// races, accept-backlog RSTs). The toggle tests assert the app survives
+// toggling, not that every TCP connection does.
+func postOK(t *testing.T, client *http.Client, url string) *http.Response {
+	t.Helper()
+	var resp *http.Response
+	var err error
+	for attempt := 0; attempt < 3; attempt++ {
+		resp, err = client.Post(url, "text/plain", nil)
+		if err == nil {
+			return resp
+		}
+		t.Logf("POST %s failed (attempt %d): %v", url, attempt+1, err)
+		time.Sleep(2 * time.Second)
+	}
+	t.Fatalf("POST %s: %v", url, err)
+	return nil
+}
+
 func TestDynamicCpuToggleDoesNotCrash(t *testing.T) {
 	net := dockertest.CreateNetwork(t)
 
@@ -270,8 +290,7 @@ func TestDynamicCpuToggleDoesNotCrash(t *testing.T) {
 	enableURL := appBaseURL + "/profiling?cpu=true"
 
 	for i := 0; i < 3; i++ {
-		resp, err := client.Post(disableURL, "text/plain", nil)
-		require.NoError(t, err)
+		resp := postOK(t, client, disableURL)
 		_, _ = io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -283,8 +302,7 @@ func TestDynamicCpuToggleDoesNotCrash(t *testing.T) {
 			require.Equal(t, http.StatusOK, loadResp.StatusCode)
 		}
 
-		resp, err = client.Post(enableURL, "text/plain", nil)
-		require.NoError(t, err)
+		resp = postOK(t, client, enableURL)
 		_, _ = io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -316,8 +334,7 @@ func TestDynamicCpuProfilingToggleAffectsProfileData(t *testing.T) {
 	})
 	client := &http.Client{Timeout: 30 * time.Second}
 
-	disableResp, err := client.Post(appBaseURL+"/profiling?cpu=false", "text/plain", nil)
-	require.NoError(t, err)
+	disableResp := postOK(t, client, appBaseURL+"/profiling?cpu=false")
 	require.Equal(t, http.StatusOK, disableResp.StatusCode)
 	_ = disableResp.Body.Close()
 
@@ -342,8 +359,7 @@ func TestDynamicCpuProfilingToggleAffectsProfileData(t *testing.T) {
 		return collapsed != ""
 	}, 45*time.Second, 5*time.Second, "expected no CPU profile data while CPU profiling is disabled")
 
-	enableResp, err := client.Post(appBaseURL+"/profiling?cpu=true", "text/plain", nil)
-	require.NoError(t, err)
+	enableResp := postOK(t, client, appBaseURL+"/profiling?cpu=true")
 	require.Equal(t, http.StatusOK, enableResp.StatusCode)
 	_ = enableResp.Body.Close()
 
