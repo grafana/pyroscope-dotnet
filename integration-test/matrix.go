@@ -17,7 +17,14 @@ func envOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
-func envLibcType() string      { return envOrDefault("LIBC_TYPE", "glibc") }
+func envLibcType() string {
+	def := "glibc"
+	if runtime.GOOS == "windows" {
+		// No libc axis on Windows; the value only feeds service names.
+		def = "win"
+	}
+	return envOrDefault("LIBC_TYPE", def)
+}
 func envDotnetVersion() string { return envOrDefault("DOTNET_VERSION", "10.0") }
 
 func sdkImageSuffix(libcType, version string) string {

@@ -93,7 +93,7 @@ func TestAllocationProfileStacktraces(t *testing.T) {
 	net := dockertest.CreateNetwork(t)
 	pyroscopeURL := startPyroscope(t, net)
 	appName := fmt.Sprintf("rideshare.alloc-test.%d", time.Now().UnixNano())
-	appBaseURL := startAppWithEnv(t, net, envLibcType(), envDotnetVersion(), false, map[string]string{
+	appBaseURL := startAppWithEnv(t, net, pyroscopeURL, envLibcType(), envDotnetVersion(), false, map[string]string{
 		"PYROSCOPE_APPLICATION_NAME":             appName,
 		"PYROSCOPE_PROFILING_ENABLED":            "true",
 		"PYROSCOPE_PROFILING_ALLOCATION_ENABLED": "true",
@@ -123,7 +123,7 @@ func TestExceptionProfileStacktraces(t *testing.T) {
 	net := dockertest.CreateNetwork(t)
 	pyroscopeURL := startPyroscope(t, net)
 	appName := fmt.Sprintf("rideshare.exception-test.%d", time.Now().UnixNano())
-	appBaseURL := startAppWithEnv(t, net, envLibcType(), envDotnetVersion(), false, map[string]string{
+	appBaseURL := startAppWithEnv(t, net, pyroscopeURL, envLibcType(), envDotnetVersion(), false, map[string]string{
 		"PYROSCOPE_APPLICATION_NAME":            appName,
 		"PYROSCOPE_PROFILING_ENABLED":           "true",
 		"PYROSCOPE_PROFILING_EXCEPTION_ENABLED": "true",
@@ -153,7 +153,7 @@ func TestLockProfileStacktraces(t *testing.T) {
 	net := dockertest.CreateNetwork(t)
 	pyroscopeURL := startPyroscope(t, net)
 	appName := fmt.Sprintf("rideshare.lock-test.%d", time.Now().UnixNano())
-	appBaseURL := startAppWithEnv(t, net, envLibcType(), envDotnetVersion(), false, map[string]string{
+	appBaseURL := startAppWithEnv(t, net, pyroscopeURL, envLibcType(), envDotnetVersion(), false, map[string]string{
 		"PYROSCOPE_APPLICATION_NAME":             appName,
 		"PYROSCOPE_PROFILING_ENABLED":            "true",
 		"PYROSCOPE_PROFILING_CONTENTION_ENABLED": "true",
