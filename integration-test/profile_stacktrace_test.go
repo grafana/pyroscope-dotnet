@@ -184,7 +184,7 @@ func TestAllocationTypeLeafProfileStacktraces(t *testing.T) {
 	net := dockertest.CreateNetwork(t)
 	pyroscopeURL := startPyroscope(t, net)
 	appName := fmt.Sprintf("rideshare.alloc-leaf-test.%d", time.Now().UnixNano())
-	appBaseURL := startAppWithEnv(t, net, envLibcType(), envDotnetVersion(), false, map[string]string{
+	appBaseURL := startAppWithEnv(t, net, pyroscopeURL, envLibcType(), envDotnetVersion(), false, map[string]string{
 		"PYROSCOPE_APPLICATION_NAME":             appName,
 		"PYROSCOPE_PROFILING_ENABLED":            "true",
 		"PYROSCOPE_PROFILING_ALLOCATION_ENABLED": "true",
