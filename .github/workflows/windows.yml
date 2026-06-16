@@ -20,18 +20,23 @@ jobs:
           persist-credentials: false
       # The vcxprojs pin the upstream toolchain (v143 + SDK 10.0.19041). The
       # windows-2025 (VS2026) image ships the v143 compilers but neither v143
-      # ATL nor that SDK.
+      # ATL nor that SDK. ATL is added via the VS installer using the checked-in
+      # build/windows.vsconfig component list; SDK 10.0.19041 is no longer in the
+      # VS2026 installer catalog, so it comes from the standalone installer.
       - name: Install v143 ATL + Windows SDK 10.0.19041
         run: |
           $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
           $vs = & "$installer\vswhere.exe" -latest -products '*' -property installationPath
           $p = Start-Process -FilePath "$installer\setup.exe" -Wait -PassThru -ArgumentList `
             'modify', '--installPath', "`"$vs`"", `
-            '--add', 'Microsoft.VisualStudio.Component.VC.14.44.17.14.ATL', `
+            '--config', "`"$env:GITHUB_WORKSPACE\build\windows.vsconfig`"", `
             '--quiet', '--norestart', '--noUpdateInstaller'
           if ($p.ExitCode -notin 0, 3010) { throw "VS setup modify failed (exit $($p.ExitCode))" }
           $atl = Get-ChildItem "$vs\VC\Tools\MSVC\14.4*\atlmfc\include\atlbase.h" -ErrorAction SilentlyContinue
           if (-not $atl) { throw "v143 ATL still missing after modify" }
+          # EXPERIMENT (temporary): does the VS2026 installer install SDK 19041 from .vsconfig?
+          $sdkViaVs = Test-Path "${env:ProgramFiles(x86)}\Windows Kits\10\Include\10.0.19041.0\um\windows.h"
+          Write-Host "::notice::EXPERIMENT SDK 10.0.19041 present after .vsconfig modify (before choco) = $sdkViaVs"
           choco install windows-sdk-10-version-2004-all -y --no-progress
           if (-not (Test-Path "${env:ProgramFiles(x86)}\Windows Kits\10\Include\10.0.19041.0\um\windows.h")) { throw "SDK 10.0.19041 still missing after install" }
       - name: Restore vcpkg binary cache
