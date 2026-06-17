@@ -5,11 +5,48 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
 )
+
+// dockerCommand is how the docker CLI is invoked. Overridable because on
+// Windows runners the daemon lives inside WSL2, e.g.
+// DOCKERTEST_DOCKER_COMMAND="wsl -d Ubuntu -u root -- docker".
+var dockerCommand = func() []string {
+	if v := os.Getenv("DOCKERTEST_DOCKER_COMMAND"); v != "" {
+		return strings.Fields(v)
+	}
+	return []string{"docker"}
+}()
+
+// hostAddr is the address published container ports are reached at. With the
+// daemon in WSL2, "localhost" can resolve to ::1, which the WSL port relay
+// does not always serve; DOCKERTEST_HOST_IP=127.0.0.1 pins IPv4.
+var hostAddr = func() string {
+	if v := os.Getenv("DOCKERTEST_HOST_IP"); v != "" {
+		return v
+	}
+	return "localhost"
+}()
+
+func dockerArgs(args ...string) (string, []string) {
+	full := append(append([]string{}, dockerCommand[1:]...), args...)
+	return dockerCommand[0], full
+}
+
+func runDocker(t *testing.T, args ...string) string {
+	t.Helper()
+	name, full := dockerArgs(args...)
+	return run(t, name, full...)
+}
+
+func runDockerQuiet(args ...string) {
+	name, full := dockerArgs(args...)
+	runQuiet(name, full...)
+}
 
 type Network struct {
 	Name string
@@ -56,8 +93,8 @@ func WaitForPort(port string, timeout time.Duration) *WaitStrategy {
 func CreateNetwork(t *testing.T) *Network {
 	t.Helper()
 	name := fmt.Sprintf("test-%d", time.Now().UnixNano())
-	run(t, "docker", "network", "create", name)
-	t.Cleanup(func() { runQuiet("docker", "network", "rm", name) })
+	runDocker(t, "network", "create", name)
+	t.Cleanup(func() { runDockerQuiet("network", "rm", name) })
 	return &Network{Name: name}
 }
 
@@ -86,19 +123,21 @@ func StartContainer(t *testing.T, req ContainerRequest) *Container {
 	args = append(args, req.Image)
 	args = append(args, req.Cmd...)
 
-	id := strings.TrimSpace(run(t, "docker", args...))
+	id := strings.TrimSpace(runDocker(t, args...))
 	c := &Container{ID: id}
 	t.Cleanup(func() {
 		if t.Failed() {
-			if out, err := exec.Command("docker", "inspect", c.ID, "--format",
-				"ExitCode={{.State.ExitCode}} OOMKilled={{.State.OOMKilled}} Running={{.State.Running}}").CombinedOutput(); err == nil {
+			name, full := dockerArgs("inspect", c.ID, "--format",
+				"ExitCode={{.State.ExitCode}} OOMKilled={{.State.OOMKilled}} Running={{.State.Running}}")
+			if out, err := exec.Command(name, full...).CombinedOutput(); err == nil {
 				t.Logf("dockertest: container %s state: %s", c.ID[:12], out)
 			}
-			if logs, err := exec.Command("docker", "logs", "--tail", "50", c.ID).CombinedOutput(); err == nil {
+			name, full = dockerArgs("logs", "--tail", "50", c.ID)
+			if logs, err := exec.Command(name, full...).CombinedOutput(); err == nil {
 				t.Logf("dockertest: container %s logs:\n%s", c.ID[:12], logs)
 			}
 		}
-		runQuiet("docker", "rm", "-f", c.ID)
+		runDockerQuiet("rm", "-f", c.ID)
 	})
 
 	for _, f := range req.Files {
@@ -115,7 +154,7 @@ func StartContainer(t *testing.T, req ContainerRequest) *Container {
 
 func (c *Container) MappedPort(t *testing.T, containerPort string) string {
 	t.Helper()
-	output := run(t, "docker", "port", c.ID, normalizePort(containerPort))
+	output := runDocker(t, "port", c.ID, normalizePort(containerPort))
 	line := strings.TrimSpace(strings.Split(output, "\n")[0])
 	_, hostPort, err := net.SplitHostPort(line)
 	if err != nil {
@@ -130,13 +169,13 @@ func (c *Container) MappedPort(t *testing.T, containerPort string) string {
 
 func (c *Container) HostPort(t *testing.T, containerPort string) string {
 	t.Helper()
-	return "localhost:" + c.MappedPort(t, containerPort)
+	return hostAddr + ":" + c.MappedPort(t, containerPort)
 }
 
 func (c *Container) Exec(t *testing.T, cmd []string) string {
 	t.Helper()
 	args := append([]string{"exec", c.ID}, cmd...)
-	return run(t, "docker", args...)
+	return runDocker(t, args...)
 }
 
 type BuildRequest struct {
@@ -163,13 +202,13 @@ func BuildImage(t *testing.T, req BuildRequest) string {
 		args = append(args, "--build-arg", k+"="+v)
 	}
 	args = append(args, req.Context)
-	run(t, "docker", args...)
+	runDocker(t, args...)
 	return req.Tag
 }
 
 func BridgeGatewayIP(t *testing.T) string {
 	t.Helper()
-	output := run(t, "docker", "network", "inspect", "bridge",
+	output := runDocker(t, "network", "inspect", "bridge",
 		"--format", `{{(index .IPAM.Config 0).Gateway}}`)
 	ip := strings.TrimSpace(output)
 	if ip == "" {
@@ -208,8 +247,9 @@ func copyFile(t *testing.T, containerID string, f ContainerFile) {
 	if err != nil {
 		t.Fatalf("dockertest: reading file for %s: %v", f.ContainerPath, err)
 	}
-	cmd := exec.Command("docker", "exec", "-i", containerID,
+	name, full := dockerArgs("exec", "-i", containerID,
 		"sh", "-c", fmt.Sprintf("cat > '%s'", f.ContainerPath))
+	cmd := exec.Command(name, full...)
 	cmd.Stdin = strings.NewReader(string(content))
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
@@ -222,7 +262,7 @@ func waitReady(t *testing.T, c *Container, ws *WaitStrategy) {
 	t.Helper()
 	deadline := time.Now().Add(ws.timeout)
 	hostPort := c.MappedPort(t, ws.port)
-	addr := "localhost:" + hostPort
+	addr := hostAddr + ":" + hostPort
 
 	for time.Now().Before(deadline) {
 		switch ws.typ {

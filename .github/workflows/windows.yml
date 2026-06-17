@@ -1,0 +1,139 @@
+name: Windows
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-profiler-x64:
+    runs-on: windows-2025
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: 'true'
+          persist-credentials: false
+      # The vcxprojs pin the upstream toolchain (v143 + SDK 10.0.19041). The
+      # windows-2025 (VS2026) image ships the v143 compilers but neither v143
+      # ATL nor that SDK. ATL is added via the VS installer using the checked-in
+      # build/windows.vsconfig component list; SDK 10.0.19041 is no longer in the
+      # VS2026 installer catalog, so it comes from the standalone installer.
+      - name: Install v143 ATL + Windows SDK 10.0.19041
+        run: |
+          $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
+          $vs = & "$installer\vswhere.exe" -latest -products '*' -property installationPath
+          $p = Start-Process -FilePath "$installer\setup.exe" -Wait -PassThru -ArgumentList `
+            'modify', '--installPath', "`"$vs`"", `
+            '--config', "`"$env:GITHUB_WORKSPACE\build\windows.vsconfig`"", `
+            '--quiet', '--norestart', '--noUpdateInstaller'
+          if ($p.ExitCode -notin 0, 3010) { throw "VS setup modify failed (exit $($p.ExitCode))" }
+          $atl = Get-ChildItem "$vs\VC\Tools\MSVC\14.4*\atlmfc\include\atlbase.h" -ErrorAction SilentlyContinue
+          if (-not $atl) { throw "v143 ATL still missing after modify" }
+          choco install windows-sdk-10-version-2004-all -y --no-progress
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Windows Kits\10\Include\10.0.19041.0\um\windows.h")) { throw "SDK 10.0.19041 still missing after install" }
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ runner.temp }}\vcpkg-bincache
+          key: vcpkg-windows-x64-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'build/vcpkg_local_ports/**') }}
+          restore-keys: vcpkg-windows-x64-
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
+      - name: Build profiler (Release x64)
+        env:
+          VCPKG_DEFAULT_BINARY_CACHE: ${{ runner.temp }}\vcpkg-bincache
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
+          vcpkg integrate install
+          msbuild profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows\Datadog.Profiler.Native.Windows.vcxproj /p:Configuration=Release /p:Platform=x64 /p:VcpkgEnableManifest=true /m /v:m
+      - name: Upload artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pyroscope-profiler-windows-x64
+          path: |
+            profiler/_build/bin/Release-x64/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/Pyroscope.Profiler.Native.dll
+            profiler/_build/bin/Release-x64/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/Pyroscope.Profiler.Native.pdb
+          if-no-files-found: error
+
+  discover:
+    name: discover tests
+    runs-on: ubuntu-latest
+    outputs:
+      tests: ${{ steps.tests.outputs.tests }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
+        with:
+          go-version: 'stable'
+          cache-dependency-path: integration-test/go.sum
+      - name: Generate test matrix
+        id: tests
+        run: echo "tests=$(make ci-matrix)" >> "$GITHUB_OUTPUT"
+        working-directory: integration-test
+
+  integration-test-windows:
+    name: integration-test-windows ${{ matrix.test }} .NET ${{ matrix.version }}
+    needs: [discover, build-windows-profiler-x64]
+    runs-on: windows-2025
+    strategy:
+      fail-fast: false
+      matrix:
+        test: ${{ fromJSON(needs.discover.outputs.tests) }}
+        version: ['8.0', '9.0', '10.0']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+      - name: Set up Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6
+        with:
+          go-version: 'stable'
+          cache-dependency-path: integration-test/go.sum
+      - name: Download profiler artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: pyroscope-profiler-windows-x64
+          path: profiler-bin
+      # The Pyroscope server runs in the same pinned Linux image the Linux
+      # tests use, inside WSL2 Docker (windows-2025 runners ship WSL2; the
+      # keeper process is required because the WSL VM shuts down seconds after
+      # its last client exits).
+      - name: Set up WSL2 + Docker
+        run: |
+          wsl --install Ubuntu --no-launch
+          Start-Process -WindowStyle Hidden wsl.exe -ArgumentList "-d", "Ubuntu", "-u", "root", "--", "sleep", "infinity"
+          $deadline = (Get-Date).AddSeconds(180)
+          do {
+            wsl -d Ubuntu -u root -- true 2>$null
+            if ($LASTEXITCODE -eq 0) { break }
+            Start-Sleep 3
+          } while ((Get-Date) -lt $deadline)
+          if ($LASTEXITCODE -ne 0) { throw "Ubuntu distro not launchable" }
+          wsl -d Ubuntu -u root -- sh -c "curl -fsSL https://get.docker.com | sh"
+          if ($LASTEXITCODE -ne 0) { throw "docker install failed" }
+          $deadline = (Get-Date).AddSeconds(60)
+          do {
+            wsl -d Ubuntu -u root -- docker version 2>$null | Out-Null
+            if ($LASTEXITCODE -eq 0) { break }
+            Start-Sleep 3
+          } while ((Get-Date) -lt $deadline)
+          if ($LASTEXITCODE -ne 0) { throw "dockerd not ready" }
+      - name: Run integration tests
+        env:
+          DOTNET_VERSION: ${{ matrix.version }}
+          TEST_NAME: ${{ matrix.test }}
+          WINDOWS_PROFILER_DIR: ${{ github.workspace }}\profiler-bin
+          DOCKERTEST_DOCKER_COMMAND: wsl -d Ubuntu -u root -- docker
+          DOCKERTEST_HOST_IP: 127.0.0.1
+        run: go test -v -timeout 45m -count=1 -run ('^' + $env:TEST_NAME + '$') .
+        working-directory: integration-test
