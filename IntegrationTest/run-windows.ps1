@@ -1,7 +1,7 @@
-# Runs the rideshare app under the locally built Windows profiler, against the
-# on-box Pyroscope (WSL2 Docker; see the win-dev-vm README in deployment_tools).
+# Runs the rideshare app under a locally built Windows profiler, against an
+# on-box Pyroscope (WSL2 Docker).
 # Builds the app + managed helper from this working tree, so everything tested
-# is current. Usage (on the dev VM):
+# is current. Usage (on a dev VM):
 #   C:\dev\pyroscope-dotnet\IntegrationTest\run-windows.ps1 [-Framework net8.0]
 param(
   [string]$Framework = "net8.0",
@@ -11,9 +11,12 @@ param(
 $ErrorActionPreference = "Stop"
 $repo = Split-Path -Parent $PSScriptRoot
 
+# The profiler needs to be built for the next command to succeed. Something like this should do the trick:
+# MSBuild.exe $repo\profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows\Datadog.Profiler.Native.Windows.vcxproj /p:Configuration=Release /p:Platform=x64 /p:VcpkgEnableManifest=true /m /v:m
+
 $profilerDll = Join-Path $repo "profiler\_build\bin\Release-x64\profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows\Pyroscope.Profiler.Native.dll"
 if (-not (Test-Path $profilerDll)) {
-  throw "Profiler DLL not found at $profilerDll - build it first (MSBuild command in the win-dev-vm README)."
+  throw "Profiler DLL not found at $profilerDll - build it first (MSBuild)."
 }
 
 # Ensure the on-box Pyroscope is serving; start (or create) the container in
