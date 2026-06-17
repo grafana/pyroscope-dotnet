@@ -249,7 +249,13 @@ func startHostApp(t *testing.T, version string, otel bool, svcName, serverAddres
 		_ = cmd.Process.Kill()
 		_, _ = cmd.Process.Wait()
 		if t.Failed() {
-			t.Logf("rideshare output (tail):\n%s", tailLines(output.String(), 60))
+			full := output.String()
+			// The load generator floods stdout with request logs; surface the
+			// profiler's own sink/upload lines separately so they aren't lost.
+			if sink := profilerLines(full); sink != "" {
+				t.Logf("rideshare profiler lines:\n%s", sink)
+			}
+			t.Logf("rideshare output (tail):\n%s", tailLines(full, 60))
 		}
 	})
 
@@ -284,6 +290,21 @@ func (b *syncBuffer) String() string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.buf.String()
+}
+
+// profilerLines returns the lines of native-profiler output that concern the
+// upload sink or TLS, filtering out the app's own request logging.
+func profilerLines(s string) string {
+	var b strings.Builder
+	for _, ln := range strings.Split(s, "\n") {
+		if strings.Contains(ln, "PyroscopePprofSink") ||
+			strings.Contains(ln, "SSL") ||
+			strings.Contains(ln, "ssl") {
+			b.WriteString(ln)
+			b.WriteByte('\n')
+		}
+	}
+	return b.String()
 }
 
 func tailLines(s string, n int) string {

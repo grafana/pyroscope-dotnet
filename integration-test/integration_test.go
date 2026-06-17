@@ -414,11 +414,18 @@ func generateTestCerts(t *testing.T, hostname string) (caCertPEM, serverCertPEM,
 	serverTemplate := &x509.Certificate{
 		SerialNumber: big.NewInt(2),
 		Subject:      pkix.Name{CommonName: hostname},
-		DNSNames:     []string{hostname},
 		NotBefore:    time.Now().Add(-time.Minute),
 		NotAfter:     time.Now().Add(24 * time.Hour),
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+	}
+	// An IP literal (Windows uses 127.0.0.1) must be in the IP SAN; a DNS name
+	// (Linux uses host.docker.internal) in the DNS SAN. OpenSSL/cpp-httplib
+	// verify the two differently.
+	if ip := net.ParseIP(hostname); ip != nil {
+		serverTemplate.IPAddresses = []net.IP{ip}
+	} else {
+		serverTemplate.DNSNames = []string{hostname}
 	}
 	serverDER, err := x509.CreateCertificate(rand.Reader, serverTemplate, caCert, &serverKey.PublicKey, caKey)
 	require.NoError(t, err)
@@ -481,13 +488,12 @@ func hostDockerInternalExtraHost(t *testing.T) string {
 func startAppForTLSTest(t *testing.T, libcType, version, serverAddress string, caCertPEM []byte) string {
 	t.Helper()
 	if runtime.GOOS == "windows" {
+		// The profiler honors SSL_CERT_FILE for a custom CA (see
+		// PyroscopePprofSink); point it at the test CA.
 		caPath := filepath.Join(t.TempDir(), "ca.crt")
 		if err := os.WriteFile(caPath, caCertPEM, 0o644); err != nil {
 			t.Fatalf("writing CA cert: %v", err)
 		}
-		// SSL_CERT_FILE steers OpenSSL-based exporters to the test CA. If the
-		// Windows exporter turns out to use schannel instead, this test will
-		// say so and the CA needs to go into the machine store instead.
 		return startHostApp(t, version, false, "tls-test-app", serverAddress, map[string]string{
 			"SSL_CERT_FILE": caPath,
 		})
@@ -527,14 +533,6 @@ func startAppForTLSTest(t *testing.T, libcType, version, serverAddress string, c
 }
 
 func runTLSProfileUploadTest(t *testing.T, libcType, version string) {
-	if runtime.GOOS == "windows" {
-		// Only the Linux build defines CPPHTTPLIB_OPENSSL_SUPPORT
-		// (Datadog.Profiler.Native.Linux/CMakeLists.txt), so the Windows
-		// profiler cannot upload over HTTPS yet. Public-preview blocker,
-		// tracked in the work-state; unskip once the Windows build links
-		// OpenSSL.
-		t.Skip("HTTPS upload not yet supported in the Windows build")
-	}
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
