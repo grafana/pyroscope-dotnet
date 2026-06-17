@@ -7,8 +7,7 @@ RawSample::RawSample() noexcept
     :
     Timestamp {0},
     AppDomainId {0},
-    LocalRootSpanId {0},
-    SpanId {0},
+    TraceContext{},
     ThreadInfo{nullptr},
     Stack{},
     Tags{}
@@ -24,8 +23,7 @@ RawSample& RawSample::operator=(RawSample&& other) noexcept
 {
     Timestamp = other.Timestamp;
     AppDomainId = other.AppDomainId;
-    LocalRootSpanId = other.LocalRootSpanId;
-    SpanId = other.SpanId;
+    TraceContext = other.TraceContext;
     ThreadInfo = std::move(other.ThreadInfo);
     Stack = std::move(other.Stack);
     Tags = std::move(other.Tags);

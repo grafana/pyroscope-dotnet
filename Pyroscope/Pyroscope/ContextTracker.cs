@@ -22,7 +22,9 @@ namespace Pyroscope
         ///                    |--------------------|
         ///   8        8       | Local Root Span Id |
         ///                    |--------------------|
-        ///   16       8       |       Span Id      |
+        ///   16       8       |      TraceIdHi     |
+        ///                    |--------------------|
+        ///   24       8       |      TraceIdLo     |
         ///                    |--------------------|
         /// This allows us to inform the profiler sampling thread when we are writing or not the data
         /// and avoid torn read/write (Using memory barriers).
@@ -45,9 +47,9 @@ namespace Pyroscope
             }
         }
 
-        public void Set(ulong localRootSpanId, ulong spanId)
+        public void Set(ulong localRootSpanId, ulong traceIdHi, ulong traceIdLo)
         {
-            WriteToNative(new SpanContext(localRootSpanId, spanId));
+            WriteToNative(new SpanContext(localRootSpanId, traceIdHi, traceIdLo));
         }
 
 
@@ -127,15 +129,17 @@ namespace Pyroscope
         // See the description and the layout depicted above
         private readonly struct SpanContext
         {
-            public static readonly SpanContext Zero = new(0, 0);
+            public static readonly SpanContext Zero = new(0, 0, 0);
 
             public readonly ulong LocalRootSpanId;
-            public readonly ulong SpanId;
+            public readonly ulong TraceIdHi;
+            public readonly ulong TraceIdLo;
 
-            public SpanContext(ulong localRootSpanId, ulong spanId)
+            public SpanContext(ulong localRootSpanId,  ulong traceIdHi, ulong traceIdLo)
             {
                 LocalRootSpanId = localRootSpanId;
-                SpanId = spanId;
+                TraceIdHi = traceIdHi;
+                TraceIdLo = traceIdLo;
             }
 
             [MethodImpl(MethodImplOptions.NoInlining)]
@@ -148,7 +152,8 @@ namespace Pyroscope
                 // Using WriteInt64 to write 2 long values is ~8x faster than using Marshal.StructureToPtr
                 // For the offset, we follow the layout depicted above
                 Marshal.WriteInt64(ptr + 8, (long)LocalRootSpanId);
-                // Marshal.WriteInt64(ptr + 16, (long)SpanId);
+                Marshal.WriteInt64(ptr + 16, (long)TraceIdHi);
+                Marshal.WriteInt64(ptr + 24, (long)TraceIdLo);
 
                 // Reset the WriteGuard
                 Thread.MemoryBarrier();

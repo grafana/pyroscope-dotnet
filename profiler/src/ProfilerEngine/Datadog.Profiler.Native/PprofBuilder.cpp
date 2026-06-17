@@ -6,9 +6,11 @@
 #include "IExporter.h"
 #include "Log.h"
 
-namespace
-{
+namespace {
 constexpr std::string_view ClassLeafPrefix = "cls:";
+auto constexpr spanIDLabelName   = "span_id";
+auto constexpr traceIDLabelName  = "trace_id";
+
 }
 
 PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions) :
@@ -28,16 +30,17 @@ void PprofBuilder::AddSample(const Sample& sample, std::span<const int64_t> valu
         const auto locId = AddLocation(functionNameStringId, moduleNameStringId);
         pSample->add_location_id(locId);
     };
-    auto addFrame = [&](const FrameInfoView &frame) {
+    auto addFrame = [&](const FrameInfoView& frame) {
         addLocation(frame.Frame, frame.ModuleName);
     };
+    AddTraceContext(sample, pSample);
     if (auto frame = sample.GetLeafFrame(); !frame.empty())
     {
-        _leafFrameScratch.clear();
-        _leafFrameScratch.reserve(ClassLeafPrefix.size() + frame.size());
-        _leafFrameScratch.append(ClassLeafPrefix);
-        _leafFrameScratch.append(frame);
-        addLocation(_leafFrameScratch, {});
+        _scratchBuffer.clear();
+        _scratchBuffer.reserve(ClassLeafPrefix.size() + frame.size());
+        _scratchBuffer.append(ClassLeafPrefix);
+        _scratchBuffer.append(frame);
+        addLocation(_scratchBuffer, {});
     }
     for (auto const& frame : sample.GetCallstack())
     {
@@ -77,6 +80,24 @@ std::string PprofBuilder::Build(ProfileTime& startTime, ProfileTime& endTime)
     return std::move(res);
 }
 
+
+int64_t PprofBuilder::AddHexString(std::span<const std::byte> src)
+{
+    static constexpr char lut[] = "0123456789abcdef";
+
+    _scratchBuffer.clear();
+    _scratchBuffer.reserve(src.size() * 2);
+
+    for (std::byte b : src)
+    {
+        uint8_t v = std::to_integer<uint8_t>(b);
+        _scratchBuffer.push_back(lut[v >> 4]);
+        _scratchBuffer.push_back(lut[v & 0xF]);
+    }
+
+    return AddString(std::string_view{_scratchBuffer});
+
+}
 int64_t PprofBuilder::AddString(const std::string_view& keyNotOwned)
 {
     if (const auto it = _strings.find(keyNotOwned); it != _strings.end())
@@ -121,6 +142,8 @@ void PprofBuilder::Reset()
     _strings.clear();
     _profile = google::v1::Profile();
     AddString("");
+    _span_id_str_index = AddString(spanIDLabelName);
+    _trace_id_str_index = AddString(traceIDLabelName);
     for (const auto& sampleType : _sampleTypeDefinitions)
     {
         auto* pSample = _profile.add_sample_type();
@@ -130,9 +153,9 @@ void PprofBuilder::Reset()
     _profile.set_period(1);
     auto* pPeriodType = new google::v1::ValueType();
     bool isMemoryProfile = !_sampleTypeDefinitions.empty() &&
-        (_sampleTypeDefinitions[0].Type == ProfileType::Alloc ||
-         _sampleTypeDefinitions[0].Type == ProfileType::AllocFramework ||
-         _sampleTypeDefinitions[0].Type == ProfileType::Heap);
+                           (_sampleTypeDefinitions[0].Type == ProfileType::Alloc ||
+                            _sampleTypeDefinitions[0].Type == ProfileType::AllocFramework ||
+                            _sampleTypeDefinitions[0].Type == ProfileType::Heap);
     if (isMemoryProfile)
     {
         pPeriodType->set_type(AddString("space"));
@@ -144,4 +167,28 @@ void PprofBuilder::Reset()
         pPeriodType->set_unit(AddString("nanoseconds"));
     }
     _profile.set_allocated_period_type(pPeriodType);
+}
+
+
+void PprofBuilder::AddTraceContext(const Sample& sample, google::v1::Sample* pSample)
+{
+    if (auto ctx = sample.GetTraceContext(); ctx._currentLocalRootSpanId != 0)
+    {
+        static_assert(sizeof(TraceContext) == 24);
+        static_assert(offsetof(TraceContext, _currentLocalRootSpanId) == 0);
+        static_assert(offsetof(TraceContext, _currentTraceIdHi) == 8);
+        static_assert(offsetof(TraceContext, _currentTraceIdLo) == 16);
+        int64_t spanId = AddHexString(std::as_bytes(std::span{&ctx._currentLocalRootSpanId, 1}));
+        int64_t traceId = AddHexString(std::as_bytes(std::span{&ctx._currentTraceIdHi, 2}));
+        {
+            auto* l = pSample->add_label();
+            l->set_key(_span_id_str_index);
+            l->set_str(spanId);
+        }
+        {
+            auto* l = pSample->add_label();
+            l->set_key(_trace_id_str_index);
+            l->set_str(traceId);
+        }
+    }
 }

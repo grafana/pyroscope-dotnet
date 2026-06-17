@@ -268,7 +268,7 @@ bool TimerCreateCpuProfiler::Collect(void* ctx)
 
     // TO FIX this breaks the CI Visibility.
     // No Cpu samples will have the predefined span id, root local span id
-    std::tie(rawCpuSample->LocalRootSpanId, rawCpuSample->SpanId) = threadInfo->GetTracingContext();
+    rawCpuSample->TraceContext = threadInfo->GetTracingContext();
 
     rawCpuSample->Timestamp = OpSysTools::GetTimestampSafe();
     rawCpuSample->AppDomainId = threadInfo->GetAppDomainId();

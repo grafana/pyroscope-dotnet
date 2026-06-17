@@ -19,8 +19,7 @@
 #include "shared/src/native-src/dd_span.hpp"
 
 #include "JavaProfilerTags.h"
-
-
+#include "ManagedThreadInfo.h"
 
 /// <summary>
 /// Allocating when a thread is suspended can lead to deadlocks.
@@ -37,11 +36,9 @@ public:
     inline std::chrono::nanoseconds GetRepresentedDuration() const;
     inline std::chrono::nanoseconds SetRepresentedDuration(std::chrono::nanoseconds value);
 
-    inline std::uint64_t GetLocalRootSpanId() const;
-    inline std::uint64_t SetLocalRootSpanId(std::uint64_t value);
+    inline TraceContext GetTraceContext() const;
+    inline void SetTraceContext(const TraceContext& context);
 
-    inline std::uint64_t GetSpanId() const;
-    inline std::uint64_t SetSpanId(std::uint64_t value);
 
     inline std::size_t GetFramesCount() const;
     inline void SetFramesCount(std::uint16_t count);
@@ -69,8 +66,7 @@ protected:
     std::chrono::nanoseconds _representedDuration;
     Callstack _callstack;
 
-    std::uint64_t _localRootSpanId;
-    std::uint64_t _spanId;
+    TraceContext _traceContext;
 
 
     google::javaprofiler::Tags _tags;
@@ -102,28 +98,14 @@ inline std::chrono::nanoseconds StackSnapshotResultBuffer::SetRepresentedDuratio
     return prevValue;
 }
 
-inline std::uint64_t StackSnapshotResultBuffer::GetLocalRootSpanId() const
+inline TraceContext StackSnapshotResultBuffer::GetTraceContext() const
 {
-    return _localRootSpanId;
+    return _traceContext;
 }
 
-inline std::uint64_t StackSnapshotResultBuffer::SetLocalRootSpanId(std::uint64_t value)
+inline void StackSnapshotResultBuffer::SetTraceContext(const TraceContext& context)
 {
-    std::uint64_t prevValue = _localRootSpanId;
-    _localRootSpanId = value;
-    return prevValue;
-}
-
-inline std::uint64_t StackSnapshotResultBuffer::GetSpanId() const
-{
-    return _spanId;
-}
-
-inline std::uint64_t StackSnapshotResultBuffer::SetSpanId(std::uint64_t value)
-{
-    std::uint64_t prevValue = _spanId;
-    _spanId = value;
-    return prevValue;
+    this->_traceContext = context;
 }
 
 inline std::size_t StackSnapshotResultBuffer::GetFramesCount() const

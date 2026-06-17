@@ -180,8 +180,7 @@ public:
 
 public:
     // request start
-    uint64_t LocalRootSpanID;
-    uint64_t SpanID;
+    TraceContext TraceContext;
     AppDomainID AppDomainId;
     Callstack StartCallStack;
     std::shared_ptr<ManagedThreadInfo> StartThreadInfo;

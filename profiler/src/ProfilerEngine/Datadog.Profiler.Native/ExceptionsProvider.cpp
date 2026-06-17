@@ -161,8 +161,7 @@ bool ExceptionsProvider::OnExceptionThrown(ObjectID thrownObjectId)
     RawExceptionSample rawSample;
 
     rawSample.Timestamp = result->GetUnixTimeUtc();
-    rawSample.LocalRootSpanId = result->GetLocalRootSpanId();
-    rawSample.SpanId = result->GetSpanId();
+    rawSample.TraceContext = result->GetTraceContext();
     rawSample.AppDomainId = threadInfo->GetAppDomainId();
     rawSample.Stack = result->GetCallstack();
     rawSample.ThreadInfo = threadInfo;

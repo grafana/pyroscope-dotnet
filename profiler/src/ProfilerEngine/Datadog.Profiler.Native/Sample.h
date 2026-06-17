@@ -4,6 +4,7 @@
 #pragma once
 
 #include "IFrameStore.h"
+#include "ManagedThreadInfo.h"
 
 #include <algorithm>
 #include <array>
@@ -156,6 +157,16 @@ public:
         _runtimeId = runtimeId;
     }
 
+    void SetTraceContext(const TraceContext& traceContext)
+    {
+        _traceContext = traceContext;
+    }
+
+    TraceContext const& GetTraceContext() const
+    {
+        return _traceContext;
+    }
+
     void Reset()
     {
         _timestamp = 0ns;
@@ -220,6 +231,7 @@ private:
     std::vector<FrameInfoView> _callstack;
     Values _values;
     Labels _allLabels;
+    TraceContext _traceContext;
     std::string_view _runtimeId;
     std::string_view _leafFrame;
 };
