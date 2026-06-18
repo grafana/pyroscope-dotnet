@@ -117,8 +117,6 @@ bool StackFramesCollectorBase::TryApplyTraceContextDataFromCurrentCollectionThre
 {
     if (_isCIVisibilityEnabled && _ciVisibilitySpanId > 0)
     {
-        // _pStackSnapshotResult->SetLocalRootSpanId(_ciVisibilitySpanId);
-        // _pStackSnapshotResult->SetSpanId(_ciVisibilitySpanId);
         return true;
     }
 
