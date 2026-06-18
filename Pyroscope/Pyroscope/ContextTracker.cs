@@ -135,7 +135,7 @@ namespace Pyroscope
             public readonly ulong TraceIdHi;
             public readonly ulong TraceIdLo;
 
-            public SpanContext(ulong localRootSpanId,  ulong traceIdHi, ulong traceIdLo)
+            public SpanContext(ulong localRootSpanId, ulong traceIdHi, ulong traceIdLo)
             {
                 LocalRootSpanId = localRootSpanId;
                 TraceIdHi = traceIdHi;
