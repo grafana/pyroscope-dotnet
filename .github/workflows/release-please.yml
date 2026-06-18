@@ -30,6 +30,13 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           target-branch: main
+          # Only create the (draft) GitHub release here; opening the next
+          # release PR is split out into the open-release-pr job. A draft
+          # release has no git tag, and release-please anchors "last release"
+          # on tags, so computing the next PR in this same run (while the
+          # release is still a draft) makes it regenerate the entire changelog
+          # as a spurious major bump.
+          skip-github-pull-request: true
 
   build-profiler:
     permissions:
@@ -151,3 +158,30 @@ jobs:
           dotnet nuget push "./Pyroscope/artifacts/package/release/Pyroscope.OpenTelemetry*.nupkg" -k "${API_KEY}" -s "${SOURCE}"
       - name: Publish GitHub release
         run: gh release edit "$TAG" --draft=false
+
+  # Open/update the next release PR. Runs on every push to main; on a normal
+  # push the publish jobs are skipped and this runs right away. The needs on
+  # the publish jobs only enforce ordering: when a release IS published in the
+  # same run, wait until its tag exists before computing the PR (otherwise we
+  # hit the draft race that regenerates the changelog). !failure() skips this
+  # when a publish fails, so a stuck draft doesn't trigger a spurious PR.
+  open-release-pr:
+    needs: [release-please, publish-pyroscope-release, build-tracing]
+    if: ${{ !cancelled() && !failure() }}
+    permissions:
+      contents: write
+      pull-requests: write
+      id-token: write
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
+    steps:
+      - id: get-github-app-token
+        uses: grafana/shared-workflows/actions/create-github-app-token@580590a644e82e79bb2598bdaba0be245a14dda0 # create-github-app-token/v0.2.2
+        with:
+          github_app: pyroscope-development-app
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5
+        with:
+          token: ${{ steps.get-github-app-token.outputs.token }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+          target-branch: main
+          skip-github-release: true
