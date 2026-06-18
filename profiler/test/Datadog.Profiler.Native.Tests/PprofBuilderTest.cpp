@@ -54,7 +54,7 @@ TEST(PprofBuilderTest, AddSampleWithTraceContextEncodesTraceLabelsAsPprofStringL
     ASSERT_NE(spanId, labels.end());
     EXPECT_EQ(spanId->second, "0807060504030201");
 
-    auto traceId = labels.find("span_name");
+    auto traceId = labels.find("trace_id");
     ASSERT_NE(traceId, labels.end());
     EXPECT_EQ(traceId->second, "887766554433221100ffeeddccbbaa99");
 }
@@ -71,5 +71,5 @@ TEST(PprofBuilderTest, AddSampleWithoutLocalRootSpanIdDoesNotEmitTraceContextLab
     auto labels = GetStringLabels(profile, profile.sample(0));
 
     EXPECT_EQ(labels.find("span_id"), labels.end());
-    EXPECT_EQ(labels.find("span_name"), labels.end());
+    EXPECT_EQ(labels.find("trace_id"), labels.end());
 }
