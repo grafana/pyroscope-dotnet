@@ -7,6 +7,12 @@
 #include "PprofExporter.h"
 
 #include "LockingQueue.h"
+// A remote server might not honor "Expect: 100-continue". cpp-httplib adds that
+// header automatically once a request body reaches its default 1 KiB threshold,
+// then withholds the body waiting for a "100 Continue" that never arrives, so
+// every profile upload larger than ~1 KiB fails. Disable the behavior (0 = never)
+// so the body is always sent with the headers.
+#define CPPHTTPLIB_EXPECT_100_THRESHOLD 0
 #include "httplib.h"
 #include "url.hpp"
 

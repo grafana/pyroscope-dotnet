@@ -43,6 +43,20 @@ PyroscopePprofSink::PyroscopePprofSink(
     _client.set_connection_timeout(10);
     _client.set_read_timeout(10);
 
+#ifdef CPPHTTPLIB_OPENSSL_SUPPORT
+    // OpenSSL 3.x flags a TLS connection closed without a close_notify alert as a
+    // fatal read error (SSL_R_UNEXPECTED_EOF_WHILE_READING) rather than a clean EOF.
+    // When a remote server closes the upload connection that way, every successful
+    // upload still fails to read the response: it logs a spurious "Failed to read
+    // connection" and the real HTTP status is never seen. Treat the unclean shutdown
+    // as a normal end-of-stream. tls_context() returns null for plain-HTTP clients,
+    // so this is a no-op there.
+    if (auto* sslCtx = static_cast<SSL_CTX*>(_client.tls_context()))
+    {
+        SSL_CTX_set_options(sslCtx, SSL_OP_IGNORE_UNEXPECTED_EOF);
+    }
+#endif
+
     _workerThread = std::thread(&PyroscopePprofSink::work, this);
 }
 
