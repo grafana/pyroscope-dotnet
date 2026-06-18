@@ -1,0 +1,14 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="../IntegrationTest/Rideshare.csproj" />
+  <Project Path="Pyroscope.Benchmarks/Pyroscope.Benchmarks.csproj" />
+  <Project Path="Pyroscope.OpenTelemetry.Tests/Pyroscope.OpenTelemetry.Tests.csproj" />
+  <Project Path="Pyroscope.OpenTelemetry/Pyroscope.OpenTelemetry.csproj" />
+  <Project Path="Pyroscope.OpenTracing.Tests/Pyroscope.OpenTracing.Tests.csproj" />
+  <Project Path="Pyroscope.OpenTracing/Pyroscope.OpenTracing.csproj" />
+  <Project Path="Pyroscope/Pyroscope.csproj" />
+</Solution>
