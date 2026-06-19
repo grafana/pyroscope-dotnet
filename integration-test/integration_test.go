@@ -33,7 +33,12 @@ import (
 func startPyroscope(t *testing.T, net *dockertest.Network) string {
 	t.Helper()
 	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
-		Image:          "grafana/pyroscope@sha256:0ad897bb457228c7d1133ce7004f83052e635be9daf4a7cc90364317637e9754",
+		Image: "grafana/pyroscope:2.0.4@sha256:f96d546cc9e8f7ea6f483af737e6b5ba7581efa4de59a29cc0fdc50460fe2956",
+		Cmd: []string{
+			"-ingester.min-ready-duration", "0",
+			"-metastore.min-ready-duration", "0",
+			"-segment-writer.min-ready-duration", "0",
+		},
 		ExposedPorts:   []string{"4040/tcp"},
 		Network:        net.Name,
 		NetworkAliases: []string{"pyroscope"},
