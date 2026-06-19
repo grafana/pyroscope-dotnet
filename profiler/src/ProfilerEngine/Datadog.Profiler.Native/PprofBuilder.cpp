@@ -177,7 +177,7 @@ void PprofBuilder::AddTraceContext(const Sample& sample, google::v1::Sample* pSa
         uint64_t spanId{ctx._currentLocalRootSpanId};
         uint64_t traceId[2]{ctx._currentTraceIdHi, ctx._currentTraceIdLo};
         int64_t spanIdStr{AddHexString(std::as_bytes(std::span{&spanId, 1}))};
-        int64_t traceIdStr{AddHexString(std::as_bytes(std::span{&traceId, 2}))};//todo this should be caught by the test
+        int64_t traceIdStr{AddHexString(std::as_bytes(std::span{&traceId, 1}))};
         {
             auto* l = pSample->add_label();
             l->set_key(_span_id_str_index);
