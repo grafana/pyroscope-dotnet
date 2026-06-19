@@ -78,7 +78,8 @@ jobs:
           if ([string]::IsNullOrWhiteSpace($toolset)) {
             $toolset = Get-ChildItem "$vs\MSBuild\Microsoft\VC" -Directory -Filter 'v*' -ErrorAction SilentlyContinue |
               ForEach-Object { Get-ChildItem (Join-Path $_.FullName 'Platforms\x64\PlatformToolsets') -Directory -ErrorAction SilentlyContinue } |
-              Select-Object -ExpandProperty Name | Sort-Object -Unique | Sort-Object -Descending | Select-Object -First 1
+              Select-Object -ExpandProperty Name | Where-Object { $_ -match '^v\d+$' } | Sort-Object -Unique |
+              Sort-Object { [int]$_.Substring(1) } -Descending | Select-Object -First 1
           }
           if (-not $toolset) { throw "No PlatformToolset detected" }
 
