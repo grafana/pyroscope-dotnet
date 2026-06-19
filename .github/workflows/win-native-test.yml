@@ -1,0 +1,121 @@
+name: win-native-test
+
+# Throwaway experiment: can we build the Windows profiler on the windows-2025
+# (VS2026) image using the toolchain that ships natively, instead of spending
+# ~12 min installing v143 ATL + Windows SDK 10.0.19041 at runtime? It builds
+# with the newest installed PlatformToolset + Windows SDK (no install step) and
+# aligns the vcpkg static-link triplet to the same toolset via
+# VCPKG_TOOLSET_OVERRIDE. Delete the branch once we have an answer.
+
+on:
+  push:
+    branches: [aleks/win-native-sdk]
+  workflow_dispatch:
+    inputs:
+      platform_toolset:
+        description: 'PlatformToolset (blank = newest installed, e.g. v143/v144)'
+        required: false
+        default: ''
+      windows_sdk:
+        description: 'WindowsTargetPlatformVersion (blank = newest installed)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  build-native:
+    runs-on: windows-2025
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          submodules: 'true'
+          persist-credentials: false
+
+      - name: Inventory toolchain
+        shell: pwsh
+        run: |
+          $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
+          $vs = & "$installer\vswhere.exe" -latest -products * -property installationPath
+          Write-Host "== Visual Studio instances =="
+          & "$installer\vswhere.exe" -all -products * -property installationName
+          & "$installer\vswhere.exe" -all -products * -property catalog_productDisplayVersion
+          Write-Host "VS installationPath: $vs"
+          Write-Host "== PlatformToolsets available (x64) =="
+          Get-ChildItem "$vs\MSBuild\Microsoft\VC\v*\Platforms\x64\PlatformToolsets" -Directory -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty Name | Sort-Object -Unique
+          Write-Host "== MSVC tools versions + ATL presence =="
+          Get-ChildItem "$vs\VC\Tools\MSVC" -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            $atl = Test-Path "$($_.FullName)\atlmfc\include\atlbase.h"
+            Write-Host ("  {0}  ATL={1}" -f $_.Name, $atl)
+          }
+          Write-Host "== Windows 10 SDKs (Include dirs with um\windows.h) =="
+          Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\Include" -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            $has = Test-Path "$($_.FullName)\um\windows.h"
+            Write-Host ("  {0}  windows.h={1}" -f $_.Name, $has)
+          }
+
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ runner.temp }}\vcpkg-bincache
+          key: vcpkg-win-native-test-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'build/vcpkg_local_ports/**', 'build/vcpkg_triplets/**') }}
+          restore-keys: vcpkg-win-native-test-
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
+
+      - name: Detect native toolset + SDK
+        shell: pwsh
+        run: |
+          $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
+          $vs = & "$installer\vswhere.exe" -latest -products * -property installationPath
+
+          $toolset = '${{ inputs.platform_toolset }}'
+          if ([string]::IsNullOrWhiteSpace($toolset)) {
+            $toolset = Get-ChildItem "$vs\MSBuild\Microsoft\VC\v*\Platforms\x64\PlatformToolsets" -Directory -ErrorAction SilentlyContinue |
+              Select-Object -ExpandProperty Name | Sort-Object -Descending | Select-Object -First 1
+          }
+          if (-not $toolset) { throw "No PlatformToolset detected" }
+
+          $sdk = '${{ inputs.windows_sdk }}'
+          if ([string]::IsNullOrWhiteSpace($sdk)) {
+            $sdk = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\Include" -Directory -ErrorAction SilentlyContinue |
+              Where-Object { Test-Path "$($_.FullName)\um\windows.h" } |
+              Select-Object -ExpandProperty Name | Sort-Object -Descending | Select-Object -First 1
+          }
+          if (-not $sdk) { throw "No Windows SDK detected" }
+
+          Write-Host "Building with PlatformToolset=$toolset  WindowsTargetPlatformVersion=$sdk"
+          "WIN_TOOLSET=$toolset"            | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "WIN_SDK=$sdk"                    | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "VCPKG_TOOLSET_OVERRIDE=$toolset" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+
+      - name: Build profiler (native toolchain, no installs)
+        shell: pwsh
+        env:
+          VCPKG_DEFAULT_BINARY_CACHE: ${{ runner.temp }}\vcpkg-bincache
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
+          vcpkg integrate install
+          msbuild profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows\Datadog.Profiler.Native.Windows.vcxproj `
+            /p:Configuration=Release /p:Platform=x64 /p:VcpkgEnableManifest=true `
+            /p:PlatformToolset=$env:WIN_TOOLSET `
+            /p:WindowsTargetPlatformVersion=$env:WIN_SDK `
+            /m /v:m
+
+      - name: Verify artifact
+        shell: pwsh
+        run: |
+          $dll = "profiler\_build\bin\Release-x64\profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows\Pyroscope.Profiler.Native.dll"
+          if (-not (Test-Path $dll)) { throw "DLL not found: $dll" }
+          Get-Item $dll | Format-List Name, Length, LastWriteTime
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: pyroscope-profiler-windows-x64-native-test
+          path: profiler/_build/bin/Release-x64/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/Pyroscope.Profiler.Native.dll
+          if-no-files-found: error

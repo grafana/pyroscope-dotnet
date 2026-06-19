@@ -6,4 +6,11 @@
 set(VCPKG_TARGET_ARCHITECTURE x64)
 set(VCPKG_CRT_LINKAGE static)
 set(VCPKG_LIBRARY_LINKAGE static)
-set(VCPKG_PLATFORM_TOOLSET v143)
+# win-native-test experiment: let CI build the static link deps with the same
+# toolset we link the profiler with, so the __std_rotate mismatch above can't
+# reappear. Unset -> upstream v143 pin (current behavior).
+if(DEFINED ENV{VCPKG_TOOLSET_OVERRIDE} AND NOT "$ENV{VCPKG_TOOLSET_OVERRIDE}" STREQUAL "")
+    set(VCPKG_PLATFORM_TOOLSET "$ENV{VCPKG_TOOLSET_OVERRIDE}")
+else()
+    set(VCPKG_PLATFORM_TOOLSET v143)
+endif()
