@@ -13,7 +13,17 @@
 // every profile upload larger than ~1 KiB fails. Disable the behavior (0 = never)
 // so the body is always sent with the headers.
 #define CPPHTTPLIB_EXPECT_100_THRESHOLD 0
+#ifdef _MSC_VER
+// cpp-httplib's OpenSSL path trips C4996 (sscanf, and the library calling its own
+// [[deprecated]] TLS helpers), which /sdl elevates to errors. Suppress for this
+// third-party header only; our own code keeps the /sdl checks.
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
 #include "httplib.h"
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 #include "url.hpp"
 
 #define PYROSCOPE_SPY_VERSION "1.2.0" // x-release-please-version

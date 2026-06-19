@@ -211,6 +211,12 @@
     <ItemDefinitionGroup Condition=" '$(MSBuildProjectExtension)' == '.vcxproj' ">
       <ClCompile>
         <PreprocessorDefinitions>%(PreprocessorDefinitions);MICROSOFT_WINDOWS_WINBASE_H_DEFINE_INTERLOCKED_CPLUSPLUS_OVERLOADS=1</PreprocessorDefinitions>
+        <!-- PYROSCOPE_WINDOWS_NOTE: enable cpp-httplib's OpenSSL/TLS support (the Linux build sets
+             this in Datadog.Profiler.Native.Linux/CMakeLists.txt). Set globally so every TU that
+             includes httplib.h agrees on the layout - the header is header-only, so a per-project
+             mismatch would be an ODR/ABI bug. OpenSSL comes from vcpkg (see vcpkg.json). On
+             Windows cpp-httplib loads CA roots from the system cert store automatically. -->
+        <PreprocessorDefinitions>%(PreprocessorDefinitions);CPPHTTPLIB_OPENSSL_SUPPORT</PreprocessorDefinitions>
         <!-- PYROSCOPE_WINDOWS_NOTE: force-include winsock2.h before anything else. httplib.h (cpp-httplib)
              needs winsock2, and <windows.h> auto-includes winsock v1 unless winsock2 has set _WINSOCKAPI_
              first. WIN32_LEAN_AND_MEAN is the usual workaround but breaks <atlbase.h>. Force-include is

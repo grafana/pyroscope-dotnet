@@ -9,6 +9,8 @@
 #include "nlohmann/json.hpp"
 #include "gen/push/v1/push.pb.h"
 #include "gen/types/v1/types.pb.h"
+#include "shared/src/native-src/string.h"
+#include "shared/src/native-src/util.h"
 
 namespace
 {
@@ -42,6 +44,18 @@ PyroscopePprofSink::PyroscopePprofSink(
 {
     _client.set_connection_timeout(10);
     _client.set_read_timeout(10);
+
+    // Honor SSL_CERT_FILE for a custom/private CA. OpenSSL consults it via the
+    // default verify paths only on Unix (cpp-httplib's load_system_certs takes
+    // the Windows cert-store branch and never calls SSL_CTX_set_default_verify_paths),
+    // so wire it explicitly here for parity. Setting a CA path also makes
+    // cpp-httplib verify with OpenSSL alone, skipping its extra Windows Schannel
+    // check that wouldn't know about a privately-trusted CA.
+    auto caCertFile = shared::ToString(shared::GetEnvironmentValue(WStr("SSL_CERT_FILE")));
+    if (!caCertFile.empty())
+    {
+        _client.set_ca_cert_path(caCertFile);
+    }
 
 #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
     // OpenSSL 3.x flags a TLS connection closed without a close_notify alert as a
