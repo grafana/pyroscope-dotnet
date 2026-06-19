@@ -99,8 +99,7 @@ void GarbageCollectionProvider::OnGarbageCollectionEnd(
 
     RawGarbageCollectionSample rawSample;
     rawSample.Timestamp = std::chrono::nanoseconds(endTimestamp);
-    rawSample.LocalRootSpanId = 0;
-    rawSample.SpanId = 0;
+    rawSample.TraceContext = TraceContext{};
     rawSample.AppDomainId = (AppDomainID) nullptr;
     rawSample.ThreadInfo = nullptr;
 

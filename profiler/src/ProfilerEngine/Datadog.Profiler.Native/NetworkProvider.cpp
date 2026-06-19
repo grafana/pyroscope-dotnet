@@ -81,8 +81,7 @@ bool NetworkProvider::CaptureThreadInfo(NetworkRequestInfo& info)
     }
 
     info.AppDomainId = threadInfo->GetAppDomainId();
-    info.LocalRootSpanID = result->GetLocalRootSpanId();
-    info.SpanID = result->GetSpanId();
+    info.TraceContext = result->GetTraceContext();
     info.StartCallStack = result->GetCallstack();
     info.StartThreadInfo = std::move(threadInfo);
 
@@ -500,8 +499,7 @@ void NetworkProvider::FillRawSample(RawNetworkSample& sample, NetworkRequestInfo
     sample.Timestamp = timestamp;
     sample.Url = std::move(info.Url);
     sample.AppDomainId = info.AppDomainId;
-    sample.LocalRootSpanId = info.LocalRootSpanID;
-    sample.SpanId = info.SpanID;
+    sample.TraceContext = info.TraceContext;
     sample.Stack = std::move(info.StartCallStack);
     sample.ThreadInfo = std::move(info.StartThreadInfo);
     auto currentThreadInfo = ManagedThreadInfo::CurrentThreadInfo;

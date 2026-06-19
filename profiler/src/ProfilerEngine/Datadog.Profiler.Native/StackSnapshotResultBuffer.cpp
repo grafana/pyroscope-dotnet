@@ -10,8 +10,7 @@ using namespace std::chrono_literals;
 StackSnapshotResultBuffer::StackSnapshotResultBuffer() :
     _unixTimeUtc{0},
     _representedDuration{0},
-    _localRootSpanId{0},
-    _spanId{0},
+    _traceContext{},
     _callstack{}
 {
 }
@@ -20,15 +19,13 @@ StackSnapshotResultBuffer::~StackSnapshotResultBuffer()
 {
     _unixTimeUtc = 0ns;
     _representedDuration = 0ns;
-    _localRootSpanId = 0;
-    _spanId = 0;
+    _traceContext = TraceContext{};
     _tags.ClearAll();
 }
 
 void StackSnapshotResultBuffer::Reset()
 {
-    _localRootSpanId = 0;
-    _spanId = 0;
+    _traceContext = TraceContext{};
     _representedDuration = 0ns;
     _unixTimeUtc = 0ns;
     _callstack = {};

@@ -212,8 +212,7 @@ void ContentionProvider::AddContentionSample(
 
         result->SetUnixTimeUtc(GetCurrentTimestamp());
 
-        rawSample.LocalRootSpanId = result->GetLocalRootSpanId();
-        rawSample.SpanId = result->GetSpanId();
+        rawSample.TraceContext = result->GetTraceContext();
         rawSample.AppDomainId = threadInfo->GetAppDomainId();
         rawSample.Timestamp = result->GetUnixTimeUtc();
         rawSample.Stack = result->GetCallstack();

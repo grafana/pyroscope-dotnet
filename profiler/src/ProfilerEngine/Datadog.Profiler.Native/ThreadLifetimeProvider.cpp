@@ -30,8 +30,7 @@ RawThreadLifetimeSample ThreadLifetimeProvider::CreateSample(std::shared_ptr<Man
 {
     RawThreadLifetimeSample rawSample;
     rawSample.Timestamp = OpSysTools::GetHighPrecisionTimestamp();
-    rawSample.LocalRootSpanId = 0;
-    rawSample.SpanId = 0;
+    rawSample.TraceContext = TraceContext{};
     rawSample.AppDomainId = pThreadInfo->GetAppDomainId();
     rawSample.ThreadInfo = std::move(pThreadInfo);
     rawSample.Kind = kind;

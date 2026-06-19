@@ -9,11 +9,9 @@ using namespace std::chrono_literals;
 
 NetworkRequestInfo::NetworkRequestInfo(std::string url, std::chrono::nanoseconds timestamp)
     :
-    NetworkRequestCommon(std::move(url), timestamp)
+    NetworkRequestCommon(std::move(url), timestamp), TraceContext{}
 {
     AppDomainId = 0;
-    LocalRootSpanID = 0;
-    SpanID = 0;
     DnsResolutionSuccess = false;
     Redirect = nullptr;
 }
@@ -29,8 +27,7 @@ NetworkRequestInfo& NetworkRequestInfo::operator=(NetworkRequestInfo&& other) no
     {
         NetworkRequestCommon::operator=(std::move(other));
         AppDomainId = other.AppDomainId;
-        LocalRootSpanID = other.LocalRootSpanID;
-        SpanID = other.SpanID;
+        TraceContext = other.TraceContext;
         DnsResolutionSuccess = other.DnsResolutionSuccess;
         HandshakeError = std::move(other.HandshakeError);
         Error = std::move(other.Error);

@@ -117,8 +117,6 @@ bool StackFramesCollectorBase::TryApplyTraceContextDataFromCurrentCollectionThre
 {
     if (_isCIVisibilityEnabled && _ciVisibilitySpanId > 0)
     {
-        _pStackSnapshotResult->SetLocalRootSpanId(_ciVisibilitySpanId);
-        _pStackSnapshotResult->SetSpanId(_ciVisibilitySpanId);
         return true;
     }
 
@@ -131,9 +129,7 @@ bool StackFramesCollectorBase::TryApplyTraceContextDataFromCurrentCollectionThre
 
     _pStackSnapshotResult->GetTags().AsyncSafeCopy(pCurrentCollectionThreadInfo->GetTags());
 
-    auto [localRootSpanId, spanId] = pCurrentCollectionThreadInfo->GetTracingContext();
-    _pStackSnapshotResult->SetLocalRootSpanId(localRootSpanId);
-    _pStackSnapshotResult->SetSpanId(spanId);
+    _pStackSnapshotResult->SetTraceContext(pCurrentCollectionThreadInfo->GetTracingContext());
 
     return true;
 }

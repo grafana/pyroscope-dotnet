@@ -29,13 +29,27 @@ using dd_mutex_t = std::mutex;
 static constexpr int32_t MinFieldAlignRequirement = 8;
 static constexpr int32_t FieldAlignRequirement = (MinFieldAlignRequirement >= alignof(std::uint64_t)) ? MinFieldAlignRequirement : alignof(std::uint64_t);
 
+struct alignas(FieldAlignRequirement) TraceContext
+{
+    std::uint64_t _currentLocalRootSpanId;
+    std::uint64_t _currentTraceIdHi;
+    std::uint64_t _currentTraceIdLo;
+};
+
 struct alignas(FieldAlignRequirement) TraceContextTrackingInfo
 {
-public:
     std::uint64_t _writeGuard;
-    std::uint64_t _currentLocalRootSpanId;
-    std::uint64_t _currentSpanId;
+    TraceContext _context;
 };
+
+// managed code relies on this structure layout
+static_assert(sizeof(TraceContextTrackingInfo) == 32);
+static_assert(offsetof(TraceContextTrackingInfo, _writeGuard) == 0);
+static_assert(offsetof(TraceContextTrackingInfo, _context) == 8);
+static_assert(sizeof(TraceContext) == 24);
+static_assert(offsetof(TraceContext, _currentLocalRootSpanId) == 0);
+static_assert(offsetof(TraceContext, _currentTraceIdHi) == 8);
+static_assert(offsetof(TraceContext, _currentTraceIdLo) == 16);
 
 
 enum class ContentionType {
@@ -117,7 +131,7 @@ public:
 
     inline AppDomainID GetAppDomainId();
 
-    inline std::pair<std::uint64_t, std::uint64_t> GetTracingContext() const;
+    inline TraceContext GetTracingContext() const;
 
     inline google::javaprofiler::Tags& GetTags();
 
@@ -402,9 +416,9 @@ inline bool ManagedThreadInfo::HasTraceContext() const
 {
     if (CanReadTraceContext())
     {
-        auto [localRootSpanId, spanId] = GetTracingContext();
+        const auto context = GetTracingContext();
 
-        return localRootSpanId != 0 && spanId != 0;
+        return context._currentLocalRootSpanId != 0 && context._currentTraceIdHi != 0 && context._currentTraceIdLo != 0;
     }
     return false;
 }
@@ -457,18 +471,18 @@ inline AppDomainID ManagedThreadInfo::GetAppDomainId()
     return 0;
 }
 
-inline std::pair<std::uint64_t, std::uint64_t> ManagedThreadInfo::GetTracingContext() const
+inline TraceContext ManagedThreadInfo::GetTracingContext() const
 {
-    std::uint64_t localRootSpanId = 0;
-    std::uint64_t spanId = 0;
-
     if (CanReadTraceContext())
     {
-        localRootSpanId = _traceContext._currentLocalRootSpanId;
-        spanId = _traceContext._currentSpanId;
+        return this->_traceContext._context;
     }
 
-    return {localRootSpanId, spanId};
+    return TraceContext{
+        ._currentLocalRootSpanId = 0,
+        ._currentTraceIdHi = 0,
+        ._currentTraceIdLo = 0,
+    };
 }
 
 inline size_t ManagedThreadInfo::GetMemorySize() const

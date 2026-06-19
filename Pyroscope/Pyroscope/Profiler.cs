@@ -19,9 +19,15 @@ namespace Pyroscope
             get { return LazyInitializer.EnsureInitialized(ref _instance, Create); }
         }
 
+        [Obsolete("Use SetSpanContext(ulong localRootSpanId, ulong traceIdHi, ulong traceIdLo) instead.")]
         public void SetProfileId(ulong profileId)
         {
-            _contextTracker.Set(profileId, 0);
+            _contextTracker.Set(profileId, 0, 0);
+        }
+
+        public void SetSpanContext(ulong localRootSpanId, ulong traceIdHi, ulong traceIdLo)
+        {
+            _contextTracker.Set(localRootSpanId, traceIdHi, traceIdLo);
         }
 
         public void SetDynamicTags(Dictionary<string, string> tags)
@@ -32,13 +38,14 @@ namespace Pyroscope
                 SetDynamicTag(key, value);
             }
         }
-        
+
         public void SetDynamicTag(string key, string value)
         {
             if (_dllNotFound)
             {
                 return;
             }
+
             try
             {
                 NativeInterop.SetDynamicTag(key, value);
@@ -49,13 +56,14 @@ namespace Pyroscope
                 _dllNotFound = true;
             }
         }
-        
+
         public void ClearDynamicTags()
         {
             if (_dllNotFound)
             {
                 return;
             }
+
             try
             {
                 NativeInterop.ClearDynamicTags();
@@ -78,6 +86,7 @@ namespace Pyroscope
             {
                 return;
             }
+
             try
             {
                 NativeInterop.SetCPUTrackingEnabled(enabled);
@@ -99,6 +108,7 @@ namespace Pyroscope
             {
                 return;
             }
+
             try
             {
                 NativeInterop.SetAllocationTrackingEnabled(enabled);
@@ -120,6 +130,7 @@ namespace Pyroscope
             {
                 return;
             }
+
             try
             {
                 NativeInterop.SetContentionTrackingEnabled(enabled);
@@ -141,6 +152,7 @@ namespace Pyroscope
             {
                 return;
             }
+
             try
             {
                 NativeInterop.SetExceptionTrackingEnabled(enabled);
@@ -158,6 +170,7 @@ namespace Pyroscope
             {
                 return;
             }
+
             try
             {
                 NativeInterop.SetAuthToken(authToken);
@@ -175,6 +188,7 @@ namespace Pyroscope
             {
                 return;
             }
+
             try
             {
                 NativeInterop.SetBasicAuth(username, password);
@@ -186,10 +200,12 @@ namespace Pyroscope
             }
         }
 
-        private static void DllNotFound(DllNotFoundException ex) {
-            Console.WriteLine($"[Profiler] Failed to load Pyroscope.Profiler.Native.so : {ex}.\nConsider setting LD_LIBRARY_PATH pointing to the directory containing the Pyroscope.Profiler.Native.so");
+        private static void DllNotFound(DllNotFoundException ex)
+        {
+            Console.WriteLine(
+                $"[Profiler] Failed to load Pyroscope.Profiler.Native.so : {ex}.\nConsider setting LD_LIBRARY_PATH pointing to the directory containing the Pyroscope.Profiler.Native.so");
         }
-        
+
         private readonly ContextTracker _contextTracker;
         private bool _dllNotFound;
 

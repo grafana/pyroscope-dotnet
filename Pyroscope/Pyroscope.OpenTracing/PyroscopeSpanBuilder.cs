@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using OpenTracing;
 using OpenTracing.Tag;
 
@@ -43,19 +44,60 @@ public class PyroscopeSpanBuilder : ISpanBuilder
         {
             return;
         }
+
         try
         {
-            var spanId = span.Context.SpanId;
-            var spanIdLong = Convert.ToUInt64(spanId.ToUpper(), 16);
+            TryConvertSpanContext(
+                span.Context,
+                out var localRootSpanId,
+                out var traceIdHi,
+                out var traceIdLo);
 
-            Profiler.Instance.SetProfileId(spanIdLong);
-            span.SetTag(ProfileIdSpanTagKey, spanId);
+            Profiler.Instance.SetSpanContext(localRootSpanId, traceIdHi, traceIdLo);
+            span.SetTag(ProfileIdSpanTagKey, span.Context.SpanId);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Caught exception while setting profile id in profiler instance: {ex.Message}");
         }
     }
+
+    internal static void TryConvertSpanContext(
+        ISpanContext context,
+        out ulong localRootSpanId,
+        out ulong traceIdHi,
+        out ulong traceIdLo)
+    {
+        localRootSpanId = 0;
+        traceIdHi = 0;
+        traceIdLo = 0;
+
+        if (context.SpanId is not { Length: 16 } spanId ||
+            context.TraceId is not { Length: 32 } traceId)
+        {
+            return;
+        }
+
+        Span<ulong> spanIdBuf = stackalloc ulong[1];
+        Span<ulong> traceIdBuf = stackalloc ulong[2];
+        var spanIdBytes = MemoryMarshal.Cast<ulong, byte>(spanIdBuf);
+        var traceIdBytes = MemoryMarshal.Cast<ulong, byte>(traceIdBuf);
+
+        try
+        {
+            Convert.FromHexString(spanId).CopyTo(spanIdBytes);
+            Convert.FromHexString(traceId).CopyTo(traceIdBytes);
+        }
+        catch (FormatException)
+        {
+            return;
+        }
+
+        localRootSpanId = spanIdBuf[0];
+        traceIdHi = traceIdBuf[0];
+        traceIdLo = traceIdBuf[1];
+    }
+
 
     public ISpanBuilder AsChildOf(ISpan parent)
     {
@@ -153,7 +195,7 @@ public class PyroscopeSpanBuilder : ISpanBuilder
             _delegate.Dispose();
             if (_parent == null)
             {
-                Profiler.Instance.SetProfileId(0); // TODO: Replace with ResetContext()
+                Profiler.Instance.SetSpanContext(0, 0, 0);
                 return;
             }
         }

@@ -573,8 +573,7 @@ void StackSamplerLoop::PersistStackSnapshotResults(
         // add the WallTime sample to the lipddprof pipeline
         RawWallTimeSample rawSample;
         rawSample.Timestamp = pSnapshotResult->GetUnixTimeUtc();
-        rawSample.LocalRootSpanId = pSnapshotResult->GetLocalRootSpanId();
-        rawSample.SpanId = pSnapshotResult->GetSpanId();
+        rawSample.TraceContext = pSnapshotResult->GetTraceContext();
         rawSample.AppDomainId = pThreadInfo->GetAppDomainId();
         rawSample.Stack = std::move(callstack);
         rawSample.ThreadInfo = pThreadInfo;
@@ -588,8 +587,7 @@ void StackSamplerLoop::PersistStackSnapshotResults(
         // add the CPU sample to the lipddprof pipeline if needed
         RawCpuSample rawCpuSample;
         rawCpuSample.Timestamp = pSnapshotResult->GetUnixTimeUtc();
-        rawCpuSample.LocalRootSpanId = pSnapshotResult->GetLocalRootSpanId();
-        rawCpuSample.SpanId = pSnapshotResult->GetSpanId();
+        rawCpuSample.TraceContext = pSnapshotResult->GetTraceContext();
         rawCpuSample.AppDomainId = pThreadInfo->GetAppDomainId();
         rawCpuSample.Stack = std::move(callstack);
         rawCpuSample.ThreadInfo = pThreadInfo;

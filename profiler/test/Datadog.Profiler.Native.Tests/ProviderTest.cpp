@@ -58,8 +58,11 @@ RawWallTimeSample GetWallTimeRawSample(
     raw.Timestamp = std::chrono::nanoseconds(timeStamp);
     raw.Duration = std::chrono::nanoseconds(duration);
     raw.AppDomainId = appDomainId;
-    raw.LocalRootSpanId = traceId;
-    raw.SpanId = spanId;
+    raw.TraceContext = TraceContext{
+        ._currentLocalRootSpanId = traceId,
+        ._currentTraceIdHi = 0,
+        ._currentTraceIdLo = spanId,
+    };
 
     raw.Stack = callstackProvider.Get();
     for (size_t i = 0; i < frameCount; i++)
@@ -85,8 +88,11 @@ RawCpuSample GetRawCpuSample(
     raw.Timestamp = std::chrono::nanoseconds(timeStamp);
     raw.Duration = std::chrono::nanoseconds(duration); // in nanoseconds
     raw.AppDomainId = appDomainId;
-    raw.LocalRootSpanId = traceId;
-    raw.SpanId = spanId;
+    raw.TraceContext = TraceContext{
+        ._currentLocalRootSpanId = traceId,
+        ._currentTraceIdHi = 0,
+        ._currentTraceIdLo = spanId,
+    };
 
     raw.Stack = callstackProvider.Get();
     for (size_t i = 0; i < frameCount; i++)

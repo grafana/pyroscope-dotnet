@@ -33,8 +33,7 @@ void StopTheWorldGCProvider::OnSuspension(std::chrono::nanoseconds timestamp, in
 {
     RawStopTheWorldSample rawSample;
     rawSample.Timestamp = timestamp;
-    rawSample.LocalRootSpanId = 0;
-    rawSample.SpanId = 0;
+    rawSample.TraceContext = TraceContext{};
     rawSample.AppDomainId = (AppDomainID)nullptr;
     rawSample.ThreadInfo = nullptr;
 

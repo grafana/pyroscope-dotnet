@@ -28,13 +28,8 @@ void RawSampleTransformer::Transform(const RawSample& rawSample, std::shared_ptr
 
     sample->SetRuntimeId(runtimeId == nullptr ? std::string_view() : std::string_view(runtimeId));
     sample->SetTimestamp(rawSample.Timestamp);
+    sample->SetTraceContext(rawSample.TraceContext); // todo handle
 
-    if (rawSample.LocalRootSpanId != 0)
-    {
-        std::stringstream profile_id;
-        profile_id << std::hex << std::setw(16) << std::setfill('0') << rawSample.LocalRootSpanId;
-        sample->AddLabel(StringLabel{Sample::ProfileIdLabel, profile_id.str()});//todo there is no need for refcounted string here
-    }
     for (auto &tag: rawSample.Tags.GetAll()) {
         sample->AddLabel(StringLabel{tag.first, tag.second});
     }
@@ -66,8 +61,9 @@ void RawSampleTransformer::SetThreadDetails(const RawSample& rawSample, std::sha
         // --> if everything is empty
 
         if (
-            (rawSample.LocalRootSpanId == 0) &&
-            (rawSample.SpanId == 0) &&
+            (rawSample.TraceContext._currentLocalRootSpanId == 0) &&
+            (rawSample.TraceContext._currentTraceIdHi == 0) &&
+            (rawSample.TraceContext._currentTraceIdLo == 0) &&
             (rawSample.AppDomainId == 0) &&
             (rawSample.Stack.Size() == 0))
         {

@@ -14,6 +14,7 @@
 
 #include "Callstack.h"
 #include "IThreadInfo.h"
+#include "ManagedThreadInfo.h"
 #include "SampleValueTypeProvider.h"
 
 class Sample;
@@ -36,8 +37,7 @@ public:
 public:
     std::chrono::nanoseconds Timestamp;
     AppDomainID AppDomainId;
-    std::uint64_t LocalRootSpanId;  // _localRootSpanId;
-    std::uint64_t SpanId;           // _spanId;
+    TraceContext TraceContext;
     std::shared_ptr<IThreadInfo> ThreadInfo;
 
     google::javaprofiler::Tags Tags;
