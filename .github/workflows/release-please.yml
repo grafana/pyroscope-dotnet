@@ -30,6 +30,12 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
           target-branch: main
+          skip-github-pull-request: >-
+            ${{
+              contains(github.event.head_commit.message, 'chore(main): release opentelemetry') ||
+              contains(github.event.head_commit.message, 'chore(main): release opentracing') ||
+              contains(github.event.head_commit.message, 'chore(main): release pyroscope')
+            }}
 
   build-profiler:
     permissions:
