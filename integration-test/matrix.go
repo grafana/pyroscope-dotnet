@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"sync"
 	"testing"
+	"time"
 )
 
 func envOrDefault(key, defaultValue string) string {
@@ -85,20 +86,30 @@ func ensureProfilerImage(t *testing.T, libcType string) {
 	pb := val.(*profilerBuildResult)
 	pb.once.Do(func() {
 		tag := profilerImageTag(libcType)
-		t.Logf("building profiler image %s ...", tag)
-		cmd := exec.Command("docker", "build",
-			"--platform", "linux/amd64",
-			"-t", tag,
-			"-f", filepath.Join(repoRoot(), profilerDockerfile(libcType)),
-			"--build-arg", "CMAKE_BUILD_TYPE=Debug",
-			repoRoot(),
-		)
-		out, err := cmd.CombinedOutput()
-		if err != nil {
+		// Retry the build: cold CI builds re-fetch every apt package from
+		// deb.debian.org, which intermittently resets the connection.
+		const maxAttempts = 3
+		for attempt := 1; attempt <= maxAttempts; attempt++ {
+			t.Logf("building profiler image %s (attempt %d/%d) ...", tag, attempt, maxAttempts)
+			cmd := exec.Command("docker", "build",
+				"--platform", "linux/amd64",
+				"-t", tag,
+				"-f", filepath.Join(repoRoot(), profilerDockerfile(libcType)),
+				"--build-arg", "CMAKE_BUILD_TYPE=Debug",
+				repoRoot(),
+			)
+			out, err := cmd.CombinedOutput()
+			if err == nil {
+				pb.err = nil
+				t.Logf("profiler image %s built successfully", tag)
+				return
+			}
 			pb.err = fmt.Errorf("failed to build profiler image %s: %w\n%s", tag, err, out)
-			return
+			if attempt < maxAttempts {
+				t.Logf("profiler image %s build attempt %d/%d failed, retrying: %v", tag, attempt, maxAttempts, err)
+				time.Sleep(5 * time.Second)
+			}
 		}
-		t.Logf("profiler image %s built successfully", tag)
 	})
 	if pb.err != nil {
 		t.Fatal(pb.err)
