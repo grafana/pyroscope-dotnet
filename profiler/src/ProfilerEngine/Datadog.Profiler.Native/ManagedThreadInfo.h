@@ -42,10 +42,11 @@ struct alignas(FieldAlignRequirement) TraceContextTrackingInfo
     TraceContext _context;
 };
 
-static_assert(sizeof(TraceContext) == 24);
+// managed code relies on this structure layout
+static_assert(sizeof(TraceContextTrackingInfo) == 32);
 static_assert(offsetof(TraceContextTrackingInfo, _writeGuard) == 0);
 static_assert(offsetof(TraceContextTrackingInfo, _context) == 8);
-static_assert(sizeof(TraceContextTrackingInfo) == 32);
+static_assert(sizeof(TraceContext) == 24);
 static_assert(offsetof(TraceContext, _currentLocalRootSpanId) == 0);
 static_assert(offsetof(TraceContext, _currentTraceIdHi) == 8);
 static_assert(offsetof(TraceContext, _currentTraceIdLo) == 16);
