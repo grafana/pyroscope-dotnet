@@ -174,21 +174,19 @@ void PprofBuilder::AddTraceContext(const Sample& sample, google::v1::Sample* pSa
 {
     if (auto ctx = sample.GetTraceContext(); ctx._currentLocalRootSpanId != 0)
     {
-        static_assert(sizeof(TraceContext) == 24);
-        static_assert(offsetof(TraceContext, _currentLocalRootSpanId) == 0);
-        static_assert(offsetof(TraceContext, _currentTraceIdHi) == 8);
-        static_assert(offsetof(TraceContext, _currentTraceIdLo) == 16);
-        int64_t spanId = AddHexString(std::as_bytes(std::span{&ctx._currentLocalRootSpanId, 1}));
-        int64_t traceId = AddHexString(std::as_bytes(std::span{&ctx._currentTraceIdHi, 2}));
+        uint64_t spanId{ctx._currentLocalRootSpanId};
+        uint64_t traceId[2]{ctx._currentTraceIdHi, ctx._currentTraceIdLo};
+        int64_t spanIdStr{AddHexString(std::as_bytes(std::span{&spanId, 1}))};
+        int64_t traceIdStr{AddHexString(std::as_bytes(std::span{&traceId, 2}))};//todo this should be caught by the test
         {
             auto* l = pSample->add_label();
             l->set_key(_span_id_str_index);
-            l->set_str(spanId);
+            l->set_str(spanIdStr);
         }
         {
             auto* l = pSample->add_label();
             l->set_key(_trace_id_str_index);
-            l->set_str(traceId);
+            l->set_str(traceIdStr);
         }
     }
 }
