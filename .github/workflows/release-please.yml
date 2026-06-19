@@ -101,7 +101,7 @@ jobs:
       - name: Publish to nuget.org
         env:
           NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
-        run: dotnet nuget push ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg -s https://api.nuget.org/v3/index.json
+        run: dotnet nuget push ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg -k "$NUGET_API_KEY" -s https://api.nuget.org/v3/index.json
 
   build-profiler-windows:
     permissions:
@@ -221,7 +221,7 @@ jobs:
           zip -j "$archive" \
             windows-signed/Pyroscope.Profiler.Native.dll \
             windows-signed/Pyroscope.Profiler.Native.pdb
-          gh release upload --clobber "$TAG" "$archive"
+          gh release upload --clobber "$TAG" "$archive" --repo "$GITHUB_REPOSITORY"
 
   publish-pyroscope-release:
     permissions:
