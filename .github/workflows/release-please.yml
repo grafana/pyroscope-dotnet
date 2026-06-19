@@ -99,7 +99,9 @@ jobs:
         with:
           user: Pyroscope
       - name: Publish to nuget.org
-        run: dotnet nuget push ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg -k "${{ steps.nuget-login.outputs.NUGET_API_KEY }}" -s https://api.nuget.org/v3/index.json
+        env:
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push ./Pyroscope/artifacts/package/release/Pyroscope*.nupkg -s https://api.nuget.org/v3/index.json
 
   build-profiler-windows:
     permissions:
