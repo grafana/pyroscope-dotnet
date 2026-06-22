@@ -1,5 +1,8 @@
 FROM debian:bullseye-20260406@sha256:bf53effcacca31b60ce97dabc67578f37e43075d716dc90804d3da3a80d2996c AS builder
 
+# deb.debian.org (Fastly) intermittently resets connections on cold CI builds; retry apt fetches.
+RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries
+
 RUN apt-get update && apt-get -y install cmake make git curl golang libtool wget perl
 
 # Build OpenSSL from source with static libs
