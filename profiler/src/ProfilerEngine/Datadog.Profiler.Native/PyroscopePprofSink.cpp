@@ -14,11 +14,23 @@
 
 namespace
 {
+constexpr std::string_view LabelScopeName = "otel.scope.name";
+constexpr std::string_view LabelScopeVersion = "otel.scope.version";
+constexpr std::string_view LabelProcessRuntimeName = "process.runtime.name";
+constexpr std::string_view LabelProcessRuntimeVersion = "process.runtime.version";
+
 std::string BuildPushPath(const Url& url)
 {
     Url pushUrl;
     pushUrl.path(url.path() + "/push.v1.PusherService/Push");
     return pushUrl.str();
+}
+
+void AddLabel(push::v1::RawProfileSeries* series, std::string_view name, std::string_view value)
+{
+    auto* label = series->add_labels();
+    label->set_name(std::string(name));
+    label->set_value(std::string(value));
 }
 }
 
@@ -30,8 +42,10 @@ PyroscopePprofSink::PyroscopePprofSink(
     std::string basicAuthPassword,
     std::string tenantID,
     std::map<std::string, std::string> extraHeaders,
+    PyroscopeSemanticLabels semanticLabels,
     const std::vector<std::pair<std::string, std::string>>& staticTags) :
     _appName(appName),
+    _semanticLabels(std::move(semanticLabels)),
     _staticTags(staticTags),
     _url(server),
     _authToken(authToken),
@@ -163,6 +177,11 @@ void PyroscopePprofSink::upload(Pprof pprof)
     auto* spyLabel = series->add_labels();
     spyLabel->set_name("spy_name");
     spyLabel->set_value("dotnetspy");
+
+    AddLabel(series, LabelScopeName, _semanticLabels.ScopeName);
+    AddLabel(series, LabelScopeVersion, _semanticLabels.ScopeVersion);
+    AddLabel(series, LabelProcessRuntimeName, _semanticLabels.RuntimeName);
+    AddLabel(series, LabelProcessRuntimeVersion, _semanticLabels.RuntimeVersion);
 
     for (const auto& tag : _staticTags)
     {

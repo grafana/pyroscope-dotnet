@@ -26,7 +26,17 @@
 #endif
 #include "url.hpp"
 
+#include <string>
+
 #define PYROSCOPE_SPY_VERSION "1.3.0" // x-release-please-version
+
+struct PyroscopeSemanticLabels
+{
+    std::string ScopeName;
+    std::string ScopeVersion;
+    std::string RuntimeName;
+    std::string RuntimeVersion;
+};
 
 class PyroscopePprofSink : public PProfExportSink
 {
@@ -38,6 +48,7 @@ public:
                        std::string basicAuthUser,
                        std::string basicAuthPassword,
                        std::map<std::string, std::string> extraHeaders,
+                       PyroscopeSemanticLabels semanticLabels,
                        const std::vector<std::pair<std::string, std::string>>& staticTags);
     ~PyroscopePprofSink() override;
     void Export(std::vector<Pprof> pprofs) override;
@@ -58,6 +69,7 @@ private:
     httplib::Headers getHeaders();
 
     std::string _appName;
+    PyroscopeSemanticLabels _semanticLabels;
     std::vector<std::pair<std::string, std::string>> _staticTags;
     Url _url;
     httplib::Client _client;
