@@ -116,30 +116,52 @@ jobs:
           ref: ${{ needs.release-please.outputs.pyroscope_sha }}
           submodules: 'true'
           persist-credentials: false
-      # The vcxprojs pin the upstream toolchain (v143 + SDK 10.0.19041). The
-      # windows-2025 (VS2026) image ships the v143 compilers but neither v143
-      # ATL nor that SDK. ATL is added via the VS installer using the checked-in
-      # build/windows.vsconfig component list; SDK 10.0.19041 is no longer in the
-      # VS2026 installer catalog, so it comes from the standalone installer.
-      - name: Install v143 ATL + Windows SDK 10.0.19041
-        run: |
-          $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
-          $vs = & "$installer\vswhere.exe" -latest -products '*' -property installationPath
-          $p = Start-Process -FilePath "$installer\setup.exe" -Wait -PassThru -ArgumentList `
-            'modify', '--installPath', "`"$vs`"", `
-            '--config', "`"$env:GITHUB_WORKSPACE\build\windows.vsconfig`"", `
-            '--quiet', '--norestart', '--noUpdateInstaller'
-          if ($p.ExitCode -notin 0, 3010) { throw "VS setup modify failed (exit $($p.ExitCode))" }
-          $atl = Get-ChildItem "$vs\VC\Tools\MSVC\14.4*\atlmfc\include\atlbase.h" -ErrorAction SilentlyContinue
-          if (-not $atl) { throw "v143 ATL still missing after modify" }
-          choco install windows-sdk-10-version-2004-all -y --no-progress
-          if (-not (Test-Path "${env:ProgramFiles(x86)}\Windows Kits\10\Include\10.0.19041.0\um\windows.h")) { throw "SDK 10.0.19041 still missing after install" }
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ runner.temp }}\vcpkg-bincache
+          key: vcpkg-windows-x64-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'build/vcpkg_local_ports/**', 'build/vcpkg_triplets/**') }}
+          restore-keys: vcpkg-windows-x64-
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
-      - name: Build profiler (Release x64)
+      # The vcxprojs pin v143 + SDK 10.0.19041, but the windows-2025 image (now
+      # VS2026) ships neither: installing them at runtime cost ~12 min. Instead
+      # build with the newest toolset + SDK the image actually ships, detected
+      # here and overridden via /p: so the upstream vcxprojs stay untouched.
+      # VCPKG_TOOLSET_OVERRIDE makes vcpkg build the static deps with the same
+      # toolset we link against (see build/vcpkg_triplets/x64-windows-static.cmake).
+      # The vcpkg cache (key shared with the Windows CI workflow) restores the
+      # openssl + protobuf builds; a miss just rebuilds them from source.
+      - name: Detect native toolset + SDK
+        shell: pwsh
         run: |
+          $installer = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer"
+          $vs = & "$installer\vswhere.exe" -latest -products * -property installationPath
+          $toolset = Get-ChildItem "$vs\MSBuild\Microsoft\VC" -Directory -Filter 'v*' -ErrorAction SilentlyContinue |
+            ForEach-Object { Get-ChildItem (Join-Path $_.FullName 'Platforms\x64\PlatformToolsets') -Directory -ErrorAction SilentlyContinue } |
+            Select-Object -ExpandProperty Name | Where-Object { $_ -match '^v\d+$' } | Sort-Object -Unique |
+            Sort-Object { [int]$_.Substring(1) } -Descending | Select-Object -First 1
+          if (-not $toolset) { throw "No MSVC PlatformToolset found" }
+          $sdk = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\Include" -Directory -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path "$($_.FullName)\um\windows.h" } |
+            Select-Object -ExpandProperty Name | Sort-Object -Descending | Select-Object -First 1
+          if (-not $sdk) { throw "No Windows SDK found" }
+          Write-Host "Building with PlatformToolset=$toolset  WindowsTargetPlatformVersion=$sdk"
+          "WIN_TOOLSET=$toolset"            | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "WIN_SDK=$sdk"                    | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "VCPKG_TOOLSET_OVERRIDE=$toolset" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+      - name: Build profiler (Release x64)
+        shell: pwsh
+        env:
+          VCPKG_DEFAULT_BINARY_CACHE: ${{ runner.temp }}\vcpkg-bincache
+        run: |
+          New-Item -ItemType Directory -Force -Path $env:VCPKG_DEFAULT_BINARY_CACHE | Out-Null
           vcpkg integrate install
-          msbuild profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows\Datadog.Profiler.Native.Windows.vcxproj /p:Configuration=Release /p:Platform=x64 /p:VcpkgEnableManifest=true /m /v:m
+          msbuild profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows\Datadog.Profiler.Native.Windows.vcxproj `
+            /p:Configuration=Release /p:Platform=x64 /p:VcpkgEnableManifest=true `
+            /p:PlatformToolset=$env:WIN_TOOLSET `
+            /p:WindowsTargetPlatformVersion=$env:WIN_SDK `
+            /m /v:m
       - name: Stage artifacts
         run: |
           $bin = "profiler\_build\bin\Release-x64\profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows"
