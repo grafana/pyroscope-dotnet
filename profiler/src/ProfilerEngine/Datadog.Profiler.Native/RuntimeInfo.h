@@ -16,6 +16,8 @@ public:
     uint16_t GetMinorVersion() const override;
     std::string GetOs() const override;
     std::string GetClrString() const override;
+    std::string GetRuntimeName() const override;
+    std::string GetRuntimeVersion() const override;
     void SetMinorVersions(uint16_t minor, uint16_t build, uint16_t reviews) override;
 
 private:

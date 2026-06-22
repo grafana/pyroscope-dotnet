@@ -662,6 +662,11 @@ void CorProfilerCallback::InitializeServices()
         _pConfiguration->PyroscopeBasicAuthPassword(),
         _pConfiguration->PyroscopeTenantID(),
         PyroscopePprofSink::ParseHeadersJSON(std::move(_pConfiguration->PyroscopeHttpHeaders())),
+        PyroscopeSemanticLabels{
+            .ScopeName = "com.grafana.pyroscope/dotnet",
+            .ScopeVersion = PROFILER_VERSION,
+            .RuntimeName = _pRuntimeInfo->GetRuntimeName(),
+            .RuntimeVersion = _pRuntimeInfo->GetRuntimeVersion()},
         _pConfiguration->GetUserTags());
     _pExporter = std::make_unique<PprofExporter>(_pApplicationStore,
                                                  _pyroscopePprofSink,

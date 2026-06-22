@@ -69,3 +69,29 @@ std::string RuntimeInfo::GetClrString() const
 
     return buffer.str();
 }
+
+std::string RuntimeInfo::GetRuntimeName() const
+{
+    if (_isFramework)
+    {
+        return ".NET Framework";
+    }
+
+    return ".NET";
+}
+
+std::string RuntimeInfo::GetRuntimeVersion() const
+{
+    std::stringstream buffer;
+    buffer << std::dec << _major << "." << _minor;
+    if (_build > 0 || _reviews > 0)
+    {
+        buffer << "." << _build;
+    }
+    if (_reviews > 0)
+    {
+        buffer << "." << _reviews;
+    }
+
+    return buffer.str();
+}
