@@ -2,9 +2,9 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
-    <PackageVersion>0.5.0</PackageVersion>
-    <AssemblyVersion>0.5.0</AssemblyVersion>
-    <FileVersion>0.5.0</FileVersion>
+    <PackageVersion>0.5.1</PackageVersion>
+    <AssemblyVersion>0.5.1</AssemblyVersion>
+    <FileVersion>0.5.1</FileVersion>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageTags>Grafana;OpenTracing;Profiles;Pyroscope</PackageTags>
   </PropertyGroup>
@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <InternalsVisibleTo Include="Pyroscope.OpenTracing.Tests" PublicKey="" />
+    <InternalsVisibleTo Include="Pyroscope.OpenTracing.Tests" PublicKey=""/>
   </ItemGroup>
 
 </Project>
