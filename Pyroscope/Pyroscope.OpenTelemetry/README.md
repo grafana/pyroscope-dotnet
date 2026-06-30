@@ -6,6 +6,7 @@ See [Link tracing and profiling with Span Profiles](https://grafana.com/docs/pyr
 
 ## Prerequisites
 
+
 - Your .NET application is instrumented with [Pyroscope's profiler](https://grafana.com/docs/pyroscope/latest/configure-client/language-sdks/dotnet/)
 - Your .NET application is instrumented (manually) with [OpenTelemetry](https://opentelemetry.io/docs/instrumentation/net/getting-started/)
 
