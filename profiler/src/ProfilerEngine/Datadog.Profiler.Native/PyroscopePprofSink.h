@@ -25,8 +25,7 @@
 #pragma warning(pop)
 #endif
 #include "url.hpp"
-
-#define PYROSCOPE_SPY_VERSION "1.3.0" // x-release-please-version
+#include "PyroscopeVersion.h"
 
 class PyroscopePprofSink : public PProfExportSink
 {
