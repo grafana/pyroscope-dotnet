@@ -13,6 +13,7 @@ namespace Pyroscope
         private readonly bool _isProfilingEnabled;
         private readonly object _lockObj;
         private bool _isInitialized;
+        private bool _isNativeVersionCompatible;
         private IntPtr _engineStatusPtr;
 
         public ProfilerStatus()
@@ -28,6 +29,16 @@ namespace Pyroscope
 
             _lockObj = new object();
             _isInitialized = false;
+            _isNativeVersionCompatible = false;
+        }
+
+        public bool IsNativeVersionCompatible
+        {
+            get
+            {
+                EnsureNativeIsInitialized();
+                return _isNativeVersionCompatible;
+            }
         }
 
         public bool IsProfilerReady
@@ -40,7 +51,7 @@ namespace Pyroscope
                 }
 
                 EnsureNativeIsInitialized();
-                return _engineStatusPtr != IntPtr.Zero && Marshal.ReadByte(_engineStatusPtr) != 0;
+                return _isNativeVersionCompatible && _engineStatusPtr != IntPtr.Zero && Marshal.ReadByte(_engineStatusPtr) != 0;
             }
         }
 
@@ -62,11 +73,22 @@ namespace Pyroscope
 
                 try
                 {
+                    var managedVersion = ProfilerVersion.ManagedVersion;
+                    var nativeVersion = NativeInterop.GetProfilerVersion();
+                    if (!ProfilerVersion.IsCompatible(managedVersion, nativeVersion))
+                    {
+                        _isNativeVersionCompatible = false;
+                        _engineStatusPtr = IntPtr.Zero;
+                        return;
+                    }
+
+                    _isNativeVersionCompatible = true;
                     _engineStatusPtr = NativeInterop.GetProfilerStatusPointer();
                 }
                 catch (Exception ex)
                 {
                     Console.WriteLine($"[ProfilerStatus] Failed to get profiler status pointer: {ex.Message}");
+                    _isNativeVersionCompatible = false;
                     _engineStatusPtr = IntPtr.Zero;
                 }
             }

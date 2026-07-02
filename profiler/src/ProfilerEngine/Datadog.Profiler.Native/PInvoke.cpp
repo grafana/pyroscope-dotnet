@@ -7,6 +7,7 @@
 #include "Log.h"
 #include "ManagedThreadList.h"
 #include "ProfilerEngineStatus.h"
+#include "PyroscopeVersion.h"
 #include "ThreadsCpuManager.h"
 
 extern "C" void __stdcall ThreadsCpuManager_Map(std::uint32_t threadId, const WCHAR* pName)
@@ -37,6 +38,11 @@ extern "C" void* __stdcall GetNativeProfilerIsReadyPtr()
     }
 
     return (void*)ProfilerEngineStatus::GetReadPtrIsProfilerEngineActive();
+}
+
+extern "C" const char* __stdcall GetPyroscopeProfilerVersion()
+{
+    return PYROSCOPE_SPY_VERSION;
 }
 
 extern "C" void* __stdcall GetPointerToNativeTraceContext()
