@@ -1,4 +1,4 @@
-using System.Reflection;
+using System;
 
 namespace Pyroscope
 {
@@ -8,19 +8,18 @@ namespace Pyroscope
         {
             get
             {
-                var informationalVersion = typeof(ProfilerVersion).Assembly
-                    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
-                    .InformationalVersion;
+                var version = typeof(ProfilerVersion).Assembly.GetName().Version;
 
-                return informationalVersion ?? string.Empty;
+                return version?.ToString(version.Build >= 0 ? 3 : 2) ?? string.Empty;
             }
         }
 
         public static bool IsCompatible(string managedVersion, string nativeVersion)
         {
-            return !string.IsNullOrEmpty(managedVersion) &&
-                   !string.IsNullOrEmpty(nativeVersion) &&
-                   string.Equals(managedVersion, nativeVersion, StringComparison.Ordinal);
+            return Version.TryParse(managedVersion, out var parsedManagedVersion) &&
+                   Version.TryParse(nativeVersion, out var parsedNativeVersion) &&
+                   parsedManagedVersion.Major == parsedNativeVersion.Major &&
+                   parsedManagedVersion.Minor == parsedNativeVersion.Minor;
         }
     }
 }
