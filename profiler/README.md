@@ -79,7 +79,7 @@ As a final step, enable the profiler you would like to debug by setting the corr
 
 Note:
 - the .pprof files are generated in the folder given by the `DD_INTERNAL_PROFILING_OUTPUT_DIR` environment variable
-- the log files are stored in the `C:\ProgramData\Datadog .NET Tracer\logs` folder
+- the log files are stored in the `C:\ProgramData\Pyroscope\logs` folder
 
 ### Linux
 

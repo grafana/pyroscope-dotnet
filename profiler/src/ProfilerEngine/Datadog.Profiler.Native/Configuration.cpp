@@ -399,7 +399,7 @@ fs::path Configuration::GetDefaultLogDirectoryPath()
 {
     auto baseDirectory = fs::path(GetApmBaseDirectory());
 #ifdef _WINDOWS
-    return baseDirectory / WStr(R"(Datadog .NET Tracer\logs)");
+    return baseDirectory / WStr(R"(Pyroscope\logs)");
 #else
     return baseDirectory / WStr("dotnet");
 #endif

@@ -13,8 +13,8 @@ namespace shared {
 		// Sets the directory for the profiler's log file.
 		// If set, this setting takes precedence over environment variable DD_TRACE_LOG_PATH.
 		// If not set, default is
-		// "%ProgramData%"\Datadog .NET Tracer\logs\" on Windows or
-		// "/var/log/datadog/dotnet/" on Linux.
+		// "%ProgramData%\Pyroscope\logs\" on Windows or
+		// "/var/log/pyroscope/dotnet/" on Linux.
 		const WSTRING log_directory = WStr("DD_TRACE_LOG_DIRECTORY");
 
 
