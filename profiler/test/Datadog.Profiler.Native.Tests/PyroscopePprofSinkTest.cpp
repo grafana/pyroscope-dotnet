@@ -22,7 +22,7 @@ struct ObservedRequest
     void Set(std::string requestPath,
              int responseStatus,
              std::string authorization = {},
-             std::string tenantID = {})
+             std::string tenantId = {})
     {
         std::lock_guard<std::mutex> lock(Mutex);
         if (Seen)
@@ -33,7 +33,7 @@ struct ObservedRequest
         Path = std::move(requestPath);
         Status = responseStatus;
         Authorization = std::move(authorization);
-        TenantID = std::move(tenantID);
+        TenantID = std::move(tenantId);
         Seen = true;
         Cv.notify_one();
     }
@@ -75,7 +75,7 @@ void ValidatePushPath(const std::string& serverPath, const std::string& expected
 
     {
         const auto url = "http://127.0.0.1:" + std::to_string(port) + serverPath;
-        PyroscopePprofSink sink(url, "service", "", BasicAuth{}, "", {}, {});
+        PyroscopePprofSink sink(url, "service", DeprecatedAuthToken{}, BasicAuth{}, PyroscopeTenantId{}, {}, {});
 
         Pprof pprof;
         pprof.bytes = "fake-pprof";
@@ -140,9 +140,9 @@ TEST(PyroscopePprofSinkTest, UploadUsesBasicAuthAndTenantConstructorArguments)
         PyroscopePprofSink sink(
             url,
             "service",
-            "",
+            DeprecatedAuthToken{},
             BasicAuth{"pyroscope-user", "pyroscope-password"},
-            "pyroscope-tenant",
+            PyroscopeTenantId{"pyroscope-tenant"},
             {},
             {});
 

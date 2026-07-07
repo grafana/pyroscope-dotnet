@@ -33,19 +33,29 @@ struct BasicAuth
     std::string password;
 };
 
+struct DeprecatedAuthToken
+{
+    std::string value;
+};
+
+struct PyroscopeTenantId
+{
+    std::string value;
+};
+
 class PyroscopePprofSink : public PProfExportSink
 {
 public:
     PyroscopePprofSink(std::string server,
                        std::string appName,
-                       std::string authToken,
+                       DeprecatedAuthToken authToken,
                        BasicAuth basicAuth,
-                       std::string tenantID,
+                       PyroscopeTenantId tenantId,
                        std::map<std::string, std::string> extraHeaders,
                        const std::vector<std::pair<std::string, std::string>>& staticTags);
     ~PyroscopePprofSink() override;
     void Export(std::vector<Pprof> pprofs) override;
-    void SetAuthToken(std::string authToken);
+    void SetAuthToken(DeprecatedAuthToken authToken);
     void SetBasicAuth(BasicAuth basicAuth);
     static std::map<std::string, std::string> ParseHeadersJSON(std::string headers);
 
@@ -69,9 +79,9 @@ private:
     LockingQueue<PyroscopeRequest> _queue;
     std::thread _workerThread;
 
-    std::string _authToken;
+    DeprecatedAuthToken _authToken;
     BasicAuth _basicAuth;
-    std::string _tenantID;
+    PyroscopeTenantId _tenantId;
     std::map<std::string, std::string> _extraHeaders;
     std::mutex _authLock;
 };

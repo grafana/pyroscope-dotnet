@@ -336,7 +336,7 @@ extern "C" void __stdcall SetPyroscopeAuthToken(const char* authToken)
     {
         return;
     }
-    sink->SetAuthToken(authToken);
+    sink->SetAuthToken(DeprecatedAuthToken{authToken});
 }
 
 extern "C" void __stdcall SetPyroscopeBasicAuth(const char* username, const char* password)

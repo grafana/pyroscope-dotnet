@@ -657,12 +657,12 @@ void CorProfilerCallback::InitializeServices()
     _pyroscopePprofSink = std::make_shared<PyroscopePprofSink>(
         _pConfiguration->PyroscopeServerAddress(),
         _pConfiguration->PyroscopeApplicationName(),
-        _pConfiguration->PyroscopeAuthToken(),
+        DeprecatedAuthToken{_pConfiguration->PyroscopeAuthToken()},
         BasicAuth{
             _pConfiguration->PyroscopeBasicAuthUser(),
             _pConfiguration->PyroscopeBasicAuthPassword(),
         },
-        _pConfiguration->PyroscopeTenantID(),
+        PyroscopeTenantId{_pConfiguration->PyroscopeTenantID()},
         PyroscopePprofSink::ParseHeadersJSON(std::move(_pConfiguration->PyroscopeHttpHeaders())),
         _pConfiguration->GetUserTags());
     _pExporter = std::make_unique<PprofExporter>(_pApplicationStore,

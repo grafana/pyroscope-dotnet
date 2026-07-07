@@ -12,6 +12,8 @@
 #include "shared/src/native-src/string.h"
 #include "shared/src/native-src/util.h"
 
+#include <mutex>
+
 namespace
 {
 std::string BuildPushPath(const Url& url)
@@ -20,26 +22,44 @@ std::string BuildPushPath(const Url& url)
     pushUrl.path(url.path() + "/push.v1.PusherService/Push");
     return pushUrl.str();
 }
+
+void WarnDeprecatedAuthTokenOnce()
+{
+    static std::once_flag warningLogged;
+    std::call_once(warningLogged, []() {
+        Log::Warn("PYROSCOPE_AUTH_TOKEN is deprecated and should not be used. Use PYROSCOPE_HTTP_HEADERS to pass Authorization through extra HTTP headers instead.");
+    });
+}
+
+void WarnIfDeprecatedAuthTokenIsUsed(const DeprecatedAuthToken& authToken)
+{
+    if (!authToken.value.empty())
+    {
+        WarnDeprecatedAuthTokenOnce();
+    }
+}
 }
 
 PyroscopePprofSink::PyroscopePprofSink(
     std::string server,
     std::string appName,
-    std::string authToken,
+    DeprecatedAuthToken authToken,
     BasicAuth basicAuth,
-    std::string tenantID,
+    PyroscopeTenantId tenantId,
     std::map<std::string, std::string> extraHeaders,
     const std::vector<std::pair<std::string, std::string>>& staticTags) :
     _appName(appName),
     _staticTags(staticTags),
     _url(server),
-    _authToken(authToken),
+    _authToken(std::move(authToken)),
     _basicAuth(std::move(basicAuth)),
-    _tenantID(tenantID),
+    _tenantId(std::move(tenantId)),
     _extraHeaders(extraHeaders),
     _client(SchemeHostPort(_url)),
     _running(true)
 {
+    WarnIfDeprecatedAuthTokenIsUsed(_authToken);
+
     _client.set_connection_timeout(10);
     _client.set_read_timeout(10);
 
@@ -94,18 +114,19 @@ void PyroscopePprofSink::Export(std::vector<Pprof> pprofs)
     _queue.push(std::move(req));
 }
 
-void PyroscopePprofSink::SetAuthToken(std::string authToken)
+void PyroscopePprofSink::SetAuthToken(DeprecatedAuthToken authToken)
 {
     std::lock_guard<std::mutex> auth_guard(_authLock);
-    _authToken = authToken;
+    _authToken = std::move(authToken);
     _basicAuth = {};
+    WarnIfDeprecatedAuthTokenIsUsed(_authToken);
 }
 
 void PyroscopePprofSink::SetBasicAuth(BasicAuth basicAuth)
 {
     std::lock_guard<std::mutex> auth_guard(_authLock);
     _basicAuth = std::move(basicAuth);
-    _authToken = "";
+    _authToken = {};
 }
 
 void PyroscopePprofSink::work()
@@ -190,9 +211,9 @@ httplib::Headers PyroscopePprofSink::getHeaders()
 {
     httplib::Headers headers;
     std::lock_guard<std::mutex> auth_guard(_authLock);
-    if (!_authToken.empty())
+    if (!_authToken.value.empty())
     {
-        headers.emplace("Authorization", "Bearer " + _authToken);
+        headers.emplace("Authorization", "Bearer " + _authToken.value);
     }
     else if (!_basicAuth.user.empty() && !_basicAuth.password.empty())
     {
@@ -202,9 +223,9 @@ httplib::Headers PyroscopePprofSink::getHeaders()
     {
         headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(_url.user_info()));
     }
-    if (!_tenantID.empty())
+    if (!_tenantId.value.empty())
     {
-        headers.emplace("X-Scope-OrgID", _tenantID);
+        headers.emplace("X-Scope-OrgID", _tenantId.value);
     }
     headers.emplace("User-Agent", "pyroscope-dotnet/" PYROSCOPE_SPY_VERSION " cpp-httplib");
     for (const auto& item : _extraHeaders)
