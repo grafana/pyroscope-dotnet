@@ -5,6 +5,7 @@
 
   ThreadsCpuManager_Map PRIVATE
   GetNativeProfilerIsReadyPtr PRIVATE
+  GetPyroscopeProfilerVersion PRIVATE
   GetPointerToNativeTraceContext PRIVATE
   SetApplicationInfoForAppDomain PRIVATE
   SetEndpointForTrace PRIVATE

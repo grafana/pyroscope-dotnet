@@ -39,7 +39,7 @@
         },
         {
           "type": "generic",
-          "path": "profiler/src/ProfilerEngine/Datadog.Profiler.Native/PyroscopePprofSink.h"
+          "path": "profiler/src/ProfilerEngine/Datadog.Profiler.Native/PyroscopeVersion.h"
         }
       ]
     },

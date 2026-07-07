@@ -17,6 +17,13 @@ namespace Pyroscope
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
+        public static string GetProfilerVersion()
+        {
+            var versionPtr = NativeMethods.GetProfilerVersion();
+            return versionPtr == IntPtr.Zero ? string.Empty : Marshal.PtrToStringAnsi(versionPtr) ?? string.Empty;
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static IntPtr GetTraceContextNativePointer()
         {
             return NativeMethods.GetTraceContextNativePointer();
@@ -81,6 +88,9 @@ namespace Pyroscope
         {
             [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "GetNativeProfilerIsReadyPtr")]
             public static extern IntPtr GetProfilerStatusPointer();
+
+            [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "GetPyroscopeProfilerVersion")]
+            public static extern IntPtr GetProfilerVersion();
 
             [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "GetPointerToNativeTraceContext")]
             public static extern IntPtr GetTraceContextNativePointer();

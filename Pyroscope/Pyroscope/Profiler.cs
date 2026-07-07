@@ -9,8 +9,9 @@ namespace Pyroscope
     {
         private static Profiler? _instance;
 
-        internal Profiler(ContextTracker contextTracker)
+        internal Profiler(ProfilerStatus status, ContextTracker contextTracker)
         {
+            _status = status;
             _contextTracker = contextTracker;
         }
 
@@ -41,7 +42,7 @@ namespace Pyroscope
 
         public void SetDynamicTag(string key, string value)
         {
-            if (_dllNotFound)
+            if (!IsNativeInteropAvailable())
             {
                 return;
             }
@@ -59,7 +60,7 @@ namespace Pyroscope
 
         public void ClearDynamicTags()
         {
-            if (_dllNotFound)
+            if (!IsNativeInteropAvailable())
             {
                 return;
             }
@@ -82,7 +83,7 @@ namespace Pyroscope
         /// configured, this function will have no effect.
         public void SetCPUTrackingEnabled(bool enabled)
         {
-            if (_dllNotFound)
+            if (!IsNativeInteropAvailable())
             {
                 return;
             }
@@ -104,7 +105,7 @@ namespace Pyroscope
         /// If allocation profiling is not configured, this function will have no effect.
         public void SetAllocationTrackingEnabled(bool enabled)
         {
-            if (_dllNotFound)
+            if (!IsNativeInteropAvailable())
             {
                 return;
             }
@@ -126,7 +127,7 @@ namespace Pyroscope
         /// If contention profiling is not configured, this function will have no effect.
         public void SetContentionTrackingEnabled(bool enabled)
         {
-            if (_dllNotFound)
+            if (!IsNativeInteropAvailable())
             {
                 return;
             }
@@ -148,7 +149,7 @@ namespace Pyroscope
         /// If exception profiling is not configured, this function will have no effect.
         public void SetExceptionTrackingEnabled(bool enabled)
         {
-            if (_dllNotFound)
+            if (!IsNativeInteropAvailable())
             {
                 return;
             }
@@ -166,7 +167,7 @@ namespace Pyroscope
 
         public void SetAuthToken(string authToken)
         {
-            if (_dllNotFound)
+            if (!IsNativeInteropAvailable())
             {
                 return;
             }
@@ -184,7 +185,7 @@ namespace Pyroscope
 
         public void SetBasicAuth(string username, string password)
         {
-            if (_dllNotFound)
+            if (!IsNativeInteropAvailable())
             {
                 return;
             }
@@ -207,13 +208,19 @@ namespace Pyroscope
         }
 
         private readonly ContextTracker _contextTracker;
+        private readonly ProfilerStatus _status;
         private bool _dllNotFound;
 
         private static Profiler Create()
         {
             var status = new ProfilerStatus();
             var contextTracker = new ContextTracker(status);
-            return new Profiler(contextTracker);
+            return new Profiler(status, contextTracker);
+        }
+
+        private bool IsNativeInteropAvailable()
+        {
+            return !_dllNotFound && _status.IsNativeVersionCompatible;
         }
     }
 }

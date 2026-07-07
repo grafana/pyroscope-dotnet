@@ -38,6 +38,7 @@ func startPyroscope(t *testing.T, net *dockertest.Network) string {
 			"server",
 			"-validation.disable-label-sanitization=true",
 			"-distributor.health-check-ingesters=false",
+			"-ingester.min-ready-duration=0s",
 			"-segment-writer.min-ready-duration=0s",
 			"-segment-writer.readiness-check-ring-health=false",
 			"-metastore.min-ready-duration=0s",
@@ -273,24 +274,47 @@ func TestRideshareProfilesWithOTEL(t *testing.T) {
 	runRideshareProfileTest(t, envLibcType(), envDotnetVersion(), true)
 }
 
-// postOK posts to url, tolerating transient transport errors: on busy
-// runners the loopback connection can be reset under load (keep-alive reuse
-// races, accept-backlog RSTs). The toggle tests assert the app survives
-// toggling, not that every TCP connection does.
-func postOK(t *testing.T, client *http.Client, url string) *http.Response {
+// loopbackRetryWindow bounds how long getOK/postOK retry transient transport
+// errors: on busy runners the loopback connection can be reset or briefly
+// refused under load (keep-alive reuse races, accept-backlog RSTs, the app
+// pausing while the profiler reconfigures on a toggle). The toggle tests assert
+// the app survives toggling, not that every TCP connection does, so we retry
+// rather than fail; a genuine crash still surfaces via the final reachability
+// check. ~6s proved too tight in CI, so the window is generous.
+const loopbackRetryWindow = 30 * time.Second
+
+func doWithRetry(t *testing.T, desc string, do func() (*http.Response, error)) *http.Response {
 	t.Helper()
 	var resp *http.Response
 	var err error
-	for attempt := 0; attempt < 3; attempt++ {
-		resp, err = client.Post(url, "text/plain", nil)
+	deadline := time.Now().Add(loopbackRetryWindow)
+	for attempt := 1; ; attempt++ {
+		resp, err = do()
 		if err == nil {
 			return resp
 		}
-		t.Logf("POST %s failed (attempt %d): %v", url, attempt+1, err)
+		if time.Now().After(deadline) {
+			break
+		}
+		t.Logf("%s failed (attempt %d), retrying: %v", desc, attempt, err)
 		time.Sleep(2 * time.Second)
 	}
-	t.Fatalf("POST %s: %v", url, err)
+	t.Fatalf("%s: %v", desc, err)
 	return nil
+}
+
+func postOK(t *testing.T, client *http.Client, url string) *http.Response {
+	t.Helper()
+	return doWithRetry(t, "POST "+url, func() (*http.Response, error) {
+		return client.Post(url, "text/plain", nil)
+	})
+}
+
+func getOK(t *testing.T, client *http.Client, url string) *http.Response {
+	t.Helper()
+	return doWithRetry(t, "GET "+url, func() (*http.Response, error) {
+		return client.Get(url)
+	})
 }
 
 func TestDynamicCpuToggleDoesNotCrash(t *testing.T) {
@@ -307,8 +331,7 @@ func TestDynamicCpuToggleDoesNotCrash(t *testing.T) {
 	})
 	client := &http.Client{Timeout: 30 * time.Second}
 
-	warmupResp, err := client.Get(appBaseURL + "/bike")
-	require.NoError(t, err)
+	warmupResp := getOK(t, client, appBaseURL+"/bike")
 	require.Equal(t, http.StatusOK, warmupResp.StatusCode)
 	_ = warmupResp.Body.Close()
 
@@ -322,8 +345,7 @@ func TestDynamicCpuToggleDoesNotCrash(t *testing.T) {
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 
 		for j := 0; j < 20; j++ {
-			loadResp, err := client.Get(appBaseURL + "/car")
-			require.NoError(t, err)
+			loadResp := getOK(t, client, appBaseURL+"/car")
 			_ = loadResp.Body.Close()
 			require.Equal(t, http.StatusOK, loadResp.StatusCode)
 		}

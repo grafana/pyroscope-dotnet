@@ -26,10 +26,9 @@
 #pragma warning(pop)
 #endif
 #include "url.hpp"
+#include "PyroscopeVersion.h"
 
 #include <string>
-
-#define PYROSCOPE_SPY_VERSION "1.3.0" // x-release-please-version
 
 struct PyroscopeSemanticLabels
 {
