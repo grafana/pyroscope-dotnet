@@ -75,7 +75,7 @@ void ValidatePushPath(const std::string& serverPath, const std::string& expected
 
     {
         const auto url = "http://127.0.0.1:" + std::to_string(port) + serverPath;
-        PyroscopePprofSink sink(url, "service", "", "", "", "", {}, {});
+        PyroscopePprofSink sink(url, "service", "", BasicAuth{}, "", {}, {});
 
         Pprof pprof;
         pprof.bytes = "fake-pprof";
@@ -137,7 +137,14 @@ TEST(PyroscopePprofSinkTest, UploadUsesBasicAuthAndTenantConstructorArguments)
 
     {
         const auto url = "http://127.0.0.1:" + std::to_string(port) + "/tenant/";
-        PyroscopePprofSink sink(url, "service", "", "pyroscope-user", "pyroscope-password", "pyroscope-tenant", {}, {});
+        PyroscopePprofSink sink(
+            url,
+            "service",
+            "",
+            BasicAuth{"pyroscope-user", "pyroscope-password"},
+            "pyroscope-tenant",
+            {},
+            {});
 
         Pprof pprof;
         pprof.bytes = "fake-pprof";

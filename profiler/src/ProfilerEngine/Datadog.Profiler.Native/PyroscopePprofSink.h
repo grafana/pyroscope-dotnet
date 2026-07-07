@@ -27,21 +27,26 @@
 #include "url.hpp"
 #include "PyroscopeVersion.h"
 
+struct BasicAuth
+{
+    std::string user;
+    std::string password;
+};
+
 class PyroscopePprofSink : public PProfExportSink
 {
 public:
     PyroscopePprofSink(std::string server,
                        std::string appName,
                        std::string authToken,
-                       std::string basicAuthUser,
-                       std::string basicAuthPassword,
+                       BasicAuth basicAuth,
                        std::string tenantID,
                        std::map<std::string, std::string> extraHeaders,
                        const std::vector<std::pair<std::string, std::string>>& staticTags);
     ~PyroscopePprofSink() override;
     void Export(std::vector<Pprof> pprofs) override;
     void SetAuthToken(std::string authToken);
-    void SetBasicAuth(std::string user, std::string password);
+    void SetBasicAuth(BasicAuth basicAuth);
     static std::map<std::string, std::string> ParseHeadersJSON(std::string headers);
 
 private:
@@ -65,8 +70,7 @@ private:
     std::thread _workerThread;
 
     std::string _authToken;
-    std::string _basicAuthUser;
-    std::string _basicAuthPassword;
+    BasicAuth _basicAuth;
     std::string _tenantID;
     std::map<std::string, std::string> _extraHeaders;
     std::mutex _authLock;

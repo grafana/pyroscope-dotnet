@@ -26,8 +26,7 @@ PyroscopePprofSink::PyroscopePprofSink(
     std::string server,
     std::string appName,
     std::string authToken,
-    std::string basicAuthUser,
-    std::string basicAuthPassword,
+    BasicAuth basicAuth,
     std::string tenantID,
     std::map<std::string, std::string> extraHeaders,
     const std::vector<std::pair<std::string, std::string>>& staticTags) :
@@ -35,8 +34,7 @@ PyroscopePprofSink::PyroscopePprofSink(
     _staticTags(staticTags),
     _url(server),
     _authToken(authToken),
-    _basicAuthUser(basicAuthUser),
-    _basicAuthPassword(basicAuthPassword),
+    _basicAuth(std::move(basicAuth)),
     _tenantID(tenantID),
     _extraHeaders(extraHeaders),
     _client(SchemeHostPort(_url)),
@@ -100,15 +98,13 @@ void PyroscopePprofSink::SetAuthToken(std::string authToken)
 {
     std::lock_guard<std::mutex> auth_guard(_authLock);
     _authToken = authToken;
-    _basicAuthUser = "";
-    _basicAuthPassword = "";
+    _basicAuth = {};
 }
 
-void PyroscopePprofSink::SetBasicAuth(std::string user, std::string password)
+void PyroscopePprofSink::SetBasicAuth(BasicAuth basicAuth)
 {
     std::lock_guard<std::mutex> auth_guard(_authLock);
-    _basicAuthUser = user;
-    _basicAuthPassword = password;
+    _basicAuth = std::move(basicAuth);
     _authToken = "";
 }
 
@@ -198,9 +194,9 @@ httplib::Headers PyroscopePprofSink::getHeaders()
     {
         headers.emplace("Authorization", "Bearer " + _authToken);
     }
-    else if (!_basicAuthUser.empty() && !_basicAuthPassword.empty())
+    else if (!_basicAuth.user.empty() && !_basicAuth.password.empty())
     {
-        headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(_basicAuthUser + ":" + _basicAuthPassword));
+        headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(_basicAuth.user + ":" + _basicAuth.password));
     }
     else if (!_url.user_info().empty())
     {

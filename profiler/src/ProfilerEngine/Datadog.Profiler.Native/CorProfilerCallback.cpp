@@ -658,8 +658,10 @@ void CorProfilerCallback::InitializeServices()
         _pConfiguration->PyroscopeServerAddress(),
         _pConfiguration->PyroscopeApplicationName(),
         _pConfiguration->PyroscopeAuthToken(),
-        _pConfiguration->PyroscopeBasicAuthUser(),
-        _pConfiguration->PyroscopeBasicAuthPassword(),
+        BasicAuth{
+            _pConfiguration->PyroscopeBasicAuthUser(),
+            _pConfiguration->PyroscopeBasicAuthPassword(),
+        },
         _pConfiguration->PyroscopeTenantID(),
         PyroscopePprofSink::ParseHeadersJSON(std::move(_pConfiguration->PyroscopeHttpHeaders())),
         _pConfiguration->GetUserTags());

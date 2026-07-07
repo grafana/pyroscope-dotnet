@@ -358,7 +358,7 @@ extern "C" void __stdcall SetPyroscopeBasicAuth(const char* username, const char
     {
         return;
     }
-    sink->SetBasicAuth(username, password);
+    sink->SetBasicAuth(BasicAuth{username, password});
 }
 
 extern "C" bool __stdcall SetConfiguration(shared::StableConfig::SharedConfig config)
