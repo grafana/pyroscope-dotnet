@@ -30,12 +30,6 @@
 
 #include <string>
 
-struct PyroscopeSemanticLabels
-{
-    std::string ScopeName;
-    std::string ScopeVersion;
-};
-
 class PyroscopePprofSink : public PProfExportSink
 {
 public:
@@ -46,7 +40,6 @@ public:
                        std::string basicAuthPassword,
                        std::string tenantID,
                        std::map<std::string, std::string> extraHeaders,
-                       PyroscopeSemanticLabels semanticLabels,
                        IRuntimeInfo* runtimeInfo,
                        const std::vector<std::pair<std::string, std::string>>& staticTags);
     ~PyroscopePprofSink() override;
@@ -68,7 +61,6 @@ private:
     httplib::Headers getHeaders();
 
     std::string _appName;
-    PyroscopeSemanticLabels _semanticLabels;
     IRuntimeInfo* _runtimeInfo;
     std::vector<std::pair<std::string, std::string>> _staticTags;
     Url _url;

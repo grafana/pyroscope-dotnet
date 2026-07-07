@@ -13,6 +13,7 @@
 
 #include "PyroscopePprofSink.h"
 #include "RuntimeInfo.h"
+#include "dd_profiler_version.h"
 #include "gen/push/v1/push.pb.h"
 
 using namespace std::chrono_literals;
@@ -52,13 +53,6 @@ private:
     bool Seen = false;
 };
 
-PyroscopeSemanticLabels TestSemanticLabels()
-{
-    return PyroscopeSemanticLabels{
-        .ScopeName = "com.grafana.pyroscope/dotnet",
-        .ScopeVersion = "1.2.3"};
-}
-
 std::map<std::string, std::string> GetSeriesLabels(const push::v1::RawProfileSeries& series)
 {
     std::map<std::string, std::string> labels;
@@ -92,7 +86,7 @@ void ValidatePushPath(const std::string& serverPath, const std::string& expected
         const auto url = "http://127.0.0.1:" + std::to_string(port) + serverPath;
         RuntimeInfo runtimeInfo(8, 0, false);
         PyroscopePprofSink sink(
-            url, "service", "", "", "", "", {}, TestSemanticLabels(), &runtimeInfo, {});
+            url, "service", "", "", "", "", {}, &runtimeInfo, {});
 
         Pprof pprof;
         pprof.bytes = "fake-pprof";
@@ -143,7 +137,6 @@ TEST(PyroscopePprofSinkTest, UploadDoesNotOverrideUserProvidedSemanticLabels)
             "",
             "",
             {},
-            TestSemanticLabels(),
             &runtimeInfo,
             {
                 {"otel.scope.name", "user.scope"},
@@ -214,7 +207,7 @@ TEST(PyroscopePprofSinkTest, UploadUsesUpdatedDotnetFrameworkRuntimeVersion)
         const auto url = "http://127.0.0.1:" + std::to_string(port);
         RuntimeInfo runtimeInfo(4, 0, true);
         PyroscopePprofSink sink(
-            url, "service", "", "", "", "", {}, TestSemanticLabels(), &runtimeInfo, {});
+            url, "service", "", "", "", "", {}, &runtimeInfo, {});
 
         runtimeInfo.SetMinorVersions(8, 9195, 0);
 
@@ -262,7 +255,7 @@ TEST(PyroscopePprofSinkTest, UploadAddsSemanticSeriesLabels)
         const auto url = "http://127.0.0.1:" + std::to_string(port);
         RuntimeInfo runtimeInfo(8, 0, false);
         PyroscopePprofSink sink(
-            url, "service", "", "", "", "", {}, TestSemanticLabels(), &runtimeInfo, {{"static_label", "static_value"}});
+            url, "service", "", "", "", "", {}, &runtimeInfo, {{"static_label", "static_value"}});
 
         Pprof pprof;
         pprof.bytes = "fake-pprof";
@@ -283,7 +276,7 @@ TEST(PyroscopePprofSinkTest, UploadAddsSemanticSeriesLabels)
         EXPECT_EQ(labels.at("service_name"), "service");
         EXPECT_EQ(labels.at("spy_name"), "dotnetspy");
         EXPECT_EQ(labels.at("otel.scope.name"), "com.grafana.pyroscope/dotnet");
-        EXPECT_EQ(labels.at("otel.scope.version"), "1.2.3");
+        EXPECT_EQ(labels.at("otel.scope.version"), PROFILER_VERSION);
         EXPECT_EQ(labels.at("process.runtime.name"), ".NET");
         EXPECT_EQ(labels.at("process.runtime.version"), "8.0");
         EXPECT_EQ(labels.at("static_label"), "static_value");
