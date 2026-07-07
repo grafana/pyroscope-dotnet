@@ -10,6 +10,7 @@
 #include <thread>
 #include <vector>
 
+#include "cppcodec/base64_rfc4648.hpp"
 #include "PyroscopePprofSink.h"
 
 using namespace std::chrono_literals;
@@ -18,7 +19,10 @@ namespace
 {
 struct ObservedRequest
 {
-    void Set(std::string requestPath, int responseStatus)
+    void Set(std::string requestPath,
+             int responseStatus,
+             std::string authorization = {},
+             std::string tenantID = {})
     {
         std::lock_guard<std::mutex> lock(Mutex);
         if (Seen)
@@ -28,6 +32,8 @@ struct ObservedRequest
 
         Path = std::move(requestPath);
         Status = responseStatus;
+        Authorization = std::move(authorization);
+        TenantID = std::move(tenantID);
         Seen = true;
         Cv.notify_one();
     }
@@ -40,6 +46,8 @@ struct ObservedRequest
 
     std::string Path;
     int Status = -1;
+    std::string Authorization;
+    std::string TenantID;
 
 private:
     std::mutex Mutex;
@@ -102,4 +110,52 @@ TEST(PyroscopePprofSinkTest, UploadUsesNormalizedPathWhenBasePathContainsDotSegm
 TEST(PyroscopePprofSinkTest, UploadUsesNormalizedPathForNestedPaths)
 {
     ValidatePushPath("/api/profiles/", "/api/profiles/push.v1.PusherService/Push");
+}
+
+TEST(PyroscopePprofSinkTest, UploadUsesBasicAuthAndTenantConstructorArguments)
+{
+    httplib::Server server;
+    ObservedRequest observed;
+    const std::string expectedPath = "/tenant/push.v1.PusherService/Push";
+
+    server.Post(expectedPath, [](const httplib::Request&, httplib::Response& res) { res.status = 200; });
+    server.set_logger([&observed](const httplib::Request& req, const httplib::Response& res) {
+        observed.Set(
+            req.path,
+            res.status,
+            req.get_header_value("Authorization"),
+            req.get_header_value("X-Scope-OrgID"));
+    });
+
+    auto port = server.bind_to_any_port("127.0.0.1");
+    ASSERT_GT(port, 0);
+
+    std::thread serverThread([&server]() {
+        server.listen_after_bind();
+    });
+    server.wait_until_ready();
+
+    {
+        const auto url = "http://127.0.0.1:" + std::to_string(port) + "/tenant/";
+        PyroscopePprofSink sink(url, "service", "", "pyroscope-user", "pyroscope-password", "pyroscope-tenant", {}, {});
+
+        Pprof pprof;
+        pprof.bytes = "fake-pprof";
+        pprof.profileType = ProfileType::ProcessCpu;
+
+        sink.Export({std::move(pprof)});
+
+        const bool requestReceived = observed.WaitForRequest(2s);
+        ASSERT_TRUE(requestReceived);
+
+        EXPECT_EQ(observed.Path, expectedPath);
+        EXPECT_EQ(observed.Status, 200);
+        EXPECT_EQ(
+            observed.Authorization,
+            "Basic " + cppcodec::base64_rfc4648::encode(std::string{"pyroscope-user:pyroscope-password"}));
+        EXPECT_EQ(observed.TenantID, "pyroscope-tenant");
+    }
+
+    server.stop();
+    serverThread.join();
 }

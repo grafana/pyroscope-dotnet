@@ -33,9 +33,9 @@ public:
     PyroscopePprofSink(std::string server,
                        std::string appName,
                        std::string authToken,
-                       std::string tenantID,
                        std::string basicAuthUser,
                        std::string basicAuthPassword,
+                       std::string tenantID,
                        std::map<std::string, std::string> extraHeaders,
                        const std::vector<std::pair<std::string, std::string>>& staticTags);
     ~PyroscopePprofSink() override;
