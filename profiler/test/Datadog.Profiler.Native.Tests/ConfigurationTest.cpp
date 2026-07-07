@@ -147,7 +147,7 @@ TEST_F(ConfigurationTest, CheckDefaultLogDirectoryWhenVariableIsNotSet)
     auto configuration = Configuration{};
     auto expectedValue =
 #ifdef _WINDOWS
-        WStr("C:\\ProgramData\\Datadog .NET Tracer\\logs");
+        WStr("C:\\ProgramData\\Pyroscope\\logs");
 #else
         WStr("/var/log/pyroscope/dotnet");
 #endif

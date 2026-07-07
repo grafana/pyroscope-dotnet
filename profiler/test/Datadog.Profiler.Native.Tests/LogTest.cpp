@@ -39,7 +39,7 @@ static fs::path GetCurrentFileLogPath()
 
     fs::path expectedLogFileFullPath =
 #ifdef _WINDOWS
-        "C:\\ProgramData\\Datadog .NET Tracer\\logs\\" + expectedLogFilename;
+        "C:\\ProgramData\\Pyroscope\\logs\\" + expectedLogFilename;
 #else
         "/var/log/pyroscope/dotnet/" + expectedLogFilename;
 #endif
