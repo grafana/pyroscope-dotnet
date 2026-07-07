@@ -161,7 +161,7 @@ func TestAllocationProfileStacktraces(t *testing.T) {
 	})
 	runAllocLoadGenerator(ctx, t, appBaseURL)
 
-	labelSelector := fmt.Sprintf(`{service_name="%s"}`, appName)
+	labelSelector := profileLabelSelector(labelMatcher{"service_name", appName})
 	expectedChain := [][2]string{
 		{"AllocWork", "Work"},
 		{"AllocWork", "Allocate"},
@@ -193,7 +193,7 @@ func TestAllocationTypeLeafProfileStacktraces(t *testing.T) {
 	})
 	runAllocLoadGenerator(ctx, t, appBaseURL)
 
-	labelSelector := fmt.Sprintf(`{service_name="%s"}`, appName)
+	labelSelector := profileLabelSelector(labelMatcher{"service_name", appName})
 	expectedChain := [][2]string{
 		{"AllocWork", "Work"},
 		{"AllocWork", "Allocate"},
@@ -227,7 +227,7 @@ func TestExceptionProfileStacktraces(t *testing.T) {
 	})
 	runNPELoadGenerator(ctx, t, appBaseURL)
 
-	labelSelector := fmt.Sprintf(`{service_name="%s"}`, appName)
+	labelSelector := profileLabelSelector(labelMatcher{"service_name", appName})
 	expectedChain := [][2]string{
 		{"EndpointMiddleware", "Invoke"},
 		{"NPE", "Work"},
@@ -259,7 +259,7 @@ func TestLockProfileStacktraces(t *testing.T) {
 		runLoadGenerator(ctx, t, appBaseURL)
 	}
 
-	labelSelector := fmt.Sprintf(`{service_name="%s"}`, appName)
+	labelSelector := profileLabelSelector(labelMatcher{"service_name", appName})
 	expectedChain := [][2]string{
 		{"EndpointMiddleware", "Invoke"},
 		{"OrderService", "FindNearestVehicle"},

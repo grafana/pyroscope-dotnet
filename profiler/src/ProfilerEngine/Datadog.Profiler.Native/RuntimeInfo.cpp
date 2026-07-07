@@ -31,11 +31,13 @@ uint16_t RuntimeInfo::GetMajorVersion() const
 
 uint16_t RuntimeInfo::GetMinorVersion() const
 {
+    std::lock_guard<std::mutex> lock(_versionLock);
     return _minor;
 }
 
 void RuntimeInfo::SetMinorVersions(uint16_t minor, uint16_t build, uint16_t reviews)
 {
+    std::lock_guard<std::mutex> lock(_versionLock);
     _minor = minor;
     _build = build;
     _reviews = reviews;
@@ -49,6 +51,7 @@ std::string RuntimeInfo::GetOs() const
 
 std::string RuntimeInfo::GetClrString() const
 {
+    std::lock_guard<std::mutex> lock(_versionLock);
     // runtime_version:
     //    framework-4.8
     //    core-6.0
@@ -82,6 +85,7 @@ std::string RuntimeInfo::GetRuntimeName() const
 
 std::string RuntimeInfo::GetRuntimeVersion() const
 {
+    std::lock_guard<std::mutex> lock(_versionLock);
     std::stringstream buffer;
     buffer << std::dec << _major << "." << _minor;
     if (_build > 0 || _reviews > 0)

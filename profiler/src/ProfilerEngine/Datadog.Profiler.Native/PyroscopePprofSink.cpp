@@ -43,9 +43,11 @@ PyroscopePprofSink::PyroscopePprofSink(
     std::string tenantID,
     std::map<std::string, std::string> extraHeaders,
     PyroscopeSemanticLabels semanticLabels,
+    IRuntimeInfo* runtimeInfo,
     const std::vector<std::pair<std::string, std::string>>& staticTags) :
     _appName(appName),
     _semanticLabels(std::move(semanticLabels)),
+    _runtimeInfo(runtimeInfo),
     _staticTags(staticTags),
     _url(server),
     _authToken(authToken),
@@ -180,8 +182,8 @@ void PyroscopePprofSink::upload(Pprof pprof)
 
     AddLabel(series, LabelScopeName, _semanticLabels.ScopeName);
     AddLabel(series, LabelScopeVersion, _semanticLabels.ScopeVersion);
-    AddLabel(series, LabelProcessRuntimeName, _semanticLabels.RuntimeName);
-    AddLabel(series, LabelProcessRuntimeVersion, _semanticLabels.RuntimeVersion);
+    AddLabel(series, LabelProcessRuntimeName, _runtimeInfo->GetRuntimeName());
+    AddLabel(series, LabelProcessRuntimeVersion, _runtimeInfo->GetRuntimeVersion());
 
     for (const auto& tag : _staticTags)
     {

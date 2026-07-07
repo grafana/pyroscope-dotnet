@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "PyroscopePprofSink.h"
+#include "RuntimeInfo.h"
 #include "gen/push/v1/push.pb.h"
 
 using namespace std::chrono_literals;
@@ -55,9 +56,7 @@ PyroscopeSemanticLabels TestSemanticLabels()
 {
     return PyroscopeSemanticLabels{
         .ScopeName = "com.grafana.pyroscope/dotnet",
-        .ScopeVersion = "1.2.3",
-        .RuntimeName = ".NET",
-        .RuntimeVersion = "8.0.1"};
+        .ScopeVersion = "1.2.3"};
 }
 
 std::map<std::string, std::string> GetSeriesLabels(const push::v1::RawProfileSeries& series)
@@ -91,7 +90,9 @@ void ValidatePushPath(const std::string& serverPath, const std::string& expected
 
     {
         const auto url = "http://127.0.0.1:" + std::to_string(port) + serverPath;
-        PyroscopePprofSink sink(url, "service", "", "", "", "", {}, TestSemanticLabels(), {});
+        RuntimeInfo runtimeInfo(8, 0, false);
+        PyroscopePprofSink sink(
+            url, "service", "", "", "", "", {}, TestSemanticLabels(), &runtimeInfo, {});
 
         Pprof pprof;
         pprof.bytes = "fake-pprof";
@@ -133,6 +134,7 @@ TEST(PyroscopePprofSinkTest, UploadDoesNotOverrideUserProvidedSemanticLabels)
 
     {
         const auto url = "http://127.0.0.1:" + std::to_string(port);
+        RuntimeInfo runtimeInfo(8, 0, false);
         PyroscopePprofSink sink(
             url,
             "service",
@@ -142,6 +144,7 @@ TEST(PyroscopePprofSinkTest, UploadDoesNotOverrideUserProvidedSemanticLabels)
             "",
             {},
             TestSemanticLabels(),
+            &runtimeInfo,
             {
                 {"otel.scope.name", "user.scope"},
                 {"otel.scope.version", "user-version"},
@@ -188,6 +191,54 @@ TEST(PyroscopePprofSinkTest, UploadUsesNormalizedPathForNestedPaths)
     ValidatePushPath("/api/profiles/", "/api/profiles/push.v1.PusherService/Push");
 }
 
+TEST(PyroscopePprofSinkTest, UploadUsesUpdatedDotnetFrameworkRuntimeVersion)
+{
+    httplib::Server server;
+    ObservedRequest observed;
+    const std::string expectedPath = "/push.v1.PusherService/Push";
+
+    server.Post(expectedPath, [](const httplib::Request&, httplib::Response& res) { res.status = 200; });
+    server.set_logger([&observed](const httplib::Request& req, const httplib::Response& res) {
+        observed.Set(req.path, res.status, req.body);
+    });
+
+    auto port = server.bind_to_any_port("127.0.0.1");
+    ASSERT_GT(port, 0);
+
+    std::thread serverThread([&server]() {
+        server.listen_after_bind();
+    });
+    server.wait_until_ready();
+
+    {
+        const auto url = "http://127.0.0.1:" + std::to_string(port);
+        RuntimeInfo runtimeInfo(4, 0, true);
+        PyroscopePprofSink sink(
+            url, "service", "", "", "", "", {}, TestSemanticLabels(), &runtimeInfo, {});
+
+        runtimeInfo.SetMinorVersions(8, 9195, 0);
+
+        Pprof pprof;
+        pprof.bytes = "fake-pprof";
+        pprof.profileType = ProfileType::ProcessCpu;
+
+        sink.Export({std::move(pprof)});
+
+        ASSERT_TRUE(observed.WaitForRequest(2s));
+
+        push::v1::PushRequest request;
+        ASSERT_TRUE(request.ParseFromString(observed.Body));
+        ASSERT_EQ(request.series_size(), 1);
+
+        const auto labels = GetSeriesLabels(request.series(0));
+        EXPECT_EQ(labels.at("process.runtime.name"), ".NET Framework");
+        EXPECT_EQ(labels.at("process.runtime.version"), "4.8.9195");
+    }
+
+    server.stop();
+    serverThread.join();
+}
+
 TEST(PyroscopePprofSinkTest, UploadAddsSemanticSeriesLabels)
 {
     httplib::Server server;
@@ -209,7 +260,9 @@ TEST(PyroscopePprofSinkTest, UploadAddsSemanticSeriesLabels)
 
     {
         const auto url = "http://127.0.0.1:" + std::to_string(port);
-        PyroscopePprofSink sink(url, "service", "", "", "", "", {}, TestSemanticLabels(), {{"static_label", "static_value"}});
+        RuntimeInfo runtimeInfo(8, 0, false);
+        PyroscopePprofSink sink(
+            url, "service", "", "", "", "", {}, TestSemanticLabels(), &runtimeInfo, {{"static_label", "static_value"}});
 
         Pprof pprof;
         pprof.bytes = "fake-pprof";
@@ -232,7 +285,7 @@ TEST(PyroscopePprofSinkTest, UploadAddsSemanticSeriesLabels)
         EXPECT_EQ(labels.at("otel.scope.name"), "com.grafana.pyroscope/dotnet");
         EXPECT_EQ(labels.at("otel.scope.version"), "1.2.3");
         EXPECT_EQ(labels.at("process.runtime.name"), ".NET");
-        EXPECT_EQ(labels.at("process.runtime.version"), "8.0.1");
+        EXPECT_EQ(labels.at("process.runtime.version"), "8.0");
         EXPECT_EQ(labels.at("static_label"), "static_value");
     }
 

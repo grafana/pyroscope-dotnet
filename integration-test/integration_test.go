@@ -33,7 +33,15 @@ import (
 func startPyroscope(t *testing.T, net *dockertest.Network) string {
 	t.Helper()
 	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
-		Image:          "grafana/pyroscope@sha256:0ad897bb457228c7d1133ce7004f83052e635be9daf4a7cc90364317637e9754",
+		Image: "grafana/pyroscope@sha256:5a5f97d007be75746d336cf0f6a9ae8008c42d9d8200319ee92e52fea4ae38df",
+		Cmd: []string{
+			"server",
+			"-validation.disable-label-sanitization=true",
+			"-distributor.health-check-ingesters=false",
+			"-segment-writer.min-ready-duration=0s",
+			"-segment-writer.readiness-check-ring-health=false",
+			"-metastore.min-ready-duration=0s",
+		},
 		ExposedPorts:   []string{"4040/tcp"},
 		Network:        net.Name,
 		NetworkAliases: []string{"pyroscope"},
@@ -157,6 +165,21 @@ func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string, profi
 	return buf.String(), nil
 }
 
+const pyroscopeDotnetScopeName = "com.grafana.pyroscope/dotnet"
+
+type labelMatcher struct {
+	name  string
+	value string
+}
+
+func profileLabelSelector(labels ...labelMatcher) string {
+	parts := []string{fmt.Sprintf(`"otel.scope.name"=%q`, pyroscopeDotnetScopeName)}
+	for _, label := range labels {
+		parts = append(parts, fmt.Sprintf(`%s=%q`, label.name, label.value))
+	}
+	return "{" + strings.Join(parts, ",") + "}"
+}
+
 // frameContains checks that the collapsed stack output contains a frame where
 // the class name and method name both match. The .NET profiler emits frames in
 // the format:
@@ -220,7 +243,10 @@ func runRideshareProfileTest(t *testing.T, libcType, version string, otel bool) 
 	for _, check := range checks {
 		check := check
 		t.Run(check.vehicle, func(t *testing.T) {
-			labelSelector := fmt.Sprintf(`{service_name="%s",vehicle="%s"}`, svcName, check.vehicle)
+			labelSelector := profileLabelSelector(
+				labelMatcher{"service_name", svcName},
+				labelMatcher{"vehicle", check.vehicle},
+			)
 			var lastCollapsed string
 			var lastErr error
 			require.Eventually(t, func() bool {
@@ -338,7 +364,10 @@ func TestDynamicCpuProfilingToggleAffectsProfileData(t *testing.T) {
 	require.Equal(t, http.StatusOK, disableResp.StatusCode)
 	_ = disableResp.Body.Close()
 
-	labelSelector := fmt.Sprintf(`{service_name="%s",vehicle="bike"}`, appName)
+	labelSelector := profileLabelSelector(
+		labelMatcher{"service_name", appName},
+		labelMatcher{"vehicle", "bike"},
+	)
 	require.Never(t, func() bool {
 		resp, err := client.Get(appBaseURL + "/bike")
 		if err != nil {

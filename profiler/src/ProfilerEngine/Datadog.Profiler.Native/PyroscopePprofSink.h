@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "IRuntimeInfo.h"
 #include "PprofExporter.h"
 
 #include "LockingQueue.h"
@@ -34,8 +35,6 @@ struct PyroscopeSemanticLabels
 {
     std::string ScopeName;
     std::string ScopeVersion;
-    std::string RuntimeName;
-    std::string RuntimeVersion;
 };
 
 class PyroscopePprofSink : public PProfExportSink
@@ -44,11 +43,12 @@ public:
     PyroscopePprofSink(std::string server,
                        std::string appName,
                        std::string authToken,
-                       std::string tenantID,
                        std::string basicAuthUser,
                        std::string basicAuthPassword,
+                       std::string tenantID,
                        std::map<std::string, std::string> extraHeaders,
                        PyroscopeSemanticLabels semanticLabels,
+                       IRuntimeInfo* runtimeInfo,
                        const std::vector<std::pair<std::string, std::string>>& staticTags);
     ~PyroscopePprofSink() override;
     void Export(std::vector<Pprof> pprofs) override;
@@ -70,6 +70,7 @@ private:
 
     std::string _appName;
     PyroscopeSemanticLabels _semanticLabels;
+    IRuntimeInfo* _runtimeInfo;
     std::vector<std::pair<std::string, std::string>> _staticTags;
     Url _url;
     httplib::Client _client;
