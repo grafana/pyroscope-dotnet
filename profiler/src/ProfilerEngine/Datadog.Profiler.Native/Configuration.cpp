@@ -116,7 +116,6 @@ Configuration::Configuration()
     _ssiLongLivedThreshold = ExtractSsiLongLivedThreshold();
 
     _pyroscopeServerAddress = GetEnvironmentValue(EnvironmentVariables::PyroscopeServerAddress, DefaultPyroscopeServerAddress);
-    _pyroscopeAuthToken = GetEnvironmentValue(EnvironmentVariables::PyroscopeAuthToken, DefaultEmptyString);
     _pyroscopeApplicationName = GetEnvironmentValue(EnvironmentVariables::PyroscopeApplicationName, DefaultEmptyString);
     _pyroscopeHttpHeaders = GetEnvironmentValue(EnvironmentVariables::PyroscopeHTTPHeaders, DefaultEmptyString);
     _pyroscopeTenantID = GetEnvironmentValue(EnvironmentVariables::PyroscopeTenantID, DefaultEmptyString);
@@ -945,11 +944,6 @@ std::string Configuration::PyroscopeServerAddress() const
 std::string Configuration::PyroscopeApplicationName() const
 {
     return _pyroscopeApplicationName;
-}
-
-std::string Configuration::PyroscopeAuthToken() const
-{
-    return _pyroscopeAuthToken;
 }
 
 std::string Configuration::PyroscopeHttpHeaders() const

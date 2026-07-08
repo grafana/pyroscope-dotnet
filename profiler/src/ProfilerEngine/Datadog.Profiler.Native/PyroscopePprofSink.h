@@ -33,11 +33,6 @@ struct BasicAuth
     std::string password;
 };
 
-struct DeprecatedAuthToken
-{
-    std::string value;
-};
-
 struct PyroscopeTenantId
 {
     std::string value;
@@ -48,14 +43,12 @@ class PyroscopePprofSink : public PProfExportSink
 public:
     PyroscopePprofSink(std::string server,
                        std::string appName,
-                       DeprecatedAuthToken authToken,
                        BasicAuth basicAuth,
                        PyroscopeTenantId tenantId,
                        std::map<std::string, std::string> extraHeaders,
                        const std::vector<std::pair<std::string, std::string>>& staticTags);
     ~PyroscopePprofSink() override;
     void Export(std::vector<Pprof> pprofs) override;
-    void SetAuthToken(DeprecatedAuthToken authToken);
     void SetBasicAuth(BasicAuth basicAuth);
     static std::map<std::string, std::string> ParseHeadersJSON(std::string headers);
 
@@ -79,7 +72,6 @@ private:
     LockingQueue<PyroscopeRequest> _queue;
     std::thread _workerThread;
 
-    DeprecatedAuthToken _authToken;
     BasicAuth _basicAuth;
     PyroscopeTenantId _tenantId;
     std::map<std::string, std::string> _extraHeaders;

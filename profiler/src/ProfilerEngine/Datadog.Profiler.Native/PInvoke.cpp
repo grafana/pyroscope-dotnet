@@ -317,35 +317,13 @@ extern "C" void __stdcall SetExceptionTrackingEnabled(bool enabled)
     profiler->SetExceptionTrackingEnabled(enabled);
 }
 
-extern "C" void __stdcall SetPyroscopeAuthToken(const char* authToken)
-{
-    auto* const profiler = CorProfilerCallback::GetInstance();
-
-    if (profiler == nullptr)
-    {
-        Log::Error("SetAuthToken is called BEFORE CLR initialize");
-        return;
-    }
-
-    if (!profiler->GetClrLifetime()->IsInitialized())
-    {
-        return;
-    }
-    auto sink = profiler->GetPyroscopePprofSink();
-    if (!sink)
-    {
-        return;
-    }
-    sink->SetAuthToken(DeprecatedAuthToken{authToken});
-}
-
 extern "C" void __stdcall SetPyroscopeBasicAuth(const char* username, const char* password)
 {
     auto* const profiler = CorProfilerCallback::GetInstance();
 
     if (profiler == nullptr)
     {
-        Log::Error("SetAuthToken is called BEFORE CLR initialize");
+        Log::Error("SetBasicAuth is called BEFORE CLR initialize");
         return;
     }
 

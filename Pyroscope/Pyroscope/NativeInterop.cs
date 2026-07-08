@@ -72,12 +72,6 @@ namespace Pyroscope
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        public static void SetAuthToken(string authToken)
-        {
-            NativeMethods.SetPyroscopeAuthToken(authToken);
-        }
-
-        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void SetBasicAuth(string username, string password)
         {
             NativeMethods.SetPyroscopeBasicAuth(username, password);
@@ -115,9 +109,6 @@ namespace Pyroscope
 
             [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "SetExceptionTrackingEnabled")]
             public static extern void SetExceptionTrackingEnabled(bool enabled);
-
-            [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "SetPyroscopeAuthToken")]
-            public static extern void SetPyroscopeAuthToken(string authToken);
 
             [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "SetPyroscopeBasicAuth")]
             public static extern void SetPyroscopeBasicAuth(string username, string password);

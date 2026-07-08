@@ -96,7 +96,6 @@ public:
 
     std::string PyroscopeServerAddress() const override;
     std::string PyroscopeApplicationName() const override;
-    std::string PyroscopeAuthToken() const override;
     std::string PyroscopeHttpHeaders() const override;
     std::string PyroscopeTenantID() const override;
     std::string PyroscopeBasicAuthUser() const override;
@@ -213,7 +212,6 @@ private:
 
     std::string _pyroscopeServerAddress;
     std::string _pyroscopeApplicationName;
-    std::string _pyroscopeAuthToken;
     std::string _pyroscopeHttpHeaders;
     std::string _pyroscopeTenantID;
     std::string _pyroscopeBasicAuthUser;

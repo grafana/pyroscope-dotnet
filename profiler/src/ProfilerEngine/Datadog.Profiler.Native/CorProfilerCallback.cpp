@@ -657,7 +657,6 @@ void CorProfilerCallback::InitializeServices()
     _pyroscopePprofSink = std::make_shared<PyroscopePprofSink>(
         _pConfiguration->PyroscopeServerAddress(),
         _pConfiguration->PyroscopeApplicationName(),
-        DeprecatedAuthToken{_pConfiguration->PyroscopeAuthToken()},
         BasicAuth{
             _pConfiguration->PyroscopeBasicAuthUser(),
             _pConfiguration->PyroscopeBasicAuthPassword(),
