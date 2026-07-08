@@ -35,7 +35,6 @@ func startPyroscope(t *testing.T, net *dockertest.Network) string {
 	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
 		Image: "grafana/pyroscope:2.1.0@sha256:5a5f97d007be75746d336cf0f6a9ae8008c42d9d8200319ee92e52fea4ae38df",
 		Cmd: []string{
-			"server",
 			"-validation.disable-label-sanitization=true",
 			"-distributor.health-check-ingesters=false",
 			"-ingester.min-ready-duration=0s",
