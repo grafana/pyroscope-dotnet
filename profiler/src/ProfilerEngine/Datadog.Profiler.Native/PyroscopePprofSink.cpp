@@ -6,6 +6,7 @@
 #include "Log.h"
 #include "OpSysTools.h"
 #include "cppcodec/base64_rfc4648.hpp"
+#include "dd_profiler_version.h"
 #include "nlohmann/json.hpp"
 #include "gen/push/v1/push.pb.h"
 #include "gen/types/v1/types.pb.h"
@@ -14,11 +15,24 @@
 
 namespace
 {
+constexpr std::string_view LabelScopeName = "otel.scope.name";
+constexpr std::string_view LabelScopeVersion = "otel.scope.version";
+constexpr std::string_view LabelProcessRuntimeName = "process.runtime.name";
+constexpr std::string_view LabelProcessRuntimeVersion = "process.runtime.version";
+constexpr std::string_view PyroscopeDotnetScopeName = "com.grafana.pyroscope/dotnet";
+
 std::string BuildPushPath(const Url& url)
 {
     Url pushUrl;
     pushUrl.path(url.path() + "/push.v1.PusherService/Push");
     return pushUrl.str();
+}
+
+void AddLabel(push::v1::RawProfileSeries* series, std::string_view name, std::string_view value)
+{
+    auto* label = series->add_labels();
+    label->set_name(std::string(name));
+    label->set_value(std::string(value));
 }
 }
 
@@ -28,8 +42,10 @@ PyroscopePprofSink::PyroscopePprofSink(
     BasicAuth basicAuth,
     PyroscopeTenantId tenantId,
     std::map<std::string, std::string> extraHeaders,
+    IRuntimeInfo* runtimeInfo,
     const std::vector<std::pair<std::string, std::string>>& staticTags) :
     _appName(appName),
+    _runtimeInfo(runtimeInfo),
     _staticTags(staticTags),
     _url(server),
     _basicAuth(std::move(basicAuth)),
@@ -149,6 +165,11 @@ void PyroscopePprofSink::upload(Pprof pprof)
     auto* spyLabel = series->add_labels();
     spyLabel->set_name("spy_name");
     spyLabel->set_value("dotnetspy");
+
+    AddLabel(series, LabelScopeName, PyroscopeDotnetScopeName);
+    AddLabel(series, LabelScopeVersion, PROFILER_VERSION);
+    AddLabel(series, LabelProcessRuntimeName, _runtimeInfo->GetRuntimeName());
+    AddLabel(series, LabelProcessRuntimeVersion, _runtimeInfo->GetRuntimeVersion());
 
     for (const auto& tag : _staticTags)
     {

@@ -5,6 +5,7 @@
 
 #include <chrono>
 #include <condition_variable>
+#include <map>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -12,6 +13,9 @@
 
 #include "cppcodec/base64_rfc4648.hpp"
 #include "PyroscopePprofSink.h"
+#include "RuntimeInfo.h"
+#include "dd_profiler_version.h"
+#include "gen/push/v1/push.pb.h"
 
 using namespace std::chrono_literals;
 
@@ -21,6 +25,7 @@ struct ObservedRequest
 {
     void Set(std::string requestPath,
              int responseStatus,
+             std::string requestBody = {},
              std::string authorization = {},
              std::string tenantId = {})
     {
@@ -32,6 +37,7 @@ struct ObservedRequest
 
         Path = std::move(requestPath);
         Status = responseStatus;
+        Body = std::move(requestBody);
         Authorization = std::move(authorization);
         TenantID = std::move(tenantId);
         Seen = true;
@@ -45,6 +51,7 @@ struct ObservedRequest
     }
 
     std::string Path;
+    std::string Body;
     int Status = -1;
     std::string Authorization;
     std::string TenantID;
@@ -55,6 +62,17 @@ private:
     bool Seen = false;
 };
 
+std::map<std::string, std::string> GetSeriesLabels(const push::v1::RawProfileSeries& series)
+{
+    std::map<std::string, std::string> labels;
+    for (const auto& label : series.labels())
+    {
+        labels[label.name()] = label.value();
+    }
+
+    return labels;
+}
+
 void ValidatePushPath(const std::string& serverPath, const std::string& expectedPath)
 {
     httplib::Server server;
@@ -62,7 +80,7 @@ void ValidatePushPath(const std::string& serverPath, const std::string& expected
 
     server.Post(expectedPath, [](const httplib::Request&, httplib::Response& res) { res.status = 200; });
     server.set_logger([&observed](const httplib::Request& req, const httplib::Response& res) {
-        observed.Set(req.path, res.status);
+        observed.Set(req.path, res.status, req.body);
     });
 
     auto port = server.bind_to_any_port("127.0.0.1");
@@ -75,7 +93,9 @@ void ValidatePushPath(const std::string& serverPath, const std::string& expected
 
     {
         const auto url = "http://127.0.0.1:" + std::to_string(port) + serverPath;
-        PyroscopePprofSink sink(url, "service", BasicAuth{}, PyroscopeTenantId{}, {}, {});
+        RuntimeInfo runtimeInfo(8, 0, false);
+        PyroscopePprofSink sink(
+            url, "service", BasicAuth{}, PyroscopeTenantId{}, {}, &runtimeInfo, {});
 
         Pprof pprof;
         pprof.bytes = "fake-pprof";
@@ -90,6 +110,65 @@ void ValidatePushPath(const std::string& serverPath, const std::string& expected
             EXPECT_EQ(observed.Path, expectedPath);
             EXPECT_EQ(observed.Status, 200);
         }
+    }
+
+    server.stop();
+    serverThread.join();
+}
+
+TEST(PyroscopePprofSinkTest, UploadDoesNotOverrideUserProvidedSemanticLabels)
+{
+    httplib::Server server;
+    ObservedRequest observed;
+    const std::string expectedPath = "/push.v1.PusherService/Push";
+
+    server.Post(expectedPath, [](const httplib::Request&, httplib::Response& res) { res.status = 200; });
+    server.set_logger([&observed](const httplib::Request& req, const httplib::Response& res) {
+        observed.Set(req.path, res.status, req.body);
+    });
+
+    auto port = server.bind_to_any_port("127.0.0.1");
+    ASSERT_GT(port, 0);
+
+    std::thread serverThread([&server]() {
+        server.listen_after_bind();
+    });
+    server.wait_until_ready();
+
+    {
+        const auto url = "http://127.0.0.1:" + std::to_string(port);
+        RuntimeInfo runtimeInfo(8, 0, false);
+        PyroscopePprofSink sink(
+            url,
+            "service",
+            BasicAuth{},
+            PyroscopeTenantId{},
+            {},
+            &runtimeInfo,
+            {
+                {"otel.scope.name", "user.scope"},
+                {"otel.scope.version", "user-version"},
+                {"process.runtime.name", "user-runtime"},
+                {"process.runtime.version", "user-runtime-version"},
+            });
+
+        Pprof pprof;
+        pprof.bytes = "fake-pprof";
+        pprof.profileType = ProfileType::ProcessCpu;
+
+        sink.Export({std::move(pprof)});
+
+        ASSERT_TRUE(observed.WaitForRequest(2s));
+
+        push::v1::PushRequest request;
+        ASSERT_TRUE(request.ParseFromString(observed.Body));
+        ASSERT_EQ(request.series_size(), 1);
+
+        const auto labels = GetSeriesLabels(request.series(0));
+        EXPECT_EQ(labels.at("otel.scope.name"), "user.scope");
+        EXPECT_EQ(labels.at("otel.scope.version"), "user-version");
+        EXPECT_EQ(labels.at("process.runtime.name"), "user-runtime");
+        EXPECT_EQ(labels.at("process.runtime.version"), "user-runtime-version");
     }
 
     server.stop();
@@ -123,6 +202,7 @@ TEST(PyroscopePprofSinkTest, UploadUsesBasicAuthAndTenantConstructorArguments)
         observed.Set(
             req.path,
             res.status,
+            req.body,
             req.get_header_value("Authorization"),
             req.get_header_value("X-Scope-OrgID"));
     });
@@ -137,12 +217,14 @@ TEST(PyroscopePprofSinkTest, UploadUsesBasicAuthAndTenantConstructorArguments)
 
     {
         const auto url = "http://127.0.0.1:" + std::to_string(port) + "/tenant/";
+        RuntimeInfo runtimeInfo(8, 0, false);
         PyroscopePprofSink sink(
             url,
             "service",
             BasicAuth{"pyroscope-user", "pyroscope-password"},
             PyroscopeTenantId{"pyroscope-tenant"},
             {},
+            &runtimeInfo,
             {});
 
         Pprof pprof;
@@ -160,6 +242,108 @@ TEST(PyroscopePprofSinkTest, UploadUsesBasicAuthAndTenantConstructorArguments)
             observed.Authorization,
             "Basic " + cppcodec::base64_rfc4648::encode(std::string{"pyroscope-user:pyroscope-password"}));
         EXPECT_EQ(observed.TenantID, "pyroscope-tenant");
+    }
+
+    server.stop();
+    serverThread.join();
+}
+
+TEST(PyroscopePprofSinkTest, UploadUsesUpdatedDotnetFrameworkRuntimeVersion)
+{
+    httplib::Server server;
+    ObservedRequest observed;
+    const std::string expectedPath = "/push.v1.PusherService/Push";
+
+    server.Post(expectedPath, [](const httplib::Request&, httplib::Response& res) { res.status = 200; });
+    server.set_logger([&observed](const httplib::Request& req, const httplib::Response& res) {
+        observed.Set(req.path, res.status, req.body);
+    });
+
+    auto port = server.bind_to_any_port("127.0.0.1");
+    ASSERT_GT(port, 0);
+
+    std::thread serverThread([&server]() {
+        server.listen_after_bind();
+    });
+    server.wait_until_ready();
+
+    {
+        const auto url = "http://127.0.0.1:" + std::to_string(port);
+        RuntimeInfo runtimeInfo(4, 0, true);
+        PyroscopePprofSink sink(
+            url, "service", BasicAuth{}, PyroscopeTenantId{}, {}, &runtimeInfo, {});
+
+        runtimeInfo.SetMinorVersions(8, 9195, 0);
+
+        Pprof pprof;
+        pprof.bytes = "fake-pprof";
+        pprof.profileType = ProfileType::ProcessCpu;
+
+        sink.Export({std::move(pprof)});
+
+        ASSERT_TRUE(observed.WaitForRequest(2s));
+
+        push::v1::PushRequest request;
+        ASSERT_TRUE(request.ParseFromString(observed.Body));
+        ASSERT_EQ(request.series_size(), 1);
+
+        const auto labels = GetSeriesLabels(request.series(0));
+        EXPECT_EQ(labels.at("process.runtime.name"), ".NET Framework");
+        EXPECT_EQ(labels.at("process.runtime.version"), "4.8.9195");
+    }
+
+    server.stop();
+    serverThread.join();
+}
+
+TEST(PyroscopePprofSinkTest, UploadAddsSemanticSeriesLabels)
+{
+    httplib::Server server;
+    ObservedRequest observed;
+    const std::string expectedPath = "/push.v1.PusherService/Push";
+
+    server.Post(expectedPath, [](const httplib::Request&, httplib::Response& res) { res.status = 200; });
+    server.set_logger([&observed](const httplib::Request& req, const httplib::Response& res) {
+        observed.Set(req.path, res.status, req.body);
+    });
+
+    auto port = server.bind_to_any_port("127.0.0.1");
+    ASSERT_GT(port, 0);
+
+    std::thread serverThread([&server]() {
+        server.listen_after_bind();
+    });
+    server.wait_until_ready();
+
+    {
+        const auto url = "http://127.0.0.1:" + std::to_string(port);
+        RuntimeInfo runtimeInfo(8, 0, false);
+        PyroscopePprofSink sink(
+            url, "service", BasicAuth{}, PyroscopeTenantId{}, {}, &runtimeInfo, {{"static_label", "static_value"}});
+
+        Pprof pprof;
+        pprof.bytes = "fake-pprof";
+        pprof.profileType = ProfileType::ProcessCpu;
+
+        sink.Export({std::move(pprof)});
+
+        ASSERT_TRUE(observed.WaitForRequest(2s));
+        EXPECT_EQ(observed.Path, expectedPath);
+        EXPECT_EQ(observed.Status, 200);
+
+        push::v1::PushRequest request;
+        ASSERT_TRUE(request.ParseFromString(observed.Body));
+        ASSERT_EQ(request.series_size(), 1);
+
+        const auto labels = GetSeriesLabels(request.series(0));
+        EXPECT_EQ(labels.at("__name__"), "process_cpu");
+        EXPECT_EQ(labels.at("service_name"), "service");
+        EXPECT_EQ(labels.at("spy_name"), "dotnetspy");
+        EXPECT_EQ(labels.at("otel.scope.name"), "com.grafana.pyroscope/dotnet");
+        EXPECT_EQ(labels.at("otel.scope.version"), PROFILER_VERSION);
+        EXPECT_EQ(labels.at("process.runtime.name"), ".NET");
+        EXPECT_EQ(labels.at("process.runtime.version"), "8.0");
+        EXPECT_EQ(labels.at("static_label"), "static_value");
     }
 
     server.stop();

@@ -21,7 +21,7 @@ private:
     {
         inline static const std::string file_name = "Pyroscope-DotNet-Profiler-Native";
 #ifdef _WIN32
-        inline static const shared::WSTRING folder_path = WStr(R"(Datadog .NET Tracer\logs)");
+        inline static const shared::WSTRING folder_path = WStr(R"(Pyroscope\logs)");
 #endif
         inline static const std::string pattern = "[%Y-%m-%d %H:%M:%S.%e | %l | PId: %P | TId: %t] %v";
         static bool enable_buffering() {
