@@ -15,6 +15,8 @@ public:
     virtual uint16_t GetMinorVersion() const = 0;
     virtual std::string GetOs() const = 0;
     virtual std::string GetClrString() const = 0;
+    virtual std::string GetRuntimeName() const = 0;
+    virtual std::string GetRuntimeVersion() const = 0;
 
     // for .NET Framework, we get the exact minor version
     // after mscorlib gets loaded

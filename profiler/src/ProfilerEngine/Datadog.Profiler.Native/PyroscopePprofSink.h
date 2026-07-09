@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "IRuntimeInfo.h"
 #include "PprofExporter.h"
 
 #include "LockingQueue.h"
@@ -27,16 +28,19 @@
 #include "url.hpp"
 #include "PyroscopeVersion.h"
 
+#include <string>
+
 class PyroscopePprofSink : public PProfExportSink
 {
 public:
     PyroscopePprofSink(std::string server,
                        std::string appName,
                        std::string authToken,
-                       std::string tenantID,
                        std::string basicAuthUser,
                        std::string basicAuthPassword,
+                       std::string tenantID,
                        std::map<std::string, std::string> extraHeaders,
+                       IRuntimeInfo* runtimeInfo,
                        const std::vector<std::pair<std::string, std::string>>& staticTags);
     ~PyroscopePprofSink() override;
     void Export(std::vector<Pprof> pprofs) override;
@@ -57,6 +61,7 @@ private:
     httplib::Headers getHeaders();
 
     std::string _appName;
+    IRuntimeInfo* _runtimeInfo;
     std::vector<std::pair<std::string, std::string>> _staticTags;
     Url _url;
     httplib::Client _client;
