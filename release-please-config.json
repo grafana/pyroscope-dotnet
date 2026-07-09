@@ -25,17 +25,7 @@
         {
           "type": "xml",
           "path": "Pyroscope/Pyroscope/Pyroscope.csproj",
-          "xpath": "//PackageVersion"
-        },
-        {
-          "type": "xml",
-          "path": "Pyroscope/Pyroscope/Pyroscope.csproj",
-          "xpath": "//AssemblyVersion"
-        },
-        {
-          "type": "xml",
-          "path": "Pyroscope/Pyroscope/Pyroscope.csproj",
-          "xpath": "//FileVersion"
+          "xpath": "//VersionPrefix"
         },
         {
           "type": "generic",
