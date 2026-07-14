@@ -28,7 +28,7 @@ ProfilerSignalManager::~ProfilerSignalManager() noexcept
         _isHandlerInPlace = false;
         sigaction(_signalToSend, &_previousAction, nullptr);
     }
-    _handler.store(nullptr, std::memory_order_relaxed);
+    _handler.store(nullptr, std::memory_order_release);
 }
 
 ProfilerSignalManager* ProfilerSignalManager::Get(int signal)

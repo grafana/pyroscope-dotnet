@@ -220,7 +220,7 @@
         <!-- PYROSCOPE_WINDOWS_NOTE: force-include winsock2.h before anything else. httplib.h (cpp-httplib)
              needs winsock2, and <windows.h> auto-includes winsock v1 unless winsock2 has set _WINSOCKAPI_
              first. WIN32_LEAN_AND_MEAN is the usual workaround but breaks <atlbase.h>. Force-include is
-             a narrower fix that keeps ATL happy. Upstream doesn't need this — no cpp-httplib there. -->
+             a narrower fix that keeps ATL happy. Upstream doesn't need this - no cpp-httplib there. -->
         <ForcedIncludeFiles>$(DOTNET-TRACER-REPO-ROOT-PATH)profiler\src\ProfilerEngine\Datadog.Profiler.Native\PyroscopeWindowsIncludeOrder.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
         <!-- PYROSCOPE_WINDOWS_NOTE: /utf-8 required by fmt (bundled with spdlog) for its Unicode
              support static_assert. Equivalent to /source-charset:utf-8 /execution-charset:utf-8. -->
