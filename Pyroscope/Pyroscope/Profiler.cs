@@ -165,24 +165,6 @@ namespace Pyroscope
             }
         }
 
-        public void SetAuthToken(string authToken)
-        {
-            if (!IsNativeInteropAvailable())
-            {
-                return;
-            }
-
-            try
-            {
-                NativeInterop.SetAuthToken(authToken);
-            }
-            catch (DllNotFoundException ex)
-            {
-                DllNotFound(ex);
-                _dllNotFound = true;
-            }
-        }
-
         public void SetBasicAuth(string username, string password)
         {
             if (!IsNativeInteropAvailable())

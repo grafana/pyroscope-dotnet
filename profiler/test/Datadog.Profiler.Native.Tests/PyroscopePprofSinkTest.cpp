@@ -11,6 +11,7 @@
 #include <thread>
 #include <vector>
 
+#include "cppcodec/base64_rfc4648.hpp"
 #include "PyroscopePprofSink.h"
 #include "RuntimeInfo.h"
 #include "dd_profiler_version.h"
@@ -22,7 +23,11 @@ namespace
 {
 struct ObservedRequest
 {
-    void Set(std::string requestPath, int responseStatus, std::string requestBody)
+    void Set(std::string requestPath,
+             int responseStatus,
+             std::string requestBody = {},
+             std::string authorization = {},
+             std::string tenantId = {})
     {
         std::lock_guard<std::mutex> lock(Mutex);
         if (Seen)
@@ -33,6 +38,8 @@ struct ObservedRequest
         Path = std::move(requestPath);
         Status = responseStatus;
         Body = std::move(requestBody);
+        Authorization = std::move(authorization);
+        TenantID = std::move(tenantId);
         Seen = true;
         Cv.notify_one();
     }
@@ -46,6 +53,8 @@ struct ObservedRequest
     std::string Path;
     std::string Body;
     int Status = -1;
+    std::string Authorization;
+    std::string TenantID;
 
 private:
     std::mutex Mutex;
@@ -86,7 +95,7 @@ void ValidatePushPath(const std::string& serverPath, const std::string& expected
         const auto url = "http://127.0.0.1:" + std::to_string(port) + serverPath;
         RuntimeInfo runtimeInfo(8, 0, false);
         PyroscopePprofSink sink(
-            url, "service", "", "", "", "", {}, &runtimeInfo, {});
+            url, "service", BasicAuth{}, PyroscopeTenantId{}, {}, &runtimeInfo, {});
 
         Pprof pprof;
         pprof.bytes = "fake-pprof";
@@ -132,10 +141,8 @@ TEST(PyroscopePprofSinkTest, UploadDoesNotOverrideUserProvidedSemanticLabels)
         PyroscopePprofSink sink(
             url,
             "service",
-            "",
-            "",
-            "",
-            "",
+            BasicAuth{},
+            PyroscopeTenantId{},
             {},
             &runtimeInfo,
             {
@@ -184,6 +191,63 @@ TEST(PyroscopePprofSinkTest, UploadUsesNormalizedPathForNestedPaths)
     ValidatePushPath("/api/profiles/", "/api/profiles/push.v1.PusherService/Push");
 }
 
+TEST(PyroscopePprofSinkTest, UploadUsesBasicAuthAndTenantConstructorArguments)
+{
+    httplib::Server server;
+    ObservedRequest observed;
+    const std::string expectedPath = "/tenant/push.v1.PusherService/Push";
+
+    server.Post(expectedPath, [](const httplib::Request&, httplib::Response& res) { res.status = 200; });
+    server.set_logger([&observed](const httplib::Request& req, const httplib::Response& res) {
+        observed.Set(
+            req.path,
+            res.status,
+            req.body,
+            req.get_header_value("Authorization"),
+            req.get_header_value("X-Scope-OrgID"));
+    });
+
+    auto port = server.bind_to_any_port("127.0.0.1");
+    ASSERT_GT(port, 0);
+
+    std::thread serverThread([&server]() {
+        server.listen_after_bind();
+    });
+    server.wait_until_ready();
+
+    {
+        const auto url = "http://127.0.0.1:" + std::to_string(port) + "/tenant/";
+        RuntimeInfo runtimeInfo(8, 0, false);
+        PyroscopePprofSink sink(
+            url,
+            "service",
+            BasicAuth{"pyroscope-user", "pyroscope-password"},
+            PyroscopeTenantId{"pyroscope-tenant"},
+            {},
+            &runtimeInfo,
+            {});
+
+        Pprof pprof;
+        pprof.bytes = "fake-pprof";
+        pprof.profileType = ProfileType::ProcessCpu;
+
+        sink.Export({std::move(pprof)});
+
+        const bool requestReceived = observed.WaitForRequest(2s);
+        ASSERT_TRUE(requestReceived);
+
+        EXPECT_EQ(observed.Path, expectedPath);
+        EXPECT_EQ(observed.Status, 200);
+        EXPECT_EQ(
+            observed.Authorization,
+            "Basic " + cppcodec::base64_rfc4648::encode(std::string{"pyroscope-user:pyroscope-password"}));
+        EXPECT_EQ(observed.TenantID, "pyroscope-tenant");
+    }
+
+    server.stop();
+    serverThread.join();
+}
+
 TEST(PyroscopePprofSinkTest, UploadUsesUpdatedDotnetFrameworkRuntimeVersion)
 {
     httplib::Server server;
@@ -207,7 +271,7 @@ TEST(PyroscopePprofSinkTest, UploadUsesUpdatedDotnetFrameworkRuntimeVersion)
         const auto url = "http://127.0.0.1:" + std::to_string(port);
         RuntimeInfo runtimeInfo(4, 0, true);
         PyroscopePprofSink sink(
-            url, "service", "", "", "", "", {}, &runtimeInfo, {});
+            url, "service", BasicAuth{}, PyroscopeTenantId{}, {}, &runtimeInfo, {});
 
         runtimeInfo.SetMinorVersions(8, 9195, 0);
 
@@ -255,7 +319,7 @@ TEST(PyroscopePprofSinkTest, UploadAddsSemanticSeriesLabels)
         const auto url = "http://127.0.0.1:" + std::to_string(port);
         RuntimeInfo runtimeInfo(8, 0, false);
         PyroscopePprofSink sink(
-            url, "service", "", "", "", "", {}, &runtimeInfo, {{"static_label", "static_value"}});
+            url, "service", BasicAuth{}, PyroscopeTenantId{}, {}, &runtimeInfo, {{"static_label", "static_value"}});
 
         Pprof pprof;
         pprof.bytes = "fake-pprof";

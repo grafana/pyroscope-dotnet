@@ -48,8 +48,8 @@ class PprofExporter : public IExporter
 {
 
 public:
-    PprofExporter(IApplicationStore* _applicationStore,
-                  std::shared_ptr<PProfExportSink> sin,
+    PprofExporter(IApplicationStore* applicationStore,
+                  std::shared_ptr<PProfExportSink> sink,
                   std::vector<SampleValueType> sampleTypeDefinitions);
     void Add(std::shared_ptr<Sample> const& sample) override;
     void SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint) override;

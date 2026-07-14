@@ -53,7 +53,6 @@ extern "C" void __stdcall SetCPUTrackingEnabled(bool enabled);
 extern "C" void __stdcall SetAllocationTrackingEnabled(bool enabled);
 extern "C" void __stdcall SetContentionTrackingEnabled(bool enabled);
 extern "C" void __stdcall SetExceptionTrackingEnabled(bool enabled);
-extern "C" void __stdcall SetPyroscopeAuthToken(const char *authToken);
 extern "C" void __stdcall SetPyroscopeBasicAuth(const char *user, const char *password);
 
 

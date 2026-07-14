@@ -39,10 +39,8 @@ void AddLabel(push::v1::RawProfileSeries* series, std::string_view name, std::st
 PyroscopePprofSink::PyroscopePprofSink(
     std::string server,
     std::string appName,
-    std::string authToken,
-    std::string basicAuthUser,
-    std::string basicAuthPassword,
-    std::string tenantID,
+    BasicAuth basicAuth,
+    PyroscopeTenantId tenantId,
     std::map<std::string, std::string> extraHeaders,
     IRuntimeInfo* runtimeInfo,
     const std::vector<std::pair<std::string, std::string>>& staticTags) :
@@ -50,10 +48,8 @@ PyroscopePprofSink::PyroscopePprofSink(
     _runtimeInfo(runtimeInfo),
     _staticTags(staticTags),
     _url(server),
-    _authToken(authToken),
-    _basicAuthUser(basicAuthUser),
-    _basicAuthPassword(basicAuthPassword),
-    _tenantID(tenantID),
+    _basicAuth(std::move(basicAuth)),
+    _tenantId(std::move(tenantId)),
     _extraHeaders(extraHeaders),
     _client(SchemeHostPort(_url)),
     _running(true)
@@ -112,20 +108,10 @@ void PyroscopePprofSink::Export(std::vector<Pprof> pprofs)
     _queue.push(std::move(req));
 }
 
-void PyroscopePprofSink::SetAuthToken(std::string authToken)
+void PyroscopePprofSink::SetBasicAuth(BasicAuth basicAuth)
 {
     std::lock_guard<std::mutex> auth_guard(_authLock);
-    _authToken = authToken;
-    _basicAuthUser = "";
-    _basicAuthPassword = "";
-}
-
-void PyroscopePprofSink::SetBasicAuth(std::string user, std::string password)
-{
-    std::lock_guard<std::mutex> auth_guard(_authLock);
-    _basicAuthUser = user;
-    _basicAuthPassword = password;
-    _authToken = "";
+    _basicAuth = std::move(basicAuth);
 }
 
 void PyroscopePprofSink::work()
@@ -215,21 +201,17 @@ httplib::Headers PyroscopePprofSink::getHeaders()
 {
     httplib::Headers headers;
     std::lock_guard<std::mutex> auth_guard(_authLock);
-    if (!_authToken.empty())
+    if (!_basicAuth.user.empty() && !_basicAuth.password.empty())
     {
-        headers.emplace("Authorization", "Bearer " + _authToken);
-    }
-    else if (!_basicAuthUser.empty() && !_basicAuthPassword.empty())
-    {
-        headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(_basicAuthUser + ":" + _basicAuthPassword));
+        headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(_basicAuth.user + ":" + _basicAuth.password));
     }
     else if (!_url.user_info().empty())
     {
         headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(_url.user_info()));
     }
-    if (!_tenantID.empty())
+    if (!_tenantId.value.empty())
     {
-        headers.emplace("X-Scope-OrgID", _tenantID);
+        headers.emplace("X-Scope-OrgID", _tenantId.value);
     }
     headers.emplace("User-Agent", "pyroscope-dotnet/" PYROSCOPE_SPY_VERSION " cpp-httplib");
     for (const auto& item : _extraHeaders)

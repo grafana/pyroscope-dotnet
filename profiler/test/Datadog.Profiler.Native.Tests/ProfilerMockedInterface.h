@@ -35,7 +35,6 @@ public:
     // Pyroscope-specific methods
     MOCK_METHOD(std::string, PyroscopeServerAddress, (), (const override));
     MOCK_METHOD(std::string, PyroscopeApplicationName, (), (const override));
-    MOCK_METHOD(std::string, PyroscopeAuthToken, (), (const override));
     MOCK_METHOD(std::string, PyroscopeHttpHeaders, (), (const override));
     MOCK_METHOD(std::string, PyroscopeTenantID, (), (const override));
     MOCK_METHOD(std::string, PyroscopeBasicAuthUser, (), (const override));

@@ -30,22 +30,30 @@
 
 #include <string>
 
+struct BasicAuth
+{
+    std::string user;
+    std::string password;
+};
+
+struct PyroscopeTenantId
+{
+    std::string value;
+};
+
 class PyroscopePprofSink : public PProfExportSink
 {
 public:
     PyroscopePprofSink(std::string server,
                        std::string appName,
-                       std::string authToken,
-                       std::string basicAuthUser,
-                       std::string basicAuthPassword,
-                       std::string tenantID,
+                       BasicAuth basicAuth,
+                       PyroscopeTenantId tenantId,
                        std::map<std::string, std::string> extraHeaders,
                        IRuntimeInfo* runtimeInfo,
                        const std::vector<std::pair<std::string, std::string>>& staticTags);
     ~PyroscopePprofSink() override;
     void Export(std::vector<Pprof> pprofs) override;
-    void SetAuthToken(std::string authToken);
-    void SetBasicAuth(std::string user, std::string password);
+    void SetBasicAuth(BasicAuth basicAuth);
     static std::map<std::string, std::string> ParseHeadersJSON(std::string headers);
 
 private:
@@ -69,10 +77,8 @@ private:
     LockingQueue<PyroscopeRequest> _queue;
     std::thread _workerThread;
 
-    std::string _authToken;
-    std::string _basicAuthUser;
-    std::string _basicAuthPassword;
-    std::string _tenantID;
+    BasicAuth _basicAuth;
+    PyroscopeTenantId _tenantId;
     std::map<std::string, std::string> _extraHeaders;
     std::mutex _authLock;
 };
