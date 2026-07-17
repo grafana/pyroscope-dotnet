@@ -19,7 +19,7 @@ commit.gpgsign=true
 So the ordinary workflow needs no special steps — and because signing
 happens in git itself, **anything git can create is signed**: regular
 commits, merge commits (`git merge --no-ff`), reverts, cherry-picks,
-renames, file-mode changes, and submodule pointer bumps.
+renames, file-mode changes, and submodule pointer bumps. 
 
 Verified empirically on this repo: plain pushes from a Claude Code remote
 session — including a two-parent merge commit — were accepted by the
