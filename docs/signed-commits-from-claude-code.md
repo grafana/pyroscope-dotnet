@@ -6,8 +6,11 @@ make Claude Code remote sessions (claude.ai/code) unusable here. It doesn't:
 
 ## Plain `git commit` + `git push` just works
 
-Claude Code remote sessions configure git to sign every commit locally with
-an SSH key registered as a signing key on the `claude` GitHub account:
+**No setup is required.** Claude Code remote sessions come with commit
+signing already configured out of the box — the session container ships a
+global gitconfig that signs every commit locally with an SSH key registered
+as a signing key on the `claude` GitHub account. For reference, this is
+what the pre-provisioned config looks like (do not add this yourself):
 
 ```gitconfig
 user.email=noreply@anthropic.com
@@ -41,3 +44,6 @@ signatures`:
 - `push_files` (low-level git data API): never signed.
 
 Use plain `git commit` + `git push` instead.
+
+**TL;DR: nothing to configure — just use normal git commands and avoid the
+MCP file-commit tools.**
