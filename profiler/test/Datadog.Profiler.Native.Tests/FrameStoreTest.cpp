@@ -16,12 +16,10 @@ using namespace testing;
 
 namespace {
 
-// The pipe-delimited string produced by FrameStore::GetFrame for unresolved native
-// frames. Kept in sync with the NotResolvedFrame constant in FrameStore.cpp. Unlike
-// the synthetic fake-IP frames, the pyroscope fork keeps NotResolvedFrame in Datadog's
-// encoded form because it is filtered out (isResolved=false) rather than displayed.
-constexpr const char* NotResolvedFrameText =
-    "|lm:Unknown-Assembly |ns: |ct:Unknown-Type |cg: |fn:NotResolvedFrame |fg: |sg:(?)";
+// Kept in sync with the plain placeholder produced by FrameStore::GetFrame. Although
+// unresolved native frames are normally filtered out, Windows SEH recovery paths keep
+// this frame, so it must remain suitable for direct use by the pprof sink.
+constexpr const char* NotResolvedFrameText = "NotResolvedFrame";
 
 } // namespace
 
