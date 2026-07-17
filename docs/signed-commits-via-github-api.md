@@ -10,20 +10,33 @@ commit that added this file — it shows as **Verified**).
 
 ## Option 1: Claude Code remote sessions — plain `git push` just works
 
-Claude Code on the web / remote sessions push through a Claude-managed git
-proxy. The proxy **signs every pushed commit with an SSH key** registered
-with GitHub, so the commits arrive as `verified: true, reason: "valid"` and
-pass the signature ruleset. No special steps are needed:
+Claude Code on the web / remote sessions configure git to **sign every
+commit locally with an SSH key** registered as a signing key on the
+`claude` GitHub account:
+
+```gitconfig
+user.email=noreply@anthropic.com
+user.signingkey=/home/claude/.ssh/commit_signing_key.pub
+gpg.format=ssh
+commit.gpgsign=true
+```
+
+So the ordinary workflow needs no special steps:
 
 ```bash
 git commit -m "..."
 git push -u origin <branch>
 ```
 
-This was verified empirically on this repo: a plain push from a Claude Code
-remote session was accepted by the "verified signatures" ruleset, and the
-resulting commit carries an `-----BEGIN SSH SIGNATURE-----` block with
-`verification.verified: true`.
+Because signing happens in git itself (not in an API translation layer),
+**anything git can create is signed**: regular commits, merge commits
+(`git merge --no-ff`), reverts, cherry-picks, renames, file-mode changes,
+and submodule pointer bumps. You are *not* limited to file-content updates.
+
+This was verified empirically on this repo: plain pushes from a Claude Code
+remote session (including a two-parent merge commit) were accepted by the
+"verified signatures" ruleset, and the resulting commits carry an
+`-----BEGIN SSH SIGNATURE-----` block with `verification.verified: true`.
 
 ## Option 2: Let GitHub create the commit server-side (the release-please way)
 
@@ -75,6 +88,23 @@ verified commits.
 
 3. **Merges performed by GitHub** (merge queue, squash/merge button,
    `PUT /repos/{owner}/{repo}/pulls/{n}/merge`) are also signed by GitHub.
+
+## Signed merge commits
+
+Both options above extend to merge commits:
+
+- **Locally (Option 1):** `commit.gpgsign=true` applies to merge commits
+  too, so `git merge --no-ff` produces a signed two-parent commit that
+  passes the ruleset. This branch contains exactly such a merge commit as
+  proof.
+- **Server-side (Option 2):** any merge GitHub performs is signed with its
+  `web-flow` key — the PR merge API (`PUT .../pulls/{n}/merge`), the
+  branch-merge API (`POST /repos/{owner}/{repo}/merges`), and
+  "update branch with base" (`PUT .../pulls/{n}/update-branch`, exposed as
+  the `update_pull_request_branch` MCP tool). Note the API paths that
+  create *signed* commits only handle regular file additions, updates and
+  deletions — no submodule pointers or file modes; for those you need
+  Option 1 (or the unsigned git data API plus your own signature).
 
 ## What does NOT produce signed commits
 
