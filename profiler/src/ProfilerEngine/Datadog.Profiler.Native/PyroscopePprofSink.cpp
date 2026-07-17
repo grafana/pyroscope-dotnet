@@ -7,9 +7,10 @@
 #include "OpSysTools.h"
 #include "cppcodec/base64_rfc4648.hpp"
 #include "dd_profiler_version.h"
-#include "nlohmann/json.hpp"
 #include "gen/push/v1/push.pb.h"
 #include "gen/types/v1/types.pb.h"
+#include "google/protobuf/struct.pb.h"
+#include "google/protobuf/util/json_util.h"
 #include "shared/src/native-src/string.h"
 #include "shared/src/native-src/util.h"
 
@@ -256,31 +257,26 @@ std::map<std::string, std::string> PyroscopePprofSink::ParseHeadersJSON(std::str
     {
         return result;
     }
-    try
+
+    google::protobuf::Struct json;
+    auto status = google::protobuf::util::JsonStringToMessage(headers, &json);
+    if (!status.ok())
     {
-        nlohmann::json json = nlohmann::json::parse(headers);
-        if (json.is_object())
+        Log::Error("PyroscopePprofSink: failed to parse headers json: ", status.ToString());
+        return result;
+    }
+
+    for (const auto& [key, value] : json.fields())
+    {
+        if (value.kind_case() == google::protobuf::Value::kStringValue)
         {
-            for (auto it = json.begin(); it != json.end(); ++it)
-            {
-                if (it.value().is_string())
-                {
-                    result[it.key()] = it.value();
-                }
-                else
-                {
-                    Log::Error("PyroscopePprofSink: header value is not a string: ", it.key(), " ", it.value());
-                }
-            }
+            result[key] = value.string_value();
         }
         else
         {
-            Log::Error("PyroscopePprofSink: headers is not a JSON object");
+            Log::Error("PyroscopePprofSink: header value is not a string: ", key);
         }
     }
-    catch (...)
-    {
-        Log::Error("PyroscopePprofSink: failed to parse headers json", headers);
-    }
+
     return result;
 }

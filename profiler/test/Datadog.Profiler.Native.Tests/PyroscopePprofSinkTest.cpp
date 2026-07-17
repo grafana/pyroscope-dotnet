@@ -174,6 +174,34 @@ TEST(PyroscopePprofSinkTest, UploadDoesNotOverrideUserProvidedSemanticLabels)
     server.stop();
     serverThread.join();
 }
+
+TEST(PyroscopePprofSinkTest, ParseHeadersJSONReturnsStringHeaders)
+{
+    const auto headers =
+        PyroscopePprofSink::ParseHeadersJSON(R"({"Authorization":"Bearer token","X-Scope-OrgID":"tenant"})");
+
+    const std::map<std::string, std::string> expected = {
+        {"Authorization", "Bearer token"},
+        {"X-Scope-OrgID", "tenant"},
+    };
+    EXPECT_EQ(headers, expected);
+}
+
+TEST(PyroscopePprofSinkTest, ParseHeadersJSONIgnoresNonStringValues)
+{
+    const auto headers = PyroscopePprofSink::ParseHeadersJSON(
+        R"({"valid":"value","number":42,"boolean":true,"null":null,"object":{},"array":[]})");
+
+    const std::map<std::string, std::string> expected = {{"valid", "value"}};
+    EXPECT_EQ(headers, expected);
+}
+
+TEST(PyroscopePprofSinkTest, ParseHeadersJSONReturnsEmptyMapForInvalidInput)
+{
+    EXPECT_TRUE(PyroscopePprofSink::ParseHeadersJSON("").empty());
+    EXPECT_TRUE(PyroscopePprofSink::ParseHeadersJSON("{invalid").empty());
+    EXPECT_TRUE(PyroscopePprofSink::ParseHeadersJSON(R"(["not","an","object"])").empty());
+}
 } // namespace
 
 TEST(PyroscopePprofSinkTest, UploadUsesNormalizedPathWhenBasePathHasTrailingSlash)
