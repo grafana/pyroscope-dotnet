@@ -196,7 +196,7 @@
       <!-- PYROSCOPE_WINDOWS_NOTE: protobuf headers come from vcpkg (see vcpkg.json override pinning
            3.21.12). Do NOT add profiler\third_party\protobuf\src here — having both would risk header
            vs. runtime mismatch if vcpkg protobuf moves in the future. -->
-      <SHARED-LIB-INCLUDES>$(PYROSCOPE-THIRDPARTY-PATH)spdlog\include;$(PYROSCOPE-THIRDPARTY-PATH)cpp-httplib;$(PYROSCOPE-THIRDPARTY-PATH)CxxUrl;$(PYROSCOPE-THIRDPARTY-PATH)cppcodec;$(PYROSCOPE-THIRDPARTY-PATH)nlohmann_json\include;$(PYROSCOPE-GEN-PATH)</SHARED-LIB-INCLUDES>
+      <SHARED-LIB-INCLUDES>$(PYROSCOPE-THIRDPARTY-PATH)spdlog\include;$(PYROSCOPE-THIRDPARTY-PATH)cpp-httplib;$(PYROSCOPE-THIRDPARTY-PATH)CxxUrl;$(PYROSCOPE-THIRDPARTY-PATH)cppcodec;$(PYROSCOPE-GEN-PATH)</SHARED-LIB-INCLUDES>
       <!-- VCPKG setup -->
       <!-- PYROSCOPE_WINDOWS_NOTE: static triplet so protobuf links INTO the profiler DLL,
            making Pyroscope.Profiler.Native.dll a single-file artifact like the Linux .so.
