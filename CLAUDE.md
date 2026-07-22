@@ -2,6 +2,10 @@
 
 Fork of [dd-trace-dotnet](https://github.com/DataDog/dd-trace-dotnet). The upstream tracer has been removed — only the **profiler** remains. This repo builds and ships the Pyroscope .NET profiler (`Pyroscope.Profiler.Native.so` and `Pyroscope.Linux.ApiWrapper.x64.so`).
 
+## Committing
+
+This repo's ruleset requires verified commit signatures. In Claude Code remote sessions, plain `git commit` + `git push` already produces signed commits (signing is pre-configured in the session) — do **not** use the GitHub MCP file tools (`create_or_update_file`, `delete_file`, `push_files`) to commit; those produce unsigned commits and are rejected with a 409. Details: [docs/signed-commits-from-claude-code.md](docs/signed-commits-from-claude-code.md).
+
 ## Setup
 
 The repo uses git submodules for third-party dependencies. Check them out before doing any work:
