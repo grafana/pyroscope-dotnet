@@ -97,8 +97,11 @@ message(STATUS "Spdlog library v" ${SPDLOG_VERSION})
 find_package(Libunwind REQUIRED)
 message(STATUS "Libunwind library " ${LIBUNWIND_VERSION})
 
-find_package(Libdatadog REQUIRED)
-message(STATUS "Libdatadog library " ${LIBDATADOG_VERSION})
+# NOTE (pyroscope fork): libdatadog is intentionally NOT used by this fork.
+# The Datadog profile exporter was removed; nothing links or compiles against
+# libdatadog, so we do not `find_package(Libdatadog)` (which would download the
+# prebuilt release on every configure). Keep this out on future dd-trace-dotnet
+# merges. See build/cmake/FindLibdatadog.cmake removal in the same change.
 
 find_package(GoogleTest REQUIRED)
 message(STATUS "GoogleTest library")

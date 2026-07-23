@@ -68,6 +68,8 @@ class RuntimeIdStore;
 class CpuSampleProvider;
 class ManagedCodeCache;
 class NetworkProvider;
+class IUnwinder;
+class UnwindingRecorderFactory;
 
 #ifdef LINUX
 class SystemCallsShield;
@@ -281,7 +283,8 @@ private :
     std::unique_ptr<TimerCreateCpuProfiler> _pCpuProfiler = nullptr;
     CpuSampleProvider* _pCpuSampleProvider = nullptr;
     std::unique_ptr<RingBuffer> _pCpuProfilerRb = nullptr;
-#endif
+    std::unique_ptr<UnwindingRecorderFactory> _pUnwindingRecorderFactory = nullptr;
+#endif // LINUX
 
     std::vector<std::unique_ptr<IService>> _services;
 
