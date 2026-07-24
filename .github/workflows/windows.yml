@@ -19,14 +19,6 @@ jobs:
         with:
           submodules: 'true'
           persist-credentials: false
-      - name: Restore vcpkg binary cache
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: ${{ runner.temp }}\vcpkg-bincache
-          key: vcpkg-windows-x64-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'build/vcpkg_local_ports/**', 'build/vcpkg_triplets/**') }}
-          restore-keys: vcpkg-windows-x64-
-      - name: Add MSBuild to PATH
-        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
       # The vcxprojs pin v143 + SDK 10.0.19041, but the windows-2025 image (now
       # VS2026) ships neither: installing them at runtime cost ~12 min. Instead
       # build with the newest toolset + SDK the image actually ships, detected
@@ -43,14 +35,30 @@ jobs:
             Select-Object -ExpandProperty Name | Where-Object { $_ -match '^v\d+$' } | Sort-Object -Unique |
             Sort-Object { [int]$_.Substring(1) } -Descending | Select-Object -First 1
           if (-not $toolset) { throw "No MSVC PlatformToolset found" }
+          $msvc = Get-ChildItem "$vs\VC\Tools\MSVC" -Directory -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty Name | Sort-Object -Descending | Select-Object -First 1
+          if (-not $msvc) { throw "No MSVC toolset version found" }
           $sdk = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\Include" -Directory -ErrorAction SilentlyContinue |
             Where-Object { Test-Path "$($_.FullName)\um\windows.h" } |
             Select-Object -ExpandProperty Name | Sort-Object -Descending | Select-Object -First 1
           if (-not $sdk) { throw "No Windows SDK found" }
-          Write-Host "Building with PlatformToolset=$toolset  WindowsTargetPlatformVersion=$sdk"
+          Write-Host "Building with PlatformToolset=$toolset  MSVC=$msvc  WindowsTargetPlatformVersion=$sdk"
           "WIN_TOOLSET=$toolset"            | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+          "WIN_MSVC=$msvc"                  | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
           "WIN_SDK=$sdk"                    | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
           "VCPKG_TOOLSET_OVERRIDE=$toolset" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+      # Key the cache on the MSVC version: vcpkg's binary cache is content-
+      # addressed by an ABI hash that includes the compiler, so when the image
+      # toolset bumps we want a key miss (which re-saves) rather than an exact
+      # hit on a stale cache that vcpkg then rebuilds from source on every run.
+      - name: Restore vcpkg binary cache
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: ${{ runner.temp }}\vcpkg-bincache
+          key: vcpkg-windows-x64-${{ env.WIN_MSVC }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'build/vcpkg_local_ports/**', 'build/vcpkg_triplets/**') }}
+          restore-keys: vcpkg-windows-x64-${{ env.WIN_MSVC }}-
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
       - name: Build profiler (Release x64)
         shell: pwsh
         env:
