@@ -407,9 +407,6 @@
     <ClInclude Include="AgentProxy.hpp">
       <Filter>libdatadog</Filter>
     </ClInclude>
-    <ClInclude Include="EncodedProfile.hpp">
-      <Filter>libdatadog</Filter>
-    </ClInclude>
     <ClInclude Include="ExporterBuilder.h">
       <Filter>libdatadog</Filter>
     </ClInclude>
@@ -425,14 +422,8 @@
     <ClInclude Include="SuccessImpl.hpp">
       <Filter>libdatadog</Filter>
     </ClInclude>
-    <ClInclude Include="TagsImpl.hpp">
-      <Filter>libdatadog</Filter>
-    </ClInclude>
     <ClInclude Include="FileHelper.h">
       <Filter>Utils</Filter>
-    </ClInclude>
-    <ClInclude Include="FileSaver.hpp">
-      <Filter>libdatadog</Filter>
     </ClInclude>
     <ClInclude Include="FrameworkThreadInfo.h">
       <Filter>Threads</Filter>

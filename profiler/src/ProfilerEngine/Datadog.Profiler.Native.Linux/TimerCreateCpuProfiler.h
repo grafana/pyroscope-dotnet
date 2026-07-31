@@ -23,6 +23,7 @@ class IManagedThreadList;
 class ProfilerSignalManager;
 class CpuSampleProvider;
 class IUnwinder;
+class UnwindingRecorderFactory;
 
 class TimerCreateCpuProfiler : public ServiceBase
 {
@@ -33,7 +34,8 @@ public:
         IManagedThreadList* pManagedThreadsList,
         CpuSampleProvider* pProvider,
         MetricsRegistry& metricsRegistry,
-        IUnwinder* pUnwinder) noexcept;
+        IUnwinder* pUnwinder,
+        UnwindingRecorderFactory* pUnwindingRecorderFactory) noexcept;
 
     ~TimerCreateCpuProfiler();
 
@@ -62,5 +64,9 @@ private:
     std::shared_ptr<CounterMetric> _totalSampling;
     std::shared_ptr<DiscardMetrics> _discardMetrics;
     std::atomic<std::uint64_t> _nbThreadsInSignalHandler;
+    // pyroscope fork: _pUnwinder is a non-owning raw pointer. CorProfilerCallback owns
+    // the unwinder (std::unique_ptr<IUnwinder>) and passes it here via .get(); making it
+    // a unique_ptr again would double-free it on shutdown (see grafana/pyroscope-dotnet#349).
     IUnwinder* _pUnwinder;
+    UnwindingRecorderFactory* _pUnwindingRecorderFactory;
 };
