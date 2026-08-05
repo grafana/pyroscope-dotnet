@@ -76,8 +76,8 @@ jobs:
         with:
           name: pyroscope-profiler-windows-x64
           path: |
-            profiler/_build/bin/Release-x64/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/Pyroscope.Profiler.Native.dll
-            profiler/_build/bin/Release-x64/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/Pyroscope.Profiler.Native.pdb
+            artifacts/profiler-build/bin/Release-x64/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/Pyroscope.Profiler.Native.dll
+            artifacts/profiler-build/bin/Release-x64/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/Pyroscope.Profiler.Native.pdb
           if-no-files-found: error
 
   discover:

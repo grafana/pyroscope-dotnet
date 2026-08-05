@@ -14,7 +14,7 @@ $repo = Split-Path -Parent $PSScriptRoot
 # The profiler needs to be built for the next command to succeed. Something like this should do the trick:
 # MSBuild.exe $repo\profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows\Datadog.Profiler.Native.Windows.vcxproj /p:Configuration=Release /p:Platform=x64 /p:VcpkgEnableManifest=true /m /v:m
 
-$profilerDll = Join-Path $repo "profiler\_build\bin\Release-x64\profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows\Pyroscope.Profiler.Native.dll"
+$profilerDll = Join-Path $repo "artifacts\profiler-build\bin\Release-x64\profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows\Pyroscope.Profiler.Native.dll"
 if (-not (Test-Path $profilerDll)) {
   throw "Profiler DLL not found at $profilerDll - build it first (MSBuild)."
 }
