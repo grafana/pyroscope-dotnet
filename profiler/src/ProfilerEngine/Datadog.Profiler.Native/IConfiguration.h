@@ -66,6 +66,9 @@ public:
     virtual bool IsHeapProfilingEnabled() const = 0;
     virtual bool IsAllocationRecorderEnabled() const = 0;
     virtual bool IsDebugInfoEnabled() const = 0;
+    // when enabled, the source file and the method start line coming from the .pdb are
+    // written into the pprof Function.filename/Function.start_line/Line.line fields
+    virtual bool IsSourceLocationEnabled() const = 0;
     virtual bool IsGcThreadsCpuTimeEnabled() const = 0;
     virtual bool IsThreadLifetimeEnabled() const = 0;
     virtual std::string const& GetGitRepositoryUrl() const = 0;

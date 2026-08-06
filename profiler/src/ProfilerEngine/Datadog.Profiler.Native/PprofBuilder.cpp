@@ -13,8 +13,9 @@ auto constexpr traceIDLabelName  = "trace_id";
 
 }
 
-PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions) :
-    _sampleTypeDefinitions(std::move(sampleTypeDefinitions))
+PprofBuilder::PprofBuilder(std::vector<SampleValueType> sampleTypeDefinitions, bool emitSourceLocation) :
+    _sampleTypeDefinitions(std::move(sampleTypeDefinitions)),
+    _emitSourceLocation(emitSourceLocation)
 {
     Reset();
 }
@@ -24,14 +25,23 @@ void PprofBuilder::AddSample(const Sample& sample, std::span<const int64_t> valu
     assert(values.size() == _sampleTypeDefinitions.size());
     std::lock_guard lock(this->_lock);
     auto* pSample = _profile.add_sample();
-    auto addLocation = [&](std::string_view frame, std::string_view module) {
-        const auto moduleNameStringId = AddString(module);
+    auto addLocation = [&](std::string_view frame, std::string_view filename, std::uint32_t startLine) {
+        const auto filenameStringId = AddString(filename);
         const auto functionNameStringId = AddString(frame);
-        const auto locId = AddLocation(functionNameStringId, moduleNameStringId);
+        const auto locId = AddLocation(functionNameStringId, filenameStringId, startLine);
         pSample->add_location_id(locId);
     };
     auto addFrame = [&](const FrameInfoView& frame) {
-        addLocation(frame.Frame, frame.ModuleName);
+        // Function.filename holds the assembly name, unless source locations are enabled and
+        // the .pdb debug info gave us an actual source file for this method.
+        if (_emitSourceLocation && !frame.Filename.empty())
+        {
+            addLocation(frame.Frame, frame.Filename, frame.StartLine);
+        }
+        else
+        {
+            addLocation(frame.Frame, frame.ModuleName, 0);
+        }
     };
     AddTraceContext(sample, pSample);
     if (auto frame = sample.GetLeafFrame(); !frame.empty())
@@ -40,7 +50,7 @@ void PprofBuilder::AddSample(const Sample& sample, std::span<const int64_t> valu
         _scratchBuffer.reserve(ClassLeafPrefix.size() + frame.size());
         _scratchBuffer.append(ClassLeafPrefix);
         _scratchBuffer.append(frame);
-        addLocation(_scratchBuffer, {});
+        addLocation(_scratchBuffer, {}, 0);
     }
     for (auto const& frame : sample.GetCallstack())
     {
@@ -112,9 +122,9 @@ int64_t PprofBuilder::AddString(const std::string_view& keyNotOwned)
     return id;
 }
 
-int64_t PprofBuilder::AddLocation(int64_t functionName, int64_t moduleName)
+int64_t PprofBuilder::AddLocation(int64_t functionName, int64_t filename, std::uint32_t startLine)
 {
-    std::pair<int64_t, int64_t> loc(moduleName, functionName);
+    std::tuple<int64_t, int64_t, std::uint32_t> loc(filename, functionName, startLine);
     auto it = _locations.find(loc);
     if (it != _locations.end())
     {
@@ -126,11 +136,18 @@ int64_t PprofBuilder::AddLocation(int64_t functionName, int64_t moduleName)
     auto* pFunction = _profile.add_function();
     pFunction->set_id(id);
     pFunction->set_name(functionName);
-    pFunction->set_filename(moduleName);
+    pFunction->set_filename(filename);
     auto* pLocation = _profile.add_location();
     pLocation->set_id(id);
     auto* pLine = pLocation->add_line();
     pLine->set_function_id(id);
+    if (startLine != 0)
+    {
+        // there is no call site line in the pipeline: the .pdb only gives us the line
+        // the method is declared at, which is reported for both the function and the line
+        pFunction->set_start_line(startLine);
+        pLine->set_line(startLine);
+    }
     _locations.insert(std::make_pair(loc, id));
     return id;
 }

@@ -698,6 +698,33 @@ TEST_F(ConfigurationTest, CheckDebugInfoIsDisabledIfEnvVarSetToFalse)
     ASSERT_THAT(configuration.IsDebugInfoEnabled(), false);
 }
 
+TEST_F(ConfigurationTest, CheckSourceLocationIsDisabledByDefault)
+{
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.IsSourceLocationEnabled(), false);
+}
+
+TEST_F(ConfigurationTest, CheckSourceLocationIsEnabledIfEnvVarSetToTrue)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::SourceLocationEnabled, WStr("1"));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.IsSourceLocationEnabled(), true);
+}
+
+TEST_F(ConfigurationTest, CheckSourceLocationIsDisabledIfEnvVarSetToFalse)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::SourceLocationEnabled, WStr("0"));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.IsSourceLocationEnabled(), false);
+}
+
+TEST_F(ConfigurationTest, CheckSourceLocationEnablesDebugInfo)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::SourceLocationEnabled, WStr("1"));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.IsDebugInfoEnabled(), true);
+}
+
 TEST_F(ConfigurationTest, CheckGcThreadsCpuTimeEnabledTakesOverInternal)
 {
     EnvironmentHelper::EnvironmentVariable ev1(EnvironmentVariables::GcThreadsCpuTimeEnabled, WStr("1"));

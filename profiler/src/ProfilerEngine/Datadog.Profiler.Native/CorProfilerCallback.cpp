@@ -686,7 +686,8 @@ void CorProfilerCallback::InitializeServices()
         _pConfiguration->GetUserTags());
     _pExporter = std::make_unique<PprofExporter>(_pApplicationStore,
                                                  _pyroscopePprofSink,
-                                                 sampleTypeDefinitions);
+                                                 sampleTypeDefinitions,
+                                                 _pConfiguration->IsSourceLocationEnabled());
 
     if (_gcThreadsCpuProvider != nullptr)
     {

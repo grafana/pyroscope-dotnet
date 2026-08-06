@@ -14,7 +14,8 @@
 
 PprofExporter::PprofExporter(IApplicationStore* applicationStore,
                              std::shared_ptr<PProfExportSink> sink,
-                             std::vector<SampleValueType> sampleTypeDefinitions) :
+                             std::vector<SampleValueType> sampleTypeDefinitions,
+                             bool emitSourceLocation) :
     _applicationStore(applicationStore),
     _sink(std::move(sink))
 {
@@ -33,7 +34,7 @@ PprofExporter::PprofExporter(IApplicationStore* applicationStore,
             ++i;
         }
 
-        _entries.push_back(std::make_unique<ProfileTypeEntry>(startIndex, groupTypes.size(), currentType, std::move(groupTypes)));
+        _entries.push_back(std::make_unique<ProfileTypeEntry>(startIndex, groupTypes.size(), currentType, std::move(groupTypes), emitSourceLocation));
     }
 
 #ifndef _WIN32

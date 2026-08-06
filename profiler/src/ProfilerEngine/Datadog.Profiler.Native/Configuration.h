@@ -93,6 +93,7 @@ public:
     bool UseManagedCodeCache() const override;
     bool IsMemoryFootprintEnabled() const override;
     bool IsAllocationTypeLeafEnabled() const override;
+    bool IsSourceLocationEnabled() const override;
 
     std::string PyroscopeServerAddress() const override;
     std::string PyroscopeApplicationName() const override;
@@ -229,4 +230,5 @@ private:
     bool _useManagedCodeCache;
     bool _isMemoryFootprintEnabled;
     bool _isAllocationTypeLeafEnabled;
+    bool _isSourceLocationEnabled;
 };

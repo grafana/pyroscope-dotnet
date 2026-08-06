@@ -35,8 +35,8 @@ public:
 
 struct ProfileTypeEntry
 {
-    ProfileTypeEntry(size_t startIndex, size_t count, ProfileType profileType, std::vector<SampleValueType> sampleTypes) :
-        startIndex(startIndex), count(count), profileType(profileType), builder(std::move(sampleTypes)) {}
+    ProfileTypeEntry(size_t startIndex, size_t count, ProfileType profileType, std::vector<SampleValueType> sampleTypes, bool emitSourceLocation) :
+        startIndex(startIndex), count(count), profileType(profileType), builder(std::move(sampleTypes), emitSourceLocation) {}
 
     size_t startIndex;                 // offset into Sample::GetValues()
     size_t count;                      // number of values for this profile type
@@ -50,7 +50,8 @@ class PprofExporter : public IExporter
 public:
     PprofExporter(IApplicationStore* applicationStore,
                   std::shared_ptr<PProfExportSink> sink,
-                  std::vector<SampleValueType> sampleTypeDefinitions);
+                  std::vector<SampleValueType> sampleTypeDefinitions,
+                  bool emitSourceLocation = false);
     void Add(std::shared_ptr<Sample> const& sample) override;
     void SetEndpoint(const std::string& runtimeId, uint64_t traceId, const std::string& endpoint) override;
     bool Export(ProfileTime& startTime, ProfileTime& endTime, bool lastCall = false) override;

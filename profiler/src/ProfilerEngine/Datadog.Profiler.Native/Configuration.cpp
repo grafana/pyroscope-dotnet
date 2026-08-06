@@ -78,7 +78,9 @@ Configuration::Configuration()
     _namedPipeName = GetEnvironmentValue(EnvironmentVariables::NamedPipeName, DefaultEmptyString);
     _isTimestampsAsLabelEnabled = GetEnvironmentValue(EnvironmentVariables::TimestampsAsLabelEnabled, false);
     _isAllocationRecorderEnabled = GetEnvironmentValue(EnvironmentVariables::AllocationRecorderEnabled, false);
-    _isDebugInfoEnabled = GetEnvironmentValue(EnvironmentVariables::DebugInfoEnabled, false);
+    _isSourceLocationEnabled = GetEnvironmentValue(EnvironmentVariables::SourceLocationEnabled, false);
+    // emitting source locations into pprof requires the .pdb debug info to actually be collected
+    _isDebugInfoEnabled = GetEnvironmentValue(EnvironmentVariables::DebugInfoEnabled, false) || _isSourceLocationEnabled;
     _isGcThreadsCpuTimeEnabled = GetEnvironmentValue(EnvironmentVariables::GcThreadsCpuTimeEnabled,
                                   GetEnvironmentValue(EnvironmentVariables::GcThreadsCpuTimeInternalEnabled, true), true);
     _isThreadLifetimeEnabled = GetEnvironmentValue(EnvironmentVariables::ThreadLifetimeEnabled,
@@ -597,6 +599,11 @@ bool Configuration::IsAgentless() const
 bool Configuration::IsDebugInfoEnabled() const
 {
     return _isDebugInfoEnabled;
+}
+
+bool Configuration::IsSourceLocationEnabled() const
+{
+    return _isSourceLocationEnabled;
 }
 
 bool Configuration::IsSystemCallsShieldEnabled() const
