@@ -14,7 +14,7 @@ endif()
 
 # Detect operating system
 if (CMAKE_SYSTEM_NAME MATCHES "Windows")
-    message(FATAL_ERROR "Windows builds are not supported using CMAKE. Please use Visual Studio")
+    message(STATUS "Preparing Windows build")
     SET(ISWINDOWS true)
 elseif (CMAKE_SYSTEM_NAME MATCHES "Linux")
     message(STATUS "Preparing Linux build")
@@ -56,19 +56,22 @@ endif()
 # Detect prerequisites
 # ******************************************************
 
-find_program(FOUND_CLANG clang)
+if (NOT ISWINDOWS)
+    # Windows builds use the MSVC toolset via the Visual Studio generator; no clang required.
+    find_program(FOUND_CLANG clang)
 
-if (NOT FOUND_CLANG)
-    message(FATAL_ERROR "CLANG is required to build the project")
-else()
-    message(STATUS "CLANG was found")
-endif()
+    if (NOT FOUND_CLANG)
+        message(FATAL_ERROR "CLANG is required to build the project")
+    else()
+        message(STATUS "CLANG was found")
+    endif()
 
-find_program(FOUND_CLANGPP clang++)
-if (NOT FOUND_CLANGPP)
-    message(FATAL_ERROR "CLANG++ is required to build the project")
-else()
-    message(STATUS "CLANG++ was found")
+    find_program(FOUND_CLANGPP clang++)
+    if (NOT FOUND_CLANGPP)
+        message(FATAL_ERROR "CLANG++ is required to build the project")
+    else()
+        message(STATUS "CLANG++ was found")
+    endif()
 endif()
 
 find_program(FOUND_GIT "git")
@@ -88,7 +91,11 @@ if (DEFINED RUN_ANALYSIS AND RUN_ANALYSIS EQUAL 1)
     endif()
 endif()
 
-add_definitions("-D_GLIBCXX_USE_CXX11_ABI=0")
+if (NOT ISWINDOWS)
+    # libstdc++ ABI selector; meaningless (and not safely portable via add_definitions'
+    # dash-style flag) under MSVC's STL.
+    add_definitions("-D_GLIBCXX_USE_CXX11_ABI=0")
+endif()
 
 # ******************************************************
 # Output folders
@@ -106,10 +113,14 @@ else()
     SET(ARCH_POSTFIX "x86")
 endif()
 
-SET(ARCH_BASENAME "linux")
-if (DEFINED ENV{IsAlpine} AND "$ENV{IsAlpine}" MATCHES "true")
-    SET(IS_ALPINE)
-    SET(ARCH_BASENAME "${ARCH_BASENAME}-musl")
+if (ISWINDOWS)
+    SET(ARCH_BASENAME "win")
+else()
+    SET(ARCH_BASENAME "linux")
+    if (DEFINED ENV{IsAlpine} AND "$ENV{IsAlpine}" MATCHES "true")
+        SET(IS_ALPINE)
+        SET(ARCH_BASENAME "${ARCH_BASENAME}-musl")
+    endif()
 endif()
 
 SET(DEPLOY_DIR ${OUTPUT_BUILD_DIR}/DDProf-Deploy/${ARCH_BASENAME})
@@ -121,7 +132,9 @@ FILE(MAKE_DIRECTORY ${OUTPUT_DEPS_DIR})
 FILE(MAKE_DIRECTORY ${OUTPUT_TMP_DIR})
 
 
-add_compile_options(-fPIC)
+if (NOT ISWINDOWS)
+    add_compile_options(-fPIC)
+endif()
 option(USE_STATIC_OPENSSL "Link OpenSSL statically" ON)
 set(OPENSSL_USE_STATIC_LIBS ${USE_STATIC_OPENSSL})
 find_package(OpenSSL REQUIRED)
@@ -136,20 +149,27 @@ set_property(TARGET libprotobuf PROPERTY POSITION_INDEPENDENT_CODE ON)
 
 include_directories(third_party/cppcodec)
 
-add_subdirectory(src/ProfilerEngine/Datadog.Profiler.Native.Linux)
-add_subdirectory(src/ProfilerEngine/Datadog.Linux.ApiWrapper)
-enable_testing()
-add_subdirectory(test)
+if (ISLINUX)
+    add_subdirectory(src/ProfilerEngine/Datadog.Profiler.Native.Linux)
+    add_subdirectory(src/ProfilerEngine/Datadog.Linux.ApiWrapper)
+    enable_testing()
+    add_subdirectory(test)
 
-add_custom_target(profiler)
-add_dependencies(profiler Pyroscope.Profiler.Native)
+    add_custom_target(profiler)
+    add_dependencies(profiler Pyroscope.Profiler.Native)
 
-add_custom_target(all-profiler)
-add_dependencies(all-profiler profiler profiler-native-tests)
+    add_custom_target(all-profiler)
+    add_dependencies(all-profiler profiler profiler-native-tests)
 
-add_custom_target(wrapper)
-add_dependencies(wrapper Datadog.Linux.ApiWrapper.x64)
+    add_custom_target(wrapper)
+    add_dependencies(wrapper Datadog.Linux.ApiWrapper.x64)
 
-add_custom_target(all-wrapper)
-add_dependencies(all-wrapper wrapper wrapper-native-tests)
+    add_custom_target(all-wrapper)
+    add_dependencies(all-wrapper wrapper wrapper-native-tests)
+elseif (ISWINDOWS)
+    add_subdirectory(src/ProfilerEngine/Datadog.Profiler.Native.Windows)
+
+    add_custom_target(profiler)
+    add_dependencies(profiler Pyroscope.Profiler.Native)
+endif()
 

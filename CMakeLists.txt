@@ -58,7 +58,7 @@ endif()
 
 # Detect operating system
 if (CMAKE_SYSTEM_NAME MATCHES "Windows")
-    message(FATAL_ERROR "Windows builds are not supported using CMAKE. Please use Visual Studio")
+    message(STATUS "Preparing Windows build")
     SET(ISWINDOWS true)
 elseif (CMAKE_SYSTEM_NAME MATCHES "Linux")
     message(STATUS "Preparing Linux build")
@@ -78,11 +78,22 @@ SET(DOTNET_TRACER_REPO_ROOT_PATH ${CMAKE_CURRENT_SOURCE_DIR})
 
 LIST(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/build/cmake")
 
+if (ISWINDOWS)
+    # Match vcpkg's x64-windows-static triplet (static CRT), otherwise linking
+    # against vcpkg-supplied static libs (e.g. OpenSSL) fails with LNK2038.
+    set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 find_package(Coreclr REQUIRED)
 message(STATUS "Coreclr files ")
 
-find_package(Re2 REQUIRED)
-message(STATUS "Re2 library " ${RE2_VERSION})
+if (NOT ISWINDOWS)
+    # re2 is vestigial in this fork: re2-lib is never linked anywhere, and no
+    # source file includes re2/re2.h. Its ExternalProject_Add build also uses
+    # Unix-only tooling (autoreconf/make/lipo), so just skip it on Windows.
+    find_package(Re2 REQUIRED)
+    message(STATUS "Re2 library " ${RE2_VERSION})
+endif()
 
 # spdlog - header-only logging library (git submodule)
 set(SPDLOG_BUILD_EXAMPLE OFF CACHE INTERNAL "")
@@ -94,8 +105,14 @@ add_library(spdlog-headers INTERFACE)
 target_link_libraries(spdlog-headers INTERFACE spdlog::spdlog_header_only)
 message(STATUS "Spdlog library v" ${SPDLOG_VERSION})
 
-find_package(Libunwind REQUIRED)
-message(STATUS "Libunwind library " ${LIBUNWIND_VERSION})
+if (NOT ISWINDOWS)
+    # libunwind is only used by Datadog.Profiler.Native.Linux's own stack
+    # walker; Windows has its own unwinder under Datadog.Profiler.Native.Windows,
+    # and libunwind's ExternalProject_Add build (autoreconf/configure/make) is
+    # Unix-only tooling, so skip it on Windows.
+    find_package(Libunwind REQUIRED)
+    message(STATUS "Libunwind library " ${LIBUNWIND_VERSION})
+endif()
 
 # NOTE (pyroscope fork): libdatadog is intentionally NOT used by this fork.
 # The Datadog profile exporter was removed; nothing links or compiles against
