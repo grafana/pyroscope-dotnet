@@ -221,7 +221,6 @@
     <ClInclude Include="..\Datadog.Profiler.Native\DllMain.h" />
     <ClInclude Include="..\Datadog.Profiler.Native.Windows\resource.h" />
     <ClInclude Include="chrono_helper.hpp" />
-    <ClInclude Include="CrashReportingWindows.h" />
     <ClInclude Include="DbgHelpParser.h" />
     <ClInclude Include="EtwEventsManager.h" />
     <ClInclude Include="ETW\EtwEventsHandler.h" />
@@ -244,12 +243,6 @@
   <ItemGroup>
     <ClCompile Include="..\Datadog.Profiler.Native\DllMain.cpp" />
     <ClCompile Include="..\Datadog.Profiler.Native\ManagedCodeCache.cpp" />
-    <!-- PYROSCOPE_WINDOWS_NOTE: crash reporting is not carried in this fork (the common
-         CrashReporting.cpp is absent on Linux too); source kept for clean upstream merges
-         but excluded from the build, mirroring its removal from datadog_profiling.version. -->
-    <ClCompile Include="CrashReportingWindows.cpp">
-      <ExcludedFromBuild>true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="DbgHelpParser.cpp" />
     <ClCompile Include="EtwEventsManager.cpp" />
     <ClCompile Include="ETW\EtwEventsHandler.cpp" />

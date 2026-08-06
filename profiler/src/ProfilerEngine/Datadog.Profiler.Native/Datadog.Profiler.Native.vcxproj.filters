@@ -434,9 +434,6 @@
     <ClInclude Include="Callstack.h">
       <Filter>Profiler-Driver</Filter>
     </ClInclude>
-    <ClInclude Include="CrashReporting.h">
-      <Filter>libdatadog</Filter>
-    </ClInclude>
     <ClInclude Include="CallstackProvider.h" />
     <ClInclude Include="MemoryResourceManager.h" />
     <ClInclude Include="ServiceBase.h">
@@ -718,9 +715,6 @@
     </ClCompile>
     <ClCompile Include="Callstack.cpp">
       <Filter>Profiler-Driver</Filter>
-    </ClCompile>
-    <ClCompile Include="CrashReporting.cpp">
-      <Filter>libdatadog</Filter>
     </ClCompile>
     <ClCompile Include="CallstackProvider.cpp">
       <Filter>Utils</Filter>
