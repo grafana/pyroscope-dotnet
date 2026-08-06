@@ -409,7 +409,8 @@ void CorProfilerCallback::InitializeServices()
                 _pFrameStore.get(),
                 _pThreadsCpuManager,
                 _metricsRegistry,
-                _pNativeThreadList
+                _pNativeThreadList,
+                _pRuntimeInfo.get()
                 );
 
             if (_pConfiguration->IsMemoryFootprintEnabled())
@@ -470,6 +471,8 @@ void CorProfilerCallback::InitializeServices()
             }
         }
 
+        IGCDumpListener* pGCDumpListener = _pHeapSnapshotManager;
+
         // TODO: add new CLR events-based providers to the event parser
         _pEventPipeEventsManager = std::make_unique<EventPipeEventsManager>(
             _pCorProfilerInfoEvents,
@@ -477,7 +480,8 @@ void CorProfilerCallback::InitializeServices()
             _pContentionProvider,
             _pStopTheWorldProvider,
             _pNetworkProvider,
-            _pHeapSnapshotManager
+            _pConfiguration.get(),
+            pGCDumpListener
         );
 
         if (_pGarbageCollectionProvider != nullptr)
@@ -1836,7 +1840,7 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::Shutdown()
     // The aggregator must be stopped before the provider, since it will call them to get the last samples
     _pStackSamplerLoopManager->Stop();
 
-    
+
 #ifdef LINUX
 if (_pCpuProfiler != nullptr)
 {

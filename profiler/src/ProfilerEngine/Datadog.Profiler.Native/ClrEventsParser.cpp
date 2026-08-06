@@ -42,6 +42,7 @@ ClrEventsParser::ClrEventsParser(
     IAllocationsListener* pAllocationListener,
     IContentionListener* pContentionListener,
     IGCSuspensionsListener* pGCSuspensionsListener,
+    IConfiguration* pConfiguration,
     IGCDumpListener* pGCDumpListener)
     :
     _allocationEnabled{true},
@@ -51,6 +52,8 @@ ClrEventsParser::ClrEventsParser(
     _pGCSuspensionsListener{pGCSuspensionsListener},
     _pGCDumpListener{pGCDumpListener}
 {
+    _skipReferenceChain = pConfiguration->IsHeapSnapshotSkipTraversal();
+
     ResetGC(_gcInProgress);
     ResetGC(_currentBGC);
 }
@@ -253,7 +256,6 @@ ClrEventsParser::ParseGcEvent(std::chrono::nanoseconds timestamp, DWORD id, DWOR
     if (id == EVENT_GC_BULK_NODE)
     {
         // get the list of objects in the GC heap dump
-        LogGcEvent("OnGCBulkNode");
 
         if (_pGCDumpListener != nullptr)
         {
@@ -274,7 +276,6 @@ ClrEventsParser::ParseGcEvent(std::chrono::nanoseconds timestamp, DWORD id, DWOR
     else if (id == EVENT_GC_BULK_EDGE)
     {
         // get the list of references between objects in the GC heap dump
-        LogGcEvent("OnGCBulkEdge");
 
         if (_pGCDumpListener != nullptr)
         {
@@ -282,10 +283,88 @@ ClrEventsParser::ParseGcEvent(std::chrono::nanoseconds timestamp, DWORD id, DWOR
             ULONG offset = 0;
             if (!EventsParserHelper::Read<GCBulkEdgePayload>(payload, pEventData, cbEventData, offset))
             {
-                _pGCDumpListener->OnBulkEdges(
-                    payload.Index,
-                    payload.Count,
-                    (GCBulkEdgeValue*)(pEventData + offset));
+                return;
+            }
+
+            _pGCDumpListener->OnBulkEdges(
+                payload.Index,
+                payload.Count,
+                (GCBulkEdgeValue*)(pEventData + offset));
+        }
+    }
+    else if (id == EVENT_GC_BULK_ROOT_EDGE)
+    {
+        // get the list of root edges (stack, handles, etc.)
+        LogGcEvent("OnGCBulkRootEdge");
+
+        if (_skipReferenceChain)
+        {
+            return;
+        }
+
+        if (_pGCDumpListener != nullptr)
+        {
+            GCBulkRootEdgePayload payload{0};
+            ULONG offset = 0;
+            if (!EventsParserHelper::Read<GCBulkRootEdgePayload>(payload, pEventData, cbEventData, offset))
+            {
+                Log::Debug("[EVENT] GCBulkRootEdge: Read payload failed, cbEventData=", cbEventData);
+                return;
+            }
+
+            Log::Debug("[EVENT] GCBulkRootEdge received: index=", payload.Index,
+                       " count=", payload.Count, " cbEventData=", cbEventData);
+
+            _pGCDumpListener->OnBulkRootEdges(
+                payload.Index,
+                payload.Count,
+                (GCBulkRootEdgeValue*)(pEventData + offset));
+        }
+    }
+    else if (id == EVENT_GC_BULK_ROOT_STATIC_VAR)
+    {
+        // get the list of static variable roots
+        LogGcEvent("OnGCBulkRootStaticVar");
+
+        if (_skipReferenceChain)
+        {
+            return;
+        }
+
+        if (_pGCDumpListener != nullptr)
+        {
+            GCBulkRootStaticVarPayload payload{0};
+            ULONG offset = 0;
+            if (!EventsParserHelper::Read<GCBulkRootStaticVarPayload>(payload, pEventData, cbEventData, offset))
+            {
+                Log::Debug("[EVENT] GCBulkRootStaticVar: Read payload failed, cbEventData=", cbEventData);
+                return;
+            }
+
+            LogGcEvent("  count = ", payload.Count);
+
+            // Each GCBulkRootStaticVarValue is followed by a null-terminated UTF-16 string
+            // (the static variable name), so we must parse entries one by one
+            for (uint32_t i = 0; i < payload.Count; i++)
+            {
+                GCBulkRootStaticVarValue value{0};
+                if (!EventsParserHelper::Read<GCBulkRootStaticVarValue>(value, pEventData, cbEventData, offset))
+                {
+                    Log::Debug("[EVENT] GCBulkRootStaticVar: Read entry failed, index=", i,
+                               " count=", payload.Count, " cbEventData=", cbEventData);
+                    break;
+                }
+
+                // Read the null-terminated UTF-16 variable name that follows each entry
+                auto fieldName = EventsParserHelper::ReadWideString(pEventData, cbEventData, &offset);
+                if (fieldName == nullptr)
+                {
+                    Log::Debug("[EVENT] GCBulkRootStaticVar: invalid field name, index=", i,
+                               " count=", payload.Count, " cbEventData=", cbEventData);
+                    break;
+                }
+
+                _pGCDumpListener->OnBulkRootStaticVar(value, fieldName);
             }
         }
     }
@@ -296,7 +375,7 @@ ClrEventsParser::ParseGcEvent(std::chrono::nanoseconds timestamp, DWORD id, DWOR
     //
     if (id == EVENT_GC_TRIGGERED)
     {
-        LogGcEvent("OnGCTriggered");
+        //LogGcEvent("OnGCTriggered");
         OnGCTriggered();
     }
     else if (id == EVENT_GC_START)
@@ -308,7 +387,7 @@ ClrEventsParser::ParseGcEvent(std::chrono::nanoseconds timestamp, DWORD id, DWOR
             return;
         }
 
-        LogGcEvent("OnGCStart: ", payload.Count, " ", payload.Depth, " ", payload.Reason, " ", payload.Type);
+        //LogGcEvent("OnGCStart: ", payload.Count, " ", payload.Depth, " ", payload.Reason, " ", payload.Type);
         OnGCStart(timestamp, payload);
     }
     else if (id == EVENT_GC_END)
@@ -320,18 +399,18 @@ ClrEventsParser::ParseGcEvent(std::chrono::nanoseconds timestamp, DWORD id, DWOR
             return;
         }
 
-        LogGcEvent("OnGCEnd: ", payload.Count, " ", payload.Depth);
+        //LogGcEvent("OnGCEnd: ", payload.Count, " ", payload.Depth);
 
         OnGCEnd(payload);
     }
     else if (id == EVENT_GC_SUSPEND_EE_BEGIN)
     {
-        LogGcEvent("OnGCSuspendEEBegin");
+        //LogGcEvent("OnGCSuspendEEBegin");
         OnGCSuspendEEBegin(timestamp);
     }
     else if (id == EVENT_GC_RESTART_EE_END)
     {
-        LogGcEvent("OnGCRestartEEEnd");
+        //LogGcEvent("OnGCRestartEEEnd");
         OnGCRestartEEEnd(timestamp);
     }
     else if (id == EVENT_GC_HEAP_STAT)
@@ -370,7 +449,7 @@ ClrEventsParser::ParseGcEvent(std::chrono::nanoseconds timestamp, DWORD id, DWOR
             pohSize = payload.GenerationSize4;
         }
 
-        LogGcEvent("OnGCHeapStats");
+        //LogGcEvent("OnGCHeapStats");
         OnGCHeapStats(timestamp, gen2Size, lohSize, pohSize);
     }
     else if (id == EVENT_GC_GLOBAL_HEAP_HISTORY)
@@ -382,7 +461,7 @@ ClrEventsParser::ParseGcEvent(std::chrono::nanoseconds timestamp, DWORD id, DWOR
             return;
         }
 
-        LogGcEvent("OnGCGlobalHeapHistory");
+        //LogGcEvent("OnGCGlobalHeapHistory");
         OnGCGlobalHeapHistory(timestamp, payload);
     }
 }
