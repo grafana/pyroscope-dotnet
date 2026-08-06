@@ -5,9 +5,6 @@
     "description": "Shared dependencies for multiple projects.",
     "dependencies": [
         {
-            "name": "libdatadog"
-        },
-        {
             "name": "protobuf"
         },
         {

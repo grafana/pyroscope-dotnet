@@ -201,8 +201,7 @@
       <!-- PYROSCOPE_WINDOWS_NOTE: static triplet so protobuf links INTO the profiler DLL,
            making Pyroscope.Profiler.Native.dll a single-file artifact like the Linux .so.
            With the dynamic triplet the CLR silently skips attach whenever libprotobuf*.dll
-           is not beside the DLL. Matches the /MT RuntimeLibrary the vcxprojs already use;
-           the libdatadog overlay port supports the -static triplets. -->
+           is not beside the DLL. Matches the /MT RuntimeLibrary the vcxprojs already use. -->
       <VcpkgEnableManifest>true</VcpkgEnableManifest>
       <VcpkgUseStatic>true</VcpkgUseStatic>
       <VcpkgTriplet>$(Platform)-windows-static</VcpkgTriplet>
