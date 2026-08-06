@@ -59,11 +59,11 @@ RUN cd build-${CMAKE_BUILD_TYPE} && make -j$(nproc) profiler-native-tests wrappe
 # Run profiler unit tests
 RUN cd build-${CMAKE_BUILD_TYPE}/profiler && ctest --output-on-failure -E "WrappedFunctionsTest"
 # Run wrapper tests with LD_PRELOAD so wrapped functions resolve to the wrapper library
-RUN WRAPPER_SO=$(find /profiler/profiler/_build/DDProf-Deploy/linux-musl -name "Datadog.Linux.ApiWrapper.x64.so" | head -1) && \
+RUN WRAPPER_SO=$(find /profiler/artifacts/profiler-build/DDProf-Deploy/linux-musl -name "Datadog.Linux.ApiWrapper.x64.so" | head -1) && \
     cd build-${CMAKE_BUILD_TYPE}/profiler && \
     LD_PRELOAD="${WRAPPER_SO}" ctest --output-on-failure -R "WrappedFunctionsTest"
 
 FROM busybox:1.38.0-musl@sha256:8635836765b0c4c43970660219739baa58b0883c2e429e4b8918f7dd1519455c
-COPY --from=build /profiler/profiler/_build/DDProf-Deploy/linux-musl/Pyroscope.Profiler.Native.so /Pyroscope.Profiler.Native.so
-COPY --from=build /profiler/profiler/_build/DDProf-Deploy/linux-musl/Datadog.Linux.ApiWrapper.x64.so /Pyroscope.Linux.ApiWrapper.x64.so
+COPY --from=build /profiler/artifacts/profiler-build/DDProf-Deploy/linux-musl/Pyroscope.Profiler.Native.so /Pyroscope.Profiler.Native.so
+COPY --from=build /profiler/artifacts/profiler-build/DDProf-Deploy/linux-musl/Datadog.Linux.ApiWrapper.x64.so /Pyroscope.Linux.ApiWrapper.x64.so
 

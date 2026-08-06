@@ -1,4 +1,4 @@
-PROFILER_DIR := $(CURDIR)/../profiler/_build/DDProf-Deploy/linux
+PROFILER_DIR := $(CURDIR)/../artifacts/profiler-build/DDProf-Deploy/linux
 DOTNET := ~/.dotnet/dotnet
 
 .PHONY: dev

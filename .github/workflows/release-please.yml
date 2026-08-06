@@ -171,7 +171,7 @@ jobs:
             /m /v:m
       - name: Stage artifacts
         run: |
-          $bin = "profiler\_build\bin\Release-x64\profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows"
+          $bin = "artifacts\profiler-build\bin\Release-x64\profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows"
           New-Item -ItemType Directory -Force -Path staging | Out-Null
           Copy-Item "$bin\Pyroscope.Profiler.Native.dll" staging\
           Copy-Item "$bin\Pyroscope.Profiler.Native.pdb" staging\
