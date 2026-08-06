@@ -79,6 +79,7 @@ public:
     MOCK_METHOD(bool, IsAllocationRecorderEnabled, (), (const override));
     MOCK_METHOD(bool, IsDebugInfoEnabled, (), (const override));
     MOCK_METHOD(bool, IsSourceLocationEnabled, (), (const override));
+    MOCK_METHOD(bool, IsLineNumbersEnabled, (), (const override));
     MOCK_METHOD(bool, IsGcThreadsCpuTimeEnabled, (), (const override));
     MOCK_METHOD(bool, IsThreadLifetimeEnabled, (), (const override));
     MOCK_METHOD(std::string const&, GetGitRepositoryUrl, (), (const override));

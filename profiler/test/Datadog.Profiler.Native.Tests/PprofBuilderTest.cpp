@@ -195,3 +195,47 @@ TEST(PprofBuilderTest, WithSourceLocationSameMethodInDifferentFilesGetsDistinctL
     EXPECT_NE(profile.sample(0).location_id(0), profile.sample(0).location_id(1));
     EXPECT_EQ(profile.location_size(), 2);
 }
+
+TEST(PprofBuilderTest, WithLineNumbersTheSampledLineIsEmitted)
+{
+    // Line (the line of the sampled instruction) takes precedence over StartLine for Line.line
+    auto profile = BuildProfileWithFrames(true, {FrameInfoView{"MyApp", "MyApp.Worker.Run", "/src/MyApp/Worker.cs", 42, 57}});
+
+    ASSERT_EQ(profile.sample_size(), 1);
+    ASSERT_EQ(profile.sample(0).location_id_size(), 1);
+    auto [function, line] = GetFrame(profile, 0);
+
+    EXPECT_EQ(profile.string_table(function.filename()), "/src/MyApp/Worker.cs");
+    EXPECT_EQ(function.start_line(), 42);
+    EXPECT_EQ(line.line(), 57);
+}
+
+TEST(PprofBuilderTest, WithLineNumbersSampledLinesOfTheSameMethodShareOneFunction)
+{
+    auto profile = BuildProfileWithFrames(true, {FrameInfoView{"MyApp", "MyApp.Worker.Run", "/src/MyApp/Worker.cs", 42, 57},
+                                                FrameInfoView{"MyApp", "MyApp.Worker.Run", "/src/MyApp/Worker.cs", 42, 61}});
+
+    ASSERT_EQ(profile.sample_size(), 1);
+    ASSERT_EQ(profile.sample(0).location_id_size(), 2);
+    EXPECT_NE(profile.sample(0).location_id(0), profile.sample(0).location_id(1));
+    EXPECT_EQ(profile.location_size(), 2);
+    EXPECT_EQ(profile.function_size(), 1);
+
+    auto [firstFunction, firstLine] = GetFrame(profile, 0);
+    auto [secondFunction, secondLine] = GetFrame(profile, 1);
+    EXPECT_EQ(firstFunction.id(), secondFunction.id());
+    EXPECT_EQ(firstLine.line(), 57);
+    EXPECT_EQ(secondLine.line(), 61);
+}
+
+TEST(PprofBuilderTest, WithLineNumbersSamplesOnTheSameLineShareASingleLocation)
+{
+    FrameInfoView frame{"MyApp", "MyApp.Worker.Run", "/src/MyApp/Worker.cs", 42, 57};
+    auto profile = BuildProfileWithFrames(true, {frame, frame});
+
+    ASSERT_EQ(profile.sample_size(), 1);
+    ASSERT_EQ(profile.sample(0).location_id_size(), 2);
+    EXPECT_EQ(profile.sample(0).location_id(0), profile.sample(0).location_id(1));
+    EXPECT_EQ(profile.location_size(), 1);
+    EXPECT_EQ(profile.function_size(), 1);
+}

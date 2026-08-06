@@ -30,14 +30,17 @@ public:
 private:
     int64_t AddHexString(std::span<const std::byte> bs);
     int64_t AddString(const std::string_view& sv);
-    int64_t AddLocation(int64_t functionName, int64_t filename, std::uint32_t startLine);
+    int64_t AddLocation(int64_t functionName, int64_t filename, std::uint32_t startLine, std::uint32_t line);
     void Reset();
 
     std::mutex _lock;
     int _samplesCount = 0;
     google::v1::Profile _profile;
     std::map<std::string_view, int64_t> _strings;
-    std::map<std::tuple<int64_t, int64_t, std::uint32_t>, int64_t> _locations;
+    // (filename, function name, start line) -> pprof Function id
+    std::map<std::tuple<int64_t, int64_t, std::uint32_t>, int64_t> _functions;
+    // (pprof Function id, line) -> pprof Location id
+    std::map<std::pair<int64_t, std::uint32_t>, int64_t> _locations;
     std::vector<SampleValueType> _sampleTypeDefinitions;
     bool _emitSourceLocation;
     std::string _scratchBuffer;

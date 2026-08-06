@@ -725,6 +725,34 @@ TEST_F(ConfigurationTest, CheckSourceLocationEnablesDebugInfo)
     ASSERT_THAT(configuration.IsDebugInfoEnabled(), true);
 }
 
+TEST_F(ConfigurationTest, CheckLineNumbersIsDisabledByDefault)
+{
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.IsLineNumbersEnabled(), false);
+}
+
+TEST_F(ConfigurationTest, CheckLineNumbersIsEnabledIfEnvVarSetToTrue)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::LineNumbersEnabled, WStr("1"));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.IsLineNumbersEnabled(), true);
+}
+
+TEST_F(ConfigurationTest, CheckLineNumbersIsDisabledIfEnvVarSetToFalse)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::LineNumbersEnabled, WStr("0"));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.IsLineNumbersEnabled(), false);
+}
+
+TEST_F(ConfigurationTest, CheckLineNumbersEnablesSourceLocationAndDebugInfo)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::LineNumbersEnabled, WStr("1"));
+    auto configuration = Configuration{};
+    ASSERT_THAT(configuration.IsSourceLocationEnabled(), true);
+    ASSERT_THAT(configuration.IsDebugInfoEnabled(), true);
+}
+
 TEST_F(ConfigurationTest, CheckGcThreadsCpuTimeEnabledTakesOverInternal)
 {
     EnvironmentHelper::EnvironmentVariable ev1(EnvironmentVariables::GcThreadsCpuTimeEnabled, WStr("1"));

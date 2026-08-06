@@ -14,6 +14,8 @@
 #include "shared/src/native-src/dd_filesystem.hpp"
 // namespace fs is an alias defined in "dd_filesystem.hpp"
 
+#include <algorithm>
+
 #define ARRAY_LEN(a) (sizeof(a) / sizeof((a)[0]))
 
 FrameStore::FrameStore(ICorProfilerInfo4* pCorProfilerInfo,
@@ -22,6 +24,7 @@ FrameStore::FrameStore(ICorProfilerInfo4* pCorProfilerInfo,
     ManagedCodeCache* pManagedCodeCache) :
     _pCorProfilerInfo{pCorProfilerInfo},
     _pDebugInfoStore{debugInfoStore},
+    _areLineNumbersEnabled{pConfiguration != nullptr && pConfiguration->IsLineNumbersEnabled()},
     _pManagedCodeCache{pManagedCodeCache},
     _cachedItemsSize(0)
 {
@@ -149,7 +152,7 @@ std::pair<bool, FrameInfoView> FrameStore::GetFrame(uintptr_t instructionPointer
         }
     }
 
-    auto frameInfo = GetManagedFrame(functionId.value());
+    auto frameInfo = GetManagedFrame(functionId.value(), instructionPointer);
     return {true, frameInfo};
 }
 
@@ -172,7 +175,7 @@ std::string FrameStore::FormatFrame(
     return builder.str();
 }
 
-FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId)
+FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId, uintptr_t instructionPointer)
 {
     {
         std::lock_guard<std::mutex> lock(_methodsLock);
@@ -181,7 +184,9 @@ FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId)
         auto element = _methods.find(functionId);
         if (element != _methods.end())
         {
-            return element->second;
+            FrameInfoView view = element->second;
+            view.Line = ResolveLine(element->second, instructionPointer);
+            return view;
         }
     }
 
@@ -248,19 +253,138 @@ FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId)
 
     auto debugInfo = _pDebugInfoStore->Get(moduleId, mdTokenFunc);
 
+    FrameInfo frameInfo{pTypeDesc->Assembly, managedFrame, debugInfo.File, debugInfo.StartLine};
+    if (_areLineNumbersEnabled && !debugInfo.SequencePoints.empty())
+    {
+        frameInfo.SequencePoints = std::move(debugInfo.SequencePoints);
+        CollectLineResolutionData(functionId, frameInfo);
+    }
+
     {
         std::lock_guard<std::mutex> lock(_methodsLock);
 
         // store it into the function cache and return an iterator to the stored elements
-        auto [it, _] = _methods.emplace(functionId, FrameInfo{pTypeDesc->Assembly, managedFrame, debugInfo.File, debugInfo.StartLine});
+        auto [it, _] = _methods.emplace(functionId, std::move(frameInfo));
 
         // Incrementally track item size
-        size_t itemSize = it->second.ModuleName.capacity() + it->second.Frame.capacity();
+        size_t itemSize = it->second.ModuleName.capacity() + it->second.Frame.capacity() +
+                          it->second.SequencePoints.capacity() * sizeof(SequencePointInfo) +
+                          it->second.CodeRanges.capacity() * sizeof(COR_PRF_CODE_INFO) +
+                          it->second.IlToNativeMap.capacity() * sizeof(COR_DEBUG_IL_TO_NATIVE_MAP);
         _cachedItemsSize.fetch_add(itemSize, std::memory_order_relaxed);
 
         // first is the key, second is the associated value
-        return it->second;
+        FrameInfoView view = it->second;
+        view.Line = ResolveLine(it->second, instructionPointer);
+        return view;
     }
+}
+
+void FrameStore::CollectLineResolutionData(FunctionID functionId, FrameInfo& frameInfo)
+{
+    // native code chunks of the jitted method
+    // (only the most recent code version is returned; samples taken in another
+    // compilation tier will not match these ranges and fall back to the start line)
+    ULONG32 count = 0;
+    HRESULT hr = _pCorProfilerInfo->GetCodeInfo2(functionId, 0, &count, nullptr);
+    if (FAILED(hr) || count == 0)
+    {
+        return;
+    }
+    frameInfo.CodeRanges.resize(count);
+    hr = _pCorProfilerInfo->GetCodeInfo2(functionId, count, &count, frameInfo.CodeRanges.data());
+    if (FAILED(hr))
+    {
+        frameInfo.CodeRanges.clear();
+        return;
+    }
+
+    count = 0;
+    hr = _pCorProfilerInfo->GetILToNativeMapping(functionId, 0, &count, nullptr);
+    if (FAILED(hr) || count == 0)
+    {
+        frameInfo.CodeRanges.clear();
+        return;
+    }
+    frameInfo.IlToNativeMap.resize(count);
+    hr = _pCorProfilerInfo->GetILToNativeMapping(functionId, count, &count, frameInfo.IlToNativeMap.data());
+    if (FAILED(hr))
+    {
+        frameInfo.CodeRanges.clear();
+        frameInfo.IlToNativeMap.clear();
+        return;
+    }
+
+    // the JIT can reorder code relative to IL order: sort by native offset so
+    // ResolveLine can binary search
+    std::sort(frameInfo.IlToNativeMap.begin(), frameInfo.IlToNativeMap.end(),
+              [](const COR_DEBUG_IL_TO_NATIVE_MAP& left, const COR_DEBUG_IL_TO_NATIVE_MAP& right) {
+                  return left.nativeStartOffset < right.nativeStartOffset;
+              });
+}
+
+std::uint32_t FrameStore::ResolveLine(const FrameInfo& frameInfo, uintptr_t instructionPointer)
+{
+    if (frameInfo.SequencePoints.empty() || frameInfo.CodeRanges.empty() || frameInfo.IlToNativeMap.empty())
+    {
+        return 0;
+    }
+
+    // native offset of the IP, relative to the method's code chunks laid end to end
+    // (the same layout GetILToNativeMapping offsets are expressed in)
+    ULONG32 nativeOffset = 0;
+    ULONG32 chunkStartOffset = 0;
+    bool ipFound = false;
+    for (const auto& range : frameInfo.CodeRanges)
+    {
+        if (instructionPointer >= range.startAddress && instructionPointer < range.startAddress + range.size)
+        {
+            nativeOffset = chunkStartOffset + static_cast<ULONG32>(instructionPointer - range.startAddress);
+            ipFound = true;
+            break;
+        }
+        chunkStartOffset += static_cast<ULONG32>(range.size);
+    }
+    if (!ipFound)
+    {
+        // the sample was taken in another code version (e.g. a different compilation tier)
+        return 0;
+    }
+
+    // last IL-to-native entry starting at or before the native offset,
+    // skipping backwards over prolog/epilog/unmapped entries
+    auto entry = std::upper_bound(
+        frameInfo.IlToNativeMap.begin(), frameInfo.IlToNativeMap.end(), nativeOffset,
+        [](ULONG32 offset, const COR_DEBUG_IL_TO_NATIVE_MAP& e) { return offset < e.nativeStartOffset; });
+
+    std::uint32_t ilOffset = 0;
+    bool ilOffsetFound = false;
+    while (entry != frameInfo.IlToNativeMap.begin())
+    {
+        --entry;
+        if (entry->ilOffset == static_cast<ULONG32>(NO_MAPPING) || entry->ilOffset == static_cast<ULONG32>(EPILOG))
+        {
+            continue;
+        }
+        // attribute the prolog to the beginning of the method
+        ilOffset = (entry->ilOffset == static_cast<ULONG32>(PROLOG)) ? 0 : entry->ilOffset;
+        ilOffsetFound = true;
+        break;
+    }
+    if (!ilOffsetFound)
+    {
+        return 0;
+    }
+
+    // last sequence point at or before the IL offset
+    auto point = std::upper_bound(
+        frameInfo.SequencePoints.begin(), frameInfo.SequencePoints.end(), ilOffset,
+        [](std::uint32_t offset, const SequencePointInfo& p) { return offset < p.ILOffset; });
+    if (point == frameInfo.SequencePoints.begin())
+    {
+        return 0;
+    }
+    return std::prev(point)->StartLine;
 }
 
 bool FrameStore::GetTypeName(ClassID classId, std::string& name)
@@ -1029,6 +1153,10 @@ FrameStore::MemoryStats FrameStore::ComputeMemoryStats() const
             stats.methodsCacheSize += frameInfo.ModuleName.capacity();
             stats.methodsCacheSize += frameInfo.Frame.capacity();
             // Filename is a string_view, no additional memory
+            // per-sample line resolution data (only populated when line numbers are enabled)
+            stats.methodsCacheSize += frameInfo.SequencePoints.capacity() * sizeof(SequencePointInfo);
+            stats.methodsCacheSize += frameInfo.CodeRanges.capacity() * sizeof(COR_PRF_CODE_INFO);
+            stats.methodsCacheSize += frameInfo.IlToNativeMap.capacity() * sizeof(COR_DEBUG_IL_TO_NATIVE_MAP);
         }
     }
 

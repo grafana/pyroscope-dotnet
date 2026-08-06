@@ -16,7 +16,12 @@ public:
     std::string_view ModuleName;
     std::string_view Frame;
     std::string_view Filename;
-    std::uint32_t StartLine;
+    std::uint32_t StartLine = 0;
+
+    // line of the sampled instruction inside the method, resolved from its IL offset
+    // (0 when unknown). Only filled when line numbers are enabled; consumers fall back
+    // to StartLine otherwise.
+    std::uint32_t Line = 0;
 };
 
 class IFrameStore : public IMemoryFootprintProvider

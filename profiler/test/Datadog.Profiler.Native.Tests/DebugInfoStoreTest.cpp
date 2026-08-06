@@ -268,6 +268,7 @@ TEST(DebugInfoStoreTest, ParseModuleDebugInfo_NetCorePortable)
 
     auto [configuration, mockConfiguration] = CreateConfiguration();
     EXPECT_CALL(mockConfiguration, IsDebugInfoEnabled()).WillRepeatedly(Return(true));
+    EXPECT_CALL(mockConfiguration, IsLineNumbersEnabled()).WillRepeatedly(Return(false));
 
     DebugInfoStore debugInfoStore(nullptr, configuration.get());
 
@@ -281,4 +282,66 @@ TEST(DebugInfoStoreTest, ParseModuleDebugInfo_NetCorePortable)
     // Portable PDBs use RID-based lookup
     ASSERT_FALSE(moduleInfo.RidToDebugInfo.empty()) << "Expected RID to debug info mapping for Portable PDB";
     ASSERT_FALSE(moduleInfo.Files.empty()) << "Expected source files in debug info";
+
+    // line numbers are disabled: no sequence points should have been kept
+    for (const auto& debugInfo : moduleInfo.RidToDebugInfo)
+    {
+        ASSERT_TRUE(debugInfo.SequencePoints.empty()) << "Sequence points must not be stored when line numbers are disabled";
+    }
+}
+
+// When line numbers are enabled, the whole per-method sequence point table is kept
+// (sorted by IL offset) so a sampled IL offset can be resolved to its source line.
+TEST(DebugInfoStoreTest, ParseModuleDebugInfo_NetCorePortableSequencePoints)
+{
+    auto [pdbPath, modulePath] = GetSamplePdbPath("Samples.BuggyBits", "net10.0");
+    if (pdbPath.empty())
+    {
+        GTEST_SKIP() << "Failed to get current process path";
+        return;
+    }
+
+    std::error_code ec;
+    if (!fs::exists(pdbPath, ec) || !fs::exists(modulePath, ec))
+    {
+        GTEST_SKIP() << "Samples.BuggyBits.pdb (net10.0) not found. This is expected if net10.0 is not compiled.";
+        return;
+    }
+
+    ModuleDebugInfo moduleInfo;
+
+    auto [configuration, mockConfiguration] = CreateConfiguration();
+    EXPECT_CALL(mockConfiguration, IsDebugInfoEnabled()).WillRepeatedly(Return(true));
+    EXPECT_CALL(mockConfiguration, IsLineNumbersEnabled()).WillRepeatedly(Return(true));
+
+    DebugInfoStore debugInfoStore(nullptr, configuration.get());
+    debugInfoStore.ParseModuleDebugInfo(0, pdbPath.string(), modulePath.string(), moduleInfo);
+
+    ASSERT_EQ(moduleInfo.LoadingState, SymbolLoadingState::Portable);
+
+    bool foundSequencePoints = false;
+    for (const auto& debugInfo : moduleInfo.RidToDebugInfo)
+    {
+        if (debugInfo.SequencePoints.empty())
+        {
+            continue;
+        }
+        foundSequencePoints = true;
+
+        // the first non-hidden point defines the method start line
+        ASSERT_EQ(debugInfo.SequencePoints.front().StartLine, debugInfo.StartLine);
+
+        // points must be sorted by IL offset (FrameStore::ResolveLine binary searches them)
+        for (size_t i = 1; i < debugInfo.SequencePoints.size(); ++i)
+        {
+            ASSERT_LE(debugInfo.SequencePoints[i - 1].ILOffset, debugInfo.SequencePoints[i].ILOffset);
+        }
+
+        // hidden sequence points (0xfeefee) must have been filtered out
+        for (const auto& point : debugInfo.SequencePoints)
+        {
+            ASSERT_NE(point.StartLine, 0xfeefee);
+        }
+    }
+    ASSERT_TRUE(foundSequencePoints) << "Expected at least one method with sequence points";
 }

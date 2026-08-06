@@ -12,12 +12,24 @@
 
 #include <string_view>
 #include <cstdint>
+#include <vector>
+
+struct SequencePointInfo
+{
+public:
+    std::uint32_t ILOffset;
+    std::uint32_t StartLine;
+};
 
 struct SymbolDebugInfo
 {
 public:
     std::string_view File;
     std::uint32_t StartLine = 0;
+
+    // non-hidden sequence points of the method, sorted by IL offset; used to resolve the
+    // source line of a sampled instruction. Only populated when line numbers are enabled.
+    std::vector<SequencePointInfo> SequencePoints;
 };
 
 class IDebugInfoStore : public IMemoryFootprintProvider

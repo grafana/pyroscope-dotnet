@@ -28,6 +28,7 @@ const std::uint32_t DebugInfoStore::NoStartLine = 0;
 DebugInfoStore::DebugInfoStore(ICorProfilerInfo4* profilerInfo, IConfiguration* _configuration) noexcept :
     _profilerInfo{profilerInfo},
     _isEnabled{_configuration->IsDebugInfoEnabled()},
+    _areLineNumbersEnabled{_configuration->IsLineNumbersEnabled()},
     _cachedItemsSize(0)
 {
 }
@@ -100,6 +101,10 @@ void DebugInfoStore::ParseModuleDebugInfo(ModuleID moduleId)
         itemSize += file.capacity();
     }
     itemSize += moduleInfo.RidToDebugInfo.capacity() * sizeof(SymbolDebugInfo);
+    for (const auto& debugInfo : moduleInfo.RidToDebugInfo)
+    {
+        itemSize += debugInfo.SequencePoints.capacity() * sizeof(SequencePointInfo);
+    }
     _cachedItemsSize.fetch_add(itemSize, std::memory_order_relaxed);
 }
 
@@ -185,7 +190,22 @@ bool DebugInfoStore::TryLoadSymbolsWithPortable(const std::string& pdbFilename, 
                     break;
                 }
             }
-            moduleInfo.RidToDebugInfo.emplace_back() = {moduleInfo.Files[row.InitialDocument], startLine};
+
+            // keep the whole sequence point table so a sampled IL offset can be mapped
+            // to its source line (0xfeefee marks hidden sequence points)
+            std::vector<SequencePointInfo> points;
+            if (_areLineNumbersEnabled)
+            {
+                points.reserve(row.Points.size());
+                for (const auto& s : row.Points)
+                {
+                    if (s.StartLine != 0xfeefee && s.EndLine != 0xfeefee)
+                    {
+                        points.push_back({s.ILOffset, s.StartLine});
+                    }
+                }
+            }
+            moduleInfo.RidToDebugInfo.emplace_back() = {moduleInfo.Files[row.InitialDocument], startLine, std::move(points)};
         }
         moduleInfo.LoadingState = SymbolLoadingState::Portable;
 
@@ -307,7 +327,12 @@ DebugInfoStore::MemoryStats DebugInfoStore::ComputeMemoryStats() const
 
         // SymbolsDebugInfo vector
         stats.moduleInfosSize += moduleInfo.RidToDebugInfo.capacity() * sizeof(SymbolDebugInfo);
-        // SymbolDebugInfo contains string_view, which doesn't own the data, so no additional memory
+        // SymbolDebugInfo contains string_view, which doesn't own the data, but it owns
+        // the sequence points (only populated when line numbers are enabled)
+        for (const auto& debugInfo : moduleInfo.RidToDebugInfo)
+        {
+            stats.moduleInfosSize += debugInfo.SequencePoints.capacity() * sizeof(SequencePointInfo);
+        }
     }
 
     return stats;

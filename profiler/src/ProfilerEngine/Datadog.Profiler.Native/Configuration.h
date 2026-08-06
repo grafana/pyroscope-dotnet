@@ -94,6 +94,7 @@ public:
     bool IsMemoryFootprintEnabled() const override;
     bool IsAllocationTypeLeafEnabled() const override;
     bool IsSourceLocationEnabled() const override;
+    bool IsLineNumbersEnabled() const override;
 
     std::string PyroscopeServerAddress() const override;
     std::string PyroscopeApplicationName() const override;
@@ -231,4 +232,5 @@ private:
     bool _isMemoryFootprintEnabled;
     bool _isAllocationTypeLeafEnabled;
     bool _isSourceLocationEnabled;
+    bool _isLineNumbersEnabled;
 };

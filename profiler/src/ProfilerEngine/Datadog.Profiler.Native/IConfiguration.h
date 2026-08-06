@@ -69,6 +69,10 @@ public:
     // when enabled, the source file and the method start line coming from the .pdb are
     // written into the pprof Function.filename/Function.start_line/Line.line fields
     virtual bool IsSourceLocationEnabled() const = 0;
+    // when enabled, Line.line holds the line of the sampled instruction (resolved from its
+    // IL offset and the .pdb sequence points) instead of the method start line; implies
+    // IsSourceLocationEnabled
+    virtual bool IsLineNumbersEnabled() const = 0;
     virtual bool IsGcThreadsCpuTimeEnabled() const = 0;
     virtual bool IsThreadLifetimeEnabled() const = 0;
     virtual std::string const& GetGitRepositoryUrl() const = 0;

@@ -25,10 +25,10 @@ void PprofBuilder::AddSample(const Sample& sample, std::span<const int64_t> valu
     assert(values.size() == _sampleTypeDefinitions.size());
     std::lock_guard lock(this->_lock);
     auto* pSample = _profile.add_sample();
-    auto addLocation = [&](std::string_view frame, std::string_view filename, std::uint32_t startLine) {
+    auto addLocation = [&](std::string_view frame, std::string_view filename, std::uint32_t startLine, std::uint32_t line) {
         const auto filenameStringId = AddString(filename);
         const auto functionNameStringId = AddString(frame);
-        const auto locId = AddLocation(functionNameStringId, filenameStringId, startLine);
+        const auto locId = AddLocation(functionNameStringId, filenameStringId, startLine, line);
         pSample->add_location_id(locId);
     };
     auto addFrame = [&](const FrameInfoView& frame) {
@@ -36,11 +36,14 @@ void PprofBuilder::AddSample(const Sample& sample, std::span<const int64_t> valu
         // the .pdb debug info gave us an actual source file for this method.
         if (_emitSourceLocation && !frame.Filename.empty())
         {
-            addLocation(frame.Frame, frame.Filename, frame.StartLine);
+            // Frame.Line holds the line of the sampled instruction when line numbers are
+            // enabled; otherwise fall back to the method start line
+            const auto line = (frame.Line != 0) ? frame.Line : frame.StartLine;
+            addLocation(frame.Frame, frame.Filename, frame.StartLine, line);
         }
         else
         {
-            addLocation(frame.Frame, frame.ModuleName, 0);
+            addLocation(frame.Frame, frame.ModuleName, 0, 0);
         }
     };
     AddTraceContext(sample, pSample);
@@ -50,7 +53,7 @@ void PprofBuilder::AddSample(const Sample& sample, std::span<const int64_t> valu
         _scratchBuffer.reserve(ClassLeafPrefix.size() + frame.size());
         _scratchBuffer.append(ClassLeafPrefix);
         _scratchBuffer.append(frame);
-        addLocation(_scratchBuffer, {}, 0);
+        addLocation(_scratchBuffer, {}, 0, 0);
     }
     for (auto const& frame : sample.GetCallstack())
     {
@@ -122,39 +125,56 @@ int64_t PprofBuilder::AddString(const std::string_view& keyNotOwned)
     return id;
 }
 
-int64_t PprofBuilder::AddLocation(int64_t functionName, int64_t filename, std::uint32_t startLine)
+int64_t PprofBuilder::AddLocation(int64_t functionName, int64_t filename, std::uint32_t startLine, std::uint32_t line)
 {
-    std::tuple<int64_t, int64_t, std::uint32_t> loc(filename, functionName, startLine);
-    auto it = _locations.find(loc);
-    if (it != _locations.end())
+    // a method is a single pprof Function, referenced by one Location per sampled line
+    // (when line numbers are disabled, line == startLine and there is one Location per method)
+    std::tuple<int64_t, int64_t, std::uint32_t> functionKey(filename, functionName, startLine);
+    int64_t functionId;
+    auto functionIt = _functions.find(functionKey);
+    if (functionIt != _functions.end())
     {
-        return it->second;
+        functionId = functionIt->second;
     }
-    int64_t id = (int64_t)_profile.location_size() + 1;
-    assert(_profile.location_size() == _locations.size());
-    assert(_profile.function_size() == _locations.size());
-    auto* pFunction = _profile.add_function();
-    pFunction->set_id(id);
-    pFunction->set_name(functionName);
-    pFunction->set_filename(filename);
+    else
+    {
+        functionId = (int64_t)_profile.function_size() + 1;
+        auto* pFunction = _profile.add_function();
+        pFunction->set_id(functionId);
+        pFunction->set_name(functionName);
+        pFunction->set_filename(filename);
+        if (startLine != 0)
+        {
+            pFunction->set_start_line(startLine);
+        }
+        _functions.insert(std::make_pair(functionKey, functionId));
+    }
+
+    std::pair<int64_t, std::uint32_t> locationKey(functionId, line);
+    auto locationIt = _locations.find(locationKey);
+    if (locationIt != _locations.end())
+    {
+        return locationIt->second;
+    }
+    int64_t locationId = (int64_t)_profile.location_size() + 1;
     auto* pLocation = _profile.add_location();
-    pLocation->set_id(id);
+    pLocation->set_id(locationId);
     auto* pLine = pLocation->add_line();
-    pLine->set_function_id(id);
-    if (startLine != 0)
+    pLine->set_function_id(functionId);
+    if (line != 0)
     {
-        // there is no call site line in the pipeline: the .pdb only gives us the line
-        // the method is declared at, which is reported for both the function and the line
-        pFunction->set_start_line(startLine);
-        pLine->set_line(startLine);
+        // there is no call site line in the pipeline: this is either the line of the sampled
+        // instruction (line numbers enabled) or the line the method is declared at
+        pLine->set_line(line);
     }
-    _locations.insert(std::make_pair(loc, id));
-    return id;
+    _locations.insert(std::make_pair(locationKey, locationId));
+    return locationId;
 }
 
 void PprofBuilder::Reset()
 {
     _samplesCount = 0;
+    _functions.clear();
     _locations.clear();
     _strings.clear();
     _profile = google::v1::Profile();

@@ -91,7 +91,7 @@ private:
         const char* arraySuffix);
     bool GetTypeDesc(ClassID classId, TypeDesc*& typeDesc);
     bool GetCachedTypeDesc(ClassID classId, TypeDesc*& typeDesc);
-    FrameInfoView GetManagedFrame(FunctionID functionId);
+    FrameInfoView GetManagedFrame(FunctionID functionId, uintptr_t instructionPointer);
     std::pair <std::string_view, std::string_view> GetNativeFrame(uintptr_t instructionPointer);
 
 public:   // global helpers
@@ -170,11 +170,23 @@ private:
         std::string_view Filename;
         std::uint32_t StartLine;
 
+        // per-sample line resolution data (only populated when line numbers are enabled)
+        std::vector<SequencePointInfo> SequencePoints;          // sorted by IL offset
+        std::vector<COR_PRF_CODE_INFO> CodeRanges;              // native code chunks, in emission order
+        std::vector<COR_DEBUG_IL_TO_NATIVE_MAP> IlToNativeMap;  // sorted by nativeStartOffset
+
         operator FrameInfoView() const
         {
             return {ModuleName, Frame, Filename, StartLine};
         }
     };
+
+    // fetches the native code ranges and the IL-to-native mapping of the jitted method,
+    // needed to resolve the source line of a sampled instruction pointer
+    void CollectLineResolutionData(FunctionID functionId, FrameInfo& frameInfo);
+    // maps an instruction pointer to a source line via the method's IL-to-native mapping
+    // and sequence points; returns 0 when the line cannot be resolved
+    static std::uint32_t ResolveLine(const FrameInfo& frameInfo, uintptr_t instructionPointer);
 
     ICorProfilerInfo4* _pCorProfilerInfo;
     IDebugInfoStore* _pDebugInfoStore;
@@ -194,6 +206,7 @@ private:
     std::unordered_map<ClassID, std::string> _fullTypeNames;
 
     bool _resolveNativeFrames;
+    bool _areLineNumbersEnabled;
     ManagedCodeCache* _pManagedCodeCache;
     // TODO: dump stats about caches size at the end of the application
 

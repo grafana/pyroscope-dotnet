@@ -78,7 +78,9 @@ Configuration::Configuration()
     _namedPipeName = GetEnvironmentValue(EnvironmentVariables::NamedPipeName, DefaultEmptyString);
     _isTimestampsAsLabelEnabled = GetEnvironmentValue(EnvironmentVariables::TimestampsAsLabelEnabled, false);
     _isAllocationRecorderEnabled = GetEnvironmentValue(EnvironmentVariables::AllocationRecorderEnabled, false);
-    _isSourceLocationEnabled = GetEnvironmentValue(EnvironmentVariables::SourceLocationEnabled, false);
+    _isLineNumbersEnabled = GetEnvironmentValue(EnvironmentVariables::LineNumbersEnabled, false);
+    // per-sample line numbers are emitted through the source location fields of the pprof
+    _isSourceLocationEnabled = GetEnvironmentValue(EnvironmentVariables::SourceLocationEnabled, false) || _isLineNumbersEnabled;
     // emitting source locations into pprof requires the .pdb debug info to actually be collected
     _isDebugInfoEnabled = GetEnvironmentValue(EnvironmentVariables::DebugInfoEnabled, false) || _isSourceLocationEnabled;
     _isGcThreadsCpuTimeEnabled = GetEnvironmentValue(EnvironmentVariables::GcThreadsCpuTimeEnabled,
@@ -604,6 +606,11 @@ bool Configuration::IsDebugInfoEnabled() const
 bool Configuration::IsSourceLocationEnabled() const
 {
     return _isSourceLocationEnabled;
+}
+
+bool Configuration::IsLineNumbersEnabled() const
+{
+    return _isLineNumbersEnabled;
 }
 
 bool Configuration::IsSystemCallsShieldEnabled() const

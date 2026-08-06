@@ -57,6 +57,12 @@ public:
         // Each entry contains a string_view (2 pointers typically) and a uint32_t
         totalSize += RidToDebugInfo.capacity() * sizeof(SymbolDebugInfo);
 
+        // Size of the per-method sequence points (only populated when line numbers are enabled)
+        for (const auto& debugInfo : RidToDebugInfo)
+        {
+            totalSize += debugInfo.SequencePoints.capacity() * sizeof(SequencePointInfo);
+        }
+
         return totalSize;
     }
 };
@@ -154,6 +160,7 @@ private:
 
     ICorProfilerInfo4* _profilerInfo;
     bool _isEnabled;
+    bool _areLineNumbersEnabled;
 
 // mutable to allow locking in const methods (e.g., GetMemorySize, LogMemoryBreakdown)
     mutable std::mutex _modulesMutex;

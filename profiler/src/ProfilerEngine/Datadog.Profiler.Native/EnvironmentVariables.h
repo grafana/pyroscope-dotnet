@@ -101,4 +101,5 @@ public:
 
     inline static const shared::WSTRING AllocationTypeLeafEnabled   = WStr("PYROSCOPE_ALLOCATION_TYPE_LEAF_ENABLED");
     inline static const shared::WSTRING SourceLocationEnabled       = WStr("PYROSCOPE_PROFILING_SOURCE_LOCATION_ENABLED");
+    inline static const shared::WSTRING LineNumbersEnabled          = WStr("PYROSCOPE_PROFILING_LINE_NUMBERS_ENABLED");
 };
