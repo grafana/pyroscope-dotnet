@@ -8,6 +8,7 @@
 #include <type_traits>
 
 #include "EnvironmentVariables.h"
+#include "IHeapSnapshotManager.h"
 #include "Log.h"
 #include "OpSysTools.h"
 
@@ -139,9 +140,11 @@ Configuration::Configuration()
     _cpuProfilerType = DefaultCpuProfilerType;
     _isWaitHandleProfilingEnabled = GetEnvironmentValue(EnvironmentVariables::WaitHandleProfilingEnabled, false);
     _isHeapSnapshotEnabled = GetEnvironmentValue(EnvironmentVariables::HeapSnapshotEnabled, false);
+    _isHeapSnapshotSkipTraversal = GetEnvironmentValue(EnvironmentVariables::HeapSnapshotSkipTraversal, false);
     _heapSnapshotInterval = ExtractHeapSnapshotInterval();
     _heapSnapshotCheckInterval = ExtractHeapSnapshotCheckInterval();
-    _heapSnapshotMemoryPressureThreshold = GetEnvironmentValue(EnvironmentVariables::HeapSnapshotMemoryPressureThreshold, 85);
+    _heapSnapshotMemoryPressureThreshold = GetEnvironmentValue(EnvironmentVariables::HeapSnapshotMemoryPressureThreshold, 50);
+    _testHeapSnapshotInterval = ExtractTestHeapSnapshotInterval();
     _heapHandleLimit = ExtractHeapHandleLimit();
     _heapSamplingRate = ExtractHeapSamplingRate();
     bool defaultUseManagedCodeCache =
@@ -153,6 +156,8 @@ Configuration::Configuration()
     _useManagedCodeCache = GetEnvironmentValue(EnvironmentVariables::UseManagedCodeCache, defaultUseManagedCodeCache);
     _isMemoryFootprintEnabled = GetEnvironmentValue(EnvironmentVariables::MemoryFootprintEnabled, false);
     _isAllocationTypeLeafEnabled = GetEnvironmentValue(EnvironmentVariables::AllocationTypeLeafEnabled, false);
+
+    _referenceTreeFormat = ExtractReferenceTreeFormat();
 }
 
 fs::path Configuration::ExtractLogDirectory()
@@ -356,6 +361,11 @@ bool Configuration::IsMemoryFootprintEnabled() const
 bool Configuration::IsAllocationTypeLeafEnabled() const
 {
     return _isAllocationTypeLeafEnabled;
+}
+
+uint32_t Configuration::GetReferenceTreeFormat() const
+{
+    return _referenceTreeFormat;
 }
 
 bool Configuration::IsAllocationRecorderEnabled() const
@@ -682,6 +692,17 @@ static bool convert_to(shared::WSTRING const& s, int32_t& result)
     return TryParse(s, result);
 }
 
+static bool convert_to(shared::WSTRING const& s, uint32_t& result)
+{
+    int32_t value;
+    if (!TryParse(s, value) || value < 0)
+    {
+        return false;
+    }
+    result = static_cast<uint32_t>(value);
+    return true;
+}
+
 static bool convert_to(shared::WSTRING const& s, uint64_t& result)
 {
     return TryParse(s, result);
@@ -859,7 +880,17 @@ std::chrono::milliseconds Configuration::GetHttpRequestDurationThreshold() const
 
 bool Configuration::IsHeapSnapshotEnabled() const
 {
-    return _isHeapSnapshotEnabled;
+    // Pyroscope does not consume heap snapshots (neither the class histogram nor the
+    // reference tree is exported by PprofExporter), so the feature stays off even when
+    // DD_INTERNAL_PROFILING_HEAPSNAPSHOT_ENABLED is set. Enabling it would induce a
+    // blocking gen2 GC on a timer for data nobody reads.
+    // The env var is still parsed above to keep the diff with upstream minimal.
+    return false;
+}
+
+bool Configuration::IsHeapSnapshotSkipTraversal() const
+{
+    return _isHeapSnapshotSkipTraversal;
 }
 
 std::chrono::minutes Configuration::GetDefaultHeapSnapshotInterval() const
@@ -899,7 +930,7 @@ std::chrono::milliseconds Configuration::ExtractHeapSnapshotCheckInterval() cons
         return std::chrono::milliseconds(interval);
     }
 
-    return 250ms;
+    return 500ms;
 }
 
 std::chrono::milliseconds Configuration::GetHeapSnapshotCheckInterval() const
@@ -910,6 +941,23 @@ std::chrono::milliseconds Configuration::GetHeapSnapshotCheckInterval() const
 uint32_t Configuration::GetHeapSnapshotMemoryPressureThreshold() const
 {
     return _heapSnapshotMemoryPressureThreshold;
+}
+
+std::chrono::seconds Configuration::ExtractTestHeapSnapshotInterval() const
+{
+    auto r = shared::GetEnvironmentValue(EnvironmentVariables::TestHeapSnapshotInterval);
+    int32_t interval;
+    if (TryParse(r, interval) && interval > 0)
+    {
+        return std::chrono::seconds(interval);
+    }
+
+    return 0s;
+}
+
+std::chrono::seconds Configuration::GetTestHeapSnapshotInterval() const
+{
+    return _testHeapSnapshotInterval;
 }
 
 int32_t Configuration::ExtractHeapHandleLimit() const
@@ -940,8 +988,22 @@ uint64_t Configuration::GetHeapSamplingRate() const
     return _heapSamplingRate;
 }
 
+uint32_t Configuration::ExtractReferenceTreeFormat() const
+{
+    // The format is a bitfield combining ReferenceTreeFormat_Binary (1) and ReferenceTreeFormat_Json (2).
+    // Only 1 (Binary), 2 (Json) and 3 (Binary + Json) are valid; anything else falls back to the
+    // default binary format.
+    constexpr uint32_t defaultFormat = ReferenceTreeFormat_Binary;
+    constexpr uint32_t validMask = ReferenceTreeFormat_Binary | ReferenceTreeFormat_Json;
 
+    uint32_t format = GetEnvironmentValue(EnvironmentVariables::HeapSnapshotReferenceTreeFormat, defaultFormat);
+    if (format == 0 || (format & ~validMask) != 0)
+    {
+        return defaultFormat;
+    }
 
+    return format;
+}
 
 
 std::string Configuration::PyroscopeServerAddress() const
