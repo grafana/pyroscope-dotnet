@@ -880,7 +880,12 @@ std::chrono::milliseconds Configuration::GetHttpRequestDurationThreshold() const
 
 bool Configuration::IsHeapSnapshotEnabled() const
 {
-    return _isHeapSnapshotEnabled;
+    // Pyroscope does not consume heap snapshots (neither the class histogram nor the
+    // reference tree is exported by PprofExporter), so the feature stays off even when
+    // DD_INTERNAL_PROFILING_HEAPSNAPSHOT_ENABLED is set. Enabling it would induce a
+    // blocking gen2 GC on a timer for data nobody reads.
+    // The env var is still parsed above to keep the diff with upstream minimal.
+    return false;
 }
 
 bool Configuration::IsHeapSnapshotSkipTraversal() const

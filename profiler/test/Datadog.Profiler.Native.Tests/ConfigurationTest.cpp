@@ -1433,11 +1433,11 @@ TEST_F(ConfigurationTest, CheckHeapSnapshotIsDisabledByDefault)
     ASSERT_THAT(configuration.IsHeapSnapshotEnabled(), false);
 }
 
-TEST_F(ConfigurationTest, CheckHeapSnapshotIsEnabledIfEnvVarSetToTrue)
+TEST_F(ConfigurationTest, CheckHeapSnapshotStaysDisabledIfEnvVarSetToTrue)
 {
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::HeapSnapshotEnabled, WStr("1"));
     auto configuration = Configuration{};
-    ASSERT_THAT(configuration.IsHeapSnapshotEnabled(), true);
+    ASSERT_THAT(configuration.IsHeapSnapshotEnabled(), false);
 }
 
 TEST_F(ConfigurationTest, CheckHeapSnapshotIsDisabledIfEnvVarSetToFalse)
