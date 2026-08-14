@@ -1,6 +1,6 @@
 # pyroscope-dotnet
 
-Fork of [dd-trace-dotnet](https://github.com/DataDog/dd-trace-dotnet). The upstream tracer has been removed — only the **profiler** remains. This repo builds and ships the Pyroscope .NET profiler (`Pyroscope.Profiler.Native.so` and `Pyroscope.Linux.ApiWrapper.x64.so`).
+Fork of [dd-trace-dotnet](https://github.com/DataDog/dd-trace-dotnet). The upstream tracer has been removed — only the **profiler** remains. This repo builds and ships the Pyroscope .NET profiler for both Linux (`Pyroscope.Profiler.Native.so` and `Pyroscope.Linux.ApiWrapper.x64.so`) and Windows (`Pyroscope.Profiler.Native.dll`).
 
 ## Committing
 
@@ -14,7 +14,7 @@ The repo uses git submodules for third-party dependencies. Check them out before
 git submodule update --init --recursive
 ```
 
-## Build the profiler (Debug)
+## Build the profiler (Linux, Debug)
 
 Requires clang/clang++ and cmake. Uses `build-claude-Debug` as the build directory. Always use the Unix Makefiles generator (never Ninja).
 
@@ -36,3 +36,18 @@ On hosts that ship only dynamic OpenSSL (e.g. Fedora's `openssl-devel`), add `-D
 Output artifacts:
 - `artifacts/profiler-build/DDProf-Deploy/linux/Pyroscope.Profiler.Native.so`
 - `artifacts/profiler-build/DDProf-Deploy/linux/Datadog.Linux.ApiWrapper.x64.so`
+
+## Build the profiler (Windows)
+
+Windows is a supported target: CI (`.github/workflows/windows.yml`) builds `Pyroscope.Profiler.Native.dll` (Release x64) with MSBuild and runs the integration tests against it on Windows runners. Local build (requires MSVC + vcpkg):
+
+```powershell
+vcpkg integrate install
+msbuild profiler\src\ProfilerEngine\Datadog.Profiler.Native.Windows\Datadog.Profiler.Native.Windows.vcxproj `
+    /p:Configuration=Release /p:Platform=x64 /p:VcpkgEnableManifest=true /m
+```
+
+Output artifact:
+- `artifacts/profiler-build/bin/Release-x64/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/Pyroscope.Profiler.Native.dll`
+
+Note: the vcxproj pins toolset v143 + SDK 10.0.19041; CI overrides these via `/p:PlatformToolset` and `/p:WindowsTargetPlatformVersion` to whatever the runner image ships (see the workflow for details). Windows-only sources live in `profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/` — they are shipped code, not dead upstream leftovers.
