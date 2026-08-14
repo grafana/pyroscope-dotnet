@@ -999,6 +999,9 @@ TEST_F(ConfigurationTest, CheckSsiIsDeployedIfProfilerEnabledVarIsSetToFalse)
 // Use the DD_PROFILING_MANAGED_ACTIVATION_ENABLED kill switch to test per env vars configuration
 TEST_F(ConfigurationTest, CheckStandbyIfSsiEnabledAndStableConfigurationByDefault)
 {
+#ifdef ARM64
+    EnvironmentHelper::EnvironmentVariable arArm64(EnvironmentVariables::EnableProfilerArchitectureArm64, WStr("1"));
+#endif
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::SsiDeployed, WStr("tracer,profiler"));
     auto configuration = Configuration{};
     ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::NotSet);
@@ -1014,6 +1017,9 @@ TEST_F(ConfigurationTest, CheckStandbyIfSsiEnabledAndStableConfigurationEnabled)
 
 TEST_F(ConfigurationTest, CheckStandbyIfSsiEnvVarDoesNotContainProfilerAndStableConfigurationByDefault)
 {
+#ifdef ARM64
+    EnvironmentHelper::EnvironmentVariable arArm64(EnvironmentVariables::EnableProfilerArchitectureArm64, WStr("1"));
+#endif
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::SsiDeployed, WStr("tracer"));
     auto configuration = Configuration{};
     ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::NotSet);
@@ -1021,6 +1027,9 @@ TEST_F(ConfigurationTest, CheckStandbyIfSsiEnvVarDoesNotContainProfilerAndStable
 
 TEST_F(ConfigurationTest, CheckStandbyIfSsiEnvVarEmptyAndStableConfigurationByDefault)
 {
+#ifdef ARM64
+    EnvironmentHelper::EnvironmentVariable arArm64(EnvironmentVariables::EnableProfilerArchitectureArm64, WStr("1"));
+#endif
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::SsiDeployed, WStr(""));
     auto configuration = Configuration{};
     ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::NotSet);
@@ -1028,6 +1037,9 @@ TEST_F(ConfigurationTest, CheckStandbyIfSsiEnvVarEmptyAndStableConfigurationByDe
 
 TEST_F(ConfigurationTest, CheckSsiIsActivatedIfProfilerEnvVarConstainsAutoAndStableConfigurationByDefault)
 {
+#ifdef ARM64
+    EnvironmentHelper::EnvironmentVariable arArm64(EnvironmentVariables::EnableProfilerArchitectureArm64, WStr("1"));
+#endif
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ProfilerEnabled, WStr("auto"));
     auto configuration = Configuration{};
     ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::Auto);
@@ -1035,6 +1047,9 @@ TEST_F(ConfigurationTest, CheckSsiIsActivatedIfProfilerEnvVarConstainsAutoAndSta
 
 TEST_F(ConfigurationTest, CheckProfilerEnablementIfEnvVarIsNotSetAndStableConfigurationByDefault)
 {
+#ifdef ARM64
+    EnvironmentHelper::EnvironmentVariable arArm64(EnvironmentVariables::EnableProfilerArchitectureArm64, WStr("1"));
+#endif
     auto configuration = Configuration{};
     ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::NotSet);
 }
@@ -1048,6 +1063,9 @@ TEST_F(ConfigurationTest, CheckProfilerIsDisabledIfEnvVarIsEmptyAndStableConfigu
 
 TEST_F(ConfigurationTest, CheckProfilerEnablementIfEnvVarIsToTrueAndStableConfigurationByDefault)
 {
+#ifdef ARM64
+    EnvironmentHelper::EnvironmentVariable arArm64(EnvironmentVariables::EnableProfilerArchitectureArm64, WStr("1"));
+#endif
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ProfilerEnabled, WStr("1 ")); // add a space on purpose to ensure that it's correctly parsed
     auto configuration = Configuration{};
     ASSERT_THAT(configuration.GetEnablementStatus(), EnablementStatus::ManuallyEnabled);

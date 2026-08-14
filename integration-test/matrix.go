@@ -3,12 +3,10 @@ package integrationtest
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sync"
+	"strings"
 	"testing"
-	"time"
 )
 
 func envOrDefault(key, defaultValue string) string {
@@ -28,6 +26,38 @@ func envLibcType() string {
 }
 func envDotnetVersion() string { return envOrDefault("DOTNET_VERSION", "10.0") }
 
+func dockerPlatform(goarch string) string {
+	switch goarch {
+	case "amd64":
+		return "linux/amd64"
+	case "arm64":
+		return "linux/arm64"
+	default:
+		panic(fmt.Sprintf("unsupported architecture %q", goarch))
+	}
+}
+
+func dotnetRuntimeID(goarch, libcType string) string {
+	var arch string
+	switch goarch {
+	case "amd64":
+		arch = "x64"
+	case "arm64":
+		arch = "arm64"
+	default:
+		panic(fmt.Sprintf("unsupported architecture %q", goarch))
+	}
+
+	switch libcType {
+	case "glibc":
+		return "linux-" + arch
+	case "musl":
+		return "linux-musl-" + arch
+	default:
+		panic(fmt.Sprintf("unsupported libc type %q", libcType))
+	}
+}
+
 func sdkImageSuffix(libcType, version string) string {
 	if libcType == "musl" {
 		return "-alpine"
@@ -40,17 +70,6 @@ func sdkImageSuffix(libcType, version string) string {
 	default:
 		panic(fmt.Sprintf("unknown dotnet version %q: add the SDK image suffix mapping", version))
 	}
-}
-
-func profilerDockerfile(libcType string) string {
-	if libcType == "musl" {
-		return "Pyroscope.musl.Dockerfile"
-	}
-	return "Pyroscope.Dockerfile"
-}
-
-func profilerImageTag(libcType string) string {
-	return fmt.Sprintf("pyroscope-dotnet-%s:test", libcType)
 }
 
 func appDockerfile(otel bool) string {
@@ -73,45 +92,26 @@ func repoRoot() string {
 	return filepath.Dir(filepath.Dir(filename))
 }
 
-type profilerBuildResult struct {
-	once sync.Once
-	err  error
-}
-
-var profilerBuilds sync.Map
-
-func ensureProfilerImage(t *testing.T, libcType string) {
+func profilerBinariesDir(t *testing.T) string {
 	t.Helper()
-	val, _ := profilerBuilds.LoadOrStore(libcType, &profilerBuildResult{})
-	pb := val.(*profilerBuildResult)
-	pb.once.Do(func() {
-		tag := profilerImageTag(libcType)
-		// Retry the build: cold CI builds re-fetch every apt package from
-		// deb.debian.org, which intermittently resets the connection.
-		const maxAttempts = 3
-		for attempt := 1; attempt <= maxAttempts; attempt++ {
-			t.Logf("building profiler image %s (attempt %d/%d) ...", tag, attempt, maxAttempts)
-			cmd := exec.Command("docker", "build",
-				"--platform", "linux/amd64",
-				"-t", tag,
-				"-f", filepath.Join(repoRoot(), profilerDockerfile(libcType)),
-				"--build-arg", "CMAKE_BUILD_TYPE=Debug",
-				repoRoot(),
-			)
-			out, err := cmd.CombinedOutput()
-			if err == nil {
-				pb.err = nil
-				t.Logf("profiler image %s built successfully", tag)
-				return
-			}
-			pb.err = fmt.Errorf("failed to build profiler image %s: %w\n%s", tag, err, out)
-			if attempt < maxAttempts {
-				t.Logf("profiler image %s build attempt %d/%d failed, retrying: %v", tag, attempt, maxAttempts, err)
-				time.Sleep(5 * time.Second)
-			}
-		}
-	})
-	if pb.err != nil {
-		t.Fatal(pb.err)
+
+	configuredDir := envOrDefault("PROFILER_BINARIES_DIR", "profiler-bin")
+	fullDir := configuredDir
+	if !filepath.IsAbs(fullDir) {
+		fullDir = filepath.Join(repoRoot(), fullDir)
 	}
+
+	relativeDir, err := filepath.Rel(repoRoot(), fullDir)
+	if err != nil || relativeDir == ".." || strings.HasPrefix(relativeDir, ".."+string(filepath.Separator)) {
+		t.Fatalf("PROFILER_BINARIES_DIR must be inside the repository build context, got %q", configuredDir)
+	}
+
+	for _, name := range []string{"Pyroscope.Profiler.Native.so", "Pyroscope.Linux.ApiWrapper.x64.so"} {
+		path := filepath.Join(fullDir, name)
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("required profiler binary %q is unavailable: %v; build and stage profiler binaries before running integration tests", path, err)
+		}
+	}
+
+	return filepath.ToSlash(relativeDir)
 }
