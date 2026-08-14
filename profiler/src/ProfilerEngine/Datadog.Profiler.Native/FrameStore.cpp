@@ -265,6 +265,7 @@ FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId)
 
 bool FrameStore::GetTypeName(ClassID classId, std::string& name)
 {
+    // See the TypeNameView overload below for why untrusted sources can provide classId == 0.
     if (classId == 0)
     {
         name.clear();
@@ -305,6 +306,10 @@ bool FrameStore::GetTypeName(ClassID classId, std::string& name)
 // This is why it is needed to get a pointer to the TypeDesc held by the cache
 bool FrameStore::GetTypeName(ClassID classId, TypeNameView& name)
 {
+    // classId is 0 for untrusted sources: for ETW on .NET Framework, any local process can connect
+    // to the inbound pipe and forge an AllocationTick with an arbitrary TypeId, so EtwEventsManager
+    // zeroes it. It must never be handed to ICorProfilerInfo because IsArrayClass / GetClassIDInfo
+    // would dereference it as a CLR pointer.
     if (classId == 0)
     {
         name = {};
