@@ -83,7 +83,7 @@ Configuration::Configuration()
     _isGcThreadsCpuTimeEnabled = GetEnvironmentValue(EnvironmentVariables::GcThreadsCpuTimeEnabled,
                                   GetEnvironmentValue(EnvironmentVariables::GcThreadsCpuTimeInternalEnabled, true), true);
     _isThreadLifetimeEnabled = GetEnvironmentValue(EnvironmentVariables::ThreadLifetimeEnabled,
-                                GetEnvironmentValue(EnvironmentVariables::ThreadLifetimeInternalEnabled, true), true);
+                                GetEnvironmentValue(EnvironmentVariables::ThreadLifetimeInternalEnabled, false), true);
     _gitRepositoryUrl = GetEnvironmentValue(EnvironmentVariables::GitRepositoryUrl, DefaultEmptyString);
     _gitCommitSha = GetEnvironmentValue(EnvironmentVariables::GitCommitSha, DefaultEmptyString);
     _isInternalMetricsEnabled = GetEnvironmentValue(EnvironmentVariables::InternalMetricsEnabled, false);
