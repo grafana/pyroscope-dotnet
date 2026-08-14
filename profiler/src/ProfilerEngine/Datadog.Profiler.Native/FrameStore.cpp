@@ -265,6 +265,12 @@ FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId)
 
 bool FrameStore::GetTypeName(ClassID classId, std::string& name)
 {
+    if (classId == 0)
+    {
+        name.clear();
+        return false;
+    }
+
     TypeDesc* pTypeDesc = nullptr;
     if (!GetTypeDesc(classId, pTypeDesc))
     {
