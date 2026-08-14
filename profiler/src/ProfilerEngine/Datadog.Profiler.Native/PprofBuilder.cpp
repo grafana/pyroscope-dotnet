@@ -34,7 +34,7 @@ void PprofBuilder::AddSample(const Sample& sample, std::span<const int64_t> valu
         addLocation(frame.Frame, frame.ModuleName);
     };
     AddTraceContext(sample, pSample);
-    if (auto frame = sample.GetLeafFrame(); !frame.empty())
+    if (auto frame = sample.GetLeafFrame().AsStringView(); !frame.empty())
     {
         _scratchBuffer.clear();
         _scratchBuffer.reserve(ClassLeafPrefix.size() + frame.size());

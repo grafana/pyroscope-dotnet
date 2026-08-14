@@ -98,7 +98,7 @@ public:
     // and a Sample in each Provider (this is behind CollectorBase template class)
     void AddValue(std::int64_t value, size_t index);
     void AddFrame(FrameInfoView const& frame);
-    void SetLeafFrame(std::string_view frame);
+    void SetLeafFrame(TypeNameView frame);
 
     template <typename T>
     void AddLabel(T&& label)
@@ -177,7 +177,7 @@ public:
         std::fill(_values.begin(), _values.end(), 0);
     }
 
-    std::string_view GetLeafFrame() const
+    TypeNameView GetLeafFrame() const
     {
         return _leafFrame;
     }
@@ -233,5 +233,5 @@ private:
     Labels _allLabels;
     TraceContext _traceContext;
     std::string_view _runtimeId;
-    std::string_view _leafFrame;
+    TypeNameView _leafFrame;
 };

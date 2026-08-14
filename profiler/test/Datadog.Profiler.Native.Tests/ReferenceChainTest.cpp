@@ -40,17 +40,19 @@ public:
             name = it->second;
             return true;
         }
+        name = "";
         return false;
     }
 
-    bool GetTypeName(ClassID classId, std::string_view& name) override
+    bool GetTypeName(ClassID classId, TypeNameView& name) override
     {
         auto it = _typeNames.find(classId);
         if (it != _typeNames.end())
         {
-            name = it->second;
+            name = MakeTypeNameView(it->second);
             return true;
         }
+        name = {};
         return false;
     }
 

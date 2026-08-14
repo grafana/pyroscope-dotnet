@@ -32,10 +32,10 @@ std::vector<uint8_t> TypeReferenceTreeBinarySerializer::Serialize(const TypeRefe
         auto [it, inserted] = typeToIndex.try_emplace(key.typeID, nextIndex);
         if (inserted)
         {
-            std::string_view typeName;
+            TypeNameView typeName;
             if (pFrameStore->GetTypeName(key.typeID, typeName))
             {
-                typeTable.push_back(typeName);
+                typeTable.push_back(typeName.AsStringView());
             }
             else
             {
@@ -96,10 +96,10 @@ void TypeReferenceTreeBinarySerializer::WriteNode(
     auto [it, inserted] = typeToIndex.try_emplace(node.typeID, nextIndex);
     if (inserted)
     {
-        std::string_view typeName;
+        TypeNameView typeName;
         if (pFrameStore->GetTypeName(node.typeID, typeName))
         {
-            typeTable.push_back(typeName);
+            typeTable.push_back(typeName.AsStringView());
         }
         else
         {

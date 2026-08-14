@@ -32,12 +32,14 @@ public:
     {
         return {false, {"", "", "", 0}};
     }
-    bool GetTypeName(ClassID, std::string&) override
+    bool GetTypeName(ClassID, std::string& name) override
     {
+        name = "";
         return false;
     }
-    bool GetTypeName(ClassID, std::string_view&) override
+    bool GetTypeName(ClassID, TypeNameView& name) override
     {
+        name = {};
         return false;
     }
     size_t GetMemorySize() const override

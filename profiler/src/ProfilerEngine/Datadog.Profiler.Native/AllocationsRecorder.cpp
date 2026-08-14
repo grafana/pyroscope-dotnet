@@ -9,7 +9,7 @@
 #include "AllocationsRecorder.h"
 #include "IFrameStore.h"
 
-AllocationsRecorder::AllocInfo::AllocInfo(std::string_view name, uint32_t size)
+AllocationsRecorder::AllocInfo::AllocInfo(TypeNameView name, uint32_t size)
 {
     Name = name;
     Size = size;
@@ -32,7 +32,7 @@ void AllocationsRecorder::OnObjectAllocated(ObjectID objectId, ClassID classId)
     // TODO: use FrameStore::GetTypeName(classId, string_view) to get the name of the corresponding type (no namespace)
     //           ICorProfilerInfo::GetObjectSize(objectId)
 
-    std::string_view typeName;
+    TypeNameView typeName;
     if (!_pFrameStore->GetTypeName(classId, typeName))
     {
         _missed.fetch_add(1);
@@ -78,11 +78,12 @@ bool AllocationsRecorder::Serialize(const std::string& filename)
     char endOfString = '\0';
     for (auto& alloc : *pAllocations.get())
     {
-        auto entry = stringTable.find(alloc.Name);
+        auto name = alloc.Name.AsStringView();
+        auto entry = stringTable.find(name);
         if (entry == stringTable.end())
         {
-            stringTable[alloc.Name] = current++;
-            file.write(alloc.Name.data(), alloc.Name.size());
+            stringTable[name] = current++;
+            file.write(name.data(), name.size());
             file.write(&endOfString, 1);
         }
     }
@@ -95,7 +96,7 @@ bool AllocationsRecorder::Serialize(const std::string& filename)
     uint32_t size;
     for (auto& alloc : *pAllocations.get())
     {
-        auto entry = stringTable.find(alloc.Name);
+        auto entry = stringTable.find(alloc.Name.AsStringView());
         stringId = entry->second;
         size = alloc.Size;
 
