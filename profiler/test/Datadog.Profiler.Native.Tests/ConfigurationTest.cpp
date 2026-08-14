@@ -771,10 +771,10 @@ TEST_F(ConfigurationTest, CheckInternalThreadLifetimeProfilingIsTakenIntoAccount
     ASSERT_THAT(configuration.IsThreadLifetimeEnabled(), expectedValue);
 }
 
-TEST_F(ConfigurationTest, CheckThreadLifetimeIsEnabledByDefault)
+TEST_F(ConfigurationTest, CheckThreadLifetimeIsDisabledByDefault)
 {
     auto configuration = Configuration{};
-    ASSERT_THAT(configuration.IsThreadLifetimeEnabled(), true);
+    ASSERT_THAT(configuration.IsThreadLifetimeEnabled(), false);
 }
 
 TEST_F(ConfigurationTest, CheckThreadLifetimeIfEnvVarSetToTrue)
