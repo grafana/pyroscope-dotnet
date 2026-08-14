@@ -197,6 +197,11 @@
            3.21.12). Do NOT add profiler\third_party\protobuf\src here — having both would risk header
            vs. runtime mismatch if vcpkg protobuf moves in the future. -->
       <SHARED-LIB-INCLUDES>$(PYROSCOPE-THIRDPARTY-PATH)spdlog\include;$(PYROSCOPE-THIRDPARTY-PATH)cpp-httplib;$(PYROSCOPE-THIRDPARTY-PATH)CxxUrl;$(PYROSCOPE-THIRDPARTY-PATH)cppcodec;$(PYROSCOPE-GEN-PATH)</SHARED-LIB-INCLUDES>
+      <!-- PYROSCOPE_WINDOWS_NOTE: adopt upstream #8948's warning suppression for vendored headers,
+           adapted to the fork's layout. Upstream points ExternalIncludePath at shared\src\native-lib\
+           fmt|spdlog; the fork's third-party headers all live under profiler\third_party\, already
+           enumerated in SHARED-LIB-INCLUDES, so reuse it here. Pairs with ExternalWarningLevel below. -->
+      <ExternalIncludePath>$(SHARED-LIB-INCLUDES);$(ExternalIncludePath)</ExternalIncludePath>
       <!-- VCPKG setup -->
       <!-- PYROSCOPE_WINDOWS_NOTE: static triplet so protobuf links INTO the profiler DLL,
            making Pyroscope.Profiler.Native.dll a single-file artifact like the Linux .so.
@@ -222,9 +227,17 @@
              first. WIN32_LEAN_AND_MEAN is the usual workaround but breaks <atlbase.h>. Force-include is
              a narrower fix that keeps ATL happy. Upstream doesn't need this - no cpp-httplib there. -->
         <ForcedIncludeFiles>$(DOTNET-TRACER-REPO-ROOT-PATH)profiler\src\ProfilerEngine\Datadog.Profiler.Native\PyroscopeWindowsIncludeOrder.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
-        <!-- PYROSCOPE_WINDOWS_NOTE: /utf-8 required by fmt (bundled with spdlog) for its Unicode
-             support static_assert. Equivalent to /source-charset:utf-8 /execution-charset:utf-8. -->
+        <!-- PYROSCOPE_WINDOWS_NOTE: /utf-8 required by fmt (bundled with spdlog 1.17) for its Unicode
+             support static_assert. Equivalent to /source-charset:utf-8 /execution-charset:utf-8.
+             The fork keeps this approach rather than adopting upstream's FMT_UNICODE=0 (v3.51.1 #8948):
+             the two are alternative fixes for the same fmt 11+ assert and /utf-8 is already in place.
+             Upstream's DD_SPDLOG_NO_MDC is also not carried: it gates a Datadog-vendored spdlog source
+             patch (tracer/build/.../VendoredDependency.cs) that does not exist in the fork, which uses
+             the vanilla spdlog submodule, so the macro would be a no-op here. -->
         <AdditionalOptions>%(AdditionalOptions) /utf-8</AdditionalOptions>
+        <!-- PYROSCOPE_WINDOWS_NOTE: adopt upstream #8948's warning suppression for vendored headers.
+             Applies to the fork's third-party include dirs set via ExternalIncludePath above. -->
+        <ExternalWarningLevel>TurnOffAllWarnings</ExternalWarningLevel>
 	      <BuildStlModules>false</BuildStlModules>
 	      <EnableModules>false</EnableModules>
       </ClCompile>
