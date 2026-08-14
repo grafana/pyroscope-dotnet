@@ -62,7 +62,6 @@ remove_fork_dirs() {
   echo "==> Removing directories not carried in the fork..."
   git rm -rf --ignore-unmatch \
     tracer \
-    profiler/src/Demos \
     shared/src/Datadog.Trace.ClrProfiler.Native \
     shared/test \
     .azure-pipelines \
@@ -71,11 +70,54 @@ remove_fork_dirs() {
     profiler/docs \
     profiler/src/Tools \
     .gitlab-ci.yml
-  # Remove C# integration/managed tests from profiler/test but keep C++ unit tests.
+
+  # Keep only demos used by the upstream-derived profiler integration suite.
+  if [ -d profiler/src/Demos ]; then
+    for path in profiler/src/Demos/*; do
+      case "$path" in
+        profiler/src/Demos/Directory.Build.props | \
+        profiler/src/Demos/Samples.BuggyBits | \
+        profiler/src/Demos/Samples.Computer01 | \
+        profiler/src/Demos/Samples.ExceptionGenerator | \
+        profiler/src/Demos/Samples.HttpRequest | \
+        profiler/src/Demos/Samples.ParallelCountSites | \
+        profiler/src/Demos/Samples.WaitHandles | \
+        profiler/src/Demos/Samples.Website-AspNetCore01 | \
+        profiler/src/Demos/Shared)
+          ;;
+        *)
+          git rm -rf --ignore-unmatch "$path"
+          ;;
+      esac
+    done
+  fi
+
+  # Keep the curated profiler integration suite and C++ unit tests, but remove
+  # managed tests and integration areas that require deleted Datadog features.
   git rm -rf --ignore-unmatch \
-    profiler/test/Datadog.Profiler.IntegrationTests \
     profiler/test/RuntimeMetrics.Tests \
-    profiler/test/Directory.Build.props
+    profiler/test/Directory.Build.props \
+    profiler/test/Datadog.Profiler.IntegrationTests/ApplicationInfo \
+    profiler/test/Datadog.Profiler.IntegrationTests/CodeHotspot \
+    profiler/test/Datadog.Profiler.IntegrationTests/HeapSnapshot \
+    profiler/test/Datadog.Profiler.IntegrationTests/ReferenceChain \
+    profiler/test/Datadog.Profiler.IntegrationTests/SingleStepInstrumentation \
+    profiler/test/Datadog.Profiler.IntegrationTests/Timeline \
+    profiler/test/Datadog.Profiler.IntegrationTests/WindowsOnly \
+    profiler/test/Datadog.Profiler.IntegrationTests/DebugInfo/GitMetadataTest.cs \
+    profiler/test/Datadog.Profiler.IntegrationTests/DebugInfo/LineNumberTest.cs \
+    profiler/test/Datadog.Profiler.IntegrationTests/Helpers/AgentEtwProxy.cs \
+    profiler/test/Datadog.Profiler.IntegrationTests/Helpers/TelemetryMetric.cs \
+    profiler/test/Datadog.Profiler.IntegrationTests/Helpers/TelemetryMetricsFileParser.cs \
+    profiler/test/Datadog.Profiler.IntegrationTests/Helpers/TelemetryMetricsFileParserHelpers.cs \
+    profiler/test/Datadog.Profiler.IntegrationTests/MetricsTest.cs \
+    profiler/test/Datadog.Profiler.IntegrationTests/MemoryFootprintTest.cs \
+    profiler/test/Datadog.Profiler.IntegrationTests/Network/HttpRequestMetricTest.cs \
+    profiler/test/Datadog.Profiler.IntegrationTests/LiveObjects \
+    profiler/test/Datadog.Profiler.IntegrationTests/Logger \
+    profiler/test/Datadog.Profiler.IntegrationTests/ProcessTagsTest.cs \
+    profiler/test/Datadog.Profiler.IntegrationTests/Signature \
+    profiler/test/Datadog.Profiler.IntegrationTests/TelemetryMetricTest.cs
 }
 
 # ── Remove files we replace with git submodules ──────────────────────────────

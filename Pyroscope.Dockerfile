@@ -29,7 +29,7 @@ FROM builder as build
 WORKDIR /profiler
 
 ADD build build
-ADD profiler profiler
+ADD --exclude=test/Datadog.Profiler.IntegrationTests --exclude=src/Demos profiler profiler
 ADD shared shared
 ADD CMakeLists.txt CMakeLists.txt
 
@@ -56,6 +56,42 @@ RUN cd build-${CMAKE_BUILD_TYPE}/profiler && ctest --output-on-failure -E "Wrapp
 RUN WRAPPER_SO=$(find /profiler/artifacts/profiler-build -name "Datadog.Linux.ApiWrapper.x64.so" | head -1) && \
     cd build-${CMAKE_BUILD_TYPE}/profiler && \
     LD_PRELOAD="${WRAPPER_SO}" ctest --output-on-failure -R "WrappedFunctionsTest"
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0.203 AS profiler-integration-test-runner
+
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        ca-certificates \
+        curl \
+        gdb \
+        libldap2 \
+        procps && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /repo
+COPY . .
+COPY --from=build /profiler/artifacts/profiler-build/DDProf-Deploy/linux/Pyroscope.Profiler.Native.so /opt/pyroscope/Pyroscope.Profiler.Native.so
+COPY --from=build /profiler/artifacts/profiler-build/DDProf-Deploy/linux/Datadog.Linux.ApiWrapper.x64.so /opt/pyroscope/Pyroscope.Linux.ApiWrapper.x64.so
+
+RUN for project in \
+        profiler/src/Demos/Samples.BuggyBits/Samples.BuggyBits.csproj \
+        profiler/src/Demos/Samples.Computer01/Samples.Computer01.csproj \
+        profiler/src/Demos/Samples.ExceptionGenerator/Samples.ExceptionGenerator.csproj \
+        profiler/src/Demos/Samples.HttpRequest/Samples.HttpRequest.csproj \
+        profiler/src/Demos/Samples.ParallelCountSites/Samples.ParallelCountSites.csproj \
+        profiler/src/Demos/Samples.WaitHandles/Samples.WaitHandles.csproj \
+        profiler/src/Demos/Samples.Website-AspNetCore01/Samples.Website-AspNetCore01.csproj; \
+    do dotnet build "$project" -c Release -f net10.0 -p:Platform=x64 || exit; done && \
+    dotnet build profiler/test/Datadog.Profiler.IntegrationTests/Datadog.Profiler.IntegrationTests.csproj \
+        -c Release -p:Platform=x64 && \
+    chmod +x profiler/test/Datadog.Profiler.IntegrationTests/run-integration-tests.sh
+
+ENV CI=true \
+    PYROSCOPE_PROFILER_PATH=/opt/pyroscope/Pyroscope.Profiler.Native.so \
+    PYROSCOPE_API_WRAPPER_PATH=/opt/pyroscope/Pyroscope.Linux.ApiWrapper.x64.so \
+    DD_TESTING_OUPUT_DIR=/results/output
+
+ENTRYPOINT ["profiler/test/Datadog.Profiler.IntegrationTests/run-integration-tests.sh"]
 
 FROM busybox:1.38.0-glibc@sha256:3ba030337caebbfc2232b22b1e435eb213b28e5844a34942c74555bf904a265a
 COPY --from=build /profiler/artifacts/profiler-build/DDProf-Deploy/linux/Pyroscope.Profiler.Native.so /Pyroscope.Profiler.Native.so

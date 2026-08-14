@@ -22,11 +22,13 @@ else
     $(error ARCH must be either x86_64, aarch64)
 endif
 
-.PHONY: docker/archive
+.PHONY: docker/archive docker/integration-test
 docker/archive:
 	docker build -f $(DOCKERFILE) -o out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH)  .
 	cd out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH) && tar -czvf ../pyroscope.$(RELEASE_VERSION)-$(LIBC)-$(ARCH).tar.gz *.so 
 	rm -rf out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH)
 
+docker/integration-test:
+	bash profiler/test/Datadog.Profiler.IntegrationTests/run-integration-tests-docker.sh
 
 include dev.mk

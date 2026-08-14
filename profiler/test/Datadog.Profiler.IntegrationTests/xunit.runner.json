@@ -1,0 +1,7 @@
+﻿{
+  "shadowCopy": true,
+  "diagnosticMessages": true,
+  "internalDiagnosticMessages": true,
+  "parallelizeTestCollections": false,
+  "maxParallelThreads": 1
+}

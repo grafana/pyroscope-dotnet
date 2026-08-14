@@ -39,7 +39,9 @@ Our fork only uses the **profiler** — the tracer is completely removed.
 
 What we strip from DataDog on every merge:
 - `tracer/` — we don't use the Datadog tracer at all
-- `profiler/src/Demos/`, `profiler/test/`, `profiler/src/Tools/` — upstream demo/test code we don't need
+- Unused `profiler/src/Demos/` projects — keep only the samples used by the curated profiler integration suite
+- Datadog-only managed profiler tests (tracer correlation, SSI/telemetry, Windows/ETW, heap snapshots/reference chains); keep the curated `profiler/test/Datadog.Profiler.IntegrationTests` suite and native C++ tests
+- `profiler/src/Tools/` — upstream tooling is not shipped by the fork
 - `shared/test/` — upstream shared test code
 - `.azure-pipelines/`, `.gitlab/` — upstream CI configs; we use GitHub Actions only
 - `.github/` additions from upstream — we keep only our own pyroscope-specific workflows
@@ -50,8 +52,9 @@ What we strip from DataDog on every merge:
 - `build/cmake/FindSpdlog.cmake`, `shared/src/native-lib/spdlog`, `build/cmake/FindManagedLoader.cmake` — we use git submodules for these instead
 
 When resolving conflicts, keep this context in mind: if a conflict involves code paths
-related to the tracer, Azure CI, upstream demos, or upstream .github workflows, our side
-(deletion/absence) is correct.
+related to the tracer, Azure CI, unused upstream demos, or upstream .github workflows,
+our side (deletion/absence) is correct. Preserve profiler integration tests and demo
+projects that are already present in the fork.
 
 **IMPORTANT — git safety rules:**
 - Never create PRs or push to the DataDog repo. All PRs must target
@@ -76,7 +79,7 @@ The scripts bellow should be executed as is, as executable, without passing it t
    - Verifies `<ref>` resolves to a commit (aborts if not)
    - Creates the branch `kk/fork-update-<ref>` from `<base>` (re-creates if it already exists)
    - Starts the merge (`--no-commit --no-ff`)
-   - Removes directories not carried in the fork (tracer, demos, tests, CI configs, docs, etc.)
+   - Removes directories not carried in the fork (tracer, unused demos/tests, CI configs, docs, etc.)
    - Removes files replaced by git submodules (spdlog, ManagedLoader, etc.)
    - Resolves DU conflicts (deleted-by-us / updated-by-upstream)
    - Removes upstream `.github` and `.claude` additions
