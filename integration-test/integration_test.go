@@ -110,29 +110,30 @@ func startApp(t *testing.T, net *dockertest.Network, pyroscopeURL, libcType, ver
 func runLoadGenerator(ctx context.Context, t *testing.T, appBaseURL string) {
 	t.Helper()
 	vehicles := []string{"bike", "scooter", "car"}
-	go func() {
-		client := &http.Client{Timeout: 10 * time.Second}
-		i := 0
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
+	for _, vehicle := range vehicles {
+		vehicle := vehicle
+		go func() {
+			client := &http.Client{Timeout: 10 * time.Second}
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
+				url := appBaseURL + "/" + vehicle
+				resp, err := client.Get(url)
+				if err == nil {
+					_ = resp.Body.Close()
+				}
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(300 * time.Millisecond):
+				}
 			}
-			vehicle := vehicles[i%len(vehicles)]
-			i++
-			url := appBaseURL + "/" + vehicle
-			resp, err := client.Get(url)
-			if err == nil {
-				_ = resp.Body.Close()
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(300 * time.Millisecond):
-			}
-		}
-	}()
+		}()
+	}
 }
 
 func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string, profileTypeID string) (string, error) {
@@ -261,7 +262,10 @@ func runRideshareProfileTest(t *testing.T, libcType, version string, otel bool) 
 					}
 				}
 				return true
-			}, 3*time.Minute, 5*time.Second)
+			}, 3*time.Minute, 5*time.Second,
+				"expected CPU profile frames for vehicle %q\n%s",
+				check.vehicle,
+				profileQueryDebug{collapsed: &lastCollapsed, err: &lastErr})
 		})
 	}
 }
