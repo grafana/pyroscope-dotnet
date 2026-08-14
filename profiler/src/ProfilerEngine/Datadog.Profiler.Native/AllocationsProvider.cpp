@@ -316,6 +316,13 @@ void AllocationsProvider::OnAllocation(std::chrono::nanoseconds timestamp,
 
     if (_addTypeAsLeaf)
     {
+        // classId is 0 for untrusted sources: for ETW on .NET Framework, any local process can connect
+        // to the inbound pipe and forge an AllocationTick with an arbitrary TypeId, so EtwEventsManager
+        // zeroes it and it must never be handed to ICorProfilerInfo here (FrameStore::GetTypeName ->
+        // IsArrayClass / GetClassIDInfo would dereference it as a CLR pointer). GetTypeName handles
+        // classId == 0 by returning false and leaving the view empty, so ETW samples simply get no
+        // type leaf frame. The transmitted typeName is deliberately not used: it points into a reused
+        // per-thread buffer and the sample can only hold frame-store-owned views (see TypeNameView).
         _pFrameStore->GetTypeName(classId, rawSample.AllocationClass);
     }
 

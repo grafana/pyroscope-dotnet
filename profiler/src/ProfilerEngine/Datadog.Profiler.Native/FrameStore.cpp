@@ -265,6 +265,13 @@ FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId)
 
 bool FrameStore::GetTypeName(ClassID classId, std::string& name)
 {
+    // See the TypeNameView overload below for why untrusted sources can provide classId == 0.
+    if (classId == 0)
+    {
+        name.clear();
+        return false;
+    }
+
     TypeDesc* pTypeDesc = nullptr;
     if (!GetTypeDesc(classId, pTypeDesc))
     {
@@ -297,11 +304,15 @@ bool FrameStore::GetTypeName(ClassID classId, std::string& name)
 // For example if 4 instances of MyType are allocated, the string_view for these 4 allocations
 // will point to the same "MyType" string.
 // This is why it is needed to get a pointer to the TypeDesc held by the cache
-bool FrameStore::GetTypeName(ClassID classId, std::string_view& name)
+bool FrameStore::GetTypeName(ClassID classId, TypeNameView& name)
 {
+    // classId is 0 for untrusted sources: for ETW on .NET Framework, any local process can connect
+    // to the inbound pipe and forge an AllocationTick with an arbitrary TypeId, so EtwEventsManager
+    // zeroes it. It must never be handed to ICorProfilerInfo because IsArrayClass / GetClassIDInfo
+    // would dereference it as a CLR pointer.
     if (classId == 0)
     {
-        name = "";
+        name = {};
         return false;
     }
 
@@ -310,22 +321,22 @@ bool FrameStore::GetTypeName(ClassID classId, std::string_view& name)
     auto typeEntry = _fullTypeNames.find(classId);
     if (typeEntry != _fullTypeNames.end())
     {
-        // ensure that the string_view is pointing to the string in the cache
-        name = {typeEntry->second.data(), typeEntry->second.size()};
+        // ensure that the view is pointing to the string in the cache
+        name = MakeTypeNameView({typeEntry->second.data(), typeEntry->second.size()});
         return true;
     }
 
     TypeDesc* pTypeDesc = nullptr;
     if (!GetTypeDesc(classId, pTypeDesc))
     {
-        name = "";
+        name = {};
         return false;
     }
 
-    // ensure that the string_view is pointing to the string in the cache
+    // ensure that the view is pointing to the string in the cache
     auto& entry = _fullTypeNames[classId];
     entry = pTypeDesc->Type + pTypeDesc->Parameters;
-    name = {entry.data(), entry.size()};
+    name = MakeTypeNameView({entry.data(), entry.size()});
 
     // Incrementally track item size
     _cachedItemsSize.fetch_add(entry.capacity(), std::memory_order_relaxed);

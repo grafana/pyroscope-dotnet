@@ -37,10 +37,10 @@ std::string TypeReferenceTreeJsonSerializer::Serialize(const TypeReferenceTree& 
         auto [it, inserted] = typeToIndex.try_emplace(key.typeID, nextIndex);
         if (inserted)
         {
-            std::string_view typeName;
+            TypeNameView typeName;
             if (pFrameStore->GetTypeName(key.typeID, typeName))
             {
-                typeTable.push_back(typeName);
+                typeTable.push_back(typeName.AsStringView());
             }
             else
             {
@@ -141,11 +141,11 @@ void TypeReferenceTreeJsonSerializer::OutputNode(
     auto [it, inserted] = typeToIndex.try_emplace(node.typeID, nextIndex);
     if (inserted)
     {
-        // B5: Use string_view overload — no copy, view into FrameStore's cache
-        std::string_view typeName;
+        // B5: Use the TypeNameView overload — no copy, view into FrameStore's cache
+        TypeNameView typeName;
         if (pFrameStore->GetTypeName(node.typeID, typeName))
         {
-            typeTable.push_back(typeName);
+            typeTable.push_back(typeName.AsStringView());
         }
         else
         {

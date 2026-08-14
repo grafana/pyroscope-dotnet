@@ -11,9 +11,8 @@
 #include <vector>
 
 #include "IAllocationsRecorder.h"
+#include "IFrameStore.h"
 #include "ServiceBase.h"
-
-class IFrameStore;
 
 class AllocationsRecorder :
     public IAllocationsRecorder,
@@ -23,10 +22,10 @@ private:
     struct AllocInfo
     {
     public:
-        AllocInfo(std::string_view name, uint32_t size);
+        AllocInfo(TypeNameView name, uint32_t size);
 
     public:
-        std::string_view Name;
+        TypeNameView Name;
         uint32_t Size;
     };
 

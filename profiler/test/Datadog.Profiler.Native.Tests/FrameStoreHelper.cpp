@@ -38,10 +38,12 @@ std::pair<bool, FrameInfoView> FrameStoreHelper::GetFrame(uintptr_t instructionP
 
 bool FrameStoreHelper::GetTypeName(ClassID classId, std::string& name)
 {
+    name = "";
     return false;
 }
 
-bool FrameStoreHelper::GetTypeName(ClassID classId, std::string_view& name)
+bool FrameStoreHelper::GetTypeName(ClassID classId, TypeNameView& name)
 {
+    name = {};
     return false;
 }

@@ -39,6 +39,14 @@ protected:
     FrameStore frameStore{nullptr, nullptr, nullptr, nullptr};
 };
 
+TEST_F(FrameStoreTest, NullClassIdDoesNotQueryProfilerInfo)
+{
+    std::string typeName = "stale";
+
+    EXPECT_FALSE(frameStore.GetTypeName(0, typeName));
+    EXPECT_TRUE(typeName.empty());
+}
+
 TEST_F(FrameStoreTest, LockContentionFrameIsHumanReadable)
 {
     auto [isManaged, frame] = frameStore.GetFrame(FrameStore::FakeLockContentionIP);

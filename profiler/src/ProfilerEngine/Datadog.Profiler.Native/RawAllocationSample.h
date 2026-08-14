@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include "IFrameStore.h"
 #include "RawSample.h"
 #include "Sample.h"
 
@@ -51,7 +52,9 @@ public:
         sample->SetLeafFrame(AllocationClass);
     }
 
-    std::string_view AllocationClass;
+    // Guaranteed valid for the process lifetime: only the frame store can mint
+    // a TypeNameView, over storage it owns (see IFrameStore.h)
+    TypeNameView AllocationClass;
     int64_t AllocationSize;
     uint64_t AllocationAmount = 0;  // bytes in the CLR sampling window (~100KB for AllocationTick)
     uintptr_t Address;
