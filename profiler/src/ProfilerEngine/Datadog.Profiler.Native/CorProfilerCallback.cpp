@@ -26,6 +26,7 @@
 #include "ClrLifetime.h"
 #include "Configuration.h"
 #include "ContentionProvider.h"
+#include "CoreLibModuleProvider.h"
 #include "CpuTimeProvider.h"
 #include "DebugInfoStore.h"
 #include "EnabledProfilers.h"
@@ -196,6 +197,9 @@ void CorProfilerCallback::InitializeServices()
     _pFrameStore = std::make_unique<FrameStore>(
         _pCorProfilerInfo, _pConfiguration.get(), _pDebugInfoStore.get(), _managedCodeCache.get());
 
+    // must be created before the components that resolve core library types (i.e. exceptions and heap snapshot)
+    _pCoreLibModuleProvider = std::make_unique<CoreLibModuleProvider>(_pCorProfilerInfo);
+
     // Create service instances
     _pThreadsCpuManager = RegisterService<ThreadsCpuManager>();
 
@@ -313,6 +317,7 @@ void CorProfilerCallback::InitializeServices()
             _pCorProfilerInfo,
             _pManagedThreadList,
             _pFrameStore.get(),
+            _pCoreLibModuleProvider.get(),
             _pConfiguration.get(),
             _rawSampleTransformer.get(),
             _metricsRegistry,
@@ -407,6 +412,7 @@ void CorProfilerCallback::InitializeServices()
                 _pConfiguration.get(),
                 _pCorProfilerInfoEvents,
                 _pFrameStore.get(),
+                _pCoreLibModuleProvider.get(),
                 _pThreadsCpuManager,
                 _metricsRegistry,
                 _pNativeThreadList,
@@ -1617,6 +1623,15 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::Initialize(IUnknown* corProfilerI
         eventMask |= COR_PRF_MONITOR_MODULE_LOADS | COR_PRF_MONITOR_CLASS_LOADS;
     }
 
+    if (_pConfiguration->IsHeapSnapshotEnabled())
+    {
+        // CoreLibModuleProvider is fed from ModuleLoadFinished and InlineVTCache needs it
+        // to resolve the primitive types of inline value type fields. Exception profiling
+        // asks for the same flag and is enabled by default, so this only matters when it
+        // has been turned off.
+        eventMask |= COR_PRF_MONITOR_MODULE_LOADS;
+    }
+
     if (_pConfiguration->IsAllocationRecorderEnabled() && !_pConfiguration->GetProfilesOutputDirectory().empty())
     {
         //              for GC                              for JIT
@@ -2078,6 +2093,12 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::ModuleLoadFinished(ModuleID modul
     }
 #endif
 
+    // must be done first: the other consumers rely on the core library module id being set
+    if (_pCoreLibModuleProvider != nullptr)
+    {
+        _pCoreLibModuleProvider->OnModuleLoaded(moduleId);
+    }
+
     if (_pConfiguration->IsExceptionProfilingEnabled())
     {
         _pExceptionsProvider->OnModuleLoaded(moduleId);
@@ -2093,6 +2114,13 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::ModuleLoadFinished(ModuleID modul
 
 HRESULT STDMETHODCALLTYPE CorProfilerCallback::ModuleUnloadStarted(ModuleID moduleId)
 {
+    if (_pHeapSnapshotManager != nullptr)
+    {
+        // Notified here rather than from ModuleUnloadFinished so that the ClassIDs of the
+        // module stop being used before the runtime starts freeing what they point to.
+        _pHeapSnapshotManager->OnModuleUnloaded();
+    }
+
     return S_OK;
 }
 
