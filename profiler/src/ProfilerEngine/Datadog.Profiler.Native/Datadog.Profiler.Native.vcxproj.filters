@@ -59,6 +59,9 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CoreLibModuleProvider.h">
+      <Filter>CorProfiler-Infrastructure</Filter>
+    </ClInclude>
     <ClInclude Include="CorProfilerCallback.h">
       <Filter>CorProfiler-Infrastructure</Filter>
     </ClInclude>
@@ -501,6 +504,9 @@
     <ClInclude Include="InlineVTCache.h">
       <Filter>HeapSnapshot</Filter>
     </ClInclude>
+    <ClInclude Include="MemoryFaultGuard.h">
+      <Filter>HeapSnapshot</Filter>
+    </ClInclude>
     <ClInclude Include="ReferenceChainTraverser.h">
       <Filter>HeapSnapshot</Filter>
     </ClInclude>
@@ -532,6 +538,9 @@
     </ClCompile>
     <ClCompile Include="HResultConverter.cpp">
       <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="CoreLibModuleProvider.cpp">
+      <Filter>CorProfiler-Infrastructure</Filter>
     </ClCompile>
     <ClCompile Include="CorProfilerCallback.cpp">
       <Filter>CorProfiler-Infrastructure</Filter>
