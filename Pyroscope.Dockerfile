@@ -6,7 +6,7 @@ RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries
 RUN apt-get update && apt-get -y install cmake make git curl golang libtool wget perl
 
 # Build OpenSSL from source with static libs
-ARG OPENSSL_VERSION=3.5.7
+ARG OPENSSL_VERSION=3.5.8
 RUN wget -q "https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" && \
     tar xf openssl-${OPENSSL_VERSION}.tar.gz && \
     cd openssl-${OPENSSL_VERSION} && \
