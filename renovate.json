@@ -1,9 +1,16 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
+    "github>grafana/grafana-renovate-config//presets/shared-workflows",
     "security:only-security-updates"
   ],
   "packageRules": [
+    {
+      "description": "Always update grafana/shared-workflows actions to their latest releases. Overrides the wildcard enabled:false from security:only-security-updates.",
+      "matchManagers": ["github-actions"],
+      "matchPackageNames": ["grafana/shared-workflows"],
+      "enabled": true
+    },
     {
       "description": "Always update openssl/openssl to latest. Overrides the wildcard enabled:false from security:only-security-updates.",
       "matchPackageNames": ["openssl/openssl"],
