@@ -43,9 +43,22 @@ RUN wget -q "https://github.com/openssl/openssl/releases/download/openssl-${OPEN
 
 RUN apt-get -y install lsb-release wget software-properties-common gnupg
 
-RUN wget https://apt.llvm.org/llvm.sh && \
-  chmod +x llvm.sh && \
-  ./llvm.sh 18
+# apt.llvm.org intermittently drops connections and llvm.sh fetches the signing key with
+# a single un-retried wget, which fails the build with wget's exit 4. So retry it.
+#
+# The rm matters. llvm.sh pipes the key straight into the keyring and skips the download
+# when the file already exists, so one dropped connection leaves a truncated key behind
+# and every later apt-get update fails with "NO_PUBKEY 15CF4D18AF4F7421" instead --
+# retrying without clearing it just reproduces the same failure five times. Each attempt
+# therefore starts from a clean slate; llvm.sh is otherwise idempotent.
+RUN for attempt in 1 2 3 4 5; do \
+      rm -f /etc/apt/trusted.gpg.d/apt.llvm.org.asc; \
+      wget -q -O llvm.sh https://apt.llvm.org/llvm.sh && chmod +x llvm.sh && ./llvm.sh 18 && exit 0; \
+      echo "apt.llvm.org attempt ${attempt} failed, retrying" >&2; \
+      sleep $((attempt * 5)); \
+    done; \
+    echo "apt.llvm.org still unreachable after 5 attempts" >&2; \
+    exit 1
 
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/lib/llvm-18/bin/
 
