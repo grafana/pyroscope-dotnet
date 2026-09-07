@@ -3,7 +3,32 @@ FROM debian:bullseye-20260406@sha256:bf53effcacca31b60ce97dabc67578f37e43075d716
 # deb.debian.org (Fastly) intermittently resets connections on cold CI builds; retry apt fetches.
 RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries
 
-RUN apt-get update && apt-get -y install cmake make git curl golang libtool wget perl
+# Debian 11 LTS ended 2026-08-31: the bullseye-security .debs were purged from the pool
+# while the indices are still served, so apt resolves versions that 404 (retries do not
+# help -- a 404 is not retried), and bullseye-security's Release file expired 2026-09-07,
+# after which apt-get update itself fails. Pin to a snapshot taken just after the final
+# bullseye-security update so the build keeps resolving the exact same packages.
+#
+# Do not "fix" this by bumping the base image. The linker binds each call to the newest
+# symbol version the build host offers, so the base image -- not anything in our source
+# -- sets the profiler's runtime glibc requirement. A bookworm base measures GLIBC_2.36,
+# which drops Ubuntu 22.04 (2.35), RHEL 9 (2.34) and Amazon Linux 2023 (2.34), with no
+# compile error and no failing test. The check-glibc-compat.sh step below enforces it.
+#
+# Plain HTTP because snapshot.debian.org over HTTPS would need ca-certificates, which
+# this image lacks and which cannot be installed before apt works. Integrity still comes
+# from the signed Release file and its per-package hashes.
+ARG DEBIAN_SNAPSHOT=20260901T000000Z
+RUN printf '%s\n' \
+      "deb http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bullseye main" \
+      "deb http://snapshot.debian.org/archive/debian-security/${DEBIAN_SNAPSHOT} bullseye-security main" \
+      "deb http://snapshot.debian.org/archive/debian/${DEBIAN_SNAPSHOT} bullseye-updates main" \
+      > /etc/apt/sources.list && \
+    echo 'Acquire::Check-Valid-Until "false";' > /etc/apt/apt.conf.d/80-no-valid-until
+
+# binutils for the readelf that check-glibc-compat.sh needs; it is otherwise only
+# present incidentally, as a transitive dependency.
+RUN apt-get update && apt-get -y install cmake make git curl golang libtool wget perl binutils
 
 # Build OpenSSL from source with static libs
 ARG OPENSSL_VERSION=3.5.8
@@ -47,6 +72,23 @@ RUN mkdir build-${CMAKE_BUILD_TYPE} && \
         -DOPENSSL_ROOT_DIR=/usr/local/openssl
 
 RUN cd build-${CMAKE_BUILD_TYPE} && make -j16 Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64
+
+# Gate the runtime glibc requirement, so a future base-image change fails the build
+# instead of shipping a binary that will not load on a customer's distro. Each file is
+# pinned to its own measured value rather than a shared floor, so neither can drift.
+#
+# The wrapper's floor is per-arch: glibc's arm64 port was added in 2.17, so no symbol
+# there can be versioned older than that, while on x86_64 the wrapper reaches back to
+# 2.14. Both values are what the shipped 1.4.0 artifacts measure. The profiler is 2.30
+# on both. See build/check-glibc-compat.sh.
+RUN OUT=/profiler/artifacts/profiler-build/DDProf-Deploy/linux && \
+    case "$(uname -m)" in \
+        x86_64)  WRAPPER_FLOOR=2.14 ;; \
+        aarch64) WRAPPER_FLOOR=2.17 ;; \
+        *) echo "no glibc floor recorded for $(uname -m)" >&2; exit 1 ;; \
+    esac && \
+    build/check-glibc-compat.sh 2.30 "$OUT/Pyroscope.Profiler.Native.so" && \
+    build/check-glibc-compat.sh "$WRAPPER_FLOOR" "$OUT/Datadog.Linux.ApiWrapper.x64.so"
 
 FROM build AS test
 RUN cd build-${CMAKE_BUILD_TYPE} && make -j$(nproc) profiler-native-tests wrapper-native-tests
