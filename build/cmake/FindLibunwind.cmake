@@ -2,6 +2,19 @@ SET(LIBUNWIND_VERSION "v1.8.3-custom-1")
 
 SET(LIBUNWIND_BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/libunwind-prefix/src/libunwind-build)
 
+# libunwind is built by autoconf, which neither inherits CMAKE_SYSROOT nor picks
+# up CMAKE_C_COMPILER -- left alone it silently falls back to whatever gcc is on
+# PATH. Pass both through so libunwind is compiled by the same clang, and
+# against the same sysroot, as everything else.
+SET(LIBUNWIND_CFLAGS   "-fPIC -O3 -g")
+SET(LIBUNWIND_CXXFLAGS "-fPIC -D_GLIBCXX_USE_CXX11_ABI=0 -O3 -g")
+SET(LIBUNWIND_LDFLAGS  "")
+if (CMAKE_SYSROOT)
+    string(APPEND LIBUNWIND_CFLAGS   " --sysroot=${CMAKE_SYSROOT}")
+    string(APPEND LIBUNWIND_CXXFLAGS " --sysroot=${CMAKE_SYSROOT}")
+    string(APPEND LIBUNWIND_LDFLAGS  " --sysroot=${CMAKE_SYSROOT}")
+endif()
+
 ExternalProject_Add(libunwind
     GIT_REPOSITORY https://github.com/DataDog/libunwind.git
     GIT_TAG gleocadie/v1.8.3-custom-1
@@ -9,7 +22,13 @@ ExternalProject_Add(libunwind
     INSTALL_COMMAND ""
     UPDATE_COMMAND ""
     CONFIGURE_COMMAND ""
-    BUILD_COMMAND autoreconf -i <SOURCE_DIR> && <SOURCE_DIR>/configure CXXFLAGS=-fPIC\ -D_GLIBCXX_USE_CXX11_ABI=0\ -O3\ -g CFLAGS=-fPIC\ -O3\ -g --disable-minidebuginfo --disable-zlibdebuginfo --disable-tests && make -j$(nproc)
+    BUILD_COMMAND autoreconf -i <SOURCE_DIR> && <SOURCE_DIR>/configure
+                  "CC=${CMAKE_C_COMPILER}"
+                  "CXX=${CMAKE_CXX_COMPILER}"
+                  "CFLAGS=${LIBUNWIND_CFLAGS}"
+                  "CXXFLAGS=${LIBUNWIND_CXXFLAGS}"
+                  "LDFLAGS=${LIBUNWIND_LDFLAGS}"
+                  --disable-minidebuginfo --disable-zlibdebuginfo --disable-tests && make -j$(nproc)
     BUILD_ALWAYS false
     BUILD_BYPRODUCTS ${LIBUNWIND_BINARY_DIR}/src/.libs/libunwind-${CMAKE_SYSTEM_PROCESSOR}.a
                      ${LIBUNWIND_BINARY_DIR}/src/.libs/libunwind.a

@@ -56,8 +56,9 @@ void DlPhdrInfoWrapper::DeepCopy(struct dl_phdr_info& destination, struct dl_phd
     destination.dlpi_phdr = _phdr.get();
 
     // Those fields appeared in glibc 2.4 (with two others).
-    // Since we compile with glibc 2.17, those fields are present (size of struct dl_phdr_info contains those fields),
-    // so need to check the size/offset.
+    // We build against the Debian 11 sysroot (glibc 2.31, see Pyroscope.Dockerfile),
+    // so those fields are present (size of struct dl_phdr_info contains those fields)
+    // and there is no need to check the size/offset.
     // We do not know how to copy dlpi_tls_data field and libunwind does not use them, we can nullify/zeroify them
     destination.dlpi_tls_modid = 0;
     destination.dlpi_tls_data = nullptr;
