@@ -52,6 +52,11 @@ RUN wget https://apt.llvm.org/llvm.sh && \
   chmod +x llvm.sh && \
   ./llvm.sh 18
 
+# Not needed to compile the profiler - these back the native library validation that runs
+# after the build below. Kept in their own layer so they do not invalidate the openssl and
+# llvm layers above.
+RUN apt-get -y install python3 binutils
+
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/lib/llvm-18/bin/
 
 FROM builder as build
@@ -77,6 +82,12 @@ RUN mkdir build-${CMAKE_BUILD_TYPE} && \
         -DOPENSSL_ROOT_DIR=/usr/local/openssl
 
 RUN cd build-${CMAKE_BUILD_TYPE} && make -j16 Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64
+
+# Fail the build if the libraries drifted off the GLIBC_2.30 floor the base image pin above
+# exists to hold, or grew undefined symbols the host may not provide.
+# See profiler/build/NativeValidation/README.md.
+RUN python3 profiler/build/NativeValidation/validate_native_libs.py \
+        artifacts/profiler-build/DDProf-Deploy/linux
 
 FROM build AS test
 RUN cd build-${CMAKE_BUILD_TYPE} && make -j$(nproc) profiler-native-tests wrapper-native-tests

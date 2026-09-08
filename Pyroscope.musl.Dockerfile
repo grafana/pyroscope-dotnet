@@ -30,6 +30,11 @@ RUN wget -q "https://github.com/openssl/openssl/releases/download/openssl-${OPEN
     ln -s /usr/local/openssl/lib64 /usr/local/openssl/lib && \
     cd .. && rm -rf openssl-${OPENSSL_VERSION} openssl-${OPENSSL_VERSION}.tar.gz
 
+# Not needed to compile the profiler - this backs the native library validation that runs
+# after the build below. Kept in its own layer, after openssl, so it does not invalidate
+# it. binutils (readelf) comes in with alpine-sdk.
+RUN apk add python3
+
 FROM builder as build
 
 WORKDIR /profiler
@@ -53,6 +58,12 @@ RUN mkdir build-${CMAKE_BUILD_TYPE} && \
         -DOPENSSL_ROOT_DIR=/usr/local/openssl
 
 RUN cd build-${CMAKE_BUILD_TYPE} && make -j16 Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64
+
+# Fail the build if the libraries grew undefined symbols the host may not provide, or
+# picked up a glibc reference, which must never happen in a musl build.
+# See profiler/build/NativeValidation/README.md.
+RUN python3 profiler/build/NativeValidation/validate_native_libs.py \
+        artifacts/profiler-build/DDProf-Deploy/linux-musl
 
 FROM build AS test
 RUN cd build-${CMAKE_BUILD_TYPE} && make -j$(nproc) profiler-native-tests wrapper-native-tests

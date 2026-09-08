@@ -1,0 +1,16 @@
+__errno_location
+access
+asprintf
+free
+getenv
+malloc
+mmap
+sigaddset
+sigismember
+strcasecmp
+strcmp
+strcpy
+strlen
+strncmp
+strncpy
+strrchr
