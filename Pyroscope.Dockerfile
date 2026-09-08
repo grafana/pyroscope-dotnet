@@ -1,7 +1,22 @@
 FROM debian:bullseye-20260406@sha256:bf53effcacca31b60ce97dabc67578f37e43075d716dc90804d3da3a80d2996c AS builder
 
-# deb.debian.org (Fastly) intermittently resets connections on cold CI builds; retry apt fetches.
-RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries
+# Debian 11 (bullseye) reached end of LTS on 2026-08-31: the bullseye-security
+# Release file expired on 2026-09-07 and its pool has been removed from the live
+# mirrors, so deb.debian.org can no longer resolve this image's packages.
+# snapshot.debian.org is immutable; the timestamp below must match the base image
+# tag above so the suites agree with the packages already baked into the digest.
+RUN printf '%s\n' \
+      "deb http://snapshot.debian.org/archive/debian/20260406T000000Z bullseye main" \
+      "deb http://snapshot.debian.org/archive/debian-security/20260406T000000Z bullseye-security main" \
+      "deb http://snapshot.debian.org/archive/debian/20260406T000000Z bullseye-updates main" \
+      > /etc/apt/sources.list
+
+# snapshot.debian.org serves historical Release files, whose Valid-Until is by
+# definition in the past. Retries cover cold-CI connection resets.
+RUN printf '%s\n' \
+      'Acquire::Retries "5";' \
+      'Acquire::Check-Valid-Until "false";' \
+      > /etc/apt/apt.conf.d/80-retries
 
 RUN apt-get update && apt-get -y install cmake make git curl golang libtool wget perl
 
