@@ -1,8 +1,12 @@
 # manylinux_2_28 (AlmaLinux 8, glibc 2.28). Debian 11 is EOL. The image is
-# published per-arch, so BASE_ARCH selects the repository; the Makefile passes it.
+# published per-arch rather than as a multi-arch manifest, so each arch has its
+# own digest and gets its own pinned stage; BASE_ARCH picks one and the Makefile
+# passes it. Under BuildKit only the selected stage is pulled. Bump the tag and
+# both digests together.
 ARG BASE_ARCH=x86_64
-ARG BASE_TAG=2026.09.05-1
-FROM quay.io/pypa/manylinux_2_28_${BASE_ARCH}:${BASE_TAG} AS builder
+FROM quay.io/pypa/manylinux_2_28_x86_64:2026.09.05-1@sha256:53390351aeb4688114b02c36a23b3e6ce1166ee9b7afc5df1a4f776354fc764c AS base-x86_64
+FROM quay.io/pypa/manylinux_2_28_aarch64:2026.09.05-1@sha256:ad74e53b713f3b07d8c889c526dc0c6500da9827b45e38739570875fef52e28f AS base-aarch64
+FROM base-${BASE_ARCH} AS builder
 
 # clang via the image's own helper: installs a sha256-verified static toolchain
 # into /opt/clang (already first on PATH) and writes clang.cfg with
