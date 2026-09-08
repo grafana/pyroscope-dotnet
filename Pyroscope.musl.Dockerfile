@@ -1,27 +1,22 @@
-FROM alpine:3.22@sha256:14358309a308569c32bdc37e2e0e9694be33a9d99e68afb0f5ff33cc1f695dce AS builder
+# musllinux_1_2 (Alpine 3.22, musl 1.2). Published per-arch, so BASE_ARCH selects
+# the repository; the Makefile passes it.
+ARG BASE_ARCH=x86_64
+ARG BASE_TAG=2026.09.05-1
+FROM quay.io/pypa/musllinux_1_2_${BASE_ARCH}:${BASE_TAG} AS builder
 
-RUN apk add \
-            clang \
-            cmake \
-            git \
-            bash \
-            make \
-            alpine-sdk \
-            util-linux-dev \
-            autoconf \
-            libtool \
-            automake \
-            xz-dev \
-            musl-dbg \
-            perl \
-            linux-headers
+# Same static clang toolchain as the glibc build, so one pinned compiler version
+# covers both libc flavours (this image carried clang 20 via apk before).
+ARG CLANG_VERSION=20.1.8.0
+RUN manylinux-install-clang -v ${CLANG_VERSION}
 
-RUN apk add wget
-RUN apk add go
+# musl-dbg is the only build dep the image lacks. cmake, git, bash, make,
+# gcc/g++/musl-dev, autoconf/automake/libtool, util-linux-dev, xz-dev,
+# linux-headers, perl and curl are all preinstalled.
+RUN apk add --no-cache musl-dbg
 
 # Build OpenSSL from source with static libs
 ARG OPENSSL_VERSION=3.5.8
-RUN wget -q "https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" && \
+RUN curl -fsSLO --retry 10 "https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" && \
     tar xf openssl-${OPENSSL_VERSION}.tar.gz && \
     cd openssl-${OPENSSL_VERSION} && \
     ./config no-shared no-tests --prefix=/usr/local/openssl --openssldir=/etc/ssl && \
@@ -42,11 +37,15 @@ ADD CMakeLists.txt CMakeLists.txt
 
 # Allow build type to be passed as build arg, default to Release
 ARG CMAKE_BUILD_TYPE=Release
+# CMAKE_POLICY_VERSION_MINIMUM: the image ships cmake 4, which hard-errors on
+# cmake_minimum_required < 3.5; vendored third_party trees still declare 2.6-3.4
+# (e.g. profiler/third_party/CxxUrl).
 RUN mkdir build-${CMAKE_BUILD_TYPE} && \
     cd build-${CMAKE_BUILD_TYPE} && \
     cmake .. \
         -DCMAKE_C_COMPILER=clang \
         -DCMAKE_CXX_COMPILER=clang++ \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
         -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" \
         -DCMAKE_C_FLAGS_DEBUG="-g -O0" \
