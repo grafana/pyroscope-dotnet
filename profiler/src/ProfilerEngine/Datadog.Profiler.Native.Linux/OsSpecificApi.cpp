@@ -295,41 +295,23 @@ std::vector<std::shared_ptr<IThreadInfo>> GetProcessThreads()
 
 std::chrono::seconds GetMachineBootTime()
 {
-    char statPath[] = "/proc/stat";
-
-    auto fd = open(statPath, O_RDONLY);
-
-    if (fd == -1)
+    std::ifstream statFile("/proc/stat");
+    if (!statFile.is_open())
     {
         return -1s;
     }
 
-    on_leave { close(fd); };
-
-    // 1023 + 1 to ensure that the last char is a null one
-    // initialize the whole array slots to 0
-    char line[1024] = {0};
-    std::int64_t machineBootTime = -1;
-    std::int64_t length = 0;
-    while ((length = read(fd, line, sizeof(line) - 1)) != 0)
+    constexpr std::string_view prefix = "btime ";
+    std::string line;
+    while (std::getline(statFile, line))
     {
-        auto sv = std::string_view(line, length);
-        auto pos = sv.find("btime");
-        if (std::string_view::npos != pos)
+        if (line.compare(0, prefix.size(), prefix) == 0)
         {
-            auto pos2 = strchr(sv.data() + pos, ' ');
-            if (pos2 == nullptr)
-                break;
-
-            // skip whitespaces
-            pos2++;
-            pos2 = pos2 + strspn(pos2, " ");
-            machineBootTime = std::atoll(pos2);
-            break;
+            return std::chrono::seconds(std::atoll(line.c_str() + prefix.size()));
         }
     }
 
-    return std::chrono::seconds(machineBootTime);
+    return -1s;
 }
 
 std::chrono::seconds GetProcessStartTimeSinceBoot()

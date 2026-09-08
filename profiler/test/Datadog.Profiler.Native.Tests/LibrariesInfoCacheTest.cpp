@@ -216,6 +216,10 @@ TEST(LibrariesInfoCacheTests, GetProcNameFailsForBogusAddress)
 TEST(LibrariesInfoCacheTests, GetProcNameReplacesAndRestoresOriginalAccessor)
 {
     auto* as = static_cast<unw_addr_space_t>(LibrariesInfoCache::GetLocalAddressSpace());
+    // Initialize libunwind's local accessors before capturing the original.
+    // Start() performs this initialization as well, so reading them first can
+    // otherwise observe a transient null accessor.
+    unw_set_iterate_phdr_function(as, dl_iterate_phdr);
     unw_accessors_t* acc = unw_get_accessors(as);
 
     auto originalGetProcName = acc->get_proc_name;
@@ -223,7 +227,7 @@ TEST(LibrariesInfoCacheTests, GetProcNameReplacesAndRestoresOriginalAccessor)
     {
         testing::NiceMock<MockConfiguration> config;
         MetricsRegistry metricsRegistry;
-    LibrariesInfoCache libCache(&config, MemoryResourceManager::GetDefault(), metricsRegistry);
+        LibrariesInfoCache libCache(&config, MemoryResourceManager::GetDefault(), metricsRegistry);
         ServiceWrapper serviceWrapper(&libCache);
 
         ASSERT_EQ(acc->get_proc_name, &LibrariesInfoCache::GetProcName)

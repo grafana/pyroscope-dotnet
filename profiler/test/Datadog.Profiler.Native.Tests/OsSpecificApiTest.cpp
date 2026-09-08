@@ -49,7 +49,8 @@ TEST(OsSpecificApiTest, CheckProcessStartTimeFormat)
 
     std::regex dateFormatRegex("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z");
 
-    ASSERT_TRUE(std::regex_match(processStartTime, dateFormatRegex));
+    ASSERT_TRUE(std::regex_match(processStartTime, dateFormatRegex))
+        << "Unexpected process start time: " << processStartTime;
 }
 
 TEST(OsSpecificApiTest, CheckProcessLifetime)
@@ -59,5 +60,6 @@ TEST(OsSpecificApiTest, CheckProcessLifetime)
     OpSysTools::Sleep(ns);
     auto lifetime = OsSpecificApi::GetProcessLifetime();
 
-    ASSERT_TRUE(lifetime >= seconds);
+    ASSERT_TRUE(lifetime >= seconds)
+        << "Expected a lifetime of at least " << seconds << " seconds, got " << lifetime;
 }
