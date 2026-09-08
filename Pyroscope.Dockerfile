@@ -1,13 +1,27 @@
-FROM debian:bullseye-20260406@sha256:bf53effcacca31b60ce97dabc67578f37e43075d716dc90804d3da3a80d2996c AS builder
+# manylinux_2_28 (AlmaLinux 8, glibc 2.28). Debian 11 is EOL. The image is
+# published per-arch, so BASE_ARCH selects the repository; the Makefile passes it.
+ARG BASE_ARCH=x86_64
+ARG BASE_TAG=2026.09.05-1
+FROM quay.io/pypa/manylinux_2_28_${BASE_ARCH}:${BASE_TAG} AS builder
 
-# deb.debian.org (Fastly) intermittently resets connections on cold CI builds; retry apt fetches.
-RUN echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries
+# clang via the image's own helper: installs a sha256-verified static toolchain
+# into /opt/clang (already first on PATH) and writes clang.cfg with
+# --gcc-toolchain=/opt/rh/gcc-toolset-14/root/usr, so clang uses GCC 14's
+# libstdc++ -- the profiler needs <span>, which AlmaLinux 8's system libstdc++
+# (GCC 8) lacks. AlmaLinux's own llvm-toolset caps at clang 17, and there is no
+# RPM equivalent of apt.llvm.org, which is why this replaces the llvm.sh install.
+ARG CLANG_VERSION=20.1.8.0
+RUN manylinux-install-clang -v ${CLANG_VERSION}
 
-RUN apt-get update && apt-get -y install cmake make git curl golang libtool wget perl
+# OpenSSL 3's Configure/Makefile.in need perl modules that el8 splits into
+# separate RPMs (IPC::Cmd, Time::Piece, ...); perl-core pulls the lot. Everything
+# else the build needs (cmake, make, git, curl, autoconf/automake/libtool,
+# gcc-toolset-14) already ships in the image.
+RUN dnf -y install perl-core && dnf clean all
 
 # Build OpenSSL from source with static libs
 ARG OPENSSL_VERSION=3.5.8
-RUN wget -q "https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" && \
+RUN curl -fsSLO --retry 10 "https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" && \
     tar xf openssl-${OPENSSL_VERSION}.tar.gz && \
     cd openssl-${OPENSSL_VERSION} && \
     ./config no-shared no-tests --prefix=/usr/local/openssl --openssldir=/etc/ssl && \
@@ -15,14 +29,6 @@ RUN wget -q "https://github.com/openssl/openssl/releases/download/openssl-${OPEN
     make install_sw && \
     ln -s /usr/local/openssl/lib64 /usr/local/openssl/lib && \
     cd .. && rm -rf openssl-${OPENSSL_VERSION} openssl-${OPENSSL_VERSION}.tar.gz
-
-RUN apt-get -y install lsb-release wget software-properties-common gnupg
-
-RUN wget https://apt.llvm.org/llvm.sh && \
-  chmod +x llvm.sh && \
-  ./llvm.sh 18
-
-ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/lib/llvm-18/bin/
 
 FROM builder as build
 
@@ -36,11 +42,15 @@ ADD CMakeLists.txt CMakeLists.txt
 # Allow build type to be passed as build arg, default to Release
 ARG CMAKE_BUILD_TYPE=Release
 
+# CMAKE_POLICY_VERSION_MINIMUM: the image ships cmake 4, which hard-errors on
+# cmake_minimum_required < 3.5; vendored third_party trees still declare 2.6-3.4
+# (e.g. profiler/third_party/CxxUrl).
 RUN mkdir build-${CMAKE_BUILD_TYPE} && \
     cd build-${CMAKE_BUILD_TYPE} && \
     cmake .. \
         -DCMAKE_C_COMPILER=clang \
         -DCMAKE_CXX_COMPILER=clang++ \
+        -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
         -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
         -DCMAKE_CXX_FLAGS_DEBUG="-g -O0" \
         -DCMAKE_C_FLAGS_DEBUG="-g -O0" \

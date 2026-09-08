@@ -22,9 +22,13 @@ else
     $(error ARCH must be either x86_64, aarch64)
 endif
 
+# The manylinux/musllinux base images are published per-arch rather than as
+# multi-arch manifests, so the builder stage takes the arch as a build arg.
+BUILD_ARGS := --build-arg BASE_ARCH=$(ARCH)
+
 .PHONY: docker/archive
 docker/archive:
-	docker build -f $(DOCKERFILE) -o out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH)  .
+	docker build -f $(DOCKERFILE) $(BUILD_ARGS) -o out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH)  .
 	cd out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH) && tar -czvf ../pyroscope.$(RELEASE_VERSION)-$(LIBC)-$(ARCH).tar.gz *.so 
 	rm -rf out.$(RELEASE_VERSION)-$(LIBC)-$(ARCH)
 
