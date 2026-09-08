@@ -1,8 +1,11 @@
-# musllinux_1_2 (Alpine 3.22, musl 1.2). Published per-arch, so BASE_ARCH selects
-# the repository; the Makefile passes it.
+# musllinux_1_2 (Alpine 3.22, musl 1.2). Published per-arch rather than as a
+# multi-arch manifest, so each arch has its own digest and gets its own pinned
+# stage; BASE_ARCH picks one and the Makefile passes it. Under BuildKit only the
+# selected stage is pulled. Bump the tag and both digests together.
 ARG BASE_ARCH=x86_64
-ARG BASE_TAG=2026.09.05-1
-FROM quay.io/pypa/musllinux_1_2_${BASE_ARCH}:${BASE_TAG} AS builder
+FROM quay.io/pypa/musllinux_1_2_x86_64:2026.09.05-1@sha256:621f8004ed526a5a6bf6a866fb415ad8da54d59a991e50b3b69167c3a768a616 AS base-x86_64
+FROM quay.io/pypa/musllinux_1_2_aarch64:2026.09.05-1@sha256:4dffcd49f0b6fc6928a49915f3cd939f973bbecbdfe96e1e7926b6049bc0bad5 AS base-aarch64
+FROM base-${BASE_ARCH} AS builder
 
 # Same static clang toolchain as the glibc build, so one pinned compiler version
 # covers both libc flavours (this image carried clang 20 via apk before).
