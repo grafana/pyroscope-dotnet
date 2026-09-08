@@ -1,10 +1,25 @@
+# This base is deliberately pinned to an EOL distro. bullseye's glibc 2.31 is what keeps
+# the shipped Pyroscope.Profiler.Native.so at a GLIBC_2.30 floor; a newer base raises that
+# floor for everyone running the profiler. bookworm's glibc 2.36, for instance, merged
+# pthread/dl into libc and needs GLIBC_2.34, which drops Ubuntu 20.04 and Debian 11.
+#
+# If you change this tag, you MUST also deal with the apt sources below:
+#   - moving to a still-supported base: delete the snapshot.debian.org sources.list block
+#     and the Check-Valid-Until line; live mirrors work again. Re-check the glibc floor
+#     with `readelf -V` before shipping (see PR #425 for the expected symbol set).
+#   - staying on an EOL-pinned base: update all three snapshot timestamps to match the new
+#     tag, or apt will resolve against packages this image does not actually contain.
+#
+# Renovate will not do either for you: renovate.json extends security:only-security-updates,
+# so only openssl/openssl and grafana/shared-workflows are auto-bumped in this repo.
 FROM debian:bullseye-20260406@sha256:bf53effcacca31b60ce97dabc67578f37e43075d716dc90804d3da3a80d2996c AS builder
 
 # Debian 11 (bullseye) reached end of LTS on 2026-08-31: the bullseye-security
 # Release file expired on 2026-09-07 and its pool has been removed from the live
 # mirrors, so deb.debian.org can no longer resolve this image's packages.
-# snapshot.debian.org is immutable; the timestamp below must match the base image
-# tag above so the suites agree with the packages already baked into the digest.
+# snapshot.debian.org is immutable; the 20260406T000000Z timestamps below must stay in
+# sync with the base image tag above, so the suites agree with the packages already baked
+# into the digest. See the note above the FROM line before changing either.
 RUN printf '%s\n' \
       "deb http://snapshot.debian.org/archive/debian/20260406T000000Z bullseye main" \
       "deb http://snapshot.debian.org/archive/debian-security/20260406T000000Z bullseye-security main" \

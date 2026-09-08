@@ -38,6 +38,22 @@ Output artifacts:
 - `artifacts/profiler-build/DDProf-Deploy/linux/Pyroscope.Profiler.Native.so`
 - `artifacts/profiler-build/DDProf-Deploy/linux/Datadog.Linux.ApiWrapper.x64.so`
 
+### Do not casually bump the glibc builder base image
+
+`Pyroscope.Dockerfile` is pinned to `debian:bullseye-*`, an EOL distro, **on purpose**: its
+glibc 2.31 is what keeps the shipped `Pyroscope.Profiler.Native.so` at a `GLIBC_2.30` floor.
+Bumping the base raises the minimum glibc for everyone running the profiler (bookworm's
+glibc 2.36 needs `GLIBC_2.34` and drops Ubuntu 20.04 / Debian 11).
+
+Because bullseye is EOL, its apt sources are pinned to a `snapshot.debian.org` timestamp
+that must stay in sync with the base image tag. Read the comment above the `FROM` line
+before touching either. After any change to the builder, verify the floor did not move:
+
+```bash
+readelf -d Pyroscope.Profiler.Native.so | grep NEEDED   # expect separate libpthread/libdl/libm
+readelf -V Pyroscope.Profiler.Native.so | grep -oE 'GLIBC_[0-9.]+' | sort -uV | tail -1  # expect GLIBC_2.30
+```
+
 ## Build the profiler (Windows)
 
 Windows is a supported target: CI (`.github/workflows/windows.yml`) builds `Pyroscope.Profiler.Native.dll` (Release x64) with MSBuild and runs the integration tests against it on Windows runners. Local build (requires MSVC + vcpkg):
