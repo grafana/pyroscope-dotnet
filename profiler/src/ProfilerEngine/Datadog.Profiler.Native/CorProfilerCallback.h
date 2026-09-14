@@ -9,6 +9,8 @@
 // end
 
 #include "AllocationsProvider.h"
+#include "AsyncScopeStore.h"
+#include "DynamicTagSetStore.h"
 #include "ApplicationStore.h"
 #include "EventPipeEventsManager.h"
 #include "ExceptionsProvider.h"
@@ -226,6 +228,10 @@ public:
     IManagedThreadList* GetCodeHotspotThreadList() { return _pCodeHotspotsThreadList; }
     //IStackSamplerLoopManager* GetStackSamplerLoopManager() { return _pStackSamplerLoopManager; }
     IApplicationStore* GetApplicationStore() { return _pApplicationStore; }
+    // null when async stack stitching is disabled (PYROSCOPE_ASYNC_STITCHING_ENABLED=0)
+    AsyncScopeStore* GetAsyncScopeStore() { return _pAsyncScopeStore.get(); }
+    // null when context propagation is disabled (PYROSCOPE_ASYNC_CONTEXT_PROPAGATION_ENABLED=0)
+    DynamicTagSetStore* GetDynamicTagSetStore() { return _pDynamicTagSetStore.get(); }
     IExporter* GetExporter() { return _pExporter.get(); }
     SamplesCollector* GetSamplesCollector() { return _pSamplesCollector; }
     void TraceContextHasBeenSet() { _pSsiManager->OnSpanCreated(); }
@@ -295,6 +301,8 @@ private :
     bool _IsManagedConfigurationSet = false; // profiler can't start before this becomes true
     std::unique_ptr<IAppDomainStore> _pAppDomainStore = nullptr;
     std::unique_ptr<IFrameStore> _pFrameStore = nullptr;
+    std::unique_ptr<AsyncScopeStore> _pAsyncScopeStore = nullptr;
+    std::unique_ptr<DynamicTagSetStore> _pDynamicTagSetStore = nullptr;
     // shared by the components that need to resolve types defined in the core library
     std::unique_ptr<CoreLibModuleProvider> _pCoreLibModuleProvider = nullptr;
     std::unique_ptr<IRuntimeInfo> _pRuntimeInfo = nullptr;

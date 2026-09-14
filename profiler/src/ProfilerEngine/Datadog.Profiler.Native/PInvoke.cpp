@@ -5,6 +5,7 @@
 #include "CorProfilerCallback.h"
 #include "IClrLifetime.h"
 #include "Log.h"
+#include "DynamicTagSetStore.h"
 #include "ManagedThreadList.h"
 #include "ProfilerEngineStatus.h"
 #include "PyroscopeVersion.h"
@@ -247,6 +248,105 @@ extern "C" void __stdcall ClearDynamicTags()
     }
     pCurrentThreadInfo->GetTags()
         .ClearAll();
+}
+
+extern "C" std::uint32_t __stdcall PushAsyncScope(std::uint32_t parentScopeId, const char* name)
+{
+    if (name == nullptr)
+    {
+        return parentScopeId;
+    }
+
+    const auto profiler = CorProfilerCallback::GetInstance();
+
+    if (profiler == nullptr || !profiler->GetClrLifetime()->IsInitialized())
+    {
+        return 0;
+    }
+
+    auto* const store = profiler->GetAsyncScopeStore();
+    if (store == nullptr)
+    {
+        // Stitching disabled: report "no scope" so the managed side stops paying
+        // for scope bookkeeping.
+        return 0;
+    }
+
+    return store->Push(parentScopeId, name);
+}
+
+extern "C" std::uint32_t __stdcall InternDynamicTagSet(const char* const* keys, const char* const* values, std::int32_t count)
+{
+    if (keys == nullptr || values == nullptr || count <= 0)
+    {
+        return 0;
+    }
+
+    const auto profiler = CorProfilerCallback::GetInstance();
+
+    if (profiler == nullptr || !profiler->GetClrLifetime()->IsInitialized())
+    {
+        return 0;
+    }
+
+    auto* const store = profiler->GetDynamicTagSetStore();
+    if (store == nullptr)
+    {
+        // Propagation disabled: tell the caller not to ask again, so it applies labels on
+        // the thread that set them, which is what it did before propagation existed.
+        return NoDynamicTagSetEver;
+    }
+
+    auto const id = store->Intern(keys, values, static_cast<std::size_t>(count));
+    if (id == DynamicTagSetStore::NoTagSet)
+    {
+        // The store is full, or the set uses a key that cannot be registered. Neither
+        // recovers, so let the caller stop paying for the attempt.
+        return NoDynamicTagSetEver;
+    }
+    return id;
+}
+
+extern "C" void __stdcall SetCurrentProfilingContext(std::uint32_t asyncScopeId, std::uint32_t dynamicTagSetId)
+{
+    // This is the hot path: managed code calls it on every ExecutionContext switch of a
+    // flow that carries a scope or labels. It deliberately reads the thread's own
+    // ManagedThreadInfo rather than going through
+    // ManagedThreadList::TryGetCurrentThreadInfo, which takes a process-wide lock -- that
+    // would serialize every continuation in the application on one mutex. Reading the
+    // thread_local without copying the shared_ptr is safe here because we are on the owning
+    // thread, which is also the only thread that clears it.
+    auto* const pCurrentThreadInfo = ManagedThreadInfo::CurrentThreadInfo.get();
+    if (pCurrentThreadInfo == nullptr)
+    {
+        // The CLR has not announced this thread to us yet, or already destroyed it: there
+        // is nothing that could be sampled, so nothing to publish to.
+        return;
+    }
+
+    pCurrentThreadInfo->SetAsyncScopeId(asyncScopeId);
+
+    const auto profiler = CorProfilerCallback::GetInstance();
+    if (profiler == nullptr)
+    {
+        return;
+    }
+
+    auto* const store = profiler->GetDynamicTagSetStore();
+    if (store == nullptr)
+    {
+        // Propagation disabled. Leave the thread's tags alone: they are whatever the
+        // thread-local SetDynamicTag API put there, which is the pre-propagation behaviour.
+        return;
+    }
+
+    if (dynamicTagSetId == NoDynamicTagSetEver)
+    {
+        // A set the caller applies itself, key by key. Not ours to overwrite.
+        return;
+    }
+
+    store->ApplyTo(dynamicTagSetId, pCurrentThreadInfo->GetTags());
 }
 
 extern "C" void __stdcall SetCPUTrackingEnabled(bool enabled)

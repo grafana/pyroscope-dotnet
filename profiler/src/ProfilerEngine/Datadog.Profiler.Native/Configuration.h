@@ -96,6 +96,8 @@ public:
     bool UseManagedCodeCache() const override;
     bool IsMemoryFootprintEnabled() const override;
     bool IsAllocationTypeLeafEnabled() const override;
+    bool IsAsyncStitchingEnabled() const override;
+    bool IsAsyncContextPropagationEnabled() const override;
     uint32_t GetReferenceTreeFormat() const override;
 
     std::string PyroscopeServerAddress() const override;
@@ -240,5 +242,7 @@ private:
     bool _useManagedCodeCache;
     bool _isMemoryFootprintEnabled;
     bool _isAllocationTypeLeafEnabled;
+    bool _isAsyncStitchingEnabled;
+    bool _isAsyncContextPropagationEnabled;
     uint32_t _referenceTreeFormat;
 };

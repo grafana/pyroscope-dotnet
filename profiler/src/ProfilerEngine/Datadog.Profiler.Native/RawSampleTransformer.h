@@ -10,6 +10,7 @@
 #include "Sample.h"
 
 //forward declarations
+class AsyncScopeStore;
 class IAppDomainStore;
 class IFrameStore;
 class IRuntimeIdStore;
@@ -17,13 +18,17 @@ class IRuntimeIdStore;
 class RawSampleTransformer
 {
 public:
+    // pAsyncScopeStore may be null: async stack stitching is then disabled and
+    // samples keep only their physical frames.
     RawSampleTransformer(
         IFrameStore* pFrameStore,
         IAppDomainStore* pAppDomainStore,
-        IRuntimeIdStore* pRuntimeIdStore) :
+        IRuntimeIdStore* pRuntimeIdStore,
+        AsyncScopeStore* pAsyncScopeStore = nullptr) :
         _pFrameStore{pFrameStore},
         _pAppDomainStore{pAppDomainStore},
-        _pRuntimeIdStore{pRuntimeIdStore}
+        _pRuntimeIdStore{pRuntimeIdStore},
+        _pAsyncScopeStore{pAsyncScopeStore}
     {
     }
 
@@ -46,4 +51,5 @@ private:
     IFrameStore* _pFrameStore;
     IAppDomainStore* _pAppDomainStore;
     IRuntimeIdStore* _pRuntimeIdStore;
+    AsyncScopeStore* _pAsyncScopeStore;
 };

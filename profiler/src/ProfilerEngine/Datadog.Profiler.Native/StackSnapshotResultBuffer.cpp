@@ -11,7 +11,8 @@ StackSnapshotResultBuffer::StackSnapshotResultBuffer() :
     _unixTimeUtc{0},
     _representedDuration{0},
     _traceContext{},
-    _callstack{}
+    _callstack{},
+    _asyncScopeId{0}
 {
 }
 
@@ -30,4 +31,5 @@ void StackSnapshotResultBuffer::Reset()
     _unixTimeUtc = 0ns;
     _callstack = {};
     _tags.ClearAll();
+    _asyncScopeId = 0;
 }

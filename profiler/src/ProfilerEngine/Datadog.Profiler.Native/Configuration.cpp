@@ -165,6 +165,8 @@ Configuration::Configuration()
     _useManagedCodeCache = GetEnvironmentValue(EnvironmentVariables::UseManagedCodeCache, defaultUseManagedCodeCache);
     _isMemoryFootprintEnabled = GetEnvironmentValue(EnvironmentVariables::MemoryFootprintEnabled, false);
     _isAllocationTypeLeafEnabled = GetEnvironmentValue(EnvironmentVariables::AllocationTypeLeafEnabled, false);
+    _isAsyncStitchingEnabled = GetEnvironmentValue(EnvironmentVariables::AsyncStitchingEnabled, true);
+    _isAsyncContextPropagationEnabled = GetEnvironmentValue(EnvironmentVariables::AsyncContextPropagationEnabled, true);
 
     _referenceTreeFormat = ExtractReferenceTreeFormat();
 }
@@ -370,6 +372,16 @@ bool Configuration::IsMemoryFootprintEnabled() const
 bool Configuration::IsAllocationTypeLeafEnabled() const
 {
     return _isAllocationTypeLeafEnabled;
+}
+
+bool Configuration::IsAsyncStitchingEnabled() const
+{
+    return _isAsyncStitchingEnabled;
+}
+
+bool Configuration::IsAsyncContextPropagationEnabled() const
+{
+    return _isAsyncContextPropagationEnabled;
 }
 
 uint32_t Configuration::GetReferenceTreeFormat() const

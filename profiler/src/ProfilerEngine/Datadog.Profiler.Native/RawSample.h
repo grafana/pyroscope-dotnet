@@ -42,6 +42,10 @@ public:
 
     google::javaprofiler::Tags Tags;
 
+    // Id of the logical async scope chain (see AsyncScopeStore) the sampled code
+    // belongs to. RawSampleTransformer turns it into the frames that sit above the
+    // physical stack, re-rooting an `await` continuation under its logical parent.
+    std::uint32_t AsyncScopeId;
 
     // array of instruction pointers (32 or 64 bit address)
     Callstack Stack;

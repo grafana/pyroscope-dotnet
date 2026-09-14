@@ -10,4 +10,10 @@
         <None Include="README.md" Pack="true" PackagePath="\"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <!-- AsyncScopeContext is internal on purpose: it is the plumbing behind the public
+             AsyncScope, and its tests need to substitute the native sink. -->
+        <InternalsVisibleTo Include="Pyroscope.Tests" />
+    </ItemGroup>
+
 </Project>

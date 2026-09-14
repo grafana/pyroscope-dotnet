@@ -33,6 +33,8 @@
 #include "EnvironmentVariables.h"
 #include "EventPipeEventsManager.h"
 #include "ExceptionsProvider.h"
+#include "AsyncScopeStore.h"
+#include "DynamicTagSetStore.h"
 #include "FrameStore.h"
 #include "GCThreadsCpuProvider.h"
 #include "IMetricsSender.h"
@@ -197,6 +199,21 @@ void CorProfilerCallback::InitializeServices()
     _pFrameStore = std::make_unique<FrameStore>(
         _pCorProfilerInfo, _pConfiguration.get(), _pDebugInfoStore.get(), _managedCodeCache.get());
 
+    // Holds the logical async scope chains managed code pushes; a null store means
+    // async stack stitching is off and samples keep only their physical frames.
+    if (_pConfiguration->IsAsyncStitchingEnabled())
+    {
+        _pAsyncScopeStore = std::make_unique<AsyncScopeStore>();
+    }
+
+    // Interned label sets, so that re-applying labels on an `await` continuation costs one
+    // Tags assignment instead of a locking round trip per key. A null store means labels
+    // stay on the thread that set them, as they did before propagation existed.
+    if (_pConfiguration->IsAsyncContextPropagationEnabled())
+    {
+        _pDynamicTagSetStore = std::make_unique<DynamicTagSetStore>();
+    }
+
     // must be created before the components that resolve core library types (i.e. exceptions and heap snapshot)
     _pCoreLibModuleProvider = std::make_unique<CoreLibModuleProvider>(_pCorProfilerInfo);
 
@@ -253,6 +270,14 @@ void CorProfilerCallback::InitializeServices()
         _metricsRegistry.GetOrRegister<ProxyMetric>("dotnet_memory_footprint_app_domain_store", [this]() {
             return static_cast<double>(_pAppDomainStore->GetMemorySize());
         });
+
+        _metricsRegistry.GetOrRegister<ProxyMetric>("dotnet_memory_footprint_async_scope_store", [this]() {
+            return _pAsyncScopeStore == nullptr ? 0.0 : static_cast<double>(_pAsyncScopeStore->GetMemorySize());
+        });
+
+        _metricsRegistry.GetOrRegister<ProxyMetric>("dotnet_memory_footprint_dynamic_tag_set_store", [this]() {
+            return _pDynamicTagSetStore == nullptr ? 0.0 : static_cast<double>(_pDynamicTagSetStore->GetMemorySize());
+        });
     }
 
     auto valueTypeProvider = SampleValueTypeProvider();
@@ -260,7 +285,8 @@ void CorProfilerCallback::InitializeServices()
     _rawSampleTransformer = std::make_unique<RawSampleTransformer>(
         _pFrameStore.get(),
         _pAppDomainStore.get(),
-        _pRuntimeIdStore);
+        _pRuntimeIdStore,
+        _pAsyncScopeStore.get());
 
     if (_pConfiguration->IsThreadLifetimeEnabled())
     {

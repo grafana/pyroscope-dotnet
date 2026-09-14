@@ -72,6 +72,55 @@ namespace Pyroscope
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
+        public static uint PushAsyncScope(uint parentScopeId, string name)
+        {
+            return NativeMethods.PushAsyncScope(parentScopeId, name);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static uint InternDynamicTagSet(string[] keys, string[] values, int count)
+        {
+            // Marshalled by hand: the runtime rejects LPUTF8Str as an ArraySubType for string[]
+            // (only LPStr/LPWStr/LPTStr are allowed), and LPStr would go through the platform ANSI
+            // code page, which loses non-ASCII label values on Windows. IntPtr[] is blittable, so
+            // the array itself is just pinned. This runs once per distinct label set, not per
+            // sample, so the allocations are on a cold path.
+            var keyPtrs = new IntPtr[count];
+            var valuePtrs = new IntPtr[count];
+            try
+            {
+                for (var i = 0; i < count; i++)
+                {
+                    keyPtrs[i] = Marshal.StringToCoTaskMemUTF8(keys[i]);
+                    valuePtrs[i] = Marshal.StringToCoTaskMemUTF8(values[i]);
+                }
+
+                return NativeMethods.InternDynamicTagSet(keyPtrs, valuePtrs, count);
+            }
+            finally
+            {
+                for (var i = 0; i < count; i++)
+                {
+                    if (keyPtrs[i] != IntPtr.Zero)
+                    {
+                        Marshal.FreeCoTaskMem(keyPtrs[i]);
+                    }
+
+                    if (valuePtrs[i] != IntPtr.Zero)
+                    {
+                        Marshal.FreeCoTaskMem(valuePtrs[i]);
+                    }
+                }
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        public static void SetCurrentProfilingContext(uint asyncScopeId, uint dynamicTagSetId)
+        {
+            NativeMethods.SetCurrentProfilingContext(asyncScopeId, dynamicTagSetId);
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
         public static void SetBasicAuth(string username, string password)
         {
             NativeMethods.SetPyroscopeBasicAuth(username, password);
@@ -112,6 +161,15 @@ namespace Pyroscope
 
             [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "SetPyroscopeBasicAuth")]
             public static extern void SetPyroscopeBasicAuth(string username, string password);
+
+            [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "PushAsyncScope")]
+            public static extern uint PushAsyncScope(uint parentScopeId, [MarshalAs(UnmanagedType.LPUTF8Str)] string name);
+
+            [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "InternDynamicTagSet")]
+            public static extern uint InternDynamicTagSet(IntPtr[] keys, IntPtr[] values, int count);
+
+            [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "SetCurrentProfilingContext")]
+            public static extern void SetCurrentProfilingContext(uint asyncScopeId, uint dynamicTagSetId);
 
         }
     }

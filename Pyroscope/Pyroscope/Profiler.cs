@@ -9,10 +9,11 @@ namespace Pyroscope
     {
         private static Profiler? _instance;
 
-        internal Profiler(ProfilerStatus status, ContextTracker contextTracker)
+        internal Profiler(ProfilerStatus status, ContextTracker contextTracker, ProfilingContext profilingContext)
         {
             _status = status;
             _contextTracker = contextTracker;
+            _profilingContext = profilingContext;
         }
 
         public static Profiler Instance
@@ -26,9 +27,24 @@ namespace Pyroscope
             _contextTracker.Set(profileId, 0, 0);
         }
 
+        /// <summary>
+        /// Makes this span the one the profiler attributes samples to, for the rest of the current
+        /// async flow -- so work the span does after an <c>await</c> is attributed to it as well.
+        /// </summary>
         public void SetSpanContext(ulong localRootSpanId, ulong traceIdHi, ulong traceIdLo)
         {
-            _contextTracker.Set(localRootSpanId, traceIdHi, traceIdLo);
+            _profilingContext.PushSpan(new SpanContext(localRootSpanId, traceIdHi, traceIdLo));
+        }
+
+        /// <summary>
+        /// The ambient context that follows async flows: logical scopes (see
+        /// <see cref="AsyncScope"/>), dynamic labels (see <see cref="LabelsWrapper"/>) and the
+        /// active span. Exposed internally so those types and the tracing bridges share one
+        /// context per process.
+        /// </summary>
+        internal ProfilingContext ProfilingContext
+        {
+            get { return _profilingContext; }
         }
 
         public void SetDynamicTags(Dictionary<string, string> tags)
@@ -191,13 +207,27 @@ namespace Pyroscope
 
         private readonly ContextTracker _contextTracker;
         private readonly ProfilerStatus _status;
+        private readonly ProfilingContext _profilingContext;
         private bool _dllNotFound;
 
         private static Profiler Create()
         {
             var status = new ProfilerStatus();
             var contextTracker = new ContextTracker(status);
-            return new Profiler(status, contextTracker);
+            var profilingContext = new ProfilingContext(
+                new NativeProfilingContextSink(contextTracker),
+                stitchingEnabled: IsEnabled("PYROSCOPE_ASYNC_STITCHING_ENABLED"),
+                propagationEnabled: IsEnabled("PYROSCOPE_ASYNC_CONTEXT_PROPAGATION_ENABLED"));
+            return new Profiler(status, contextTracker, profilingContext);
+        }
+
+        // The same switches the native side reads, so one environment variable turns each
+        // feature off end to end. Both default to on: they only do work once an application
+        // (or a tracing bridge) actually opens a scope or sets labels.
+        private static bool IsEnabled(string variable)
+        {
+            var value = EnvironmentHelpers.GetEnvironmentVariable(variable);
+            return value == null || (value.ToBoolean() ?? true);
         }
 
         private bool IsNativeInteropAvailable()

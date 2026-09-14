@@ -3,6 +3,7 @@
 
 #include "RawSampleTransformer.h"
 
+#include "AsyncScopeStore.h"
 #include "OpSysTools.h"
 #include "IAppDomainStore.h"
 #include "IFrameStore.h"
@@ -93,5 +94,17 @@ void RawSampleTransformer::SetStack(const RawSample& rawSample, std::shared_ptr<
         {
             sample->AddFrame(frame);
         }
+    }
+
+    // The callstack is leaf-first, so the logical async parents belong at the end:
+    // they extend the physical stack past its thread-pool root up to the scope that
+    // caused this work (see AsyncScopeStore). Without them an `await` continuation
+    // is a separate tree rooted at ThreadPoolWorkQueue.Dispatch instead of a
+    // descendant of the endpoint that scheduled it.
+    if (_pAsyncScopeStore != nullptr)
+    {
+        _pAsyncScopeStore->ForEachFrame(
+            rawSample.AsyncScopeId,
+            [&sample](FrameInfoView const& frame) { sample->AddFrame(frame); });
     }
 }

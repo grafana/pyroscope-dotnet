@@ -103,5 +103,7 @@ public:
     virtual bool UseManagedCodeCache() const = 0;
     virtual bool IsMemoryFootprintEnabled() const = 0;
     virtual bool IsAllocationTypeLeafEnabled() const = 0;
+    virtual bool IsAsyncStitchingEnabled() const = 0;
+    virtual bool IsAsyncContextPropagationEnabled() const = 0;
     virtual uint32_t GetReferenceTreeFormat() const = 0;
 };
