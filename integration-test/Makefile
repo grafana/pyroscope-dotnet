@@ -1,17 +1,10 @@
 REPO_ROOT := $(shell git rev-parse --show-toplevel)
+PROFILER_BINARIES_DIR ?= $(REPO_ROOT)/profiler-bin
 
-# Build profiler images
-.PHONY: build-profiler-glibc
-build-profiler-glibc:
-	docker build --platform linux/amd64 -t pyroscope-dotnet-glibc:test \
-		-f $(REPO_ROOT)/Pyroscope.Dockerfile \
-		--build-arg CMAKE_BUILD_TYPE=Debug $(REPO_ROOT)
-
-.PHONY: build-profiler-musl
-build-profiler-musl:
-	docker build --platform linux/amd64 -t pyroscope-dotnet-musl:test \
-		-f $(REPO_ROOT)/Pyroscope.musl.Dockerfile \
-		--build-arg CMAKE_BUILD_TYPE=Debug $(REPO_ROOT)
+.PHONY: check-profiler-binaries
+check-profiler-binaries:
+	test -f $(PROFILER_BINARIES_DIR)/Pyroscope.Profiler.Native.so
+	test -f $(PROFILER_BINARIES_DIR)/Pyroscope.Linux.ApiWrapper.x64.so
 
 .PHONY: ci-matrix
 ci-matrix:
