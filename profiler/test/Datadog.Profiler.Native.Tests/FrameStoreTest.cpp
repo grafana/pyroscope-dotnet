@@ -6,6 +6,7 @@
 
 #include "FrameStore.h"
 #include "ManagedCodeCache.h"
+#include "MetricsRegistry.h"
 #include "MockProfilerInfo.h"
 
 #include <memory>
@@ -242,7 +243,8 @@ TEST(FrameStoreNativeIpTest, GetFrame_WithCache_NativeIp_ReturnsNotResolvedAndDr
 
     // Empty cache => any IP resolves to InvalidFunctionId (there are no registered
     // JIT ranges and no R2R modules), which is exactly the "native IP" case.
-    auto cache = std::make_unique<ManagedCodeCache>(&mockProfiler);
+    MetricsRegistry metricsRegistry;
+    auto cache = std::make_unique<ManagedCodeCache>(&mockProfiler, metricsRegistry);
     cache->Initialize();
 
     FrameStore frameStore(
@@ -281,7 +283,8 @@ TEST(FrameStoreNativeIpTest, GetFrame_WithCache_CachedPathNullopt_ReturnsResolve
 {
     auto mockProfiler = MockProfilerInfo{};
 
-    auto cache = std::make_unique<ManagedCodeCache>(&mockProfiler);
+    MetricsRegistry metricsRegistry;
+    auto cache = std::make_unique<ManagedCodeCache>(&mockProfiler, metricsRegistry);
     cache->Initialize();
 
     // Register an R2R module range so GetFunctionId falls through to
