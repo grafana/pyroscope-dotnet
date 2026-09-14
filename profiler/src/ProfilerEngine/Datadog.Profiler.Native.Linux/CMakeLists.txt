@@ -116,7 +116,9 @@ else()
     list(REMOVE_ITEM LINUX_PROFILER_SRC "${CMAKE_CURRENT_SOURCE_DIR}/UnwindingRecorder.cpp")
 endif()
 
-FILE(GLOB COMMON_PROFILER_SRC LIST_DIRECTORIES false "../Datadog.Profiler.Native/*.cpp")
+# CONFIGURE_DEPENDS, like the other globs here: without it CMake never re-globs, so a newly
+# added common source silently fails to link until the build directory is reconfigured.
+FILE(GLOB COMMON_PROFILER_SRC LIST_DIRECTORIES false CONFIGURE_DEPENDS "../Datadog.Profiler.Native/*.cpp")
 FILE(GLOB_RECURSE PROTO_PROFILER_SRC CONFIGURE_DEPENDS "../Datadog.Profiler.Native/gen/*.pb.cc")
 FILE(GLOB EXCLUDE_DLLMAIN "../Datadog.Profiler.Native/DllMain.cpp")
 
