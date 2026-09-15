@@ -86,6 +86,76 @@ Switch: `PYROSCOPE_ASYNC_CONTEXT_PROPAGATION_ENABLED=false`. Turning it off does
 labels off: they revert to being applied on the thread that set them, which is what the
 profiler did before.
 
+### Async frame cleanup
+
+Stitching gives a continuation the right parent, but the continuation's own stack is still
+the physical one, and in an async-heavy service **about a third of its frames are the
+machinery** — the continuation box, thread-pool dispatch, `ExecutionContext.Run`, the
+builder's `Start`, the inline-completion unwind. Measured on a real service: 27.9% of the
+frames in a typical wall stack, 34.3% for CPU, holding only 1.7% and 1.9% of self time.
+
+Frame count is not the real damage. These frames appear **inconsistently**, because whether
+one survives depends on what the JIT inlined for that instantiation, so two samples on the
+same logical path land in different flamegraph nodes and their times never add up. On that
+service `ResponseCompressionMiddleware.InvokeCore` was spread over 25 nodes; the two largest
+had ancestor chains differing by exactly one `AsyncMethodBuilderCore.Start<…>` frame. The
+box and `Start<…>` frames are also generic over the state machine type, so there is one
+distinct frame *name* per async method: 672 `AsyncStateMachineBox` names out of 6,048.
+
+So `AsyncFrames::Classify` labels each frame (`AsyncFrameKind`) and
+`RawSampleTransformer::SetStack` applies two rules:
+
+- **drop the machinery.** No synthetic "[async]" marker replaces it: a marker is itself a
+  node whose presence varies per sample, which measurably *re-splits* the tree (17,622 nodes
+  versus 15,495 without one). The dropped self time falls to the caller that ran the
+  machinery, which is the code whose `await` it was servicing.
+- **fold an async method's kickoff frame into its state machine body.** The compiler emits
+  both `Class.Method` and `Class.<Method>d__4.MoveNext`, one directly above the other;
+  canonicalising the body's name to `Class.Method` and dropping the kickoff above it puts a
+  sample that caught only the kickoff on the same node as one that caught the body. Only
+  that pair collapses, so genuine async recursion keeps its depth.
+
+Both are computed **once per method**, as the frame store first resolves and caches it, so
+neither costs anything per sample.
+
+On the same service this removes 41% of wall tree nodes and 35% of CPU ones with self time
+preserved exactly, collapses that middleware from 25 nodes to 5 (wall) and 32 to 7 (CPU), and
+takes the maximum stack depth from 1000 to 94 — the 1000 was a `Task.RunContinuations` →
+`UnwrapPromise.Invoke` → `TrySetFromTask` cycle repeated 333 times, which fills the whole
+1024-frame `Callstack` budget and so costs the *outermost* frames, the stitched scope frame
+among them.
+
+One thing to know if you extend the marker list: a builder for a `Task<T>`-returning method is
+generic, so its frame reads `AsyncTaskMethodBuilder<T>.Start<…>` — the generic arguments sit
+between the type name and the method. Markers therefore match the type name without a
+trailing `.`; requiring one silently missed every `Task<T>` builder, `TaskAwaiter<T>` and the
+pooled `ValueTask` builder, which is what `async_frame_cleanup_test.go` caught and the unit
+tests did not.
+
+What it deliberately does not do:
+
+- **the blocking waits stay.** `Task.Wait`, `Task.SpinThenBlockingWait`,
+  `ManualResetEventSlim.Wait`: sync-over-async is a finding, not noise.
+- **the thread pool's own bookkeeping stays.** Only `ThreadPoolWorkQueue.Dispatch` goes, not
+  the whole type: `PortableThreadPool.WorkerThread.*`, `GateThread` and the work-stealing
+  queue are real work — `MaybeAddWorkingWorker` alone held 4.8s of self time on the service
+  measured, which is what pool churn looks like. Dropping them saves a few dozen tree nodes
+  out of ten thousand and hides thread-pool starvation, so they stay. The worker thread root
+  is also on every pool stack, so keeping it costs nothing in merging.
+- **`TaskCompletionSource.TrySetResult` stays.** Catching the generic `Task<T>` forms needs a
+  loose `.TrySetResult` match that also swallows the calls user code makes itself, and it is
+  worth under 1% of the frames removed.
+- **a frame the JIT inlined away is not recovered.** When inlining dropped a real frame from
+  one sample and not another, the two paths still differ; the profiler cannot put back a
+  frame that was never on the stack.
+
+Switch: `PYROSCOPE_ASYNC_FRAME_CLEANUP_ENABLED=false`.
+
+Note for anyone comparing against an older baseline: a gate that measures the share of time
+under `AsyncStateMachineBox` roots reads ~0% with this on, because those frames no longer
+exist. That is not the stitching metric improving — measure the share under a scope frame
+instead.
+
 ### Degradation
 
 Both stores cap their size (8192 scopes, 16384 label sets) and warn once when they fill,
@@ -183,6 +253,13 @@ granularity.
   *replaces* rather than merges, key-limit and capacity handling, concurrent intern/apply.
 - `profiler/test/.../AsyncScopeStitchingTest.cpp` — a sample's frames with and without a
   scope, and that a stale id is ignored rather than misattributed.
+- `profiler/test/.../AsyncFramesTest.cpp` — the classification and the rename, on real frame
+  names: the machinery, the blocking waits and `TaskCompletionSource` that must survive it,
+  and the iterator `MoveNext` frames that must not be mistaken for state machine bodies.
+- `profiler/test/.../AsyncFrameCleanupTest.cpp` — the two stack rules: two samples differing
+  only by a machinery frame come out identical, genuine recursion is kept, a stack that is
+  machinery all the way down keeps its leaf rather than being emptied, scope frames survive,
+  and an inlined-away frame is not recovered.
 - `Pyroscope/Pyroscope.Tests/AsyncScopePropagationTests.cs` and `ProfilingContextTests.cs` —
   the propagation itself: scope, labels and span each reach a thread-pool continuation *and* a
   thread created after the flow started, are removed when the flow leaves a thread, do not
@@ -197,3 +274,6 @@ granularity.
   real Pyroscope: every sample of the work an endpoint performs after its `await` is rooted at
   the endpoint and carries its label, a synchronous endpoint's work is neither, and with each
   switch off the corresponding attribution disappears.
+- `integration-test/async_frame_cleanup_test.go` — end to end, that no machinery frame and no
+  state-machine-decorated name reaches a collected profile, and that both come back with the
+  switch off (which is what proves the check is not passing vacuously).

@@ -121,6 +121,7 @@ public:
     MOCK_METHOD(bool, IsMemoryFootprintEnabled, (), (const override));
     MOCK_METHOD(bool, IsAllocationTypeLeafEnabled, (), (const override));
     MOCK_METHOD(bool, IsAsyncStitchingEnabled, (), (const override));
+    MOCK_METHOD(bool, IsAsyncFrameCleanupEnabled, (), (const override));
     MOCK_METHOD(bool, IsAsyncContextPropagationEnabled, (), (const override));
     MOCK_METHOD(uint32_t, GetReferenceTreeFormat, (), (const override));
 };

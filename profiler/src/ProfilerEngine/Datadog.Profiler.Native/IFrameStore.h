@@ -5,6 +5,7 @@
 #include "cor.h"
 #include "corprof.h"
 
+#include "AsyncFrameKind.h"
 #include "IMemoryFootprintProvider.h"
 
 #include <cstdint>
@@ -18,6 +19,12 @@ public:
     std::string_view Frame;
     std::string_view Filename;
     std::uint32_t StartLine;
+
+    // Set by the frame store when async frame cleanup is enabled, and left as
+    // UserCode otherwise, which makes RawSampleTransformer::SetStack's cleanup
+    // rules inert. Synthetic frames (fake IPs, async scope names) are never
+    // machinery, so the default is right for them too.
+    AsyncFrameKind AsyncKind = AsyncFrameKind::UserCode;
 };
 
 // Non-owning view over a type name whose storage is owned by a frame store and

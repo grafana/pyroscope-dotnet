@@ -107,4 +107,5 @@ public:
     inline static const shared::WSTRING AllocationTypeLeafEnabled   = WStr("PYROSCOPE_ALLOCATION_TYPE_LEAF_ENABLED");
     inline static const shared::WSTRING AsyncStitchingEnabled       = WStr("PYROSCOPE_ASYNC_STITCHING_ENABLED");
     inline static const shared::WSTRING AsyncContextPropagationEnabled = WStr("PYROSCOPE_ASYNC_CONTEXT_PROPAGATION_ENABLED");
+    inline static const shared::WSTRING AsyncFrameCleanupEnabled     = WStr("PYROSCOPE_ASYNC_FRAME_CLEANUP_ENABLED");
 };

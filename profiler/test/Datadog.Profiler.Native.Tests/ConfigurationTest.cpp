@@ -1667,3 +1667,17 @@ TEST_F(ConfigurationTest, CheckReferenceTreeFormatFallsBackToBinaryWhenEnvVarSet
     ASSERT_THAT(configuration.GetReferenceTreeFormat(), ReferenceTreeFormat_Binary);
 }
 
+
+TEST_F(ConfigurationTest, CheckAsyncFrameCleanupIsEnabledWhenEnvVariableIsNotSet)
+{
+    unsetenv(EnvironmentVariables::AsyncFrameCleanupEnabled);
+    auto configuration = Configuration{};
+    ASSERT_TRUE(configuration.IsAsyncFrameCleanupEnabled());
+}
+
+TEST_F(ConfigurationTest, CheckAsyncFrameCleanupIsDisabledWhenEnvVariableIsSetToFalse)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::AsyncFrameCleanupEnabled, WStr("0"));
+    auto configuration = Configuration{};
+    ASSERT_FALSE(configuration.IsAsyncFrameCleanupEnabled());
+}

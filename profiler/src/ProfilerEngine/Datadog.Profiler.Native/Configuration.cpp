@@ -167,6 +167,7 @@ Configuration::Configuration()
     _isAllocationTypeLeafEnabled = GetEnvironmentValue(EnvironmentVariables::AllocationTypeLeafEnabled, false);
     _isAsyncStitchingEnabled = GetEnvironmentValue(EnvironmentVariables::AsyncStitchingEnabled, true);
     _isAsyncContextPropagationEnabled = GetEnvironmentValue(EnvironmentVariables::AsyncContextPropagationEnabled, true);
+    _isAsyncFrameCleanupEnabled = GetEnvironmentValue(EnvironmentVariables::AsyncFrameCleanupEnabled, true);
 
     _referenceTreeFormat = ExtractReferenceTreeFormat();
 }
@@ -377,6 +378,11 @@ bool Configuration::IsAllocationTypeLeafEnabled() const
 bool Configuration::IsAsyncStitchingEnabled() const
 {
     return _isAsyncStitchingEnabled;
+}
+
+bool Configuration::IsAsyncFrameCleanupEnabled() const
+{
+    return _isAsyncFrameCleanupEnabled;
 }
 
 bool Configuration::IsAsyncContextPropagationEnabled() const
