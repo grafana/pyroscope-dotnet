@@ -126,6 +126,14 @@ TEST(AsyncFramesTest, TheDelegateInvocationAndScheduleHelpersAreRuntimePlumbing)
     // on the runtime-async resume path, between Task.ExecuteWithThreadLocal and the delegate.
     EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading.Tasks!Task.InnerInvoke", CoreLib));
     EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading.Tasks!Task.ScheduleAndStart", CoreLib));
+
+    // Task<TResult> overrides InnerInvoke, so a Task<T>-returning body reports the generic
+    // instantiation, with the argument list between the type name and the method. Taken from a
+    // profiled service, where these were the only Task machinery frames left in the stacks.
+    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing,
+              AsyncFrames::Classify("System.Threading.Tasks!Task<System.__Canon>.InnerInvoke", CoreLib));
+    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing,
+              AsyncFrames::Classify("System.Threading.Tasks!Task<System.Int32>.InnerInvoke", CoreLib));
 }
 
 // .NET 12's runtime async replaces the compiler's state machine with runtime-managed
@@ -177,6 +185,29 @@ TEST(AsyncFramesTest, AStateMachineBodyIsKeptAndRecognised)
     EXPECT_EQ(AsyncFrameKind::StateMachineMoveNext,
               AsyncFrames::Classify("Microsoft.AspNetCore.ResponseCompression!ResponseCompressionMiddleware.<InvokeCore>d__4.MoveNext",
                                     "Microsoft.AspNetCore.ResponseCompression"));
+}
+
+// An `async` lambda's state machine is named after the lambda, not the enclosing method, and
+// carries no `d__N` ordinal: the compiler emits "<<Method>b__0>d" inside a display class. These
+// were the bulk of the frames still reporting a decorated name in a profiled service.
+TEST(AsyncFramesTest, AnAsyncLambdaStateMachineBodyIsRecognised)
+{
+    auto const frame = "MyApp.Services!NotificationService.<>c__DisplayClass21_0.<<SyncAsync>b__0>d.MoveNext";
+
+    EXPECT_EQ(AsyncFrameKind::StateMachineMoveNext, AsyncFrames::Classify(frame, "MyApp"));
+
+    // Canonicalises to the lambda the compiler generated for the kickoff, so the body merges
+    // with it rather than stacking underneath as a near-duplicate.
+    EXPECT_EQ("MyApp.Services!NotificationService.<>c__DisplayClass21_0.<SyncAsync>b__0",
+              AsyncFrames::CanonicalName(frame));
+}
+
+// A local function's state machine has the same shape, via a "g__" name.
+TEST(AsyncFramesTest, AnAsyncLocalFunctionStateMachineBodyIsRecognised)
+{
+    auto const frame = "MyApp!Program.<<<Main>$>g__LoadAsync|0_3>d.MoveNext";
+
+    EXPECT_EQ(AsyncFrameKind::StateMachineMoveNext, AsyncFrames::Classify(frame, "MyApp"));
 }
 
 TEST(AsyncFramesTest, OrdinaryFramesAreUserCode)

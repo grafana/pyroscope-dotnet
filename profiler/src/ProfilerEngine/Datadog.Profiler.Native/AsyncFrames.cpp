@@ -52,6 +52,12 @@ constexpr std::string_view PlumbingMarkers[] = {
     // name so an unrelated InnerInvoke elsewhere in the runtime assembly is not caught.
     "Task.InnerInvoke",
     "Task.ScheduleAndStart",
+
+    // Task<TResult> overrides InnerInvoke, and its generic argument sits between the type name
+    // and the method -- "Task<System.__Canon>.InnerInvoke" -- so the dotted spellings above
+    // cannot match it, exactly as they could not for the builders. Anchored on the closing
+    // bracket rather than the type name because that is what the argument list leaves behind.
+    ">.InnerInvoke",
     "TryExecuteTaskInline",
     "TryRunInline",
     "InlineIfPossibleOrElseQueue",
@@ -131,21 +137,31 @@ bool TryParseStateMachine(std::string_view frame, std::string_view& prefix, std:
     // A generic async method's state machine is itself generic.
     TryStripTrailingGenerics(type);
 
-    // "d__N": strip the ordinal, then the marker. An ordinal is required, so a type
-    // ending in a bare "d" (and anything else) is not one of these.
+    // A method's state machine ends in "d__N": strip the ordinal, then the marker.
     auto const sizeBeforeOrdinal = type.size();
     while (!type.empty() && std::isdigit(static_cast<unsigned char>(type.back())) != 0)
     {
         type.remove_suffix(1);
     }
 
-    if (type.size() == sizeBeforeOrdinal || type.size() <= StateMachineInfix.size() ||
-        type.substr(type.size() - StateMachineInfix.size()) != StateMachineInfix)
+    auto const hasOrdinal = type.size() != sizeBeforeOrdinal;
+    if (hasOrdinal && type.size() > StateMachineInfix.size() &&
+        type.substr(type.size() - StateMachineInfix.size()) == StateMachineInfix)
+    {
+        type.remove_suffix(StateMachineInfix.size());
+    }
+    // An `async` lambda or local function is named after itself rather than the enclosing
+    // method, and its state machine carries no ordinal of its own: the compiler wraps the whole
+    // name in one more group and appends a bare "d", as in "<<Method>b__0>d". The closing
+    // bracket is what tells this from a type that merely ends in the letter d.
+    else if (!hasOrdinal && type.size() >= 2 && type.back() == 'd' && type[type.size() - 2] == '>')
+    {
+        type.remove_suffix(1);
+    }
+    else
     {
         return false;
     }
-
-    type.remove_suffix(StateMachineInfix.size());
 
     // What is left is "Prefix.<Method>", where Method may itself contain angle brackets
     // when the async method is a local function.
