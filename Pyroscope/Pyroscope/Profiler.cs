@@ -209,16 +209,17 @@ namespace Pyroscope
         {
             var status = new ProfilerStatus();
             var contextTracker = new ContextTracker(status);
+            var asyncProfiling = IsEnabled("PYROSCOPE_ASYNC_PROFILING_ENABLED");
             var profilingContext = new ProfilingContext(
                 new NativeProfilingContextSink(contextTracker),
-                stitchingEnabled: IsEnabled("PYROSCOPE_ASYNC_STITCHING_ENABLED"),
-                propagationEnabled: IsEnabled("PYROSCOPE_ASYNC_CONTEXT_PROPAGATION_ENABLED"));
+                stitchingEnabled: asyncProfiling,
+                propagationEnabled: asyncProfiling);
             return new Profiler(status, contextTracker, profilingContext);
         }
 
-        // The same switches the native side reads, so one environment variable turns each
-        // feature on end to end. Both are off unless asked for, and an unrecognised value
-        // counts as off, which matches how the native side reads them.
+        // The same switch the native side reads, so one environment variable turns async
+        // profiling on end to end. It is off unless asked for, and an unrecognised value counts
+        // as off, which matches how the native side reads it.
         private static bool IsEnabled(string variable)
         {
             var value = EnvironmentHelpers.GetEnvironmentVariable(variable);

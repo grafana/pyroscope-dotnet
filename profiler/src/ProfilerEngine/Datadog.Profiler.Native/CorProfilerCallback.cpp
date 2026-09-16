@@ -200,16 +200,16 @@ void CorProfilerCallback::InitializeServices()
         _pCorProfilerInfo, _pConfiguration.get(), _pDebugInfoStore.get(), _managedCodeCache.get());
 
     // Holds the logical async scope chains managed code pushes; a null store means async
-    // stack stitching was not asked for and samples keep only their physical frames.
-    if (_pConfiguration->IsAsyncStitchingEnabled())
+    // profiling was not asked for and samples keep only their physical frames.
+    if (_pConfiguration->IsAsyncProfilingEnabled())
     {
         _pAsyncScopeStore = std::make_unique<AsyncScopeStore>();
     }
 
     // Interned label sets, so that re-applying labels on an `await` continuation costs one Tags
     // assignment instead of a locking round trip per key. A null store means labels stay on the
-    // thread that set them.
-    if (_pConfiguration->IsAsyncContextPropagationEnabled())
+    // thread that set them, as they do while async profiling is off.
+    if (_pConfiguration->IsAsyncProfilingEnabled())
     {
         _pDynamicTagSetStore = std::make_unique<DynamicTagSetStore>();
     }

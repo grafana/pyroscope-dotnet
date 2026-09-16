@@ -98,7 +98,7 @@ func TestAsyncFrameCleanupDisabled(t *testing.T) {
 
 	appName := fmt.Sprintf("rideshare.async-frame-cleanup-off.%d", time.Now().UnixNano())
 	pyroscopeURL, appBaseURL := startAsyncStitchingApp(t, appName, map[string]string{
-		"PYROSCOPE_ASYNC_FRAME_CLEANUP_ENABLED": "false",
+		"PYROSCOPE_ASYNC_PROFILING_ENABLED": "false",
 	})
 
 	runAsyncOrderLoadGenerator(ctx, t, appBaseURL)

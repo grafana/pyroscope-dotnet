@@ -7,7 +7,7 @@ namespace Pyroscope
     /// endpoint instead of under a thread-pool dispatch root. Scopes nest. See the README
     /// for examples.
     ///
-    /// This works in conjunction with the PYROSCOPE_ASYNC_STITCHING_ENABLED environment
+    /// This works in conjunction with the PYROSCOPE_ASYNC_PROFILING_ENABLED environment
     /// variable, which is off unless set: until it is on, pushing a scope has no effect.
     public readonly struct AsyncScope : IDisposable
     {

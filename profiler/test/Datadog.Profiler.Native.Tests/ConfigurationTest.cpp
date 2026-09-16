@@ -1668,51 +1668,30 @@ TEST_F(ConfigurationTest, CheckReferenceTreeFormatFallsBackToBinaryWhenEnvVarSet
 }
 
 
-TEST_F(ConfigurationTest, CheckAsyncFrameCleanupIsDisabledWhenEnvVariableIsNotSet)
+TEST_F(ConfigurationTest, CheckAsyncProfilingIsDisabledWhenEnvVariableIsNotSet)
 {
-    unsetenv(EnvironmentVariables::AsyncFrameCleanupEnabled);
+    unsetenv(EnvironmentVariables::AsyncProfilingEnabled);
     auto configuration = Configuration{};
-    ASSERT_FALSE(configuration.IsAsyncFrameCleanupEnabled());
+    ASSERT_FALSE(configuration.IsAsyncProfilingEnabled());
 }
 
-TEST_F(ConfigurationTest, CheckAsyncFrameCleanupIsEnabledWhenEnvVariableIsSetToTrue)
+TEST_F(ConfigurationTest, CheckAsyncProfilingIsEnabledWhenEnvVariableIsSetToTrue)
 {
-    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::AsyncFrameCleanupEnabled, WStr("1"));
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::AsyncProfilingEnabled, WStr("1"));
     auto configuration = Configuration{};
-    ASSERT_TRUE(configuration.IsAsyncFrameCleanupEnabled());
+    ASSERT_TRUE(configuration.IsAsyncProfilingEnabled());
 }
 
-TEST_F(ConfigurationTest, CheckAsyncFrameCleanupIsDisabledWhenEnvVariableIsNotAValidBoolean)
+TEST_F(ConfigurationTest, CheckAsyncProfilingIsDisabledWhenEnvVariableIsSetToFalse)
 {
-    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::AsyncFrameCleanupEnabled, WStr("maybe"));
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::AsyncProfilingEnabled, WStr("0"));
     auto configuration = Configuration{};
-    ASSERT_FALSE(configuration.IsAsyncFrameCleanupEnabled());
+    ASSERT_FALSE(configuration.IsAsyncProfilingEnabled());
 }
 
-TEST_F(ConfigurationTest, CheckAsyncStitchingIsDisabledWhenEnvVariableIsNotSet)
+TEST_F(ConfigurationTest, CheckAsyncProfilingIsDisabledWhenEnvVariableIsNotAValidBoolean)
 {
-    unsetenv(EnvironmentVariables::AsyncStitchingEnabled);
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::AsyncProfilingEnabled, WStr("maybe"));
     auto configuration = Configuration{};
-    ASSERT_FALSE(configuration.IsAsyncStitchingEnabled());
-}
-
-TEST_F(ConfigurationTest, CheckAsyncStitchingIsEnabledWhenEnvVariableIsSetToTrue)
-{
-    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::AsyncStitchingEnabled, WStr("1"));
-    auto configuration = Configuration{};
-    ASSERT_TRUE(configuration.IsAsyncStitchingEnabled());
-}
-
-TEST_F(ConfigurationTest, CheckAsyncContextPropagationIsDisabledWhenEnvVariableIsNotSet)
-{
-    unsetenv(EnvironmentVariables::AsyncContextPropagationEnabled);
-    auto configuration = Configuration{};
-    ASSERT_FALSE(configuration.IsAsyncContextPropagationEnabled());
-}
-
-TEST_F(ConfigurationTest, CheckAsyncContextPropagationIsEnabledWhenEnvVariableIsSetToTrue)
-{
-    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::AsyncContextPropagationEnabled, WStr("1"));
-    auto configuration = Configuration{};
-    ASSERT_TRUE(configuration.IsAsyncContextPropagationEnabled());
+    ASSERT_FALSE(configuration.IsAsyncProfilingEnabled());
 }

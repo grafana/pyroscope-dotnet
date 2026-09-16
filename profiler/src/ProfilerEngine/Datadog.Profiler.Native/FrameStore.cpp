@@ -25,7 +25,7 @@ FrameStore::FrameStore(ICorProfilerInfo4* pCorProfilerInfo,
     _pDebugInfoStore{debugInfoStore},
     // A null configuration is part of this class's contract (see FrameStoreTest): the
     // fake-IP path needs no configuration at all, and no configuration means no cleanup.
-    _isAsyncFrameCleanupEnabled{pConfiguration != nullptr && pConfiguration->IsAsyncFrameCleanupEnabled()},
+    _isAsyncFrameCleanupEnabled{pConfiguration != nullptr && pConfiguration->IsAsyncProfilingEnabled()},
     _pManagedCodeCache{pManagedCodeCache},
     _cachedItemsSize(0)
 {

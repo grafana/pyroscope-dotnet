@@ -103,12 +103,10 @@ public:
     virtual bool UseManagedCodeCache() const = 0;
     virtual bool IsMemoryFootprintEnabled() const = 0;
     virtual bool IsAllocationTypeLeafEnabled() const = 0;
-    virtual bool IsAsyncStitchingEnabled() const = 0;
-
-    // Drops the async/await machinery from sampled stacks and merges an async method's
-    // kickoff frame into its state machine body. See AsyncFrameKind.
-    virtual bool IsAsyncFrameCleanupEnabled() const = 0;
-
-    virtual bool IsAsyncContextPropagationEnabled() const = 0;
+    // Turns on the three halves of async profiling together: the logical scope chain samples
+    // are re-rooted under (AsyncScopeStore), the labels and span identity that follow an async
+    // flow (DynamicTagSetStore), and dropping the async/await machinery from sampled stacks
+    // (AsyncFrameKind). See docs/async-context-propagation.md.
+    virtual bool IsAsyncProfilingEnabled() const = 0;
     virtual uint32_t GetReferenceTreeFormat() const = 0;
 };

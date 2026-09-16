@@ -18,10 +18,10 @@ public class PyroscopeSpanProcessor : BaseProcessor<Activity>
     {
     }
 
-    /// When stitchAsyncStacks is true (the default) and PYROSCOPE_ASYNC_STITCHING_ENABLED is set,
+    /// When stitchAsyncStacks is true (the default) and PYROSCOPE_ASYNC_PROFILING_ENABLED is set,
     /// each span also opens a Pyroscope async scope named after the span, so samples taken from
     /// the span's `await` continuations are attributed back to it. Pass false to opt this
-    /// processor out even where stitching is enabled process-wide.
+    /// processor out even where async profiling is enabled process-wide.
     public PyroscopeSpanProcessor(bool stitchAsyncStacks)
     {
         _stitchAsyncStacks = stitchAsyncStacks;

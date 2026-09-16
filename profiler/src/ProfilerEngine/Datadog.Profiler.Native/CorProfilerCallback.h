@@ -228,9 +228,9 @@ public:
     IManagedThreadList* GetCodeHotspotThreadList() { return _pCodeHotspotsThreadList; }
     //IStackSamplerLoopManager* GetStackSamplerLoopManager() { return _pStackSamplerLoopManager; }
     IApplicationStore* GetApplicationStore() { return _pApplicationStore; }
-    // null unless async stack stitching was asked for (PYROSCOPE_ASYNC_STITCHING_ENABLED)
+    // null unless async profiling was asked for (PYROSCOPE_ASYNC_PROFILING_ENABLED)
     AsyncScopeStore* GetAsyncScopeStore() { return _pAsyncScopeStore.get(); }
-    // null unless context propagation was asked for (PYROSCOPE_ASYNC_CONTEXT_PROPAGATION_ENABLED)
+    // null unless async profiling was asked for (PYROSCOPE_ASYNC_PROFILING_ENABLED)
     DynamicTagSetStore* GetDynamicTagSetStore() { return _pDynamicTagSetStore.get(); }
     IExporter* GetExporter() { return _pExporter.get(); }
     SamplesCollector* GetSamplesCollector() { return _pSamplesCollector; }

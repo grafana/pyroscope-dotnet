@@ -361,8 +361,8 @@ public class ProfilingContextTests
         var before = profiler.PublishCount;
         context.PushLabels(labels);
 
-        // Three notifying AsyncLocals fire on every ExecutionContext switch. The per-thread cache
-        // is what stops that from costing three writes: nothing changed, so nothing is written.
+        // The per-thread cache is what keeps a republish off the sink: nothing changed, so
+        // nothing is written.
         Assert.That(profiler.PublishCount - before, Is.Zero);
     }
 

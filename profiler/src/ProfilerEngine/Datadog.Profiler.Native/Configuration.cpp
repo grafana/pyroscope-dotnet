@@ -165,11 +165,9 @@ Configuration::Configuration()
     _useManagedCodeCache = GetEnvironmentValue(EnvironmentVariables::UseManagedCodeCache, defaultUseManagedCodeCache);
     _isMemoryFootprintEnabled = GetEnvironmentValue(EnvironmentVariables::MemoryFootprintEnabled, false);
     _isAllocationTypeLeafEnabled = GetEnvironmentValue(EnvironmentVariables::AllocationTypeLeafEnabled, false);
-    // Opt-in: the async features change how stacks and labels are reported, so an existing
+    // Opt-in: async profiling changes how stacks and labels are reported, so an existing
     // deployment keeps the profiles it had until it asks for them.
-    _isAsyncStitchingEnabled = GetEnvironmentValue(EnvironmentVariables::AsyncStitchingEnabled, false);
-    _isAsyncContextPropagationEnabled = GetEnvironmentValue(EnvironmentVariables::AsyncContextPropagationEnabled, false);
-    _isAsyncFrameCleanupEnabled = GetEnvironmentValue(EnvironmentVariables::AsyncFrameCleanupEnabled, false);
+    _isAsyncProfilingEnabled = GetEnvironmentValue(EnvironmentVariables::AsyncProfilingEnabled, false);
 
     _referenceTreeFormat = ExtractReferenceTreeFormat();
 }
@@ -377,19 +375,9 @@ bool Configuration::IsAllocationTypeLeafEnabled() const
     return _isAllocationTypeLeafEnabled;
 }
 
-bool Configuration::IsAsyncStitchingEnabled() const
+bool Configuration::IsAsyncProfilingEnabled() const
 {
-    return _isAsyncStitchingEnabled;
-}
-
-bool Configuration::IsAsyncFrameCleanupEnabled() const
-{
-    return _isAsyncFrameCleanupEnabled;
-}
-
-bool Configuration::IsAsyncContextPropagationEnabled() const
-{
-    return _isAsyncContextPropagationEnabled;
+    return _isAsyncProfilingEnabled;
 }
 
 uint32_t Configuration::GetReferenceTreeFormat() const

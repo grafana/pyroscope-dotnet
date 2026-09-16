@@ -2,9 +2,9 @@ namespace Pyroscope;
 
 /// Runs work with a LabelSet attached to the profiler's samples.
 ///
-/// With PYROSCOPE_ASYNC_CONTEXT_PROPAGATION_ENABLED set, the labels follow the work across
-/// `await` and a thread stops advertising them once the flow leaves it. While it is off they
-/// cover the thread that set them, up to its first `await`.
+/// With PYROSCOPE_ASYNC_PROFILING_ENABLED set, the labels follow the work across `await` and a
+/// thread stops advertising them once the flow leaves it. While it is off they cover the thread
+/// that set them, up to its first `await`.
 ///
 /// Use the Task-returning overloads, or Push, for async work: the Action overloads restore the
 /// labels as soon as the delegate returns, which for an async lambda would be at its first

@@ -34,7 +34,7 @@ builder.Services.AddOpenTelemetry()
 
 ## Async stack stitching
 
-With `PYROSCOPE_ASYNC_STITCHING_ENABLED=true`, `PyroscopeSpanProcessor` also opens a [Pyroscope
+With `PYROSCOPE_ASYNC_PROFILING_ENABLED=true`, `PyroscopeSpanProcessor` also opens a [Pyroscope
 async scope](https://github.com/grafana/pyroscope-dotnet) per span, named after the span. The
 switch is off by default, and the processor reports physical stacks only until it is set.
 
@@ -46,9 +46,8 @@ thread-pool dispatch roots. A span scope rides the `ExecutionContext`, which the
 flamegraph nests a request's work under the request, and inclusive time per endpoint covers
 the whole request rather than only the part before its first `await`.
 
-Set `PYROSCOPE_ASYNC_CONTEXT_PROPAGATION_ENABLED=true` as well and the span identity itself
-follows the async flow, so a span's `await` continuations are attributed to it rather than only
-its synchronous prologue.
+The same switch makes the span identity itself follow the async flow, so a span's `await`
+continuations are attributed to it rather than only its synchronous prologue.
 
-To keep span profiles but leave the stacks alone even where stitching is enabled process-wide,
-construct the processor with `new PyroscopeSpanProcessor(stitchAsyncStacks: false)`.
+To keep span profiles but leave the stacks alone even where async profiling is enabled
+process-wide, construct the processor with `new PyroscopeSpanProcessor(stitchAsyncStacks: false)`.

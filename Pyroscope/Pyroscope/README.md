@@ -16,8 +16,8 @@ operation completes, the continuation resumes on a thread-pool thread rooted at
 async-heavy service the work an endpoint caused does not nest under the endpoint, and its
 inclusive time counts only the part before the first `await`.
 
-Stitching is opt-in. Set `PYROSCOPE_ASYNC_STITCHING_ENABLED=true` to turn it on; while it is
-off, pushing a scope costs nothing and the profiler reports physical stacks only.
+Async profiling is opt-in. Set `PYROSCOPE_ASYNC_PROFILING_ENABLED=true` to turn it on; while it
+is off, pushing a scope costs nothing and the profiler reports physical stacks only.
 
 With it on, wrap the work in a scope to get the relationship back:
 
@@ -49,9 +49,9 @@ Dynamic labels are attached per thread, so by default labels set by a request st
 thread that set them goes back to the pool still carrying them and mislabels whatever it picks
 up next.
 
-Set `PYROSCOPE_ASYNC_CONTEXT_PROPAGATION_ENABLED=true` and labels follow the work instead, on the
-same `ExecutionContext` that carries them across an `await`, and are taken off a thread when the
-flow leaves it.
+Set `PYROSCOPE_ASYNC_PROFILING_ENABLED=true` — the same switch as above — and labels follow the
+work instead, on the same `ExecutionContext` that carries them across an `await`, and are taken
+off a thread when the flow leaves it.
 
 Use the `Task`-returning overloads for async work:
 
@@ -73,7 +73,7 @@ using (Pyroscope.LabelsWrapper.Push(labels))
 
 An `async` lambda binds to the `Task`-returning overload, so `Do` no longer silently becomes
 `async void` — previously that ended the label scope at the first `await` and swallowed exceptions.
-That holds whether or not propagation is enabled.
+That holds whether or not async profiling is enabled.
 
-With propagation on, span context set through `Profiler.Instance.SetSpanContext` follows the async
+With the switch on, span context set through `Profiler.Instance.SetSpanContext` follows the async
 flow the same way, so span profiles cover a whole request rather than its synchronous prologue.

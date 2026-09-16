@@ -105,7 +105,5 @@ public:
     inline static const shared::WSTRING UseManagedCodeCache         = WStr("DD_INTERNAL_PROFILING_USE_MANAGED_CODE_CACHE");
 
     inline static const shared::WSTRING AllocationTypeLeafEnabled   = WStr("PYROSCOPE_ALLOCATION_TYPE_LEAF_ENABLED");
-    inline static const shared::WSTRING AsyncStitchingEnabled       = WStr("PYROSCOPE_ASYNC_STITCHING_ENABLED");
-    inline static const shared::WSTRING AsyncContextPropagationEnabled = WStr("PYROSCOPE_ASYNC_CONTEXT_PROPAGATION_ENABLED");
-    inline static const shared::WSTRING AsyncFrameCleanupEnabled     = WStr("PYROSCOPE_ASYNC_FRAME_CLEANUP_ENABLED");
+    inline static const shared::WSTRING AsyncProfilingEnabled       = WStr("PYROSCOPE_ASYNC_PROFILING_ENABLED");
 };
