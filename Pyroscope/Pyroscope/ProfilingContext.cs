@@ -356,6 +356,11 @@ namespace Pyroscope
 
                 t_owner = this;
             }
+
+            // Catch everything, and do not narrow this. The CLR wraps the whole AsyncLocal
+            // change-notification fan-out in a try/catch that ends in Environment.FailFast
+            // (ExecutionContext.OnValuesChanged), so an exception escaping this handler does
+            // not degrade the feature -- it takes the process down with it.
             catch (Exception ex)
             {
                 ReportSinkFailure(ex);

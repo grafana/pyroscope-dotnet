@@ -42,10 +42,13 @@ afterwards. The handler publishes the whole context into the sampled thread's sl
 half is what stops unrelated work from inheriting it.
 
 One local rather than one per piece of context, for two reasons. It is 2.6x cheaper (see
-below), because the CLR fires a notification per notifying local on every switch. And an
-immutable snapshot makes closing scopes order-independent: each `Dispose` puts back its own
-field and leaves the others alone, so ending a span inside an open label scope cannot drop the
-labels — which a "restore the whole previous value" design would.
+below): on every context switch the CLR walks the notifying-local array of both the outgoing
+and the incoming context, probes both value maps for each entry, and invokes the handler only
+for those whose value actually changed. Three locals therefore pay three walks, six map probes
+and — for a flow that set all three — three callbacks, where one local pays one, two and one.
+And an immutable snapshot makes closing scopes order-independent: each `Dispose` puts back its
+own field and leaves the others alone, so ending a span inside an open label scope cannot drop
+the labels — which a "restore the whole previous value" design would.
 
 A per-thread cache of what was last published keeps the sink call itself off most switches,
 and mutations (`PushScope`, `PushLabels`, `PushSpan`) publish explicitly rather than relying on
@@ -125,12 +128,21 @@ takes the maximum stack depth from 1000 to 94 — the 1000 was a `Task.RunContin
 1024-frame `Callstack` budget and so costs the *outermost* frames, the stitched scope frame
 among them.
 
-One thing to know if you extend the marker list: a builder for a `Task<T>`-returning method is
+Two things to know if you extend the marker list. A builder for a `Task<T>`-returning method is
 generic, so its frame reads `AsyncTaskMethodBuilder<T>.Start<…>` — the generic arguments sit
 between the type name and the method. Markers therefore match the type name without a
 trailing `.`; requiring one silently missed every `Task<T>` builder, `TaskAwaiter<T>` and the
 pooled `ValueTask` builder, which is what `async_frame_cleanup_test.go` caught and the unit
 tests did not.
+
+And the markers only apply inside the runtime's own assembly — `System.Private.CoreLib`, or
+`mscorlib` on .NET Framework. They are substring matches, so unqualified they would drop
+application code: a type named `TaskContinuationHelper` matches `TaskContinuation`, and
+`TryExecuteTaskInline` and `TryRunInline` are methods a user writes when implementing a custom
+`TaskScheduler`. A frame whose assembly could not be resolved is treated as application code,
+because a dropped frame leaves no trace of having been dropped. The state machine parse is
+deliberately *not* gated: a state machine belongs to the assembly that declared the async
+method, so gating it would disable the kickoff fold for every async method a user writes.
 
 What it deliberately does not do:
 
@@ -186,11 +198,19 @@ async — which costs **4.3 `ExecutionContext` switches per await**:
 | a local per piece of context, no dedupe | 399 | +384 | +1,661 ns |
 
 The last two rows are why the three pieces of context share one `AsyncLocal` and one
-per-thread cache: a local each would have cost 2.6x as much, since the CLR fires a
-notification per notifying local on every switch. The native library measured here is a
-Debug `-O0` build, so the P/Invoke is pessimistic. Only flows that actually open a scope or
-set labels pay any of this: an `ExecutionContext` with no notifying `AsyncLocal` in it costs
-the runtime nothing at a switch.
+per-thread cache. On each switch the CLR walks the notifying locals of both the outgoing and
+the incoming `ExecutionContext`, probing both value maps per entry, and calls back only where
+the value changed by reference (`ExecutionContext.OnValuesChanged`); a local each therefore
+multiplies the walk, the probes and — for a flow that sets all three — the callbacks. The
+native library measured here is a Debug `-O0` build, so the P/Invoke is pessimistic. Only
+flows that actually open a scope or set labels pay any of this: an `ExecutionContext` with no
+notifying `AsyncLocal` in it costs the runtime nothing at a switch.
+
+Two properties of that channel are load-bearing rather than incidental. A handler that throws
+reaches `Environment.FailFast`, which is why `Publish` catches everything and latches instead
+of letting anything escape. And notifying locals are a process-global tax in both directions:
+any other component that registers one makes every switch walk its array too, and ours does
+the same to everyone else.
 
 For scale, the TPL-event approach below costs +1,560 ns per await at minimum and +10,016 ns
 with the keywords that make it usable — and those figures exclude stack capture. At 400 ns
@@ -234,9 +254,16 @@ of `AwaitUnsafeOnCompleted`, and the fork deleted the tracer, so there is no IL 
 infrastructure here. It also needs the box's identity at sample time, which an
 instruction-pointer stack walk does not give.
 
-**Walking `Task.m_continuationObject` at sample time.** Reads managed object fields from a
-`SIGUSR1` handler on Linux (`LinuxStackFramesCollector`), while the GC may be moving those
-objects, using field layouts that are runtime-internal.
+**Walking `Task.m_continuationObject`.** At *sample* time this is unsafe: it reads managed
+object fields from a `SIGUSR1` handler on Linux (`LinuxStackFramesCollector`), while the GC may
+be moving those objects, using field layouts that are runtime-internal.
+
+At *checkpoint* time it is safe, and it is what the platform itself now does — .NET 12's
+`AsyncProfiler` walks the continuation chain from managed code inside `InstrumentedMoveNext`,
+emitting one frame per logical caller. So the approach is not inherently unsafe; it is simply
+unavailable here. It needs a hook at the `await`, which means IL rewriting the fork no longer
+has, and the managed entry points (`IAsyncStateMachineBox.GetDiagnosticData`,
+`AsyncInstrumentation`) are `internal` and .NET 12+.
 
 Scopes give up the intermediate `A -> B -> C` frames — the thread-pool dispatch frames sit
 between the scope and the work instead — and in exchange they are safe, cost one integer
@@ -244,6 +271,108 @@ P/Invoke per continuation, and deliver what the fragmentation actually broke: in
 per entry point, a stable rooted depth, and a per-endpoint drill-down. Fidelity scales with
 annotation density, and OpenTelemetry instrumentation supplies it for free at span
 granularity.
+
+## How this compares to the rest of the ecosystem
+
+Researched against `dotnet/dotnet` `main` (.NET 12 alpha, per `src/runtime/eng/Versions.props`)
+and `microsoft/perfview` `main`.
+
+**The platform gives an ICorProfiler nothing.** `corprof.idl` has no async awareness — its only
+"async" tokens are the dead .NET Remoting callbacks. `DoStackSnapshot` walks the physical stack
+and that is the whole contract. .NET 12's logical async stack is exposed to EventPipe, to
+exception traces and to the debugger, and explicitly not to a profiler: the only runtime-async
+change on the profiling side is a guard returning `CORPROF_E_DATAINCOMPLETE` for continuation
+types, whose `MethodTable`s have no metadata. `dotnet/runtime#14434`, asking for an API to
+reason about async call stacks, has been open since 2015.
+
+**The runtime's own sampler has the problem this document fixes.** The EventPipe sample
+profiler is stop-the-world, IP-only and physical-stack, with a 100-frame cap that truncates the
+*outermost* frames silently. Its `ThreadSample` events carry an all-zero ActivityID, because
+`ep_write_sample_profile_event` bypasses the path that would fill it — so the one hook that
+could have given its samples a logical async correlation is unused.
+
+**Name matching is what the reference implementation does too.** PerfView identifies async
+plumbing with hardcoded name matches — `ExecutionContext.Run`, `Task.Execute`, `.InnerInvoke`,
+`AsyncTaskMethodBuilder…AwaitUnsafeOnCompleted` (`ActivityComputer.cs:1226-1286`) — and it
+*requires symbols* to do it, carrying two `// TODO FIX NOW fix if you don't have symbols`
+comments at its classification sites. It also scopes matching to
+mscorlib/System.Private.CoreLib, which is why `AsyncFrames::Classify` takes the declaring
+assembly. Upstream has since hardened these frame names deliberately
+(`dotnet/runtime#131963`) precisely because stitchers depend on them.
+
+**The TPL route is worse than we measured, and has a coverage hole.** Our figures were +26% CPU
+at the minimum useful keyword set and +157% with the causality keywords. Microsoft's own numbers
+for the same mechanism are >75% throughput loss at 1M async transitions/sec and ~45% at 100K/sec
+(`dotnet/runtime#127238`, the PR replacing it). Separately, `IValueTaskSource`-backed `ValueTask`
+awaits emit **no** TPL events, so pooled/Pipelines/Channels-heavy code is invisible to that
+approach entirely. Note also that PerfView's TPL collection has been opt-in since 2021, so a
+default PerfView or `dotnet-trace` capture yields no stitching at all even though the
+`ActivityComputer` machinery is present and enabled.
+
+**Do not drive the drop list from `[StackTraceHidden]`.** It is calibrated for exception traces,
+where the compiler's `try/catch` inside `MoveNext` stops capture before
+`ExecutionContext.RunInternal`, `Task.ExecuteEntry` and `ThreadPoolWorkQueue.Dispatch` ever
+appear — so it omits most of what a sampler sees, and `AsyncMethodBuilderCore` carries no such
+attribute. It also misses frames hidden by the separate `AggressiveInlining` predicate
+(`StackTrace.cs:379-386`), such as `ValueTaskAwaiter.GetResult` and
+`AsyncTaskMethodBuilder<T>.Start`. .NET solves the two halves of this with two independent
+mechanisms — `[StackTraceHidden]` for the noise, `TryResolveStateMachineMethod` for the mangled
+names — which is the same decomposition as the two rules above.
+
+We also do not need the `MethodImplAttributes.Async` short-circuit upstream uses
+(`StackTrace.cs:240`). That guard exists because its state-machine detection is *type*-based
+(`[CompilerGenerated]` plus `IAsyncStateMachine`), which a runtime-async method can satisfy.
+Ours keys on the name shape — `.MoveNext` on a type ending `d__<digits>` — which runtime async
+never produces.
+
+**Where this sits among other profilers.** Async stack stitching exists in three families:
+TPL-event causality (PerfView/TraceEvent, and therefore `dotnet-trace convert`; JetBrains
+dotTrace in Timeline mode), `MoveNext` re-parenting by an instrumenting agent (Redgate ANTS, the
+Visual Studio Instrumentation tool), and continuation-graph walking in break/dump mode (the
+Visual Studio debugger, SOS `dumpasync`). Among *continuous* profilers the only product
+documenting it is Azure Application Insights Profiler, which inherits PerfView's machinery, runs
+in triggered bursts rather than continuously, and documents 5–15% CPU and memory overhead.
+Dynatrace has a .NET CPU profiler with no async handling documented; Instana lists .NET Core as
+CPU-usage-only while giving Node.js async call profiles; Sentry's .NET profiler has the TPL
+provider commented out. What vendors normally mean by "async support" is context propagation for
+tags and spans, not a reconstructed stack.
+
+Worth treating as a target rather than a boast: **nobody ships correct inclusive time under an
+async entry point.** dotTrace deliberately greys out continuation and await time and excludes it
+from the parent's total; ANTS warns its wallclock totals can exceed real elapsed time; PerfView
+charges creator-side but fills gaps with `UNKNOWN_ASYNC`.
+
+**This design extends the upstream mechanism rather than departing from it.** The tracer this
+fork descends from already creates `new AsyncLocal<Scope>(OnScopeChanged)`, and only when the
+profiler's context tracker is enabled (`tracer/src/Datadog.Trace/AsyncLocalScopeManager.cs`
+upstream). It carries the active span and nothing else. `ProfilingContext` widens that same
+channel to a snapshot of scope, labels and span, and then uses it to fix stacks rather than only
+tags. Upstream's profiler has no async frame handling at all.
+
+## Known limitation: causality is a graph, not a list
+
+`Task.WhenAll` and `WhenAny` fork and join, so a continuation can have several logical parents
+while a scope chain is a list and records one. This is inherent to every stitcher rather than
+specific to this implementation — the TPL mechanism has the same problem, since only the last
+task to complete forms the chain. Scopes degrade predictably: the work is attributed to the
+enclosing scope that was current when the continuation resumed.
+
+## Forward risk: runtime async
+
+- `AsyncStateMachineBox` and `AsyncMethodBuilderCore` stop matching for runtime-async methods.
+  Not wrong, just inert. `DispatchContinuations`, `AsyncStateMachineDispatcher`,
+  `InstrumentedMoveNext` and `MoveNextAsDispatcher` are in the marker list for this reason; the
+  32 `Continuation_Wrapper_N` frames are covered by the existing `ContinuationWrapper` marker.
+- The kickoff fold stops firing: a runtime-async method is a real method with a real name, so
+  there is no `<Method>d__N.MoveNext` pair to collapse. Nothing to do — the fold has no work.
+- **Re-measure the +400 ns per await.** `DispatchContinuations` restores the `ExecutionContext`
+  per resumed continuation rather than once per work item, so the table above will not carry
+  over.
+- `AsyncProfilerEventSource` is worth watching as a future source of real per-await frames — the
+  runtime reconstructs a whole async stack from one event at about 5 ns per resume, against the
+  TPL figures above. Consuming it means an EventPipe consumer alongside the profiling API, its
+  wire format is explicitly "internal and can be changed without notice", and it has no consumer
+  tooling in `dotnet/diagnostics` yet.
 
 ## Verification
 
