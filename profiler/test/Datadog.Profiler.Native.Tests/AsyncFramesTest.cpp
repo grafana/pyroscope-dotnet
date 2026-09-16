@@ -122,21 +122,16 @@ TEST(AsyncFramesTest, TheInlineCompletionUnwindIsRuntimePlumbing)
 
 TEST(AsyncFramesTest, TheDelegateInvocationAndScheduleHelpersAreRuntimePlumbing)
 {
-    // Both sit between the pool's dispatch and the work it is delivering. PerfView removes
-    // them too: InnerInvoke as a TaskRunHelper, ScheduleAndStart as a TaskScheduleHelper
-    // (ActivityComputer.cs:1265-1278). InnerInvoke is also on the runtime-async resume path,
-    // between Task.ExecuteWithThreadLocal and the delegate itself.
+    // Both sit between the pool's dispatch and the work it is delivering. InnerInvoke is also
+    // on the runtime-async resume path, between Task.ExecuteWithThreadLocal and the delegate.
     EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading.Tasks!Task.InnerInvoke", CoreLib));
     EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading.Tasks!Task.ScheduleAndStart", CoreLib));
 }
 
 // .NET 12's runtime async replaces the compiler's state machine with runtime-managed
 // continuations, so AsyncStateMachineBox and AsyncMethodBuilderCore never match for a
-// runtime-async method and these take their place. All are [StackTraceHidden] upstream:
-// dotnet/runtime#131963 marked them precisely because stitchers -- ours included -- identify
-// them by name, and nothing had guarded that contract. Listing them costs nothing on today's
-// runtimes, where the frames never occur; the point is that the cleanup does not silently do
-// less once runtime async ships.
+// runtime-async method and these take their place. Listing them costs nothing on today's
+// runtimes, where the frames never occur.
 TEST(AsyncFramesTest, TheRuntimeAsyncMachineryIsRuntimePlumbing)
 {
     // The flat resume loop: it pops one continuation, resumes it and loops, so only ever one

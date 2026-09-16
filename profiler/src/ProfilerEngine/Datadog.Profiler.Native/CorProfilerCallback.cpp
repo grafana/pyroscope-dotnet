@@ -206,9 +206,9 @@ void CorProfilerCallback::InitializeServices()
         _pAsyncScopeStore = std::make_unique<AsyncScopeStore>();
     }
 
-    // Interned label sets, so that re-applying labels on an `await` continuation costs one
-    // Tags assignment instead of a locking round trip per key. A null store means labels
-    // stay on the thread that set them, as they did before propagation existed.
+    // Interned label sets, so that re-applying labels on an `await` continuation costs one Tags
+    // assignment instead of a locking round trip per key. A null store means labels stay on the
+    // thread that set them.
     if (_pConfiguration->IsAsyncContextPropagationEnabled())
     {
         _pDynamicTagSetStore = std::make_unique<DynamicTagSetStore>();
@@ -279,11 +279,9 @@ void CorProfilerCallback::InitializeServices()
             return _pDynamicTagSetStore == nullptr ? 0.0 : static_cast<double>(_pDynamicTagSetStore->GetMemorySize());
         });
 
-        // Stitch coverage, so "is async stitching working in this deployment?" is a dashboard
-        // line rather than a flamegraph inspection. Measuring time under a scope frame is the
-        // intended signal for how well it works; these say whether it ran at all. The stale
-        // counter rising means the scope store is too small for the application's scope count,
-        // which is otherwise indistinguishable from having no scopes.
+        // Stitch coverage: whether stitching ran at all, without having to inspect a flamegraph.
+        // The stale counter rising means the scope store is too small for the application's
+        // scope count, which is otherwise indistinguishable from having no scopes.
         _metricsRegistry.GetOrRegister<ProxyMetric>("dotnet_async_stitching_samples_total", [this]() {
             return _rawSampleTransformer == nullptr
                 ? 0.0

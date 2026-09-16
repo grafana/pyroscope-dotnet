@@ -3,16 +3,9 @@ using NUnit.Framework;
 
 namespace Pyroscope.OpenTelemetry.Tests;
 
-/// <summary>
-/// The bridge is what makes async stack stitching free for an OpenTelemetry-instrumented
-/// application: each span opens a Pyroscope async scope named after it, so the profiler
-/// can put the span back on top of the samples its `await` continuations produce.
-///
-/// These tests drive the processor directly rather than through the OpenTelemetry SDK --
-/// what matters here is which scopes a span's start and end leave behind. There is no
-/// native profiler in this process, so scope ids are all zero; the scope *chain* is still
-/// tracked, and that is what is asserted.
-/// </summary>
+// Which scopes a span's start and end leave behind. The processor is driven directly rather than
+// through the OpenTelemetry SDK; there is no native profiler in this process, so scope ids are all
+// zero and the assertions are on the scope chain.
 [TestFixture]
 public class PyroscopeSpanProcessorAsyncScopeTests
 {

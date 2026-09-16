@@ -251,8 +251,7 @@ FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId)
     std::string managedFrame = FormatFrame(pTypeDesc->Namespace, pTypeDesc->Type, pTypeDesc->Parameters, methodName, methodGenericParameters);
 
     // An async method's body is called "Class.<Method>d__4.MoveNext"; renaming it to
-    // "Class.Method" is what lets it merge with the kickoff frame the compiler generated
-    // alongside it instead of stacking as a near-duplicate pair.
+    // "Class.Method" lets it merge with the kickoff frame the compiler generated alongside it.
     auto asyncKind = AsyncFrameKind::UserCode;
     if (_isAsyncFrameCleanupEnabled)
     {

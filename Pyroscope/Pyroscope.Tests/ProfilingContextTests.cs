@@ -2,14 +2,9 @@ using NUnit.Framework;
 
 namespace Pyroscope.Tests;
 
-/// <summary>
-/// The propagation itself: whether the async scope, labels and span a request set are published
-/// to the profiler's per-thread slots on the threads that actually run the request's <c>await</c>
-/// continuations, and taken back off those threads afterwards.
-///
-/// <see cref="FakeProfiler"/> stands in for the native profiler and records what each thread's
-/// slots hold, which is exactly what the sampler would read.
-/// </summary>
+// Whether the async scope, labels and span a request set are published to the profiler's
+// per-thread slots on the threads that run the request's `await` continuations, and taken back
+// off those threads afterwards.
 [TestFixture]
 public class ProfilingContextTests
 {
@@ -241,10 +236,8 @@ public class ProfilingContextTests
     {
         var ran = false;
 
-        // This is a compile-time assertion as much as a runtime one: if the async lambda bound to
-        // the Action overload -- which is what happened before the Task overloads existed -- Do
-        // would return void, this would not compile, and at runtime the label scope would have
-        // ended at the first await while the work carried on.
+        // A compile-time assertion as much as a runtime one: if the async lambda bound to the
+        // Action overload, Do would return void and this would not compile.
         Task returned = LabelsWrapper.Do(Set(("vehicle", "bike")), async () =>
         {
             await Task.Delay(20).ConfigureAwait(false);
@@ -379,10 +372,8 @@ public class ProfilingContextTests
         var profiler = new FakeProfiler();
         var context = NewContext(profiler);
 
-        // OpenTelemetry controls when a span ends, so a span opened before a label scope can very
-        // well end while that label scope is still open. The three pieces of context are held in
-        // one immutable snapshot and restored field by field precisely so that this cannot drop
-        // the labels -- which restoring a whole previous value would.
+        // A span opened before a label scope can end while that label scope is still open, and
+        // restoring the span must not take the labels with it.
         var (scope, previousScope) = context.PushScope("GET /folders");
         var labels = Set(("vehicle", "bike"));
         context.PushLabels(labels);

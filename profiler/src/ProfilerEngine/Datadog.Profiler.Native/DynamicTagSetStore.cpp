@@ -59,8 +59,8 @@ std::uint32_t DynamicTagSetStore::Intern(const char* const* keys, const char* co
 
     if (_tagSets.size() - 1 >= _maxTagSets) // -1: the NoTagSet sentinel is not a set
     {
-        // Worth telling the operator about: it almost always means a label value carries
-        // something unbounded, which also means the profile is producing that many series.
+        // Almost always means a label value carries something unbounded, which also means the
+        // profile is producing that many series.
         if (!_capacityReported)
         {
             _capacityReported = true;
@@ -82,8 +82,7 @@ std::uint32_t DynamicTagSetStore::Intern(const char* const* keys, const char* co
         if (!tags.Set(keys[i], google::javaprofiler::AsyncRefCountedString(values[i])))
         {
             // Tags keeps one process-wide key table of 16 entries; past that a key cannot be
-            // stored at all. Drop the whole set rather than interning a partial one that
-            // would silently mislabel samples.
+            // stored at all. Drop the whole set rather than interning a partial one.
             if (!_keyLimitReported)
             {
                 _keyLimitReported = true;
@@ -120,8 +119,8 @@ bool DynamicTagSetStore::ApplyTo(std::uint32_t id, google::javaprofiler::Tags& t
         return false;
     }
 
-    // 16 AsyncRefCountedString assignments: an atomic increment each, and no lock, because
-    // this store holds a permanent reference to every string in the set.
+    // An atomic increment per string and no lock, because this store holds a permanent
+    // reference to every string in the set.
     target = _tagSets[id];
     return true;
 }

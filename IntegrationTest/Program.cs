@@ -28,8 +28,7 @@ app.MapGet("/car", (CarService service) =>
     return "Car ordered";
 });
 
-// Work that happens after an `await`: without async stack stitching the profiler
-// attributes it to a thread-pool dispatch root rather than to this endpoint.
+// Work that happens after an `await`, for the async stitching and label propagation tests.
 app.MapGet("/async-order", async (AsyncOrderService service) => await service.OrderAsync());
 
 app.MapGet("/healthz", () => "ok");

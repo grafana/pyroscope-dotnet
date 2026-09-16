@@ -27,21 +27,16 @@ namespace Pyroscope
             _contextTracker.Set(profileId, 0, 0);
         }
 
-        /// <summary>
         /// Makes this span the one the profiler attributes samples to, for the rest of the current
-        /// async flow -- so work the span does after an <c>await</c> is attributed to it as well.
-        /// </summary>
+        /// async flow, so work the span does after an `await` is attributed to it as well.
         public void SetSpanContext(ulong localRootSpanId, ulong traceIdHi, ulong traceIdLo)
         {
             _profilingContext.PushSpan(new SpanContext(localRootSpanId, traceIdHi, traceIdLo));
         }
 
-        /// <summary>
-        /// The ambient context that follows async flows: logical scopes (see
-        /// <see cref="AsyncScope"/>), dynamic labels (see <see cref="LabelsWrapper"/>) and the
-        /// active span. Exposed internally so those types and the tracing bridges share one
-        /// context per process.
-        /// </summary>
+        // The ambient context that follows async flows: logical scopes, dynamic labels and the
+        // active span. Exposed internally so AsyncScope, LabelsWrapper and the tracing bridges
+        // share one context per process.
         internal ProfilingContext ProfilingContext
         {
             get { return _profilingContext; }
@@ -222,8 +217,7 @@ namespace Pyroscope
         }
 
         // The same switches the native side reads, so one environment variable turns each
-        // feature off end to end. Both default to on: they only do work once an application
-        // (or a tracing bridge) actually opens a scope or sets labels.
+        // feature off end to end. Both default to on.
         private static bool IsEnabled(string variable)
         {
             var value = EnvironmentHelpers.GetEnvironmentVariable(variable);

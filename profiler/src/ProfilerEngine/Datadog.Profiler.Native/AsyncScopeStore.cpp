@@ -74,9 +74,8 @@ std::uint32_t AsyncScopeStore::Push(std::uint32_t parentId, std::string_view nam
 
     if (_scopes.size() - 1 >= _maxScopes) // -1: the NoScope sentinel is not a scope
     {
-        // Worth telling the operator about: it almost always means scope names carry
-        // something unbounded (a user id, a URL with ids in it) where a route template was
-        // intended, and from here on those requests are attributed to a coarser scope.
+        // Almost always means scope names carry something unbounded where a route template was
+        // intended, so it is worth telling the operator about.
         if (!_capacityReported)
         {
             _capacityReported = true;

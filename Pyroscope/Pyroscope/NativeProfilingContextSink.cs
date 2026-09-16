@@ -1,8 +1,6 @@
 namespace Pyroscope
 {
-    /// <summary>
-    /// Routes ambient profiling context to the native profiler.
-    /// </summary>
+    // Routes ambient profiling context to the native profiler.
     internal sealed class NativeProfilingContextSink : IProfilingContextSink
     {
         private readonly ContextTracker _contextTracker;

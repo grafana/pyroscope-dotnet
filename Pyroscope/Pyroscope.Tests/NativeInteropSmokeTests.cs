@@ -3,18 +3,13 @@ using NUnit.Framework;
 
 namespace Pyroscope.Tests;
 
-/// <summary>
-/// Calls the profiler's entry points for real, to check that the P/Invoke declarations actually
-/// bind. Nothing else in the managed test suite does: the propagation tests substitute the sink,
-/// so a signature the runtime refuses to marshal would sail through them and only show up as
-/// silently missing labels in an integration test.
-///
-/// The calls return early inside the profiler because no CLR profiler is attached to the test
-/// process, which is fine -- what is under test is the boundary, not the behaviour behind it.
-///
-/// Skipped when the native library has not been built. Point PYROSCOPE_NATIVE_SO at it, or build
-/// it as described in CLAUDE.md and it is found automatically.
-/// </summary>
+// Calls the profiler's entry points for real, to check that the P/Invoke declarations bind: the
+// propagation tests substitute the sink, so a signature the runtime refuses to marshal would sail
+// through them. The calls return early inside the profiler because no CLR profiler is attached to
+// the test process; what is under test is the boundary, not the behaviour behind it.
+//
+// Skipped when the native library has not been built. Point PYROSCOPE_NATIVE_SO at it, or build it
+// as described in CLAUDE.md and it is found automatically.
 [TestFixture]
 public class NativeInteropSmokeTests
 {

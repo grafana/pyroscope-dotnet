@@ -43,13 +43,9 @@ public:
 
     std::shared_ptr<Sample> Transform(const RawSample& rawSample, std::vector<SampleValueTypeProvider::Offset> const& offsets);
 
-    // Stitch coverage, exported as metrics. Without these, "is stitching working in this
-    // deployment?" can only be answered by inspecting a flamegraph -- and a stale scope id
-    // looks exactly like ordinary synchronous work. All three stay at zero when stitching is
-    // disabled, so an off switch does not read as a fault.
-    //
-    // Incremented once per sample on the transform path and only ever read by the metrics
-    // registry, so relaxed ordering is enough: these are counters, not a protocol.
+    // Stitch coverage, exported as metrics. All three stay at zero when stitching is disabled,
+    // so an off switch does not read as a fault. Incremented once per sample on the transform
+    // path and only ever read by the metrics registry, so relaxed ordering is enough.
     std::uint64_t GetStitchingSampleCount() const
     {
         return _stitchingSampleCount.load(std::memory_order_relaxed);

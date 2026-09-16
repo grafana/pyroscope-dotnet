@@ -137,14 +137,11 @@ public:
 
     inline google::javaprofiler::Tags& GetTags();
 
-    // Id of the logical async scope chain (see AsyncScopeStore) that the code
-    // currently running on this thread belongs to, or AsyncScopeStore::NoScope.
-    //
-    // Written by managed code every time the ExecutionContext carrying the chain
-    // is restored on -- or removed from -- this thread, and read while the thread
-    // is suspended or from its signal handler, hence the relaxed atomic: a
-    // plain uint32_t load is what the sampler needs, without a lock it cannot take
-    // in that context.
+    // Id of the logical async scope chain (see AsyncScopeStore) that the code currently running
+    // on this thread belongs to, or AsyncScopeStore::NoScope. Written by managed code every time
+    // the ExecutionContext carrying the chain is restored on -- or removed from -- this thread,
+    // and read while the thread is suspended or from its signal handler, hence the relaxed
+    // atomic: the sampler cannot take a lock in that context.
     inline std::uint32_t GetAsyncScopeId() const;
     inline void SetAsyncScopeId(std::uint32_t scopeId);
 

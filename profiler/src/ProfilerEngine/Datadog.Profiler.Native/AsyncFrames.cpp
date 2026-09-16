@@ -9,24 +9,17 @@ namespace {
 
 // Task/async machinery, matched as substrings of "Type.Method".
 //
-// Two omissions are deliberate. The blocking waits (Task.Wait, Task.SpinThenBlockingWait,
-// ManualResetEventSlim.Wait) stay: sync-over-async is something you want to find in a
-// profile, not machinery to hide. And Task<T>.TrySetResult stays, because the generic
-// instantiations would need a looser ".TrySetResult" match that also swallows the
-// TaskCompletionSource calls user code makes itself -- worth under 1% of the frames
-// removed, so not worth the ambiguity.
+// The blocking waits (Task.Wait, Task.SpinThenBlockingWait, ManualResetEventSlim.Wait) are
+// deliberately absent: sync-over-async is something you want to find in a profile, not
+// machinery to hide.
 constexpr std::string_view PlumbingMarkers[] = {
-    // The continuation box: one generic instantiation per async method, so these never
-    // merge with each other either.
+    // The continuation box: one generic instantiation per async method.
     "AsyncStateMachineBox",
 
     // The builders. Matched without a trailing '.', because a builder for a
     // Task<T>-returning method is itself generic and its arguments sit between the type
-    // name and the method: "AsyncTaskMethodBuilder<T>.Start<...>". Leaving the '.' on
-    // silently missed every one of those. Not requiring an exact type name also picks up
-    // PoolingAsyncValueTaskMethodBuilder, which ValueTask-returning methods use.
-    // Spelled out rather than matched on "MethodBuilder", which would also catch
-    // System.Reflection.Emit.MethodBuilder -- real work, and nothing to do with async.
+    // name and the method: "AsyncTaskMethodBuilder<T>.Start<...>". Spelled out rather than
+    // matched on "MethodBuilder", which would also catch System.Reflection.Emit.MethodBuilder.
     "AsyncTaskMethodBuilder",
     "AsyncValueTaskMethodBuilder",
     "AsyncVoidMethodBuilder",
@@ -35,16 +28,14 @@ constexpr std::string_view PlumbingMarkers[] = {
 
     // Where a queued continuation resumes. Only the delivery path itself: the pool's own
     // bookkeeping (PortableThreadPool.WorkerThread.*, GateThread, the work-stealing queue)
-    // is real work that burns real CPU when the pool is churning, and thread-pool
-    // starvation is something you go to a profiler to find. The worker thread root also
-    // appears on every pool stack, so keeping it costs nothing in merging.
+    // burns real CPU when the pool is churning, and thread-pool starvation is something you
+    // go to a profiler to find.
     "ThreadPoolWorkQueue.Dispatch",
     "ExecutionContext.Run",
 
-    // The inline-completion unwind: when an awaited task completes and its continuation
-    // runs synchronously on the completing thread, this chain nests the awaited
-    // operation above its own awaiter. Left alone it recurses deep enough to fill the
-    // whole callstack budget on its own.
+    // The inline-completion unwind: when an awaited task completes and its continuation runs
+    // synchronously on the completing thread, this chain nests the awaited operation above
+    // its own awaiter, deep enough to fill the whole callstack budget.
     "TaskContinuation",
     "ContinuationWrapper",
     "UnwrapPromise",
@@ -57,9 +48,8 @@ constexpr std::string_view PlumbingMarkers[] = {
     "Task.ExecuteFromThreadPool",
 
     // The delegate hand-off between the pool and the work it is delivering: a Task.Run body
-    // lands under InnerInvoke, and ScheduleAndStart is the start side. PerfView removes both
-    // (ActivityComputer.cs:1265-1278). Spelled with the type name so an unrelated InnerInvoke
-    // elsewhere in the runtime assembly is not caught.
+    // lands under InnerInvoke, and ScheduleAndStart is the start side. Spelled with the type
+    // name so an unrelated InnerInvoke elsewhere in the runtime assembly is not caught.
     "Task.InnerInvoke",
     "Task.ScheduleAndStart",
     "TryExecuteTaskInline",
@@ -67,17 +57,11 @@ constexpr std::string_view PlumbingMarkers[] = {
     "InlineIfPossibleOrElseQueue",
     "RunOrScheduleAction",
 
-    // Runtime async (.NET 12+) and the runtime's own async profiler. A runtime-async method
-    // has no compiler state machine, so AsyncStateMachineBox and AsyncMethodBuilderCore above
-    // never match for one and these take their place. All are [StackTraceHidden] upstream:
-    // dotnet/runtime#131963 marked them precisely because stitchers -- ours included --
-    // identify these frames by name and nothing had guarded that contract.
-    //
-    // DispatchContinuations is the flat resume loop. The other two are the instrumented clones
-    // of the classic-async dispatch path, which appear even for state-machine async once the
-    // runtime's async profiler is enabled. The 32 Continuation_Wrapper_N frames need no marker
-    // of their own: their declaring type is AsyncProfiler.ContinuationWrapper, which the
-    // ContinuationWrapper marker above already matches.
+    // Runtime async (.NET 12+) and the runtime's own async profiler. A runtime-async method has
+    // no compiler state machine, so the markers above never match for one and these take their
+    // place: DispatchContinuations is the flat resume loop, the other two are the instrumented
+    // clones of the classic-async dispatch path. The Continuation_Wrapper_N frames need no
+    // marker, their declaring type is AsyncProfiler.ContinuationWrapper.
     "DispatchContinuations",
     "AsyncStateMachineDispatcher",
     "InstrumentedMoveNext",
@@ -91,8 +75,7 @@ constexpr std::string_view PlumbingMarkers[] = {
 };
 
 // Every marker above lives in the runtime's own assembly, so requiring it costs no coverage
-// and removes the whole class of application-code false positives. PerfView scopes its
-// equivalent list the same way, flagging plumbing only in mscorlib/System.Private.CoreLib.
+// and removes the whole class of application-code false positives.
 constexpr std::string_view RuntimeAssemblies[] = {
     "System.Private.CoreLib", // .NET Core / .NET 5+
     "mscorlib",               // .NET Framework
@@ -132,12 +115,10 @@ bool TryStripTrailingGenerics(std::string_view& name)
     return false;
 }
 
-// Recognises the compiler's async state machine type: "Prefix.<Method>d__N" with an
-// optional generic argument list, as in "HttpProtocol.<ProcessRequests>d__237<T>".
-//
-// Note that plenty of frames end in ".MoveNext" without being one of these -- every
-// iterator and every enumerator does -- so the "<Method>d__N" shape is what we key on
-// rather than the method name.
+// Recognises the compiler's async state machine type: "Prefix.<Method>d__N" with an optional
+// generic argument list, as in "HttpProtocol.<ProcessRequests>d__237<T>". Plenty of frames end
+// in ".MoveNext" without being one of these -- every iterator does -- so the "<Method>d__N"
+// shape is what we key on rather than the method name.
 bool TryParseStateMachine(std::string_view frame, std::string_view& prefix, std::string_view& method)
 {
     if (frame.size() <= MoveNextSuffix.size() || frame.substr(frame.size() - MoveNextSuffix.size()) != MoveNextSuffix)
@@ -197,8 +178,8 @@ bool AsyncFrames::IsRuntimeAssembly(std::string_view assembly)
 AsyncFrameKind AsyncFrames::Classify(std::string_view frame, std::string_view assembly)
 {
     // The markers are substrings, so they are only trustworthy inside the assembly that
-    // actually declares the machinery. Outside it, "TaskContinuation" is just as likely to be
-    // an application type, and TryExecuteTaskInline is a method users write themselves.
+    // declares the machinery: elsewhere "TaskContinuation" is just as likely to be an
+    // application type, and TryExecuteTaskInline a method the user wrote.
     if (IsRuntimeAssembly(assembly))
     {
         for (auto const& marker : PlumbingMarkers)

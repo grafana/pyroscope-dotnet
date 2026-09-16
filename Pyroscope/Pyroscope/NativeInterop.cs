@@ -81,10 +81,9 @@ namespace Pyroscope
         public static uint InternDynamicTagSet(string[] keys, string[] values, int count)
         {
             // Marshalled by hand: the runtime rejects LPUTF8Str as an ArraySubType for string[]
-            // (only LPStr/LPWStr/LPTStr are allowed), and LPStr would go through the platform ANSI
-            // code page, which loses non-ASCII label values on Windows. IntPtr[] is blittable, so
-            // the array itself is just pinned. This runs once per distinct label set, not per
-            // sample, so the allocations are on a cold path.
+            // (only LPStr/LPWStr/LPTStr are allowed), and LPStr would go through the platform
+            // ANSI code page, which loses non-ASCII label values on Windows. This runs once per
+            // distinct label set, not per sample, so the allocations are on a cold path.
             var keyPtrs = new IntPtr[count];
             var valuePtrs = new IntPtr[count];
             try
@@ -170,7 +169,6 @@ namespace Pyroscope
 
             [DllImport(dllName: "Pyroscope.Profiler.Native", EntryPoint = "SetCurrentProfilingContext")]
             public static extern void SetCurrentProfilingContext(uint asyncScopeId, uint dynamicTagSetId);
-
         }
     }
 }

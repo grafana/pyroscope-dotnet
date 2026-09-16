@@ -8,29 +8,24 @@
 
 #include "AsyncFrameKind.h"
 
-/// Recognises the C# async/await machinery in a frame name.
-///
-/// Frame names are "Namespace!Type.Method" with generic arguments spelled inline, as
-/// built by FrameStore::FormatFrame. Both entry points are pure functions of the name;
-/// the frame store calls them once per method and caches the result, so nothing here
-/// runs per sample.
+// Recognises the C# async/await machinery in a frame name. Frame names are
+// "Namespace!Type.Method" with generic arguments spelled inline, as built by
+// FrameStore::FormatFrame. Both entry points are pure functions of the name; the frame store
+// calls them once per method and caches the result, so nothing here runs per sample.
 class AsyncFrames
 {
 public:
-    /// `assembly` is the frame's declaring assembly, as FrameStore::GetAssemblyName reports
-    /// it. It gates the plumbing markers only: those are substring matches, so without it an
-    /// application type named "TaskContinuationHelper" -- or a custom TaskScheduler, whose
-    /// TryExecuteTaskInline and TryRunInline the user writes themselves -- would be dropped
-    /// from every profile. State machine detection is deliberately not gated, because a state
-    /// machine belongs to the assembly that declared the async method, never to the runtime.
+    // `assembly` is the frame's declaring assembly, as FrameStore::GetAssemblyName reports it.
+    // It gates the plumbing markers only, since those are substring matches. State machine
+    // detection is deliberately not gated, because a state machine belongs to the assembly that
+    // declared the async method, never to the runtime.
     static AsyncFrameKind Classify(std::string_view frame, std::string_view assembly);
 
-    /// True for the assembly that holds the Task/async machinery: System.Private.CoreLib on
-    /// .NET Core, mscorlib on .NET Framework. An unresolved (empty) assembly is false, so a
-    /// frame we cannot attribute keeps its place rather than being silently dropped.
+    // True for the assembly that holds the Task/async machinery. An unresolved (empty) assembly
+    // is false, so a frame we cannot attribute keeps its place rather than being dropped.
     static bool IsRuntimeAssembly(std::string_view assembly);
 
-    /// "Ns!C.<M>d__4.MoveNext" -> "Ns!C.M", so an async method's body carries the same
-    /// name as its kickoff frame. Any other frame is returned unchanged.
+    // "Ns!C.<M>d__4.MoveNext" -> "Ns!C.M", so an async method's body carries the same name as
+    // its kickoff frame. Any other frame is returned unchanged.
     static std::string CanonicalName(std::string_view frame);
 };

@@ -2,15 +2,8 @@ using System.Collections.Concurrent;
 
 namespace Pyroscope.Tests;
 
-/// <summary>
-/// Stands in for the native profiler, modelling the parts the propagation tests depend on:
-/// interned async scopes and label sets, and the per-OS-thread slots the sampler reads.
-///
-/// The fidelity matters. <c>SetCurrentProfilingContext</c> replaces a thread's tags wholesale
-/// (that is what a <c>Tags</c> assignment does natively), and <see cref="ProfilingContextSink.NeverInterned"/>
-/// means "leave them alone" -- so a test asserting on <see cref="LabelsOnThread"/> is asserting
-/// on what the profiler would actually stamp onto a sample.
-/// </summary>
+// Stands in for the native profiler: interned async scopes and label sets, and the
+// per-OS-thread slots the sampler reads.
 internal sealed class FakeProfiler : IProfilingContextSink
 {
     private readonly ConcurrentDictionary<string, uint> _tagSetIdsByContent = new();
@@ -20,16 +13,14 @@ internal sealed class FakeProfiler : IProfilingContextSink
     private int _nextTagSetId;
     private int _nextScopeId;
 
-    /// <summary>When set, InternDynamicTagSet returns this instead of interning: 0 emulates a
-    /// profiler that is still starting up, NeverInterned a full store or disabled propagation.</summary>
+    // When set, InternDynamicTagSet returns this instead of interning: 0 emulates a profiler
+    // that is still starting up, NeverInterned a full store or disabled propagation.
     public uint? InternTagSetResult { get; set; }
 
-    /// <summary>How many distinct label sets were actually interned.</summary>
     public int InternedTagSetCount => _internedTagSets.Count;
 
     private int _publishCount;
 
-    /// <summary>How many times a thread's slots were actually written.</summary>
     public int PublishCount => Volatile.Read(ref _publishCount);
 
     public uint InternAsyncScope(uint parentScopeId, string name)
@@ -94,18 +85,16 @@ internal sealed class FakeProfiler : IProfilingContextSink
         Slot(Environment.CurrentManagedThreadId).Span = context;
     }
 
-    /// <summary>The async scope chain id a sample taken on that thread would carry.</summary>
+    // The async scope chain id a sample taken on that thread would carry.
     public uint ScopeOnThread(int managedThreadId) =>
         _threads.TryGetValue(managedThreadId, out var slot) ? slot.ScopeId : uint.MaxValue;
 
-    /// <summary>The span a sample taken on that thread would carry.</summary>
+    // The span a sample taken on that thread would carry.
     public SpanContext SpanOnThread(int managedThreadId) =>
         _threads.TryGetValue(managedThreadId, out var slot) ? slot.Span : SpanContext.Zero;
 
-    /// <summary>
-    /// The labels a sample taken on that thread would carry, whether they got there via an
-    /// interned set or key by key. Null when the thread was never touched at all.
-    /// </summary>
+    // The labels a sample taken on that thread would carry, whether they got there via an
+    // interned set or key by key. Null when the thread was never touched at all.
     public IReadOnlyDictionary<string, string>? LabelsOnThread(int managedThreadId)
     {
         if (!_threads.TryGetValue(managedThreadId, out var slot))

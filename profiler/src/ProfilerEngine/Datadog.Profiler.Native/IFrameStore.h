@@ -20,10 +20,9 @@ public:
     std::string_view Filename;
     std::uint32_t StartLine;
 
-    // Set by the frame store when async frame cleanup is enabled, and left as
-    // UserCode otherwise, which makes RawSampleTransformer::SetStack's cleanup
-    // rules inert. Synthetic frames (fake IPs, async scope names) are never
-    // machinery, so the default is right for them too.
+    // Set by the frame store when async frame cleanup is enabled, and left as UserCode
+    // otherwise, which makes RawSampleTransformer::SetStack's cleanup rules inert. Synthetic
+    // frames (fake IPs, async scope names) are never machinery, so the default suits them too.
     AsyncFrameKind AsyncKind = AsyncFrameKind::UserCode;
 };
 

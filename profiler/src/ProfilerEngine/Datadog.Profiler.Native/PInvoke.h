@@ -55,21 +55,19 @@ extern "C" void __stdcall SetContentionTrackingEnabled(bool enabled);
 extern "C" void __stdcall SetExceptionTrackingEnabled(bool enabled);
 extern "C" void __stdcall SetPyroscopeBasicAuth(const char *user, const char *password);
 
-// Profiler context that follows async flows (see AsyncScopeStore, DynamicTagSetStore).
-//
-// The managed side keeps the current async scope chain and label set in AsyncLocals, so they
-// survive `await`, and re-publishes them onto every thread the ExecutionContext lands on.
-// Both are interned to an id first, so the per-continuation call is a single pair of
-// integers rather than a string marshalling exercise.
+// Profiler context that follows async flows (see AsyncScopeStore, DynamicTagSetStore). The
+// managed side re-publishes the current async scope chain and label set onto every thread the
+// ExecutionContext lands on; both are interned to an id first, so the per-continuation call is a
+// single pair of integers rather than a string marshalling exercise.
 //
 // PushAsyncScope interns `name` under `parentScopeId` and returns the new chain's id.
 // InternDynamicTagSet interns `count` (key, value) pairs and returns the set's id.
 //
-// 0 means "none", and is also what both return while the profiler is still starting up, so
-// the caller should try again later. InternDynamicTagSet returns NoDynamicTagSetEver when
-// the set can *never* be interned -- propagation is switched off, the store is full, or the
-// process has run out of the 16 label keys Tags supports -- so the caller can stop asking
-// and apply those labels the old way, on the thread that set them.
+// 0 means "none", and is also what both return while the profiler is still starting up, so the
+// caller should try again later. InternDynamicTagSet returns NoDynamicTagSetEver when the set can
+// never be interned -- propagation is switched off, the store is full, or the process has run out
+// of the 16 label keys Tags supports -- so the caller can stop asking and apply those labels on
+// the thread that set them instead.
 constexpr std::uint32_t NoDynamicTagSetEver = 0xFFFFFFFFu;
 extern "C" std::uint32_t __stdcall PushAsyncScope(std::uint32_t parentScopeId, const char* name);
 extern "C" std::uint32_t __stdcall InternDynamicTagSet(const char* const* keys, const char* const* values, std::int32_t count);

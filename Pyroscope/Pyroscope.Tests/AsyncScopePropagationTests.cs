@@ -2,10 +2,8 @@ using NUnit.Framework;
 
 namespace Pyroscope.Tests;
 
-/// <summary>
-/// Async stack stitching's half of the propagation: whether the logical scope a request opened
-/// reaches the threads that run its <c>await</c> continuations, and is taken back off them.
-/// </summary>
+// Whether the logical scope a request opened reaches the threads that run its `await`
+// continuations, and is taken back off them.
 [TestFixture]
 public class AsyncScopePropagationTests
 {
@@ -177,8 +175,8 @@ public class AsyncScopePropagationTests
         var context = NewContext(profiler);
 
         // A span can be ended from a callback running in a different async flow than the one that
-        // started it. Restoring there would attribute the rest of *that* flow to a scope it never
-        // entered, so it must be a no-op.
+        // started it, and restoring there would attribute the rest of that flow to a scope it
+        // never entered.
         var (foreign, foreignPrevious) = await Task.Run(() => context.PushScope("GET /elsewhere")).ConfigureAwait(false);
 
         var (mine, minePrevious) = context.PushScope("GET /folders");

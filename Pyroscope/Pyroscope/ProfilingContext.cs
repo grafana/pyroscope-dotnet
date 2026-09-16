@@ -2,38 +2,23 @@ using System.Collections.Concurrent;
 
 namespace Pyroscope
 {
-    /// <summary>
-    /// Holds the profiler context of the current async flow -- the logical scope chain, the
-    /// dynamic label set and the span identity -- and mirrors it onto whichever OS thread the
-    /// profiler will sample next.
-    ///
-    /// All three used to be per-thread state, which is why they disappeared across
-    /// <c>await</c>: the continuation resumes on a thread-pool thread that was never told about
-    /// them, so work belonging to a request ended up unlabelled, unattributed to its span, and
-    /// rooted at <c>ThreadPoolWorkQueue.Dispatch</c> instead of at the request. The
-    /// <c>ExecutionContext</c>, on the other hand, *is* captured at the await and restored on the
-    /// continuation -- that is why <see cref="AsyncLocal{T}"/> values survive awaits at all.
-    ///
-    /// So we ride it. Registering a change handler on an <see cref="AsyncLocal{T}"/> makes the
-    /// CLR invoke us on the resuming thread, just before the continuation runs, every time it
-    /// restores an ExecutionContext. That is when we publish the context to the profiler's
-    /// per-thread slots. The same notification fires with an empty value when the thread pool
-    /// resets the thread afterwards, which takes the context back off it so unrelated work is
-    /// never attributed to the request.
-    /// </summary>
+    // Holds the profiler context of the current async flow -- the logical scope chain, the
+    // dynamic label set and the span identity -- and mirrors it onto whichever OS thread the
+    // profiler will sample next.
+    //
+    // The profiler's own state is per thread, so it does not survive an `await`; the
+    // ExecutionContext does. Registering a change handler on an AsyncLocal makes the CLR invoke
+    // us on the resuming thread every time it restores an ExecutionContext, which is when we
+    // publish to the per-thread slots. The same notification fires with an empty value when the
+    // pool resets the thread, taking the context back off it.
     internal sealed class ProfilingContext
     {
-        /// <summary>
-        /// Matches AsyncScopeStore::MaxDepth. Past this the chain stops deepening: the extra
-        /// frames stop being informative and start costing sample size.
-        /// </summary>
+        // Matches AsyncScopeStore::MaxDepth. Past this the chain stops deepening.
         private const int MaxScopeDepth = 32;
 
-        /// <summary>
-        /// Ceilings on the interning caches. An application that pushes unbounded names or label
-        /// values stops being cached rather than growing these dictionaries without bound; the
-        /// native stores apply their own caps as well.
-        /// </summary>
+        // Ceilings on the interning caches. An application that pushes unbounded names or
+        // label values stops being cached rather than growing these dictionaries without
+        // bound; the native stores apply their own caps as well.
         private const int MaxCachedScopes = 4096;
         private const int MaxCachedTagSets = 4096;
 
@@ -48,26 +33,17 @@ namespace Pyroscope
 
         private readonly IProfilingContextSink _sink;
 
-        /// <summary>
-        /// One AsyncLocal for all three pieces of context, not one each.
-        ///
-        /// The CLR fires a change notification per notifying AsyncLocal on every
-        /// ExecutionContext switch, so three locals cost three notifications where one costs one
-        /// -- measured at 271 vs 110 ns per switch. Holding an immutable snapshot also makes
-        /// closing scopes order-independent: each Dispose puts back its own field and leaves the
-        /// others as they are, so ending a span inside an open label scope cannot drop the labels
-        /// (which a "restore the whole previous value" design would).
-        /// </summary>
+        // One AsyncLocal for all three pieces of context, not one each: the CLR fires a change
+        // notification per notifying AsyncLocal on every ExecutionContext switch. Holding an
+        // immutable snapshot also makes closing scopes order-independent, so ending a span
+        // inside an open label scope cannot drop the labels.
         private readonly AsyncLocal<Snapshot?> _current;
         private readonly ConcurrentDictionary<ScopeKey, uint> _scopeIds = new();
         private readonly ConcurrentDictionary<string, uint> _tagSetIds = new();
 
-        /// <summary>
-        /// Set once the sink has thrown (no native profiler loaded, or one too old to export the
-        /// entry points). After that we stop calling into it: the change handler runs on every
-        /// ExecutionContext switch, and a throwing P/Invoke there would be both expensive and
-        /// noisy.
-        /// </summary>
+        // Set once the sink has thrown (no native profiler loaded, or one too old to export the
+        // entry points). After that we stop calling into it: the change handler runs on every
+        // ExecutionContext switch, so a throwing P/Invoke there would be both expensive and noisy.
         private volatile bool _sinkFailed;
 
         public ProfilingContext(IProfilingContextSink sink, bool stitchingEnabled, bool propagationEnabled)
@@ -95,10 +71,8 @@ namespace Pyroscope
 
         // ----- async scopes -------------------------------------------------------------
 
-        /// <summary>
-        /// Enters an async scope named <paramref name="name"/> below the current one. Returns the
-        /// node that was pushed (null when nothing was pushed) and the value to restore.
-        /// </summary>
+        // Enters an async scope below the current one. Returns the node that was pushed (null
+        // when nothing was pushed) and the value to restore.
         internal (AsyncScopeNode? Pushed, AsyncScopeNode? Previous) PushScope(string? name)
         {
             var previous = CurrentScope;
@@ -133,9 +107,9 @@ namespace Pyroscope
             }
 
             // Only unwind if this flow is still inside the scope we pushed. A scope can be closed
-            // from a different async flow than the one that opened it (an OpenTelemetry span ended
-            // by a callback, say); restoring there would attribute the rest of *that* flow to a
-            // scope it never entered.
+            // from a different async flow than the one that opened it (an OpenTelemetry span
+            // ended by a callback, say), and restoring there would attribute the rest of that
+            // flow to a scope it never entered.
             for (var node = CurrentScope; node != null; node = node.Parent)
             {
                 if (ReferenceEquals(node, pushed))
@@ -149,10 +123,8 @@ namespace Pyroscope
 
         // ----- dynamic labels -----------------------------------------------------------
 
-        /// <summary>
-        /// Makes <paramref name="labels"/> the ambient label set. Returns the set that was
-        /// replaced, for the caller to restore.
-        /// </summary>
+        // Makes `labels` the ambient label set. Returns the set that was replaced, for the
+        // caller to restore.
         internal LabelSet? PushLabels(LabelSet? labels)
         {
             var previous = CurrentLabels;
@@ -184,19 +156,10 @@ namespace Pyroscope
             ApplyLabelsDirectlyIfNeeded(previous);
         }
 
-        /// <summary>
-        /// Labels that cannot be interned -- because propagation is off, or the native store ran
-        /// out of room -- are applied straight onto the calling thread, which is exactly what the
-        /// profiler did before propagation existed: they cover the synchronous part of the flow
-        /// and stop at the first <c>await</c>.
-        /// </summary>
-        /// <summary>
-        /// Applies labels straight onto the calling thread for the cases where
-        /// <see cref="Publish"/> does not own the thread's tags: propagation is switched off, or
-        /// this particular set can never be interned. Either way the behaviour is the one the
-        /// profiler had before propagation existed -- the labels cover the synchronous part of the
-        /// flow and stop at the first <c>await</c>.
-        /// </summary>
+        // Applies labels straight onto the calling thread for the cases where Publish does not
+        // own the thread's tags: propagation is switched off, or this particular set can never
+        // be interned. Either way the labels cover the synchronous part of the flow and stop at
+        // the first `await`, which is what the profiler did before propagation existed.
         private void ApplyLabelsDirectlyIfNeeded(LabelSet? labels)
         {
             if (_sinkFailed)
@@ -216,8 +179,6 @@ namespace Pyroscope
             }
             else
             {
-                // Do not ask when propagation is off: interning would be a pointless native round
-                // trip for a set that is not going to be published.
                 ownsThreadTags = ResolveTagSetId(labels) == ProfilingContextSink.NeverInterned;
             }
 
@@ -229,8 +190,7 @@ namespace Pyroscope
             try
             {
                 // Clear first: the publish left the thread's tags untouched, so whatever the set
-                // being replaced put there is still present. Restoring to "no labels" is this same
-                // path with nothing to add.
+                // being replaced put there is still present.
                 _sink.ClearDynamicTags();
 
                 if (labels == null)
@@ -251,9 +211,7 @@ namespace Pyroscope
 
         // ----- span context -------------------------------------------------------------
 
-        /// <summary>
-        /// Makes <paramref name="context"/> the ambient span identity. Returns the one it replaced.
-        /// </summary>
+        // Makes `context` the ambient span identity. Returns the one it replaced.
         internal SpanContext PushSpan(SpanContext context)
         {
             var previous = CurrentSpan;
@@ -305,14 +263,9 @@ namespace Pyroscope
 
         // ----- publishing ---------------------------------------------------------------
 
-        /// <summary>
-        /// Writes the current flow's context into the calling thread's profiler slots.
-        ///
-        /// Runs on whichever thread the CLR is installing or removing an ExecutionContext on --
-        /// for a thread-pool continuation, the thread that is about to run it. It must not throw:
-        /// the exception would surface inside the runtime's context switch, in code that never
-        /// asked to handle it.
-        /// </summary>
+        // Writes the current flow's context into the calling thread's profiler slots. Runs on
+        // whichever thread the CLR is installing or removing an ExecutionContext on -- for a
+        // thread-pool continuation, the thread that is about to run it.
         private void Publish()
         {
             if (_sinkFailed)
@@ -357,21 +310,19 @@ namespace Pyroscope
                 t_owner = this;
             }
 
-            // Catch everything, and do not narrow this. The CLR wraps the whole AsyncLocal
+            // Catch everything, and do not narrow this: the CLR wraps the AsyncLocal
             // change-notification fan-out in a try/catch that ends in Environment.FailFast
-            // (ExecutionContext.OnValuesChanged), so an exception escaping this handler does
-            // not degrade the feature -- it takes the process down with it.
+            // (ExecutionContext.OnValuesChanged), so an exception escaping here takes the
+            // process down.
             catch (Exception ex)
             {
                 ReportSinkFailure(ex);
             }
         }
 
-        /// <summary>
-        /// Stops calling the sink after it has failed once, and says why. Without the message the
-        /// feature would just quietly stop working -- which is exactly the kind of failure that is
-        /// hard to diagnose from a profile that is merely missing labels.
-        /// </summary>
+        // Stops calling the sink after it has failed once, and says why: otherwise the feature
+        // quietly stops working, which is hard to diagnose from a profile that is merely missing
+        // labels.
         private void ReportSinkFailure(Exception ex)
         {
             if (_sinkFailed)
@@ -415,8 +366,7 @@ namespace Pyroscope
             if (id == 0)
             {
                 // The profiler has not finished attaching. Deliberately not cached: a cold start
-                // pushes scopes before the profiler is ready, and those paths must pick up an id
-                // once it is.
+                // pushes scopes before it is ready, and those paths must pick up an id once it is.
                 return 0;
             }
 
@@ -436,7 +386,8 @@ namespace Pyroscope
             }
 
             // Resolved once per LabelSet instance, so a request that reuses its set pays nothing
-            // after the first publish.
+            // after the first publish, then once per distinct content, so a set rebuilt for every
+            // request costs one dictionary lookup rather than a native round trip.
             var resolved = labels.NativeTagSetId;
             if (resolved.HasValue)
             {
@@ -449,8 +400,6 @@ namespace Pyroscope
                 return 0;
             }
 
-            // Then once per distinct content, so a set rebuilt for every request -- the usual
-            // pattern -- costs one dictionary lookup rather than a native round trip.
             var contentKey = labels.ContentKey;
             if (_tagSetIds.TryGetValue(contentKey, out var cachedId))
             {
@@ -497,11 +446,9 @@ namespace Pyroscope
             _current.Value = snapshot.IsEmpty ? null : snapshot;
         }
 
-        /// <summary>
-        /// The three pieces of context, immutable so that every async flow branching off a scope
-        /// can share one instance, and so that a field can be replaced without disturbing the
-        /// others.
-        /// </summary>
+        // The three pieces of context, immutable so that every async flow branching off a scope
+        // can share one instance, and so that a field can be replaced without disturbing the
+        // others.
         private sealed class Snapshot
         {
             private static readonly Snapshot Empty = new(null, null, SpanContext.Zero);

@@ -74,10 +74,9 @@ func TestAsyncLabelPropagation(t *testing.T) {
 	}
 }
 
-// TestAsyncLabelPropagationDisabled is the "before" half: with propagation off the labels behave
-// as they used to. A thread the request never ran on cannot see them at all -- and the ones that
-// do see them see them by accident, because the thread that set them goes back to the pool still
-// carrying them. So this asserts the deterministic half and records the accidental half.
+// TestAsyncLabelPropagationDisabled is the "before" half: with propagation off, a thread the
+// request never ran on cannot see the labels at all, while the threads that do see them see them
+// by accident. Only the deterministic half is asserted.
 func TestAsyncLabelPropagationDisabled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -123,10 +122,8 @@ func TestAsyncLabelPropagationDisabled(t *testing.T) {
 	}
 
 	// The thread-pool continuation may or may not land on a thread that still has the label stuck
-	// to it from before the await -- which is the mislabelling half of the bug, not something to
-	// assert a count on. Record what it was, and note that the fix removes it by clearing the
-	// label when the flow leaves a thread (asserted in TestAsyncLabelPropagation, which checks the
-	// unlabelled endpoint's frames never carry the label).
+	// to it from before the await, so this is logged rather than asserted on. TestAsyncLabelPropagation
+	// covers the clearing that removes it.
 	afterAwait := stacksContainingMethod(labelledCollapsed, afterAwaitFrame)
 	t.Logf("%s: %d labelled stacks with propagation disabled (stale labels left on pool threads)",
 		afterAwaitFrame, len(afterAwait))

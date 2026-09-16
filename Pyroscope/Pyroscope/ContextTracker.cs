@@ -43,10 +43,8 @@ namespace Pyroscope
             Publish(SpanContext.Zero);
         }
 
-        /// <summary>
-        /// Writes <paramref name="ctx"/> into the calling thread's block, so samples taken from
-        /// this thread carry that span until it is replaced.
-        /// </summary>
+        // Writes ctx into the calling thread's block, so samples taken from this thread carry
+        // that span until it is replaced.
         public void Publish(in SpanContext ctx)
         {
             if (!IsEnabled)

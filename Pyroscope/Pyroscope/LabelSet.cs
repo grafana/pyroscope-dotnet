@@ -1,24 +1,19 @@
 namespace Pyroscope;
 
-/// <summary>
 /// An immutable set of labels the profiler attaches to samples.
 ///
-/// Build one with <see cref="BuildUpon"/> and make it current for a piece of work with
-/// <see cref="LabelsWrapper"/> -- which, unlike setting labels directly, keeps them attached
-/// across <c>await</c>.
+/// Build one with BuildUpon and make it current for a piece of work with LabelsWrapper, which
+/// keeps the labels attached across `await`.
 ///
 /// Prefer values with bounded cardinality: every distinct combination becomes its own series
 /// in Pyroscope, and the profiler retains it for the process lifetime.
-/// </summary>
 public class LabelSet
 {
     private readonly Dictionary<string, string> _labels;
 
-    /// <summary>
-    /// Id the profiler interned this set under, or null until it has been resolved.
-    /// A single long so that readers cannot see a half-written value; -1 means unresolved,
-    /// which is also how a set that the profiler was not yet ready to record stays retryable.
-    /// </summary>
+    // Id the profiler interned this set under, or null until it has been resolved. A single
+    // long so that readers cannot see a half-written value; -1 means unresolved, which is also
+    // how a set the profiler was not yet ready to record stays retryable.
     private long _nativeTagSetId = -1;
 
     private string? _contentKey;
@@ -32,14 +27,11 @@ public class LabelSet
         _labels = labels;
     }
 
-    /// <summary>
-    /// Applies this set to the calling thread and, when the profiler supports it, to the rest of
-    /// the current async flow -- so samples taken from an <c>await</c> continuation carry it too.
+    /// Applies this set to the calling thread and to the rest of the current async flow, so
+    /// samples taken from an `await` continuation carry it too.
     ///
-    /// Leaves the set in place; prefer <see cref="LabelsWrapper.Push"/> or
-    /// <see cref="LabelsWrapper.Do(LabelSet, Action)"/>, which restore the previous set on the
-    /// way out.
-    /// </summary>
+    /// Leaves the set in place; prefer LabelsWrapper.Push or LabelsWrapper.Do, which restore
+    /// the previous set on the way out.
     public void Activate()
     {
         Profiler.Instance.ProfilingContext.PushLabels(this);
@@ -65,9 +57,7 @@ public class LabelSet
         set => Volatile.Write(ref _nativeTagSetId, value.HasValue ? value.Value : -1);
     }
 
-    /// <summary>
-    /// Keys and values as parallel arrays, in a stable order, for handing to the profiler.
-    /// </summary>
+    // Keys and values as parallel arrays, in a stable order, for handing to the profiler.
     internal string[] Keys
     {
         get
@@ -86,10 +76,8 @@ public class LabelSet
         }
     }
 
-    /// <summary>
-    /// Identifies this set by content, so two sets built separately for the same request shape
-    /// share one interned id instead of filling the profiler's store.
-    /// </summary>
+    // Identifies this set by content, so two sets built separately for the same request shape
+    // share one interned id instead of filling the profiler's store.
     internal string ContentKey
     {
         get
@@ -157,8 +145,8 @@ public class LabelSet
         public LabelSet Build()
         {
             // Copy, so a builder reused after Build() cannot mutate the set that was already
-            // handed out -- which now matters, because LabelSet caches its interned id and
-            // content key on the assumption that it never changes.
+            // handed out: LabelSet caches its interned id and content key on the assumption
+            // that it never changes.
             return new LabelSet(new Dictionary<string, string>(_labels));
         }
     }

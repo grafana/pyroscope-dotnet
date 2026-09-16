@@ -292,8 +292,8 @@ extern "C" std::uint32_t __stdcall InternDynamicTagSet(const char* const* keys, 
     auto* const store = profiler->GetDynamicTagSetStore();
     if (store == nullptr)
     {
-        // Propagation disabled: tell the caller not to ask again, so it applies labels on
-        // the thread that set them, which is what it did before propagation existed.
+        // Propagation disabled: tell the caller not to ask again, so it applies labels on the
+        // thread that set them.
         return NoDynamicTagSetEver;
     }
 
@@ -309,18 +309,17 @@ extern "C" std::uint32_t __stdcall InternDynamicTagSet(const char* const* keys, 
 
 extern "C" void __stdcall SetCurrentProfilingContext(std::uint32_t asyncScopeId, std::uint32_t dynamicTagSetId)
 {
-    // This is the hot path: managed code calls it on every ExecutionContext switch of a
-    // flow that carries a scope or labels. It deliberately reads the thread's own
-    // ManagedThreadInfo rather than going through
-    // ManagedThreadList::TryGetCurrentThreadInfo, which takes a process-wide lock -- that
-    // would serialize every continuation in the application on one mutex. Reading the
-    // thread_local without copying the shared_ptr is safe here because we are on the owning
-    // thread, which is also the only thread that clears it.
+    // The hot path: managed code calls this on every ExecutionContext switch of a flow that
+    // carries a scope or labels. It reads the thread's own ManagedThreadInfo rather than going
+    // through ManagedThreadList::TryGetCurrentThreadInfo, which takes a process-wide lock that
+    // would serialize every continuation in the application. Reading the thread_local without
+    // copying the shared_ptr is safe because we are on the owning thread, which is also the only
+    // thread that clears it.
     auto* const pCurrentThreadInfo = ManagedThreadInfo::CurrentThreadInfo.get();
     if (pCurrentThreadInfo == nullptr)
     {
-        // The CLR has not announced this thread to us yet, or already destroyed it: there
-        // is nothing that could be sampled, so nothing to publish to.
+        // The CLR has not announced this thread to us yet, or already destroyed it, so there is
+        // nothing that could be sampled.
         return;
     }
 
@@ -336,7 +335,7 @@ extern "C" void __stdcall SetCurrentProfilingContext(std::uint32_t asyncScopeId,
     if (store == nullptr)
     {
         // Propagation disabled. Leave the thread's tags alone: they are whatever the
-        // thread-local SetDynamicTag API put there, which is the pre-propagation behaviour.
+        // thread-local SetDynamicTag API put there.
         return;
     }
 
