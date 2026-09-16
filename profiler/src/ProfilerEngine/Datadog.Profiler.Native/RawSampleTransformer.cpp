@@ -148,8 +148,23 @@ void RawSampleTransformer::SetStack(const RawSample& rawSample, std::shared_ptr<
     // descendant of the endpoint that scheduled it.
     if (_pAsyncScopeStore != nullptr)
     {
-        _pAsyncScopeStore->ForEachFrame(
+        _stitchingSampleCount.fetch_add(1, std::memory_order_relaxed);
+
+        auto const appended = _pAsyncScopeStore->ForEachFrame(
             rawSample.AsyncScopeId,
             [&sample](FrameInfoView const& frame) { sample->AddFrame(frame); });
+
+        if (appended > 0)
+        {
+            _stitchedSampleCount.fetch_add(1, std::memory_order_relaxed);
+        }
+        else if (rawSample.AsyncScopeId != AsyncScopeStore::NoScope)
+        {
+            // The sample carried a scope id that resolved to nothing, so the chain was
+            // evicted after the sampler copied the id. Counted apart from the no-scope case
+            // because that one is just synchronous work, while this one means the store is
+            // too small for the application's scope count.
+            _staleScopeIdCount.fetch_add(1, std::memory_order_relaxed);
+        }
     }
 }

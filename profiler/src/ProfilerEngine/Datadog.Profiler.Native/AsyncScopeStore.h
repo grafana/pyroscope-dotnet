@@ -64,8 +64,11 @@ public:
     /// first, so that the frames extend a leaf-first callstack towards its logical
     /// root. A no-op for NoScope and for unknown ids. The sink runs outside the
     /// store's lock.
+    /// Returns how many frames were passed to the sink. Zero means the id resolved to
+    /// nothing -- either it was NoScope, or it is stale -- which the caller counts
+    /// separately so "no scopes in use" can be told apart from "scopes are being evicted".
     template <typename TSink>
-    void ForEachFrame(std::uint32_t id, TSink&& sink) const
+    std::size_t ForEachFrame(std::uint32_t id, TSink&& sink) const
     {
         std::array<std::string_view, MaxDepth> names;
         auto const count = GetChain(id, names);
@@ -73,6 +76,8 @@ public:
         {
             sink(FrameInfoView{{}, names[i], {}, 0});
         }
+
+        return count;
     }
 
     std::size_t GetScopeCount() const;

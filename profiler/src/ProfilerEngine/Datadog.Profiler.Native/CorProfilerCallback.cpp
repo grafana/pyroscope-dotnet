@@ -278,6 +278,29 @@ void CorProfilerCallback::InitializeServices()
         _metricsRegistry.GetOrRegister<ProxyMetric>("dotnet_memory_footprint_dynamic_tag_set_store", [this]() {
             return _pDynamicTagSetStore == nullptr ? 0.0 : static_cast<double>(_pDynamicTagSetStore->GetMemorySize());
         });
+
+        // Stitch coverage, so "is async stitching working in this deployment?" is a dashboard
+        // line rather than a flamegraph inspection. Measuring time under a scope frame is the
+        // intended signal for how well it works; these say whether it ran at all. The stale
+        // counter rising means the scope store is too small for the application's scope count,
+        // which is otherwise indistinguishable from having no scopes.
+        _metricsRegistry.GetOrRegister<ProxyMetric>("dotnet_async_stitching_samples_total", [this]() {
+            return _rawSampleTransformer == nullptr
+                ? 0.0
+                : static_cast<double>(_rawSampleTransformer->GetStitchingSampleCount());
+        });
+
+        _metricsRegistry.GetOrRegister<ProxyMetric>("dotnet_async_stitching_samples_stitched_total", [this]() {
+            return _rawSampleTransformer == nullptr
+                ? 0.0
+                : static_cast<double>(_rawSampleTransformer->GetStitchedSampleCount());
+        });
+
+        _metricsRegistry.GetOrRegister<ProxyMetric>("dotnet_async_stitching_stale_scope_ids_total", [this]() {
+            return _rawSampleTransformer == nullptr
+                ? 0.0
+                : static_cast<double>(_rawSampleTransformer->GetStaleScopeIdCount());
+        });
     }
 
     auto valueTypeProvider = SampleValueTypeProvider();

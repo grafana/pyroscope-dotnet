@@ -126,6 +126,51 @@ TEST_F(AsyncScopeStitchingTest, TwoSamplesInDifferentScopesGetDifferentLogicalRo
                 ::testing::ElementsAre("Frame #1", "Frame #2", "Frame #3", "GET /documents"));
 }
 
+TEST_F(AsyncScopeStitchingTest, CoverageCountersDistinguishStitchedFromUnstitchedAndStale)
+{
+    // Stitching must not fail the way PerfView's does: when it cannot find the thread-pool
+    // transition it silently returns the unstitched stack (ActivityComputer.cs:1004), with
+    // nothing to say so. These counters are how a deployment answers "is stitching actually
+    // working here?" without eyeballing a flamegraph.
+    AsyncScopeStore scopeStore;
+    auto const endpoint = scopeStore.Push(AsyncScopeStore::NoScope, "GET /folders");
+
+    RawSampleTransformer transformer(&_frameStore, &_appDomainStore, &_runtimeIdStore, &scopeStore);
+
+    // Ordinary synchronous work: counted, not stitched, and not stale.
+    GetFrameNames(transformer, MakeSample(AsyncScopeStore::NoScope));
+    EXPECT_EQ(1u, transformer.GetStitchingSampleCount());
+    EXPECT_EQ(0u, transformer.GetStitchedSampleCount());
+    EXPECT_EQ(0u, transformer.GetStaleScopeIdCount());
+
+    // A live scope: stitched.
+    GetFrameNames(transformer, MakeSample(endpoint));
+    EXPECT_EQ(2u, transformer.GetStitchingSampleCount());
+    EXPECT_EQ(1u, transformer.GetStitchedSampleCount());
+    EXPECT_EQ(0u, transformer.GetStaleScopeIdCount());
+
+    // An id the store never issued. Without a separate counter this is indistinguishable
+    // from synchronous work, which is exactly the confusion worth avoiding: one means
+    // "nothing to attribute", the other means "scopes are being evicted".
+    GetFrameNames(transformer, MakeSample(endpoint + 500));
+    EXPECT_EQ(3u, transformer.GetStitchingSampleCount());
+    EXPECT_EQ(1u, transformer.GetStitchedSampleCount());
+    EXPECT_EQ(1u, transformer.GetStaleScopeIdCount());
+}
+
+TEST_F(AsyncScopeStitchingTest, WithStitchingOffNoCoverageIsReported)
+{
+    // With PYROSCOPE_ASYNC_STITCHING_ENABLED=false there is no scope store, so the counters
+    // must stay at zero rather than reporting 100% unstitched and looking like a fault.
+    RawSampleTransformer transformer(&_frameStore, &_appDomainStore, &_runtimeIdStore);
+
+    GetFrameNames(transformer, MakeSample(7));
+
+    EXPECT_EQ(0u, transformer.GetStitchingSampleCount());
+    EXPECT_EQ(0u, transformer.GetStitchedSampleCount());
+    EXPECT_EQ(0u, transformer.GetStaleScopeIdCount());
+}
+
 TEST_F(AsyncScopeStitchingTest, AStaleScopeIdIsIgnoredRatherThanMisattributed)
 {
     AsyncScopeStore scopeStore;

@@ -3,6 +3,8 @@
 #pragma once
 
 
+#include <atomic>
+#include <cstdint>
 #include <memory>
 #include <vector>
 
@@ -41,6 +43,28 @@ public:
 
     std::shared_ptr<Sample> Transform(const RawSample& rawSample, std::vector<SampleValueTypeProvider::Offset> const& offsets);
 
+    // Stitch coverage, exported as metrics. Without these, "is stitching working in this
+    // deployment?" can only be answered by inspecting a flamegraph -- and a stale scope id
+    // looks exactly like ordinary synchronous work. All three stay at zero when stitching is
+    // disabled, so an off switch does not read as a fault.
+    //
+    // Incremented once per sample on the transform path and only ever read by the metrics
+    // registry, so relaxed ordering is enough: these are counters, not a protocol.
+    std::uint64_t GetStitchingSampleCount() const
+    {
+        return _stitchingSampleCount.load(std::memory_order_relaxed);
+    }
+
+    std::uint64_t GetStitchedSampleCount() const
+    {
+        return _stitchedSampleCount.load(std::memory_order_relaxed);
+    }
+
+    std::uint64_t GetStaleScopeIdCount() const
+    {
+        return _staleScopeIdCount.load(std::memory_order_relaxed);
+    }
+
     void Transform(const RawSample& rawSample, std::shared_ptr<Sample>& sample, std::vector<SampleValueTypeProvider::Offset> const& offsets);
 
 private:
@@ -52,4 +76,8 @@ private:
     IAppDomainStore* _pAppDomainStore;
     IRuntimeIdStore* _pRuntimeIdStore;
     AsyncScopeStore* _pAsyncScopeStore;
+
+    std::atomic<std::uint64_t> _stitchingSampleCount{0};
+    std::atomic<std::uint64_t> _stitchedSampleCount{0};
+    std::atomic<std::uint64_t> _staleScopeIdCount{0};
 };
