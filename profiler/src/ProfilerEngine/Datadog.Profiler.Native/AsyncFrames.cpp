@@ -55,6 +55,13 @@ constexpr std::string_view PlumbingMarkers[] = {
     "Task.ExecuteWithThreadLocal",
     "Task.ExecuteEntry",
     "Task.ExecuteFromThreadPool",
+
+    // The delegate hand-off between the pool and the work it is delivering: a Task.Run body
+    // lands under InnerInvoke, and ScheduleAndStart is the start side. PerfView removes both
+    // (ActivityComputer.cs:1265-1278). Spelled with the type name so an unrelated InnerInvoke
+    // elsewhere in the runtime assembly is not caught.
+    "Task.InnerInvoke",
+    "Task.ScheduleAndStart",
     "TryExecuteTaskInline",
     "TryRunInline",
     "InlineIfPossibleOrElseQueue",

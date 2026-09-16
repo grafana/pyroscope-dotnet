@@ -120,6 +120,16 @@ TEST(AsyncFramesTest, TheInlineCompletionUnwindIsRuntimePlumbing)
     EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading.Tasks!ThreadPoolTaskScheduler.TryExecuteTaskInline", CoreLib));
 }
 
+TEST(AsyncFramesTest, TheDelegateInvocationAndScheduleHelpersAreRuntimePlumbing)
+{
+    // Both sit between the pool's dispatch and the work it is delivering. PerfView removes
+    // them too: InnerInvoke as a TaskRunHelper, ScheduleAndStart as a TaskScheduleHelper
+    // (ActivityComputer.cs:1265-1278). InnerInvoke is also on the runtime-async resume path,
+    // between Task.ExecuteWithThreadLocal and the delegate itself.
+    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading.Tasks!Task.InnerInvoke", CoreLib));
+    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading.Tasks!Task.ScheduleAndStart", CoreLib));
+}
+
 TEST(AsyncFramesTest, AStateMachineBodyIsKeptAndRecognised)
 {
     EXPECT_EQ(AsyncFrameKind::StateMachineMoveNext,
