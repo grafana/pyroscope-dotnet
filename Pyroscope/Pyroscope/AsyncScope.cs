@@ -8,7 +8,7 @@ namespace Pyroscope
     /// for examples.
     ///
     /// This works in conjunction with the PYROSCOPE_ASYNC_STITCHING_ENABLED environment
-    /// variable. If stitching is disabled, pushing a scope has no effect.
+    /// variable, which is off unless set: until it is on, pushing a scope has no effect.
     public readonly struct AsyncScope : IDisposable
     {
         private readonly ProfilingContext? _context;

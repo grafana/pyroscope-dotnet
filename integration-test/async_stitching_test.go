@@ -133,12 +133,18 @@ func startAsyncStitchingApp(t *testing.T, appName string, extraEnv map[string]st
 	net := dockertest.CreateNetwork(t)
 	pyroscopeURL = startPyroscope(t, net)
 
+	// The async features are opt-in, so every test that exercises one has to ask for it. All
+	// three are enabled here and the "disabled" tests switch off the single one they are about,
+	// which keeps each of those a one-variable difference from the enabled case.
 	env := map[string]string{
-		"PYROSCOPE_APPLICATION_NAME":           appName,
-		"PYROSCOPE_PROFILING_ENABLED":          "true",
-		"PYROSCOPE_PROFILING_CPU_ENABLED":      "true",
-		"PYROSCOPE_PROFILING_WALLTIME_ENABLED": "true",
-		"DD_PROFILING_UPLOAD_PERIOD":           "10",
+		"PYROSCOPE_APPLICATION_NAME":                  appName,
+		"PYROSCOPE_PROFILING_ENABLED":                 "true",
+		"PYROSCOPE_PROFILING_CPU_ENABLED":             "true",
+		"PYROSCOPE_PROFILING_WALLTIME_ENABLED":        "true",
+		"PYROSCOPE_ASYNC_STITCHING_ENABLED":           "true",
+		"PYROSCOPE_ASYNC_CONTEXT_PROPAGATION_ENABLED": "true",
+		"PYROSCOPE_ASYNC_FRAME_CLEANUP_ENABLED":       "true",
+		"DD_PROFILING_UPLOAD_PERIOD":                  "10",
 	}
 	for k, v := range extraEnv {
 		env[k] = v

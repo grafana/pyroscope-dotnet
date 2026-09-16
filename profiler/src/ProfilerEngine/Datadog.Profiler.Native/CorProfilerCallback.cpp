@@ -199,8 +199,8 @@ void CorProfilerCallback::InitializeServices()
     _pFrameStore = std::make_unique<FrameStore>(
         _pCorProfilerInfo, _pConfiguration.get(), _pDebugInfoStore.get(), _managedCodeCache.get());
 
-    // Holds the logical async scope chains managed code pushes; a null store means
-    // async stack stitching is off and samples keep only their physical frames.
+    // Holds the logical async scope chains managed code pushes; a null store means async
+    // stack stitching was not asked for and samples keep only their physical frames.
     if (_pConfiguration->IsAsyncStitchingEnabled())
     {
         _pAsyncScopeStore = std::make_unique<AsyncScopeStore>();

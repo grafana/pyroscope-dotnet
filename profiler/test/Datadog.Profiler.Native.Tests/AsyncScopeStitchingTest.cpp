@@ -102,8 +102,8 @@ TEST_F(AsyncScopeStitchingTest, SamplesTakenOutsideAnyScopeKeepOnlyPhysicalFrame
 
 TEST_F(AsyncScopeStitchingTest, WithoutAScopeStoreTheStackIsUnchanged)
 {
-    // This is the shape of every sample when PYROSCOPE_ASYNC_STITCHING_ENABLED=false:
-    // the profiler reports physical stacks exactly as it did before stitching existed.
+    // This is the shape of every sample while PYROSCOPE_ASYNC_STITCHING_ENABLED is unset,
+    // which is the default: physical stacks exactly as before stitching existed.
     RawSampleTransformer transformer(&_frameStore, &_appDomainStore, &_runtimeIdStore);
 
     EXPECT_THAT(GetFrameNames(transformer, MakeSample(7)),
@@ -160,8 +160,8 @@ TEST_F(AsyncScopeStitchingTest, CoverageCountersDistinguishStitchedFromUnstitche
 
 TEST_F(AsyncScopeStitchingTest, WithStitchingOffNoCoverageIsReported)
 {
-    // With PYROSCOPE_ASYNC_STITCHING_ENABLED=false there is no scope store, so the counters
-    // must stay at zero rather than reporting 100% unstitched and looking like a fault.
+    // Without PYROSCOPE_ASYNC_STITCHING_ENABLED there is no scope store, so the counters must
+    // stay at zero rather than reporting 100% unstitched and looking like a fault.
     RawSampleTransformer transformer(&_frameStore, &_appDomainStore, &_runtimeIdStore);
 
     GetFrameNames(transformer, MakeSample(7));

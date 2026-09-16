@@ -1,8 +1,12 @@
 # Async context propagation
 
 The profiler's per-sample context — the logical call tree, the dynamic labels, the active
-span — used to be **per OS thread**. `async`/`await` moves work between threads, so for an
-async-heavy service all three broke in the same way.
+span — is **per OS thread**. `async`/`await` moves work between threads, so for an async-heavy
+service all three break in the same way.
+
+This describes the three switches that address that. Each is **off unless set**, so a
+deployment keeps the profiles it has until it opts in: `PYROSCOPE_ASYNC_STITCHING_ENABLED`,
+`PYROSCOPE_ASYNC_CONTEXT_PROPAGATION_ENABLED` and `PYROSCOPE_ASYNC_FRAME_CLEANUP_ENABLED`.
 
 ## The problem
 
@@ -66,7 +70,7 @@ there), and `RawSampleTransformer::SetStack` appends the chain's frames after th
 ones. The callstack is leaf-first, so appending puts them *above* the physical root,
 re-rooting the continuation under the scope that caused it.
 
-Switch: `PYROSCOPE_ASYNC_STITCHING_ENABLED=false`.
+Switch: `PYROSCOPE_ASYNC_STITCHING_ENABLED=true`. Off unless set.
 
 ### Dynamic labels and span context
 
@@ -85,8 +89,8 @@ sampler than the per-key route: it never leaves the thread's tags momentarily em
 Span context needs no interning — it is three integers written into the per-thread block the
 profiler already hands out, via `ContextTracker`.
 
-Switch: `PYROSCOPE_ASYNC_CONTEXT_PROPAGATION_ENABLED=false`. Turning it off does not turn
-labels off: they revert to being applied on the thread that set them, which is what the
+Switch: `PYROSCOPE_ASYNC_CONTEXT_PROPAGATION_ENABLED=true`. Off unless set. Leaving it off
+does not turn labels off: they are applied on the thread that set them, which is what the
 profiler did before.
 
 ### Async frame cleanup
@@ -161,7 +165,7 @@ What it deliberately does not do:
   one sample and not another, the two paths still differ; the profiler cannot put back a
   frame that was never on the stack.
 
-Switch: `PYROSCOPE_ASYNC_FRAME_CLEANUP_ENABLED=false`.
+Switch: `PYROSCOPE_ASYNC_FRAME_CLEANUP_ENABLED=true`. Off unless set.
 
 Note for anyone comparing against an older baseline: a gate that measures the share of time
 under `AsyncStateMachineBox` roots reads ~0% with this on, because those frames no longer
@@ -402,7 +406,8 @@ enclosing scope that was current when the continuation resumed.
 - `integration-test/async_stitching_test.go` and `async_labels_test.go` — end to end against a
   real Pyroscope: every sample of the work an endpoint performs after its `await` is rooted at
   the endpoint and carries its label, a synchronous endpoint's work is neither, and with each
-  switch off the corresponding attribution disappears.
+  switch off the corresponding attribution disappears. `startAsyncStitchingApp` enables all
+  three switches, and each "disabled" test turns off only the one it is about.
 - `integration-test/async_frame_cleanup_test.go` — end to end, that no machinery frame and no
   state-machine-decorated name reaches a collected profile, and that both come back with the
   switch off (which is what proves the check is not passing vacuously).

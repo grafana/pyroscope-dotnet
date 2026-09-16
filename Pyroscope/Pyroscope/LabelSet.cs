@@ -2,8 +2,9 @@ namespace Pyroscope;
 
 /// An immutable set of labels the profiler attaches to samples.
 ///
-/// Build one with BuildUpon and make it current for a piece of work with LabelsWrapper, which
-/// keeps the labels attached across `await`.
+/// Build one with BuildUpon and make it current for a piece of work with LabelsWrapper. With
+/// PYROSCOPE_ASYNC_CONTEXT_PROPAGATION_ENABLED set, the labels stay attached across `await`;
+/// otherwise they cover the calling thread only.
 ///
 /// Prefer values with bounded cardinality: every distinct combination becomes its own series
 /// in Pyroscope, and the profiler retains it for the process lifetime.
@@ -27,8 +28,8 @@ public class LabelSet
         _labels = labels;
     }
 
-    /// Applies this set to the calling thread and to the rest of the current async flow, so
-    /// samples taken from an `await` continuation carry it too.
+    /// Applies this set to the calling thread and, when propagation is enabled, to the rest of
+    /// the current async flow, so samples taken from an `await` continuation carry it too.
     ///
     /// Leaves the set in place; prefer LabelsWrapper.Push or LabelsWrapper.Do, which restore
     /// the previous set on the way out.

@@ -1668,16 +1668,51 @@ TEST_F(ConfigurationTest, CheckReferenceTreeFormatFallsBackToBinaryWhenEnvVarSet
 }
 
 
-TEST_F(ConfigurationTest, CheckAsyncFrameCleanupIsEnabledWhenEnvVariableIsNotSet)
+TEST_F(ConfigurationTest, CheckAsyncFrameCleanupIsDisabledWhenEnvVariableIsNotSet)
 {
     unsetenv(EnvironmentVariables::AsyncFrameCleanupEnabled);
+    auto configuration = Configuration{};
+    ASSERT_FALSE(configuration.IsAsyncFrameCleanupEnabled());
+}
+
+TEST_F(ConfigurationTest, CheckAsyncFrameCleanupIsEnabledWhenEnvVariableIsSetToTrue)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::AsyncFrameCleanupEnabled, WStr("1"));
     auto configuration = Configuration{};
     ASSERT_TRUE(configuration.IsAsyncFrameCleanupEnabled());
 }
 
-TEST_F(ConfigurationTest, CheckAsyncFrameCleanupIsDisabledWhenEnvVariableIsSetToFalse)
+TEST_F(ConfigurationTest, CheckAsyncFrameCleanupIsDisabledWhenEnvVariableIsNotAValidBoolean)
 {
-    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::AsyncFrameCleanupEnabled, WStr("0"));
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::AsyncFrameCleanupEnabled, WStr("maybe"));
     auto configuration = Configuration{};
     ASSERT_FALSE(configuration.IsAsyncFrameCleanupEnabled());
+}
+
+TEST_F(ConfigurationTest, CheckAsyncStitchingIsDisabledWhenEnvVariableIsNotSet)
+{
+    unsetenv(EnvironmentVariables::AsyncStitchingEnabled);
+    auto configuration = Configuration{};
+    ASSERT_FALSE(configuration.IsAsyncStitchingEnabled());
+}
+
+TEST_F(ConfigurationTest, CheckAsyncStitchingIsEnabledWhenEnvVariableIsSetToTrue)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::AsyncStitchingEnabled, WStr("1"));
+    auto configuration = Configuration{};
+    ASSERT_TRUE(configuration.IsAsyncStitchingEnabled());
+}
+
+TEST_F(ConfigurationTest, CheckAsyncContextPropagationIsDisabledWhenEnvVariableIsNotSet)
+{
+    unsetenv(EnvironmentVariables::AsyncContextPropagationEnabled);
+    auto configuration = Configuration{};
+    ASSERT_FALSE(configuration.IsAsyncContextPropagationEnabled());
+}
+
+TEST_F(ConfigurationTest, CheckAsyncContextPropagationIsEnabledWhenEnvVariableIsSetToTrue)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::AsyncContextPropagationEnabled, WStr("1"));
+    auto configuration = Configuration{};
+    ASSERT_TRUE(configuration.IsAsyncContextPropagationEnabled());
 }

@@ -165,9 +165,11 @@ Configuration::Configuration()
     _useManagedCodeCache = GetEnvironmentValue(EnvironmentVariables::UseManagedCodeCache, defaultUseManagedCodeCache);
     _isMemoryFootprintEnabled = GetEnvironmentValue(EnvironmentVariables::MemoryFootprintEnabled, false);
     _isAllocationTypeLeafEnabled = GetEnvironmentValue(EnvironmentVariables::AllocationTypeLeafEnabled, false);
-    _isAsyncStitchingEnabled = GetEnvironmentValue(EnvironmentVariables::AsyncStitchingEnabled, true);
-    _isAsyncContextPropagationEnabled = GetEnvironmentValue(EnvironmentVariables::AsyncContextPropagationEnabled, true);
-    _isAsyncFrameCleanupEnabled = GetEnvironmentValue(EnvironmentVariables::AsyncFrameCleanupEnabled, true);
+    // Opt-in: the async features change how stacks and labels are reported, so an existing
+    // deployment keeps the profiles it had until it asks for them.
+    _isAsyncStitchingEnabled = GetEnvironmentValue(EnvironmentVariables::AsyncStitchingEnabled, false);
+    _isAsyncContextPropagationEnabled = GetEnvironmentValue(EnvironmentVariables::AsyncContextPropagationEnabled, false);
+    _isAsyncFrameCleanupEnabled = GetEnvironmentValue(EnvironmentVariables::AsyncFrameCleanupEnabled, false);
 
     _referenceTreeFormat = ExtractReferenceTreeFormat();
 }

@@ -16,7 +16,10 @@ operation completes, the continuation resumes on a thread-pool thread rooted at
 async-heavy service the work an endpoint caused does not nest under the endpoint, and its
 inclusive time counts only the part before the first `await`.
 
-Wrap the work in a scope to get the relationship back:
+Stitching is opt-in. Set `PYROSCOPE_ASYNC_STITCHING_ENABLED=true` to turn it on; while it is
+off, pushing a scope costs nothing and the profiler reports physical stacks only.
+
+With it on, wrap the work in a scope to get the relationship back:
 
 ```csharp
 app.MapGet("/folders/{id}", async (int id, FolderService folders) =>
@@ -39,16 +42,16 @@ being recorded.
 If your application uses OpenTelemetry, add the `Pyroscope.OpenTelemetry` package instead
 and you get this for free — it opens a scope per span, named after the span.
 
-Set `PYROSCOPE_ASYNC_STITCHING_ENABLED=false` to turn stitching off; pushing a scope then
-costs nothing and the profiler reports physical stacks only.
-
 ## Labels across `await`
 
-Dynamic labels are attached per thread, so labels set by a request used to stop at its first
-`await`: the thread-pool thread running the continuation had never been told about them, while the
-thread that set them went back to the pool still carrying them and mislabelled whatever it picked
-up next. Labels now follow the work instead, on the same `ExecutionContext` that carries them
-across an `await`, and are taken off a thread when the flow leaves it.
+Dynamic labels are attached per thread, so by default labels set by a request stop at its first
+`await`: the thread-pool thread running the continuation was never told about them, while the
+thread that set them goes back to the pool still carrying them and mislabels whatever it picks
+up next.
+
+Set `PYROSCOPE_ASYNC_CONTEXT_PROPAGATION_ENABLED=true` and labels follow the work instead, on the
+same `ExecutionContext` that carries them across an `await`, and are taken off a thread when the
+flow leaves it.
 
 Use the `Task`-returning overloads for async work:
 
@@ -70,9 +73,7 @@ using (Pyroscope.LabelsWrapper.Push(labels))
 
 An `async` lambda binds to the `Task`-returning overload, so `Do` no longer silently becomes
 `async void` — previously that ended the label scope at the first `await` and swallowed exceptions.
+That holds whether or not propagation is enabled.
 
-Span context set through `Profiler.Instance.SetSpanContext` follows the async flow the same way,
-so span profiles cover a whole request rather than its synchronous prologue.
-
-Set `PYROSCOPE_ASYNC_CONTEXT_PROPAGATION_ENABLED=false` to go back to the per-thread behaviour;
-labels still work, they just stop at the first `await` again.
+With propagation on, span context set through `Profiler.Instance.SetSpanContext` follows the async
+flow the same way, so span profiles cover a whole request rather than its synchronous prologue.

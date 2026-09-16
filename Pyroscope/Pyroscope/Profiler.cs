@@ -217,11 +217,12 @@ namespace Pyroscope
         }
 
         // The same switches the native side reads, so one environment variable turns each
-        // feature off end to end. Both default to on.
+        // feature on end to end. Both are off unless asked for, and an unrecognised value
+        // counts as off, which matches how the native side reads them.
         private static bool IsEnabled(string variable)
         {
             var value = EnvironmentHelpers.GetEnvironmentVariable(variable);
-            return value == null || (value.ToBoolean() ?? true);
+            return value != null && (value.ToBoolean() ?? false);
         }
 
         private bool IsNativeInteropAvailable()
