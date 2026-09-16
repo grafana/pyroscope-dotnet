@@ -4,12 +4,20 @@
 #include "gtest/gtest.h"
 
 #include <string>
+#include <string_view>
 
 #include "AsyncFrames.h"
 
 // Frame names come out of FrameStore::FormatFrame as "Namespace!Type.Method", with
 // generic arguments spelled inline. The samples below are real frame names taken from
 // a profiled ASP.NET Core service.
+//
+// The second argument to Classify is the frame's declaring assembly, which gates the
+// plumbing markers: they are substring matches, so they are only trustworthy inside the
+// assembly that actually declares the machinery. Note this is the assembly, not the
+// namespace in the frame -- a CoreLib frame can carry a user type in its generic
+// arguments, as the continuation box below does.
+constexpr std::string_view CoreLib = "System.Private.CoreLib";
 
 TEST(AsyncFramesTest, TheContinuationBoxIsRuntimePlumbing)
 {
@@ -17,14 +25,15 @@ TEST(AsyncFramesTest, TheContinuationBoxIsRuntimePlumbing)
     EXPECT_EQ(AsyncFrameKind::RuntimePlumbing,
               AsyncFrames::Classify("System.Runtime.CompilerServices!AsyncTaskMethodBuilder"
                                     ".AsyncStateMachineBox<System.Threading.Tasks.VoidTaskResult, "
-                                    "Microsoft.AspNetCore.Session!SessionMiddleware.<Invoke>d__8>.MoveNext"));
+                                    "Microsoft.AspNetCore.Session!SessionMiddleware.<Invoke>d__8>.MoveNext",
+                                    CoreLib));
 }
 
 TEST(AsyncFramesTest, TheContinuationDeliveryPathIsRuntimePlumbing)
 {
-    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading!ThreadPoolWorkQueue.Dispatch"));
-    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading!ExecutionContext.RunFromThreadPoolDispatchLoop"));
-    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading!ExecutionContext.RunInternal"));
+    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading!ThreadPoolWorkQueue.Dispatch", CoreLib));
+    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading!ExecutionContext.RunFromThreadPoolDispatchLoop", CoreLib));
+    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading!ExecutionContext.RunInternal", CoreLib));
 }
 
 TEST(AsyncFramesTest, ThreadPoolBookkeepingIsKeptBecauseItIsRealWork)
@@ -34,13 +43,13 @@ TEST(AsyncFramesTest, ThreadPoolBookkeepingIsKeptBecauseItIsRealWork)
     // starvation is exactly the kind of thing you go to a profiler to find, so the worker
     // thread root and the queue mechanics stay.
     EXPECT_EQ(AsyncFrameKind::UserCode,
-              AsyncFrames::Classify("System.Threading!PortableThreadPool.WorkerThread.WorkerThreadStart"));
+              AsyncFrames::Classify("System.Threading!PortableThreadPool.WorkerThread.WorkerThreadStart", CoreLib));
     EXPECT_EQ(AsyncFrameKind::UserCode,
-              AsyncFrames::Classify("System.Threading!PortableThreadPool.WorkerThread.MaybeAddWorkingWorker"));
+              AsyncFrames::Classify("System.Threading!PortableThreadPool.WorkerThread.MaybeAddWorkingWorker", CoreLib));
     EXPECT_EQ(AsyncFrameKind::UserCode,
-              AsyncFrames::Classify("System.Threading!PortableThreadPool.GateThread.GateThreadStart"));
-    EXPECT_EQ(AsyncFrameKind::UserCode, AsyncFrames::Classify("System.Threading!ThreadPoolWorkQueue.Enqueue"));
-    EXPECT_EQ(AsyncFrameKind::UserCode, AsyncFrames::Classify("System.Threading!ThreadPoolWorkQueue.Dequeue"));
+              AsyncFrames::Classify("System.Threading!PortableThreadPool.GateThread.GateThreadStart", CoreLib));
+    EXPECT_EQ(AsyncFrameKind::UserCode, AsyncFrames::Classify("System.Threading!ThreadPoolWorkQueue.Enqueue", CoreLib));
+    EXPECT_EQ(AsyncFrameKind::UserCode, AsyncFrames::Classify("System.Threading!ThreadPoolWorkQueue.Dequeue", CoreLib));
 }
 
 TEST(AsyncFramesTest, TheBuilderStartFramesAreRuntimePlumbing)
@@ -49,10 +58,12 @@ TEST(AsyncFramesTest, TheBuilderStartFramesAreRuntimePlumbing)
     // logical path lands in two different flamegraph nodes.
     EXPECT_EQ(AsyncFrameKind::RuntimePlumbing,
               AsyncFrames::Classify("System.Runtime.CompilerServices!AsyncTaskMethodBuilder"
-                                    ".Start<Microsoft.AspNetCore.Diagnostics!DeveloperExceptionPageMiddlewareImpl.<Invoke>d__14>"));
+                                    ".Start<Microsoft.AspNetCore.Diagnostics!DeveloperExceptionPageMiddlewareImpl.<Invoke>d__14>",
+                                    CoreLib));
     EXPECT_EQ(AsyncFrameKind::RuntimePlumbing,
               AsyncFrames::Classify("System.Runtime.CompilerServices!AsyncMethodBuilderCore"
-                                    ".Start<Microsoft.AspNetCore.Diagnostics!DeveloperExceptionPageMiddlewareImpl.<Invoke>d__14>"));
+                                    ".Start<Microsoft.AspNetCore.Diagnostics!DeveloperExceptionPageMiddlewareImpl.<Invoke>d__14>",
+                                    CoreLib));
 }
 
 TEST(AsyncFramesTest, TheGenericBuildersAreRuntimePlumbingToo)
@@ -62,25 +73,30 @@ TEST(AsyncFramesTest, TheGenericBuildersAreRuntimePlumbingToo)
     // Matching on "AsyncTaskMethodBuilder." misses every one of them.
     EXPECT_EQ(AsyncFrameKind::RuntimePlumbing,
               AsyncFrames::Classify("System.Runtime.CompilerServices!AsyncTaskMethodBuilder<System.__Canon>"
-                                    ".Start<Pyroscope!LabelsWrapper.<Do>d__3>"));
+                                    ".Start<Pyroscope!LabelsWrapper.<Do>d__3>",
+                                    CoreLib));
     EXPECT_EQ(AsyncFrameKind::RuntimePlumbing,
               AsyncFrames::Classify("System.Runtime.CompilerServices!AsyncTaskMethodBuilder<System.Threading.Tasks.VoidTaskResult>"
                                     ".AwaitUnsafeOnCompleted<System.Runtime.CompilerServices!ValueTaskAwaiter, "
-                                    "Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.Internal!SocketConnection.<DoSend>d__28>"));
+                                    "Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets.Internal!SocketConnection.<DoSend>d__28>",
+                                    CoreLib));
     EXPECT_EQ(AsyncFrameKind::RuntimePlumbing,
-              AsyncFrames::Classify("System.Runtime.CompilerServices!TaskAwaiter<System.__Canon>.GetResult"));
+              AsyncFrames::Classify("System.Runtime.CompilerServices!TaskAwaiter<System.__Canon>.GetResult", CoreLib));
 
     // The pooled builder ValueTask-returning methods use is a distinct type name, and so is
     // the one `async void` uses.
     EXPECT_EQ(AsyncFrameKind::RuntimePlumbing,
               AsyncFrames::Classify("System.Runtime.CompilerServices!PoolingAsyncValueTaskMethodBuilder<System.Int32>"
-                                    ".Start<System.Net.Security!SslStream.<ReadAsyncInternal>d__9>"));
+                                    ".Start<System.Net.Security!SslStream.<ReadAsyncInternal>d__9>",
+                                    CoreLib));
     EXPECT_EQ(AsyncFrameKind::RuntimePlumbing,
               AsyncFrames::Classify("System.Runtime.CompilerServices!AsyncVoidMethodBuilder"
-                                    ".Start<Microsoft.Data.SqlClient.ManagedSni!SniPacket.<WriteToStreamAsync>d__31>"));
+                                    ".Start<Microsoft.Data.SqlClient.ManagedSni!SniPacket.<WriteToStreamAsync>d__31>",
+                                    CoreLib));
     EXPECT_EQ(AsyncFrameKind::RuntimePlumbing,
               AsyncFrames::Classify("System.Runtime.CompilerServices!PoolingAsyncValueTaskMethodBuilder<System.Int32>"
-                                    ".GetStateMachineBox<System.Net.Security!SslStream.<EnsureFullTlsFrameAsync>d__1>"));
+                                    ".GetStateMachineBox<System.Net.Security!SslStream.<EnsureFullTlsFrameAsync>d__1>",
+                                    CoreLib));
 }
 
 TEST(AsyncFramesTest, RuntimeHelpersAreKeptBecauseTheyAreRealWork)
@@ -88,41 +104,92 @@ TEST(AsyncFramesTest, RuntimeHelpersAreKeptBecauseTheyAreRealWork)
     // Also in System.Runtime.CompilerServices, and nothing to do with async: string
     // interpolation and the JIT's static/generic lookup helpers do measurable work.
     EXPECT_EQ(AsyncFrameKind::UserCode,
-              AsyncFrames::Classify("System.Runtime.CompilerServices!DefaultInterpolatedStringHandler.AppendLiteral"));
+              AsyncFrames::Classify("System.Runtime.CompilerServices!DefaultInterpolatedStringHandler.AppendLiteral", CoreLib));
     EXPECT_EQ(AsyncFrameKind::UserCode,
-              AsyncFrames::Classify("System.Runtime.CompilerServices!StaticsHelpers.GetGCStaticBase"));
+              AsyncFrames::Classify("System.Runtime.CompilerServices!StaticsHelpers.GetGCStaticBase", CoreLib));
     EXPECT_EQ(AsyncFrameKind::UserCode,
-              AsyncFrames::Classify("System.Runtime.CompilerServices!VirtualDispatchHelpers.VirtualFunctionPointer"));
+              AsyncFrames::Classify("System.Runtime.CompilerServices!VirtualDispatchHelpers.VirtualFunctionPointer", CoreLib));
 }
 
 TEST(AsyncFramesTest, TheInlineCompletionUnwindIsRuntimePlumbing)
 {
     // The recursion that fills the 1024-frame callstack budget on its own.
-    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading.Tasks!Task.RunContinuations"));
-    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading.Tasks!UnwrapPromise<System.Boolean>.TrySetFromTask"));
-    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading.Tasks!TaskContinuation.InlineIfPossibleOrElseQueue"));
-    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading.Tasks!ThreadPoolTaskScheduler.TryExecuteTaskInline"));
+    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading.Tasks!Task.RunContinuations", CoreLib));
+    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading.Tasks!UnwrapPromise<System.Boolean>.TrySetFromTask", CoreLib));
+    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading.Tasks!TaskContinuation.InlineIfPossibleOrElseQueue", CoreLib));
+    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading.Tasks!ThreadPoolTaskScheduler.TryExecuteTaskInline", CoreLib));
 }
 
 TEST(AsyncFramesTest, AStateMachineBodyIsKeptAndRecognised)
 {
     EXPECT_EQ(AsyncFrameKind::StateMachineMoveNext,
-              AsyncFrames::Classify("Microsoft.AspNetCore.ResponseCompression!ResponseCompressionMiddleware.<InvokeCore>d__4.MoveNext"));
+              AsyncFrames::Classify("Microsoft.AspNetCore.ResponseCompression!ResponseCompressionMiddleware.<InvokeCore>d__4.MoveNext",
+                                    "Microsoft.AspNetCore.ResponseCompression"));
 }
 
 TEST(AsyncFramesTest, OrdinaryFramesAreUserCode)
 {
-    EXPECT_EQ(AsyncFrameKind::UserCode, AsyncFrames::Classify("Microsoft.AspNetCore.Session!SessionMiddleware.Invoke"));
-    EXPECT_EQ(AsyncFrameKind::UserCode, AsyncFrames::Classify("MyApp.Controllers!FolderController.CreateFolderAsync"));
-    EXPECT_EQ(AsyncFrameKind::UserCode, AsyncFrames::Classify("System.Threading!Thread.StartCallback"));
+    EXPECT_EQ(AsyncFrameKind::UserCode,
+              AsyncFrames::Classify("Microsoft.AspNetCore.Session!SessionMiddleware.Invoke", "Microsoft.AspNetCore.Session"));
+    EXPECT_EQ(AsyncFrameKind::UserCode,
+              AsyncFrames::Classify("MyApp.Controllers!FolderController.CreateFolderAsync", "MyApp"));
+    EXPECT_EQ(AsyncFrameKind::UserCode, AsyncFrames::Classify("System.Threading!Thread.StartCallback", CoreLib));
 }
 
 TEST(AsyncFramesTest, BlockingOnATaskIsKeptBecauseItIsARealFinding)
 {
     // Sync-over-async is something you want to see in a profile, not machinery to hide.
-    EXPECT_EQ(AsyncFrameKind::UserCode, AsyncFrames::Classify("System.Threading.Tasks!Task.Wait"));
-    EXPECT_EQ(AsyncFrameKind::UserCode, AsyncFrames::Classify("System.Threading.Tasks!Task.SpinThenBlockingWait"));
-    EXPECT_EQ(AsyncFrameKind::UserCode, AsyncFrames::Classify("System.Threading!ManualResetEventSlim.Wait"));
+    EXPECT_EQ(AsyncFrameKind::UserCode, AsyncFrames::Classify("System.Threading.Tasks!Task.Wait", CoreLib));
+    EXPECT_EQ(AsyncFrameKind::UserCode, AsyncFrames::Classify("System.Threading.Tasks!Task.SpinThenBlockingWait", CoreLib));
+    EXPECT_EQ(AsyncFrameKind::UserCode, AsyncFrames::Classify("System.Threading!ManualResetEventSlim.Wait", CoreLib));
+}
+
+// The markers are substring matches, so without the assembly gate an application type named
+// "TaskContinuationHelper" would be dropped from every profile -- and so would a custom
+// TaskScheduler, whose TryExecuteTaskInline and TryRunInline the user writes themselves.
+// A dropped frame is invisible, which makes this worse than keeping a plumbing frame.
+// PerfView guards the same way, flagging plumbing only inside mscorlib/System.Private.CoreLib.
+TEST(AsyncFramesTest, ApplicationCodeIsNeverPlumbingHoweverItIsNamed)
+{
+    EXPECT_EQ(AsyncFrameKind::UserCode,
+              AsyncFrames::Classify("MyApp.Scheduling!TaskContinuationHelper.Run", "MyApp"));
+    EXPECT_EQ(AsyncFrameKind::UserCode,
+              AsyncFrames::Classify("MyApp.Scheduling!BoundedScheduler.TryExecuteTaskInline", "MyApp"));
+    EXPECT_EQ(AsyncFrameKind::UserCode,
+              AsyncFrames::Classify("MyApp.Scheduling!BoundedScheduler.TryRunInline", "MyApp"));
+    EXPECT_EQ(AsyncFrameKind::UserCode,
+              AsyncFrames::Classify("MyApp.Async!ContinuationWrapper.Invoke", "MyApp"));
+    EXPECT_EQ(AsyncFrameKind::UserCode,
+              AsyncFrames::Classify("MyApp.Await!TaskAwaiterExtensions.GetResult", "MyApp"));
+}
+
+TEST(AsyncFramesTest, TheSameNameInTheRuntimeAssemblyIsStillPlumbing)
+{
+    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing,
+              AsyncFrames::Classify("System.Threading!ThreadPoolWorkQueue.Dispatch", CoreLib));
+    // .NET Framework spells the runtime assembly differently.
+    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing,
+              AsyncFrames::Classify("System.Threading!ThreadPoolWorkQueue.Dispatch", "mscorlib"));
+}
+
+TEST(AsyncFramesTest, StateMachineDetectionIsNotScopedToTheRuntimeAssembly)
+{
+    // A state machine is declared by the assembly that wrote the async method, never by the
+    // runtime, so gating the parse on the assembly would disable the kickoff fold for every
+    // async method a user writes -- which is the whole point of it.
+    EXPECT_EQ(AsyncFrameKind::StateMachineMoveNext,
+              AsyncFrames::Classify("MyApp.Controllers!OrdersController.<Get>d__4.MoveNext", "MyApp"));
+    EXPECT_EQ(AsyncFrameKind::StateMachineMoveNext,
+              AsyncFrames::Classify("Microsoft.AspNetCore.Session!SessionMiddleware.<Invoke>d__8.MoveNext",
+                                    "Microsoft.AspNetCore.Session"));
+}
+
+TEST(AsyncFramesTest, AnUnresolvedAssemblyIsTreatedAsApplicationCode)
+{
+    // FrameStore reports an empty assembly when it could not resolve one. Keep the frame:
+    // losing it is worse, because a dropped frame leaves no trace of having been dropped.
+    EXPECT_EQ(AsyncFrameKind::UserCode,
+              AsyncFrames::Classify("System.Threading!ThreadPoolWorkQueue.Dispatch", ""));
 }
 
 TEST(AsyncFramesTest, TheStateMachineDecorationIsStrippedFromTheName)
@@ -153,9 +220,10 @@ TEST(AsyncFramesTest, AnIteratorMoveNextIsNotAStateMachineBody)
     // would rename and merge unrelated user code.
     EXPECT_EQ(AsyncFrameKind::UserCode,
               AsyncFrames::Classify("Microsoft.EntityFrameworkCore.Query.Internal"
-                                    "!SingleQueryingEnumerable.Enumerator<System.Boolean>.MoveNext"));
+                                    "!SingleQueryingEnumerable.Enumerator<System.Boolean>.MoveNext",
+                                    "Microsoft.EntityFrameworkCore.Relational"));
     EXPECT_EQ(AsyncFrameKind::UserCode,
-              AsyncFrames::Classify("System.Linq!Enumerable.ArrayWhereIterator<System.__Canon>.MoveNext"));
+              AsyncFrames::Classify("System.Linq!Enumerable.ArrayWhereIterator<System.__Canon>.MoveNext", "System.Linq"));
 }
 
 TEST(AsyncFramesTest, CompletingATaskCompletionSourceIsNotTreatedAsPlumbing)
@@ -163,5 +231,5 @@ TEST(AsyncFramesTest, CompletingATaskCompletionSourceIsNotTreatedAsPlumbing)
     // Deliberate boundary: user code calls TrySetResult itself, and dropping these
     // frames buys under 1% of the node reduction. Keeping them costs nothing.
     EXPECT_EQ(AsyncFrameKind::UserCode,
-              AsyncFrames::Classify("System.Threading.Tasks!TaskCompletionSource<System.Boolean>.TrySetResult"));
+              AsyncFrames::Classify("System.Threading.Tasks!TaskCompletionSource<System.Boolean>.TrySetResult", CoreLib));
 }

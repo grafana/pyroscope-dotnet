@@ -67,6 +67,14 @@ constexpr std::string_view PlumbingMarkers[] = {
     "ConfiguredValueTaskAwaitable",
 };
 
+// Every marker above lives in the runtime's own assembly, so requiring it costs no coverage
+// and removes the whole class of application-code false positives. PerfView scopes its
+// equivalent list the same way, flagging plumbing only in mscorlib/System.Private.CoreLib.
+constexpr std::string_view RuntimeAssemblies[] = {
+    "System.Private.CoreLib", // .NET Core / .NET 5+
+    "mscorlib",               // .NET Framework
+};
+
 constexpr std::string_view MoveNextSuffix = ".MoveNext";
 constexpr std::string_view StateMachineInfix = "d__";
 
@@ -150,16 +158,37 @@ bool TryParseStateMachine(std::string_view frame, std::string_view& prefix, std:
 
 } // namespace
 
-AsyncFrameKind AsyncFrames::Classify(std::string_view frame)
+bool AsyncFrames::IsRuntimeAssembly(std::string_view assembly)
 {
-    for (auto const& marker : PlumbingMarkers)
+    for (auto const& candidate : RuntimeAssemblies)
     {
-        if (frame.find(marker) != std::string_view::npos)
+        if (assembly == candidate)
         {
-            return AsyncFrameKind::RuntimePlumbing;
+            return true;
         }
     }
 
+    return false;
+}
+
+AsyncFrameKind AsyncFrames::Classify(std::string_view frame, std::string_view assembly)
+{
+    // The markers are substrings, so they are only trustworthy inside the assembly that
+    // actually declares the machinery. Outside it, "TaskContinuation" is just as likely to be
+    // an application type, and TryExecuteTaskInline is a method users write themselves.
+    if (IsRuntimeAssembly(assembly))
+    {
+        for (auto const& marker : PlumbingMarkers)
+        {
+            if (frame.find(marker) != std::string_view::npos)
+            {
+                return AsyncFrameKind::RuntimePlumbing;
+            }
+        }
+    }
+
+    // Not gated: a state machine is declared by the assembly that wrote the async method, so
+    // gating this would disable the kickoff fold for every async method a user writes.
     std::string_view prefix;
     std::string_view method;
     if (TryParseStateMachine(frame, prefix, method))

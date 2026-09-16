@@ -256,7 +256,7 @@ FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId)
     auto asyncKind = AsyncFrameKind::UserCode;
     if (_isAsyncFrameCleanupEnabled)
     {
-        asyncKind = AsyncFrames::Classify(managedFrame);
+        asyncKind = AsyncFrames::Classify(managedFrame, pTypeDesc->Assembly);
         if (asyncKind == AsyncFrameKind::StateMachineMoveNext)
         {
             managedFrame = AsyncFrames::CanonicalName(managedFrame);
