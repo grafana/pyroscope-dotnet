@@ -130,6 +130,53 @@ TEST(AsyncFramesTest, TheDelegateInvocationAndScheduleHelpersAreRuntimePlumbing)
     EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify("System.Threading.Tasks!Task.ScheduleAndStart", CoreLib));
 }
 
+// .NET 12's runtime async replaces the compiler's state machine with runtime-managed
+// continuations, so AsyncStateMachineBox and AsyncMethodBuilderCore never match for a
+// runtime-async method and these take their place. All are [StackTraceHidden] upstream:
+// dotnet/runtime#131963 marked them precisely because stitchers -- ours included -- identify
+// them by name, and nothing had guarded that contract. Listing them costs nothing on today's
+// runtimes, where the frames never occur; the point is that the cleanup does not silently do
+// less once runtime async ships.
+TEST(AsyncFramesTest, TheRuntimeAsyncMachineryIsRuntimePlumbing)
+{
+    // The flat resume loop: it pops one continuation, resumes it and loops, so only ever one
+    // async frame sits on the physical stack.
+    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing,
+              AsyncFrames::Classify("System.Runtime.CompilerServices!RuntimeAsyncTask<System.Int32>"
+                                    ".DispatchContinuations",
+                                    CoreLib));
+
+    // The instrumented clones of the classic-async dispatch path, which appear even for
+    // state-machine async once the runtime's own async profiler is enabled.
+    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing,
+              AsyncFrames::Classify("System.Runtime.CompilerServices!AsyncStateMachineDispatcher.MoveNext", CoreLib));
+    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing,
+              AsyncFrames::Classify("System.Runtime.CompilerServices!AsyncTaskMethodBuilder"
+                                    ".AsyncStateMachineBox<System.Int32>.InstrumentedMoveNext",
+                                    CoreLib));
+    EXPECT_EQ(AsyncFrameKind::RuntimePlumbing,
+              AsyncFrames::Classify("System.Runtime.CompilerServices!AsyncTaskMethodBuilder"
+                                    ".AsyncProfilerAsyncStateMachineBox<System.Int32>.MoveNextAsDispatcher",
+                                    CoreLib));
+}
+
+TEST(AsyncFramesTest, EveryContinuationWrapperIndexIsRuntimePlumbing)
+{
+    // The runtime rotates through 32 identical [NoInlining] wrappers so an OS profiler sees
+    // distinguishable return addresses, so every index has to match, not just the first.
+    // These need no marker of their own -- their declaring type is
+    // AsyncProfiler.ContinuationWrapper, which the pre-existing ContinuationWrapper marker
+    // already matches. This test pins that, so removing that marker cannot quietly
+    // un-classify all 32 of them.
+    for (int index : {0, 1, 7, 31})
+    {
+        auto const frame = "System.Runtime.CompilerServices!AsyncProfiler.ContinuationWrapper"
+                           ".Continuation_Wrapper_" +
+            std::to_string(index);
+        EXPECT_EQ(AsyncFrameKind::RuntimePlumbing, AsyncFrames::Classify(frame, CoreLib)) << "wrapper index " << index;
+    }
+}
+
 TEST(AsyncFramesTest, AStateMachineBodyIsKeptAndRecognised)
 {
     EXPECT_EQ(AsyncFrameKind::StateMachineMoveNext,

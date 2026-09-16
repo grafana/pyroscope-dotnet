@@ -67,6 +67,22 @@ constexpr std::string_view PlumbingMarkers[] = {
     "InlineIfPossibleOrElseQueue",
     "RunOrScheduleAction",
 
+    // Runtime async (.NET 12+) and the runtime's own async profiler. A runtime-async method
+    // has no compiler state machine, so AsyncStateMachineBox and AsyncMethodBuilderCore above
+    // never match for one and these take their place. All are [StackTraceHidden] upstream:
+    // dotnet/runtime#131963 marked them precisely because stitchers -- ours included --
+    // identify these frames by name and nothing had guarded that contract.
+    //
+    // DispatchContinuations is the flat resume loop. The other two are the instrumented clones
+    // of the classic-async dispatch path, which appear even for state-machine async once the
+    // runtime's async profiler is enabled. The 32 Continuation_Wrapper_N frames need no marker
+    // of their own: their declaring type is AsyncProfiler.ContinuationWrapper, which the
+    // ContinuationWrapper marker above already matches.
+    "DispatchContinuations",
+    "AsyncStateMachineDispatcher",
+    "InstrumentedMoveNext",
+    "MoveNextAsDispatcher",
+
     // Awaiting itself. Generic for the same reason: "TaskAwaiter<T>.GetResult".
     "TaskAwaiter",
     "ValueTaskAwaiter",
