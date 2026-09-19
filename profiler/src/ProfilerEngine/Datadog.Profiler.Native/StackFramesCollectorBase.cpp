@@ -136,6 +136,10 @@ bool StackFramesCollectorBase::TryApplyTraceContextDataFromCurrentCollectionThre
 
     _pStackSnapshotResult->SetTraceContext(pCurrentCollectionThreadInfo->GetTracingContext());
 
+    // Only an id is read here: resolving it to frames needs a lock, which we must not take
+    // while the thread is suspended, so that happens at transform time.
+    _pStackSnapshotResult->SetAsyncScopeId(pCurrentCollectionThreadInfo->GetAsyncScopeId());
+
     return true;
 }
 

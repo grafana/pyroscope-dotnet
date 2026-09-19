@@ -579,6 +579,7 @@ void StackSamplerLoop::PersistStackSnapshotResults(
         rawSample.ThreadInfo = pThreadInfo;
         rawSample.Duration = pSnapshotResult->GetRepresentedDuration();
         rawSample.Tags.AsyncSafeCopy(pSnapshotResult->GetTags());
+        rawSample.AsyncScopeId = pSnapshotResult->GetAsyncScopeId();
         _pWallTimeCollector->Add(std::move(rawSample));
     }
     else
@@ -593,6 +594,7 @@ void StackSamplerLoop::PersistStackSnapshotResults(
         rawCpuSample.ThreadInfo = pThreadInfo;
         rawCpuSample.Duration = pSnapshotResult->GetRepresentedDuration();
         rawCpuSample.Tags.AsyncSafeCopy(pSnapshotResult->GetTags());
+        rawCpuSample.AsyncScopeId = pSnapshotResult->GetAsyncScopeId();
         _pCpuTimeCollector->Add(std::move(rawCpuSample));
     }
 }

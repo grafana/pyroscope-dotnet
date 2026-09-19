@@ -3,6 +3,7 @@
 
 #include "RawSampleTransformer.h"
 
+#include "AsyncScopeStore.h"
 #include "OpSysTools.h"
 #include "IAppDomainStore.h"
 #include "IFrameStore.h"
@@ -84,14 +85,82 @@ void RawSampleTransformer::SetThreadDetails(const RawSample& rawSample, std::sha
 
 void RawSampleTransformer::SetStack(const RawSample& rawSample, std::shared_ptr<Sample>& sample)
 {
+    // Frames arrive leaf-first. Every frame carries the async kind the frame store worked out
+    // once for its method, which is UserCode for all of them when cleanup is off, so the two
+    // rules below are then no-ops.
+    FrameInfoView previous{};
+    FrameInfoView leaf{};
+    bool hasLeaf = false;
+
     // Deal with fake stack frames like for garbage collections since the Stack will be empty
     for (auto const& instructionPointer : rawSample.Stack)
     {
         auto [isResolved, frame] = _pFrameStore->GetFrame(instructionPointer);
 
-        if (isResolved)
+        if (!isResolved)
         {
-            sample->AddFrame(frame);
+            continue;
+        }
+
+        if (!hasLeaf)
+        {
+            leaf = frame;
+            hasLeaf = true;
+        }
+
+        if (frame.AsyncKind == AsyncFrameKind::RuntimePlumbing)
+        {
+            continue;
+        }
+
+        // An async method contributes both a compiler-generated kickoff frame and the state
+        // machine body that the kickoff starts, one directly above the other and both named
+        // after the same method once canonicalised. Folding the kickoff away puts a sample that
+        // caught only the kickoff on the same node as one that caught the body, while leaving
+        // genuine recursion (two bodies) alone.
+        auto const foldsIntoTheBodyBelowIt =
+            previous.AsyncKind == AsyncFrameKind::StateMachineMoveNext &&
+            frame.AsyncKind != AsyncFrameKind::StateMachineMoveNext &&
+            previous.Frame == frame.Frame;
+
+        if (foldsIntoTheBodyBelowIt)
+        {
+            continue;
+        }
+
+        sample->AddFrame(frame);
+        previous = frame;
+    }
+
+    // A sample can be machinery all the way down: the inline-completion unwind recurses deep
+    // enough to fill the callstack budget, which costs the outermost frames. Keeping its leaf
+    // stops the sample from losing its stack altogether.
+    if (hasLeaf && sample->GetCallstack().empty())
+    {
+        sample->AddFrame(leaf);
+    }
+
+    // The callstack is leaf-first, so the logical async parents belong at the end: they extend
+    // the physical stack past its thread-pool root up to the scope that caused this work (see
+    // AsyncScopeStore).
+    if (_pAsyncScopeStore != nullptr)
+    {
+        _stitchingSampleCount.fetch_add(1, std::memory_order_relaxed);
+
+        auto const appended = _pAsyncScopeStore->ForEachFrame(
+            rawSample.AsyncScopeId,
+            [&sample](FrameInfoView const& frame) { sample->AddFrame(frame); });
+
+        if (appended > 0)
+        {
+            _stitchedSampleCount.fetch_add(1, std::memory_order_relaxed);
+        }
+        else if (rawSample.AsyncScopeId != AsyncScopeStore::NoScope)
+        {
+            // The sample carried a scope id that resolved to nothing. Counted apart from the
+            // no-scope case, which is just synchronous work, because this one means the store
+            // is too small for the application's scope count.
+            _staleScopeIdCount.fetch_add(1, std::memory_order_relaxed);
         }
     }
 }

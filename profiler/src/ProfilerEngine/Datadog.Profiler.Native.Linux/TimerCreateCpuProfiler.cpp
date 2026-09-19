@@ -321,6 +321,7 @@ bool TimerCreateCpuProfiler::Collect(void* ctx)
     rawCpuSample->Timestamp = OpSysTools::GetTimestampSafe();
     rawCpuSample->AppDomainId = threadInfo->GetAppDomainId();
     rawCpuSample->Tags.AsyncSafeCopy(threadInfo->GetTags());
+    rawCpuSample->AsyncScopeId = threadInfo->GetAsyncScopeId();
     rawCpuSample->ThreadInfo = std::move(threadInfo);
     rawCpuSample->Duration = _samplingInterval;
     _nbThreadsInSignalHandler--;

@@ -220,6 +220,7 @@ void ContentionProvider::AddContentionSample(
         rawSample.Stack = result->GetCallstack();
         rawSample.ThreadInfo = threadInfo;
         rawSample.Tags.AsyncSafeCopy(threadInfo->GetTags());
+        rawSample.AsyncScopeId = threadInfo->GetAsyncScopeId();
     }
     else
     // CLR events are received asynchronously from the Agent

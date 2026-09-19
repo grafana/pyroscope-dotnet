@@ -9,10 +9,11 @@ namespace Pyroscope
     {
         private static Profiler? _instance;
 
-        internal Profiler(ProfilerStatus status, ContextTracker contextTracker)
+        internal Profiler(ProfilerStatus status, ContextTracker contextTracker, ProfilingContext profilingContext)
         {
             _status = status;
             _contextTracker = contextTracker;
+            _profilingContext = profilingContext;
         }
 
         public static Profiler Instance
@@ -26,9 +27,19 @@ namespace Pyroscope
             _contextTracker.Set(profileId, 0, 0);
         }
 
+        /// Makes this span the one the profiler attributes samples to, for the rest of the current
+        /// async flow, so work the span does after an `await` is attributed to it as well.
         public void SetSpanContext(ulong localRootSpanId, ulong traceIdHi, ulong traceIdLo)
         {
-            _contextTracker.Set(localRootSpanId, traceIdHi, traceIdLo);
+            _profilingContext.PushSpan(new SpanContext(localRootSpanId, traceIdHi, traceIdLo));
+        }
+
+        // The ambient context that follows async flows: logical scopes, dynamic labels and the
+        // active span. Exposed internally so AsyncScope, LabelsWrapper and the tracing bridges
+        // share one context per process.
+        internal ProfilingContext ProfilingContext
+        {
+            get { return _profilingContext; }
         }
 
         public void SetDynamicTags(Dictionary<string, string> tags)
@@ -191,13 +202,28 @@ namespace Pyroscope
 
         private readonly ContextTracker _contextTracker;
         private readonly ProfilerStatus _status;
+        private readonly ProfilingContext _profilingContext;
         private bool _dllNotFound;
 
         private static Profiler Create()
         {
             var status = new ProfilerStatus();
             var contextTracker = new ContextTracker(status);
-            return new Profiler(status, contextTracker);
+            var asyncProfiling = IsEnabled("PYROSCOPE_ASYNC_PROFILING_ENABLED");
+            var profilingContext = new ProfilingContext(
+                new NativeProfilingContextSink(contextTracker),
+                stitchingEnabled: asyncProfiling,
+                propagationEnabled: asyncProfiling);
+            return new Profiler(status, contextTracker, profilingContext);
+        }
+
+        // The same switch the native side reads, so one environment variable turns async
+        // profiling on end to end. It is off unless asked for, and an unrecognised value counts
+        // as off, which matches how the native side reads it.
+        private static bool IsEnabled(string variable)
+        {
+            var value = EnvironmentHelpers.GetEnvironmentVariable(variable);
+            return value != null && (value.ToBoolean() ?? false);
         }
 
         private bool IsNativeInteropAvailable()

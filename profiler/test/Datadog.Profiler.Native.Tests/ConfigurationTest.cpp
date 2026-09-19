@@ -1667,3 +1667,31 @@ TEST_F(ConfigurationTest, CheckReferenceTreeFormatFallsBackToBinaryWhenEnvVarSet
     ASSERT_THAT(configuration.GetReferenceTreeFormat(), ReferenceTreeFormat_Binary);
 }
 
+
+TEST_F(ConfigurationTest, CheckAsyncProfilingIsDisabledWhenEnvVariableIsNotSet)
+{
+    unsetenv(EnvironmentVariables::AsyncProfilingEnabled);
+    auto configuration = Configuration{};
+    ASSERT_FALSE(configuration.IsAsyncProfilingEnabled());
+}
+
+TEST_F(ConfigurationTest, CheckAsyncProfilingIsEnabledWhenEnvVariableIsSetToTrue)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::AsyncProfilingEnabled, WStr("1"));
+    auto configuration = Configuration{};
+    ASSERT_TRUE(configuration.IsAsyncProfilingEnabled());
+}
+
+TEST_F(ConfigurationTest, CheckAsyncProfilingIsDisabledWhenEnvVariableIsSetToFalse)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::AsyncProfilingEnabled, WStr("0"));
+    auto configuration = Configuration{};
+    ASSERT_FALSE(configuration.IsAsyncProfilingEnabled());
+}
+
+TEST_F(ConfigurationTest, CheckAsyncProfilingIsDisabledWhenEnvVariableIsNotAValidBoolean)
+{
+    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::AsyncProfilingEnabled, WStr("maybe"));
+    auto configuration = Configuration{};
+    ASSERT_FALSE(configuration.IsAsyncProfilingEnabled());
+}
