@@ -9,5 +9,6 @@
   <Project Path="Pyroscope.OpenTelemetry/Pyroscope.OpenTelemetry.csproj" />
   <Project Path="Pyroscope.OpenTracing.Tests/Pyroscope.OpenTracing.Tests.csproj" />
   <Project Path="Pyroscope.OpenTracing/Pyroscope.OpenTracing.csproj" />
+  <Project Path="Pyroscope.Tests/Pyroscope.Tests.csproj" />
   <Project Path="Pyroscope/Pyroscope.csproj" />
 </Solution>

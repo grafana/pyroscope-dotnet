@@ -3,6 +3,7 @@
 
 #include "FrameStore.h"
 
+#include "AsyncFrames.h"
 #include "COMHelpers.h"
 #include "DebugInfoStore.h"
 #include "IConfiguration.h"
@@ -22,6 +23,9 @@ FrameStore::FrameStore(ICorProfilerInfo4* pCorProfilerInfo,
     ManagedCodeCache* pManagedCodeCache) :
     _pCorProfilerInfo{pCorProfilerInfo},
     _pDebugInfoStore{debugInfoStore},
+    // A null configuration is part of this class's contract (see FrameStoreTest): the
+    // fake-IP path needs no configuration at all, and no configuration means no cleanup.
+    _isAsyncFrameCleanupEnabled{pConfiguration != nullptr && pConfiguration->IsAsyncProfilingEnabled()},
     _pManagedCodeCache{pManagedCodeCache},
     _cachedItemsSize(0)
 {
@@ -246,13 +250,25 @@ FrameInfoView FrameStore::GetManagedFrame(FunctionID functionId)
     // build the frame from namespace, type and method names
     std::string managedFrame = FormatFrame(pTypeDesc->Namespace, pTypeDesc->Type, pTypeDesc->Parameters, methodName, methodGenericParameters);
 
+    // An async method's body is called "Class.<Method>d__4.MoveNext"; renaming it to
+    // "Class.Method" lets it merge with the kickoff frame the compiler generated alongside it.
+    auto asyncKind = AsyncFrameKind::UserCode;
+    if (_isAsyncFrameCleanupEnabled)
+    {
+        asyncKind = AsyncFrames::Classify(managedFrame, pTypeDesc->Assembly);
+        if (asyncKind == AsyncFrameKind::StateMachineMoveNext)
+        {
+            managedFrame = AsyncFrames::CanonicalName(managedFrame);
+        }
+    }
+
     auto debugInfo = _pDebugInfoStore->Get(moduleId, mdTokenFunc);
 
     {
         std::lock_guard<std::mutex> lock(_methodsLock);
 
         // store it into the function cache and return an iterator to the stored elements
-        auto [it, _] = _methods.emplace(functionId, FrameInfo{pTypeDesc->Assembly, managedFrame, debugInfo.File, debugInfo.StartLine});
+        auto [it, _] = _methods.emplace(functionId, FrameInfo{pTypeDesc->Assembly, managedFrame, debugInfo.File, debugInfo.StartLine, asyncKind});
 
         // Incrementally track item size
         size_t itemSize = it->second.ModuleName.capacity() + it->second.Frame.capacity();

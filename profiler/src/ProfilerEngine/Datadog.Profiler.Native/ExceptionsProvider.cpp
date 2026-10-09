@@ -162,6 +162,7 @@ bool ExceptionsProvider::OnExceptionThrown(ObjectID thrownObjectId)
     rawSample.ExceptionMessage = std::move(message);
     rawSample.ExceptionType = std::move(name);
     rawSample.Tags.AsyncSafeCopy(threadInfo->GetTags());
+    rawSample.AsyncScopeId = threadInfo->GetAsyncScopeId();
     Add(std::move(rawSample));
     _sampledExceptionsCountMetric->Incr();
 

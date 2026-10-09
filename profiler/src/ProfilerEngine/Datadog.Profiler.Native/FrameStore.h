@@ -169,15 +169,21 @@ private:
         std::string Frame;
         std::string_view Filename;
         std::uint32_t StartLine;
+        AsyncFrameKind AsyncKind = AsyncFrameKind::UserCode;
 
         operator FrameInfoView() const
         {
-            return {ModuleName, Frame, Filename, StartLine};
+            return {ModuleName, Frame, Filename, StartLine, AsyncKind};
         }
     };
 
     ICorProfilerInfo4* _pCorProfilerInfo;
     IDebugInfoStore* _pDebugInfoStore;
+
+    // When set, a managed frame's name is canonicalised and its relation to the async/await
+    // machinery worked out once, as the frame is first resolved and cached, so nothing about it
+    // costs anything per sample.
+    bool _isAsyncFrameCleanupEnabled;
 
     // mutable to allow locking in const methods (e.g., GetMemorySize, LogMemoryBreakdown)
     mutable std::mutex _methodsLock;

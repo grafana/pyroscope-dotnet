@@ -10,4 +10,9 @@
         <None Include="README.md" Pack="true" PackagePath="\"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <!-- ProfilingContext is internal, and its tests substitute the native sink. -->
+        <InternalsVisibleTo Include="Pyroscope.Tests" />
+    </ItemGroup>
+
 </Project>

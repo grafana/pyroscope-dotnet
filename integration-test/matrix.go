@@ -49,7 +49,16 @@ func profilerDockerfile(libcType string) string {
 	return "Pyroscope.Dockerfile"
 }
 
+// PYROSCOPE_PROFILER_IMAGE runs the tests against an existing profiler image instead of
+// building one from this tree -- useful for testing a released image, or for iterating on
+// the test app without paying for a native rebuild each run. CI leaves it unset and builds
+// from source.
+const profilerImageEnvVar = "PYROSCOPE_PROFILER_IMAGE"
+
 func profilerImageTag(libcType string) string {
+	if image := os.Getenv(profilerImageEnvVar); image != "" {
+		return image
+	}
 	return fmt.Sprintf("pyroscope-dotnet-%s:test", libcType)
 }
 
@@ -82,6 +91,10 @@ var profilerBuilds sync.Map
 
 func ensureProfilerImage(t *testing.T, libcType string) {
 	t.Helper()
+	if image := os.Getenv(profilerImageEnvVar); image != "" {
+		t.Logf("using prebuilt profiler image %s (%s=%s)", image, profilerImageEnvVar, image)
+		return
+	}
 	val, _ := profilerBuilds.LoadOrStore(libcType, &profilerBuildResult{})
 	pb := val.(*profilerBuildResult)
 	pb.once.Do(func() {

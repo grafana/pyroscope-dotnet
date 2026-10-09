@@ -22,3 +22,6 @@
   SetContentionTrackingEnabled PRIVATE
   SetExceptionTrackingEnabled PRIVATE
   SetPyroscopeBasicAuth PRIVATE
+  PushAsyncScope PRIVATE
+  InternDynamicTagSet PRIVATE
+  SetCurrentProfilingContext PRIVATE

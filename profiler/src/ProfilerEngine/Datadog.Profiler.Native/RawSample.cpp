@@ -10,7 +10,8 @@ RawSample::RawSample() noexcept
     TraceContext{},
     ThreadInfo{nullptr},
     Stack{},
-    Tags{}
+    Tags{},
+    AsyncScopeId{0}
 {
 }
 
@@ -27,6 +28,7 @@ RawSample& RawSample::operator=(RawSample&& other) noexcept
     ThreadInfo = std::move(other.ThreadInfo);
     Stack = std::move(other.Stack);
     Tags = std::move(other.Tags);
+    AsyncScopeId = other.AsyncScopeId;
 
     return *this;
 }
