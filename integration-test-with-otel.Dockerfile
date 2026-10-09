@@ -1,13 +1,11 @@
-ARG BUILDPLATFORM=linux/amd64
 ARG SDK_VERSION=8.0
-ARG PYROSCOPE_SDK_IMAGE
 ARG SDK_IMAGE_SUFFIX
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:$SDK_VERSION$SDK_IMAGE_SUFFIX AS build
+ARG DOTNET_RUNTIME_ID=linux-x64
+FROM mcr.microsoft.com/dotnet/sdk:$SDK_VERSION$SDK_IMAGE_SUFFIX AS build
 
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
 ARG SDK_VERSION
 ARG SDK_IMAGE_SUFFIX
+ARG DOTNET_RUNTIME_ID
 
 WORKDIR /dotnet
 
@@ -21,17 +19,14 @@ RUN sed -i -E 's|<TargetFrameworks>.*</TargetFrameworks>|<TargetFramework>net'$S
 
 WORKDIR /dotnet/app
 
-# We hardcode linux-x64 here, as the profiler doesn't support any other platform.
 # Publish to a separate directory: .NET 10+ cleans the output dir before compiling,
 # so -o . (source dir) would delete source files and cause CS5001.
-RUN dotnet publish -o /dotnet/publish --framework net$SDK_VERSION --runtime linux-x64 --no-self-contained
+RUN dotnet publish -o /dotnet/publish --framework net$SDK_VERSION --runtime $DOTNET_RUNTIME_ID --no-self-contained
 
-# This uses a locally built image of the SDK
-FROM --platform=linux/amd64 $PYROSCOPE_SDK_IMAGE AS sdk
-ARG PYROSCOPE_SDK_IMAGE
-
-# Runtime only image of the targetplatfrom, so the platform the image will be running on.
-FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/aspnet:$SDK_VERSION$SDK_IMAGE_SUFFIX
+# Runtime-only image of the target platform.
+FROM mcr.microsoft.com/dotnet/aspnet:$SDK_VERSION$SDK_IMAGE_SUFFIX
+ARG DOTNET_RUNTIME_ID
+ARG PROFILER_BINARIES_DIR=profiler-bin
 
 RUN if command -v apt-get > /dev/null 2>&1; then \
         apt-get update && apt-get install -y --no-install-recommends curl unzip && rm -rf /var/lib/apt/lists/*; \
@@ -49,7 +44,7 @@ RUN mkdir -p ${OTEL_DOTNET_AUTO_HOME} && \
 # OTEL as the main (classic) profiler
 ENV CORECLR_ENABLE_PROFILING=1
 ENV CORECLR_PROFILER={918728DD-259F-4A6A-AC2B-B85E1B658318}
-ENV CORECLR_PROFILER_PATH=${OTEL_DOTNET_AUTO_HOME}/linux-x64/OpenTelemetry.AutoInstrumentation.Native.so
+ENV CORECLR_PROFILER_PATH=${OTEL_DOTNET_AUTO_HOME}/${DOTNET_RUNTIME_ID}/OpenTelemetry.AutoInstrumentation.Native.so
 ENV DOTNET_ADDITIONAL_DEPS=${OTEL_DOTNET_AUTO_HOME}/AdditionalDeps
 ENV DOTNET_SHARED_STORE=${OTEL_DOTNET_AUTO_HOME}/store
 ENV DOTNET_STARTUP_HOOKS=${OTEL_DOTNET_AUTO_HOME}/net/OpenTelemetry.AutoInstrumentation.StartupHook.dll
@@ -62,8 +57,8 @@ ENV OTEL_LOGS_EXPORTER=none
 WORKDIR /dotnet
 
 # Pyroscope as the notification profiler
-COPY --from=sdk /Pyroscope.Profiler.Native.so ./subfolder/Pyroscope.Profiler.Native.so
-COPY --from=sdk /Pyroscope.Linux.ApiWrapper.x64.so ./subfolder/Pyroscope.Linux.ApiWrapper.x64.so
+COPY ${PROFILER_BINARIES_DIR}/Pyroscope.Profiler.Native.so ./subfolder/Pyroscope.Profiler.Native.so
+COPY ${PROFILER_BINARIES_DIR}/Pyroscope.Linux.ApiWrapper.x64.so ./subfolder/Pyroscope.Linux.ApiWrapper.x64.so
 COPY --from=build /dotnet/publish ./
 
 ENV LD_LIBRARY_PATH=/dotnet/subfolder/
