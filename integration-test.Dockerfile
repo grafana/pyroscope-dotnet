@@ -1,13 +1,11 @@
-ARG BUILDPLATFORM=linux/amd64
 ARG SDK_VERSION=8.0
-ARG PYROSCOPE_SDK_IMAGE
 ARG SDK_IMAGE_SUFFIX
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:$SDK_VERSION$SDK_IMAGE_SUFFIX AS build
+ARG DOTNET_RUNTIME_ID=linux-x64
+FROM mcr.microsoft.com/dotnet/sdk:$SDK_VERSION$SDK_IMAGE_SUFFIX AS build
 
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
 ARG SDK_VERSION
 ARG SDK_IMAGE_SUFFIX
+ARG DOTNET_RUNTIME_ID
 
 WORKDIR /dotnet
 
@@ -21,24 +19,20 @@ RUN sed -i -E 's|<TargetFrameworks>.*</TargetFrameworks>|<TargetFramework>net'$S
 
 WORKDIR /dotnet/app
 
-# We hardcode linux-x64 here, as the profiler doesn't support any other platform.
 # Publish to a separate directory: .NET 10+ cleans the output dir before compiling,
 # so -o . (source dir) would delete source files and cause CS5001.
-RUN dotnet publish -o /dotnet/publish --framework net$SDK_VERSION --runtime linux-x64 --no-self-contained
+RUN dotnet publish -o /dotnet/publish --framework net$SDK_VERSION --runtime $DOTNET_RUNTIME_ID --no-self-contained
 
-# This uses a locally built image of the SDK
-FROM --platform=linux/amd64 $PYROSCOPE_SDK_IMAGE AS sdk
-ARG PYROSCOPE_SDK_IMAGE
-
-# Runtime only image of the targetplatfrom, so the platform the image will be running on.
-FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/aspnet:$SDK_VERSION$SDK_IMAGE_SUFFIX
+# Runtime-only image of the target platform.
+FROM mcr.microsoft.com/dotnet/aspnet:$SDK_VERSION$SDK_IMAGE_SUFFIX
+ARG PROFILER_BINARIES_DIR=profiler-bin
 
 WORKDIR /dotnet
 
 # place the binaries in a subfolder - to rigger a problme when SONAME was Datadog.Profiler.Native
 # and dynamic linker could not find the profiler lib.
-COPY --from=sdk /Pyroscope.Profiler.Native.so ./subfolder/Pyroscope.Profiler.Native.so
-COPY --from=sdk /Pyroscope.Linux.ApiWrapper.x64.so ./subfolder/Pyroscope.Linux.ApiWrapper.x64.so
+COPY ${PROFILER_BINARIES_DIR}/Pyroscope.Profiler.Native.so ./subfolder/Pyroscope.Profiler.Native.so
+COPY ${PROFILER_BINARIES_DIR}/Pyroscope.Linux.ApiWrapper.x64.so ./subfolder/Pyroscope.Linux.ApiWrapper.x64.so
 COPY --from=build /dotnet/publish ./
 
 # Fix for alpine not being able to dlopen an already loaded library
@@ -56,6 +50,7 @@ ENV PYROSCOPE_PROFILING_ALLOCATION_ENABLED=true
 ENV PYROSCOPE_PROFILING_CONTENTION_ENABLED=true
 ENV PYROSCOPE_PROFILING_EXCEPTION_ENABLED=true
 ENV PYROSCOPE_PROFILING_HEAP_ENABLED=true
+ENV DD_INTERNAL_PROFILING_ENABLED_ARM64=1
 ENV RIDESHARE_LISTEN_PORT=5000
 
 

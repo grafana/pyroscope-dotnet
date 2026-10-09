@@ -1,9 +1,11 @@
+using System.Runtime.CompilerServices;
 using Pyroscope;
 
 namespace Example;
 
 internal class OrderService
 {
+    [MethodImpl(MethodImplOptions.NoInlining)]
     public void FindNearestVehicle(long searchRadius, string vehicle)
     {
         lock (_lock)
@@ -21,9 +23,7 @@ internal class OrderService
                     _ = new byte[32 * 1024];
                 }
 
-                for (long i = 0; i < state.searchRadius * 1_000_000_000; i++)
-                {
-                }
+                Thread.SpinWait(20_000_000 * (int)state.searchRadius);
 
                 if (string.Equals("car", state.vehicle))
                 {
@@ -36,6 +36,7 @@ internal class OrderService
 
     private readonly object _lock = new();
 
+    [MethodImpl(MethodImplOptions.NoInlining)]
     private static void CheckDriverAvailability(LabelSet labels, long searchRadius)
     {
         var region = Environment.GetEnvironmentVariable("REGION") ?? "unknown_region";
@@ -45,9 +46,7 @@ internal class OrderService
 
         LabelsWrapper.Do(labels, static (state) =>
         {
-            for (long i = 0; i < state.searchRadius * 1_000_000_000; i++)
-            {
-            }
+            Thread.SpinWait(20_000_000 * (int)state.searchRadius);
 
             var forceMutexLock = DateTime.Now.Minute % 2 == 0;
 
