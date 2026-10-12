@@ -18,7 +18,7 @@ RUN manylinux-install-clang -v ${CLANG_VERSION}
 RUN apk add --no-cache musl-dbg
 
 # Build OpenSSL from source with static libs
-ARG OPENSSL_VERSION=3.5.8
+ARG OPENSSL_VERSION=3.5.9
 RUN curl -fsSLO --retry 10 "https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" && \
     tar xf openssl-${OPENSSL_VERSION}.tar.gz && \
     cd openssl-${OPENSSL_VERSION} && \
