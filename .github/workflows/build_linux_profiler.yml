@@ -1,9 +1,8 @@
 name: Build linux profiler
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, ready_for_review]
-    branches: [main]
+  workflow_call:
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -25,6 +24,16 @@ jobs:
           submodules: 'true'
           persist-credentials: false
       - run: ARCH=x86_64 LIBC=${{ matrix.name }} make docker/archive
+      - name: Stage profiler binaries
+        run: |
+          mkdir profiler-bin
+          tar -xzf pyroscope.*-${{ matrix.name }}-x86_64.tar.gz -C profiler-bin
+      - name: Upload profiler binaries
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: profiler-linux-x86_64-${{ matrix.name }}
+          path: profiler-bin/
+          if-no-files-found: error
   build-linux-profiler-aarch64:
 
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-arm64-large' || 'ubuntu-24.04-arm' }}
@@ -44,6 +53,16 @@ jobs:
         with:
           global-json-file: global.json
       - run: ARCH=aarch64 LIBC=${{ matrix.name }} make docker/archive
+      - name: Stage profiler binaries
+        run: |
+          mkdir profiler-bin
+          tar -xzf pyroscope.*-${{ matrix.name }}-aarch64.tar.gz -C profiler-bin
+      - name: Upload profiler binaries
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: profiler-linux-aarch64-${{ matrix.name }}
+          path: profiler-bin/
+          if-no-files-found: error
   build-managed-helper:
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-small' || 'ubuntu-latest' }}
     steps:

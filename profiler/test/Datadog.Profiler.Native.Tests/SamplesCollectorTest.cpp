@@ -303,7 +303,10 @@ TEST(SamplesCollectorTest, MustExportAfterStop)
 
     // the provider and exporter are supposed to be called once AFTER Stop()
     EXPECT_CALL(mockExporter, Add(_)).Times(2);
-    EXPECT_CALL(mockExporter, Export(_, _, _)).Times(1).WillRepeatedly(Return(true));
+    // The periodic exporter may run if the test starts close to an upload
+    // interval boundary; only the final export performed by Stop() is required.
+    EXPECT_CALL(mockExporter, Export(_, _, false)).Times(::testing::AnyNumber()).WillRepeatedly(Return(true));
+    EXPECT_CALL(mockExporter, Export(_, _, true)).Times(1).WillOnce(Return(true));
 
     auto metricsSender = MockMetricsSender();
     auto threadsCpuManagerHelper = ThreadsCpuManagerHelper();

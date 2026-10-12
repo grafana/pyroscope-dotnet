@@ -33,7 +33,8 @@ import (
 func startPyroscope(t *testing.T, net *dockertest.Network) string {
 	t.Helper()
 	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
-		Image: "grafana/pyroscope:2.1.0@sha256:5a5f97d007be75746d336cf0f6a9ae8008c42d9d8200319ee92e52fea4ae38df",
+		Image:    "grafana/pyroscope:2.1.0@sha256:73b23dbb99f154a0803c136abafdff825475f415dd4d4587538d014c672b5a55",
+		Platform: dockerPlatform(runtime.GOARCH),
 		Cmd: []string{
 			"-validation.disable-label-sanitization=true",
 			"-distributor.health-check-ingesters=false",
@@ -59,12 +60,13 @@ func buildAppImage(t *testing.T, libcType, version string, otel bool) string {
 	dockertest.BuildImage(t, dockertest.BuildRequest{
 		Context:    repoRoot(),
 		Dockerfile: filepath.Join(repoRoot(), appDockerfile(otel)),
-		Platform:   "linux/amd64",
+		Platform:   dockerPlatform(runtime.GOARCH),
 		Tag:        tag,
 		BuildArgs: map[string]string{
-			"PYROSCOPE_SDK_IMAGE": profilerImageTag(libcType),
-			"SDK_VERSION":         version,
-			"SDK_IMAGE_SUFFIX":    sdkImageSuffix(libcType, version),
+			"PROFILER_BINARIES_DIR": profilerBinariesDir(t),
+			"SDK_VERSION":           version,
+			"SDK_IMAGE_SUFFIX":      sdkImageSuffix(libcType, version),
+			"DOTNET_RUNTIME_ID":     dotnetRuntimeID(runtime.GOARCH, libcType),
 		},
 	})
 	return tag
@@ -76,7 +78,6 @@ func startAppWithEnv(t *testing.T, net *dockertest.Network, pyroscopeURL, libcTy
 	if runtime.GOOS == "windows" {
 		return startHostApp(t, version, otel, svcName, pyroscopeURL, extraEnv)
 	}
-	ensureProfilerImage(t, libcType)
 	image := buildAppImage(t, libcType, version, otel)
 	env := map[string]string{
 		"REGION":                     "us-east",
@@ -89,7 +90,7 @@ func startAppWithEnv(t *testing.T, net *dockertest.Network, pyroscopeURL, libcTy
 	}
 	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
 		Image:          image,
-		Platform:       "linux/amd64",
+		Platform:       dockerPlatform(runtime.GOARCH),
 		Network:        net.Name,
 		NetworkAliases: []string{"rideshare"},
 		Env:            env,
@@ -109,29 +110,30 @@ func startApp(t *testing.T, net *dockertest.Network, pyroscopeURL, libcType, ver
 func runLoadGenerator(ctx context.Context, t *testing.T, appBaseURL string) {
 	t.Helper()
 	vehicles := []string{"bike", "scooter", "car"}
-	go func() {
-		client := &http.Client{Timeout: 10 * time.Second}
-		i := 0
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
+	for _, vehicle := range vehicles {
+		vehicle := vehicle
+		go func() {
+			client := &http.Client{Timeout: 10 * time.Second}
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
+
+				url := appBaseURL + "/" + vehicle
+				resp, err := client.Get(url)
+				if err == nil {
+					_ = resp.Body.Close()
+				}
+				select {
+				case <-ctx.Done():
+					return
+				case <-time.After(300 * time.Millisecond):
+				}
 			}
-			vehicle := vehicles[i%len(vehicles)]
-			i++
-			url := appBaseURL + "/" + vehicle
-			resp, err := client.Get(url)
-			if err == nil {
-				_ = resp.Body.Close()
-			}
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(300 * time.Millisecond):
-			}
-		}
-	}()
+		}()
+	}
 }
 
 func queryProfile(t *testing.T, pyroscopeURL string, labelSelector string, profileTypeID string) (string, error) {
@@ -260,7 +262,10 @@ func runRideshareProfileTest(t *testing.T, libcType, version string, otel bool) 
 					}
 				}
 				return true
-			}, 3*time.Minute, 5*time.Second)
+			}, 3*time.Minute, 5*time.Second,
+				"expected CPU profile frames for vehicle %q\n%s",
+				check.vehicle,
+				profileQueryDebug{collapsed: &lastCollapsed, err: &lastErr})
 		})
 	}
 }
@@ -548,7 +553,6 @@ func startAppForTLSTest(t *testing.T, libcType, version, serverAddress string, c
 			"SSL_CERT_FILE": caPath,
 		})
 	}
-	ensureProfilerImage(t, libcType)
 	image := buildAppImage(t, libcType, version, false)
 
 	extraHost := hostDockerInternalExtraHost(t)
@@ -559,7 +563,7 @@ func startAppForTLSTest(t *testing.T, libcType, version, serverAddress string, c
 
 	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
 		Image:    image,
-		Platform: "linux/amd64",
+		Platform: dockerPlatform(runtime.GOARCH),
 		Env: map[string]string{
 			"REGION":                     "us-east",
 			"PYROSCOPE_APPLICATION_NAME": "tls-test-app",
