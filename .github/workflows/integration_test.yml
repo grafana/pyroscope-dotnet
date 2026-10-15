@@ -11,24 +11,6 @@ permissions:
   contents: read
 
 jobs:
-  discover:
-
-    name: discover tests
-    runs-on: ubuntu-latest
-    outputs:
-      tests: ${{ steps.tests.outputs.tests }}
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-      - name: Set up Go
-        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
-        with:
-          go-version: 'stable'
-          cache-dependency-path: integration-test/go.sum
-      - name: Generate test matrix
-        id: tests
-        run: echo "tests=$(make ci-matrix)" >> "$GITHUB_OUTPUT"
-        working-directory: integration-test
-
   unit-test:
     name: dockertest unit tests
     runs-on: ubuntu-latest
@@ -44,13 +26,11 @@ jobs:
         working-directory: integration-test
 
   test:
-    name: integration-test ${{ matrix.test }} ${{ matrix.libc_type }} .NET ${{ matrix.version }}
-    needs: discover
+    name: integration-test ${{ matrix.libc_type }} .NET ${{ matrix.version }}
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
-        test: ${{ fromJSON(needs.discover.outputs.tests) }}
         libc_type: [glibc, musl]
         version: ['8.0', '9.0', '10.0']
     steps:
@@ -63,7 +43,7 @@ jobs:
           go-version: 'stable'
           cache-dependency-path: integration-test/go.sum
       - name: Run integration test
-        run: go test -v -timeout 60m -count=1 -run '^${{ matrix.test }}$$' .
+        run: go test -v -timeout 120m -count=1 .
         env:
           LIBC_TYPE: ${{ matrix.libc_type }}
           DOTNET_VERSION: ${{ matrix.version }}
