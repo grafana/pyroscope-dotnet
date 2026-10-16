@@ -57,6 +57,9 @@ RUN mkdir build-${CMAKE_BUILD_TYPE} && \
 RUN cd build-${CMAKE_BUILD_TYPE} && make -j16 Pyroscope.Profiler.Native Datadog.Linux.ApiWrapper.x64
 
 FROM build AS test
+# ARG values do not cross stage boundaries: without this ${CMAKE_BUILD_TYPE} is empty here
+# and the `cd` below fails.
+ARG CMAKE_BUILD_TYPE=Release
 RUN cd build-${CMAKE_BUILD_TYPE} && make -j$(nproc) profiler-native-tests wrapper-native-tests
 # Run profiler unit tests
 RUN cd build-${CMAKE_BUILD_TYPE}/profiler && ctest --output-on-failure -E "WrappedFunctionsTest"
@@ -65,7 +68,9 @@ RUN WRAPPER_SO=$(find /profiler/artifacts/profiler-build/DDProf-Deploy/linux-mus
     cd build-${CMAKE_BUILD_TYPE}/profiler && \
     LD_PRELOAD="${WRAPPER_SO}" ctest --output-on-failure -R "WrappedFunctionsTest"
 
-FROM busybox:1.38.0-musl@sha256:8635836765b0c4c43970660219739baa58b0883c2e429e4b8918f7dd1519455c
+# Named so the shipped image can be targeted explicitly. Only BuildKit prunes unreferenced
+# stages, so `--target deploy` does not skip the test stage on the classic builder.
+FROM busybox:1.38.0-musl@sha256:8635836765b0c4c43970660219739baa58b0883c2e429e4b8918f7dd1519455c AS deploy
 COPY --from=build /profiler/artifacts/profiler-build/DDProf-Deploy/linux-musl/Pyroscope.Profiler.Native.so /Pyroscope.Profiler.Native.so
 COPY --from=build /profiler/artifacts/profiler-build/DDProf-Deploy/linux-musl/Datadog.Linux.ApiWrapper.x64.so /Pyroscope.Linux.ApiWrapper.x64.so
 

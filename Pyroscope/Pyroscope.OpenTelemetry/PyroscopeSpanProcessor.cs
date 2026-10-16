@@ -9,9 +9,39 @@ namespace Pyroscope.OpenTelemetry;
 public class PyroscopeSpanProcessor : BaseProcessor<Activity>
 {
     private const string ProfileIdSpanTagKey = "pyroscope.profile.id";
+    private const string AsyncScopeProperty = "pyroscope.async.scope";
+
+    private readonly bool _stitchAsyncStacks;
+
+    public PyroscopeSpanProcessor()
+        : this(stitchAsyncStacks: true)
+    {
+    }
+
+    /// When stitchAsyncStacks is true (the default) and PYROSCOPE_ASYNC_PROFILING_ENABLED is set,
+    /// each span also opens a Pyroscope async scope named after the span, so samples taken from
+    /// the span's `await` continuations are attributed back to it. Pass false to opt this
+    /// processor out even where async profiling is enabled process-wide.
+    public PyroscopeSpanProcessor(bool stitchAsyncStacks)
+    {
+        _stitchAsyncStacks = stitchAsyncStacks;
+    }
 
     public override void OnStart(Activity data)
     {
+        if (_stitchAsyncStacks)
+        {
+            try
+            {
+                // Every span, not just the root, so the flamegraph takes the shape of the trace.
+                data.SetCustomProperty(AsyncScopeProperty, AsyncScope.Push(GetScopeName(data)));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Caught exception while opening a Pyroscope async scope: {ex.Message}");
+            }
+        }
+
         if (!IsRootSpan(data))
         {
             return;
@@ -36,6 +66,26 @@ public class PyroscopeSpanProcessor : BaseProcessor<Activity>
         {
             Profiler.Instance.SetSpanContext(0, 0, 0);
         }
+
+        if (data.GetCustomProperty(AsyncScopeProperty) is AsyncScope scope)
+        {
+            try
+            {
+                scope.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Caught exception while closing a Pyroscope async scope: {ex.Message}");
+            }
+        }
+    }
+
+    // DisplayName is the route template for ASP.NET Core ("GET /folders/{id}"), which is the
+    // low-cardinality name we want as a frame. Sources that leave it unset fall back to
+    // OperationName.
+    private static string GetScopeName(Activity data)
+    {
+        return string.IsNullOrEmpty(data.DisplayName) ? data.OperationName : data.DisplayName;
     }
 
     private static bool IsRootSpan(Activity data)

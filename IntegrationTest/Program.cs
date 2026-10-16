@@ -6,6 +6,7 @@ builder.Services.AddSingleton<BikeService>();
 builder.Services.AddSingleton<CarService>();
 builder.Services.AddSingleton<OrderService>();
 builder.Services.AddSingleton<ScooterService>();
+builder.Services.AddSingleton<AsyncOrderService>();
 
 var app = builder.Build();
 
@@ -26,6 +27,9 @@ app.MapGet("/car", (CarService service) =>
     service.Order(3);
     return "Car ordered";
 });
+
+// Work that happens after an `await`, for the async stitching and label propagation tests.
+app.MapGet("/async-order", async (AsyncOrderService service) => await service.OrderAsync());
 
 app.MapGet("/healthz", () => "ok");
 

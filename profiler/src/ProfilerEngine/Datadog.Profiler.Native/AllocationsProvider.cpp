@@ -216,6 +216,7 @@ void AllocationsProvider::OnAllocationSampled(
     rawSample.Address = address;
     rawSample.MethodTable = classId;
     rawSample.Tags.AsyncSafeCopy(threadInfo->GetTags());
+    rawSample.AsyncScopeId = threadInfo->GetAsyncScopeId();
 
 
     if (_addTypeAsLeaf) {

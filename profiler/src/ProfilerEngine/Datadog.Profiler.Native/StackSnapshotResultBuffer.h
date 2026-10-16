@@ -58,6 +58,9 @@ public:
     inline google::javaprofiler::Tags& GetTags();
     inline const google::javaprofiler::Tags& GetTags() const;
 
+    inline std::uint32_t GetAsyncScopeId() const;
+    inline void SetAsyncScopeId(std::uint32_t scopeId);
+
 
     StackSnapshotResultBuffer();
     ~StackSnapshotResultBuffer();
@@ -72,6 +75,8 @@ protected:
 
 
     google::javaprofiler::Tags _tags;
+
+    std::uint32_t _asyncScopeId;
 };
 
 // ----------- ----------- ----------- ----------- ----------- ----------- ----------- ----------- -----------
@@ -160,4 +165,14 @@ inline google::javaprofiler::Tags& StackSnapshotResultBuffer::GetTags() {
 
 inline const google::javaprofiler::Tags& StackSnapshotResultBuffer::GetTags() const {
     return _tags;
+}
+
+inline std::uint32_t StackSnapshotResultBuffer::GetAsyncScopeId() const
+{
+    return _asyncScopeId;
+}
+
+inline void StackSnapshotResultBuffer::SetAsyncScopeId(std::uint32_t scopeId)
+{
+    _asyncScopeId = scopeId;
 }
