@@ -14,6 +14,9 @@ constexpr std::chrono::milliseconds DeadlockDetectionInterval = 1s;
 constexpr std::chrono::milliseconds MaxExpectedStackSampleCollectionDurationMs = 500ms;
 constexpr std::chrono::nanoseconds CollectionDurationThresholdNs = std::chrono::nanoseconds(MaxExpectedStackSampleCollectionDurationMs);
 
+// Make sure the Watcher thread does not hang Start() forever.
+constexpr std::chrono::seconds WatcherStartupTimeout = 2s;
+
 #ifdef NDEBUG
 constexpr std::chrono::milliseconds StatsAggregationPeriodMs = 30000ms;
 #else
@@ -26,25 +29,15 @@ const std::chrono::nanoseconds StackSamplerLoopManager::StatisticAggregationPeri
 
 StackSamplerLoopManager::StackSamplerLoopManager(
     ICorProfilerInfo4* pCorProfilerInfo,
-    IConfiguration* pConfiguration,
     std::shared_ptr<IMetricsSender> metricsSender,
     IClrLifetime const* clrLifetime,
     IThreadsCpuManager* pThreadsCpuManager,
-    IManagedThreadList* pManagedThreadList,
-    IManagedThreadList* pCodeHotspotThreadList,
-    ICollector<RawWallTimeSample>* pWallTimeCollector,
-    ICollector<RawCpuSample>* pCpuTimeCollector,
-    MetricsRegistry& metricsRegistry,
-    CallstackProvider callstackProvider
+    StackFramesCollectorBase* pStackFramesCollector,
+    MetricsRegistry& metricsRegistry
     ) :
     _pCorProfilerInfo{pCorProfilerInfo},
-    _pConfiguration{pConfiguration},
     _pThreadsCpuManager{pThreadsCpuManager},
-    _pManagedThreadList{pManagedThreadList},
-    _pCodeHotspotsThreadList{pCodeHotspotThreadList},
-    _pWallTimeCollector{pWallTimeCollector},
-    _pCpuTimeCollector{pCpuTimeCollector},
-    _pStackFramesCollector{nullptr},
+    _pStackFramesCollector{pStackFramesCollector},
     _pStackSamplerLoop{nullptr},
     _deadlockInterventionInProgress{0},
     _pWatcherThread{nullptr},
@@ -59,12 +52,9 @@ StackSamplerLoopManager::StackSamplerLoopManager(
     _totalDeadlockDetectionsCount{0},
     _metricsSender{metricsSender},
     _statisticsReadyToSend{nullptr},
-    _metricsRegistry{metricsRegistry},
-    _callstackProvider{std::move(callstackProvider)}
+    _metricsRegistry{metricsRegistry}
 {
     _pCorProfilerInfo->AddRef();
-    _pStackFramesCollector = OsSpecificApi::CreateNewStackFramesCollectorInstance(
-        _pCorProfilerInfo, pConfiguration, &_callstackProvider, _metricsRegistry);
 
     _currentStatistics = std::make_unique<Statistics>();
     _statisticCollectionStartNs = OpSysTools::GetHighPrecisionNanoseconds();
@@ -76,6 +66,8 @@ StackSamplerLoopManager::~StackSamplerLoopManager()
 {
     // Just in case it was not called explicitely
     Stop();
+
+    ShutdownWatcher();
 
     ICorProfilerInfo4* pCorProfilerInfo = _pCorProfilerInfo;
     if (pCorProfilerInfo != nullptr)
@@ -90,68 +82,62 @@ const char* StackSamplerLoopManager::GetName()
     return _serviceName;
 }
 
+void StackSamplerLoopManager::SetStackSamplerLoop(StackSamplerLoop* pStackSamplerLoop)
+{
+    _pStackSamplerLoop = pStackSamplerLoop;
+}
+
 bool StackSamplerLoopManager::StartImpl()
 {
-    std::lock_guard<std::mutex> lock(_startStopLock);
-    if (_isStarted)
+    if (_pStackSamplerLoop == nullptr)
     {
-        return true;
+        Log::Error("StackSamplerLoopManager::StartImpl - StackSamplerLoop was not wired in "
+                   "(SetStackSamplerLoop() must be called before Start()).");
+        return false;
     }
 
-    if (_pWallTimeCollector == nullptr && _pCpuTimeCollector == nullptr)
-    {
-        Log::Warn("StackSamplerLoopManager::Start cpu & wall disabled - not starting");
-        return true;
-    }
-    _isWatcherShutdownRequested = false;
-
-    InitializeSampler();
-    RunWatcherAndSampler();
-
-    _isStarted = true;
-
-    return true;
+    return RunWatcher();
 }
 
 bool StackSamplerLoopManager::StopImpl()
 {
-    std::lock_guard<std::mutex> lock(_startStopLock);
-    // allow multiple calls to Stop()
-    if (!_isStarted)
-    {
-        return true;
-    }
-    _isStarted = false;
-
-    _pStackSamplerLoop->Stop();
-
     ShutdownWatcher();
 
     return true;
 }
 
-void StackSamplerLoopManager::InitializeSampler()
+bool StackSamplerLoopManager::RunWatcher()
 {
-    _pStackSamplerLoop = std::make_unique<StackSamplerLoop>(
-        _pCorProfilerInfo,
-        _pConfiguration,
-        _pStackFramesCollector.get(),
-        this,
-        _pThreadsCpuManager,
-        _pManagedThreadList,
-        _pCodeHotspotsThreadList,
-        _pWallTimeCollector,
-        _pCpuTimeCollector,
-        _metricsRegistry);
-}
+    std::promise<void> watcherReadyPromise;
+    std::future<void> watcherReadyFuture = watcherReadyPromise.get_future();
 
-void StackSamplerLoopManager::RunWatcherAndSampler()
-{
-    _pWatcherThread = std::make_unique<std::thread>([this]
-        {
-            OpSysTools::SetNativeThreadName(WatcherThreadName);
-            WatcherLoop();
-        });
+    try
+    {
+        _pWatcherThread = std::make_unique<std::thread>(
+            [this, promise = std::move(watcherReadyPromise)]() mutable
+            {
+                OpSysTools::SetNativeThreadName(WatcherThreadName);
+                WatcherLoop(std::move(promise));
+            });
+    }
+    catch (const std::exception& ex)
+    {
+        Log::Error("StackSamplerLoopManager::RunWatcher - Failed to create the watcher thread: ", ex.what());
+        return false;
+    }
+
+    // Wait for the watcher thread to be ready before returning
+    if (watcherReadyFuture.wait_for(WatcherStartupTimeout) == std::future_status::ready)
+    {
+        return true;
+    }
+
+    Log::Error("StackSamplerLoopManager::RunWatcher - Timed out after ", WatcherStartupTimeout.count(),
+               " seconds waiting for the watcher thread to start.");
+
+    _isWatcherShutdownRequested = true;
+
+    return false;
 }
 
 void StackSamplerLoopManager::ShutdownWatcher()
@@ -160,17 +146,23 @@ void StackSamplerLoopManager::ShutdownWatcher()
     {
         _isWatcherShutdownRequested = true;
 
-        _pWatcherThread->join();
+        try
+        {
+            _pWatcherThread->join();
+            _pWatcherThread.reset();
+        }
+        catch (const std::exception&)
+        {
+        }
     }
 }
 
-void StackSamplerLoopManager::WatcherLoop()
+void StackSamplerLoopManager::WatcherLoop(std::promise<void> watcherReadyPromise)
 {
     Log::Info("StackSamplerLoopManager::WatcherLoop started.");
     _pThreadsCpuManager->Map(OpSysTools::GetThreadId(), WatcherThreadName);
 
-    // Start the sampler loop only when the watcher is ready
-    _pStackSamplerLoop->Start();
+    watcherReadyPromise.set_value();
 
     while (false == _isWatcherShutdownRequested)
     {
