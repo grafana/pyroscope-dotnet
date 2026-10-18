@@ -172,6 +172,23 @@ func (c *Container) HostPort(t *testing.T, containerPort string) string {
 	return hostAddr + ":" + c.MappedPort(t, containerPort)
 }
 
+// Logs returns everything docker recorded on the container's stdout and
+// stderr, merged. Both streams are needed: the application writes to stdout
+// while the native profiler writes to stderr, and a log collector reading the
+// container sees the two interleaved.
+func (c *Container) Logs(t *testing.T) string {
+	t.Helper()
+	name, full := dockerArgs("logs", c.ID)
+	cmd := exec.Command(name, full...)
+	var combined strings.Builder
+	cmd.Stdout = &combined
+	cmd.Stderr = &combined
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("dockertest: docker logs %s failed: %v\n%s", c.ID, err, combined.String())
+	}
+	return combined.String()
+}
+
 func (c *Container) Exec(t *testing.T, cmd []string) string {
 	t.Helper()
 	args := append([]string{"exec", c.ID}, cmd...)

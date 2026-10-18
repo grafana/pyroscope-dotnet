@@ -74,9 +74,19 @@ func buildAppImage(t *testing.T, libcType, version string, otel bool) string {
 
 func startAppWithEnv(t *testing.T, net *dockertest.Network, pyroscopeURL, libcType, version string, otel bool, extraEnv map[string]string) string {
 	t.Helper()
+	url, _ := startAppContainerWithEnv(t, net, pyroscopeURL, libcType, version, otel, extraEnv)
+	return url
+}
+
+// startAppContainerWithEnv is startAppWithEnv plus the container handle, for
+// tests that need to read what the profiler wrote to the container's streams.
+// The handle is nil on Windows, where the app runs on the host rather than in
+// a container.
+func startAppContainerWithEnv(t *testing.T, net *dockertest.Network, pyroscopeURL, libcType, version string, otel bool, extraEnv map[string]string) (string, *dockertest.Container) {
+	t.Helper()
 	svcName := rideshareServiceName(libcType, version, otel)
 	if runtime.GOOS == "windows" {
-		return startHostApp(t, version, otel, svcName, pyroscopeURL, extraEnv)
+		return startHostApp(t, version, otel, svcName, pyroscopeURL, extraEnv), nil
 	}
 	ensureProfilerImage(t, libcType)
 	image := buildAppImage(t, libcType, version, otel)
@@ -98,7 +108,7 @@ func startAppWithEnv(t *testing.T, net *dockertest.Network, pyroscopeURL, libcTy
 		ExposedPorts:   []string{"5000/tcp"},
 		WaitFor:        dockertest.WaitForHTTP("/healthz", "5000/tcp", 120*time.Second),
 	})
-	return fmt.Sprintf("http://%s", c.HostPort(t, "5000/tcp"))
+	return fmt.Sprintf("http://%s", c.HostPort(t, "5000/tcp")), c
 }
 
 func startApp(t *testing.T, net *dockertest.Network, pyroscopeURL, libcType, version string, otel bool) string {
