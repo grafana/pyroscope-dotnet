@@ -50,6 +50,11 @@ func collectProfilerLines(t *testing.T, logs string) (jsonLines []profilerLogLin
 			continue
 		}
 		if !strings.HasPrefix(line, "{") {
+			// A line that names the profiler's logger but is not JSON was
+			// written with some other pattern, such as spdlog's built-in one.
+			if strings.Contains(line, profilerLoggerName) {
+				legacyLines = append(legacyLines, line)
+			}
 			continue
 		}
 		var parsed profilerLogLine
@@ -105,43 +110,68 @@ func TestNativeLogFormat(t *testing.T) {
 	})
 
 	t.Run("json format", func(t *testing.T) {
-		net := dockertest.CreateNetwork(t)
-		pyroscopeURL := startPyroscope(t, net)
-		appBaseURL, container := startAppContainerWithEnv(t, net, pyroscopeURL, envLibcType(), envDotnetVersion(), false, map[string]string{
+		assertJSONOutput(t, map[string]string{
 			"PYROSCOPE_LOG_FORMAT": "json",
 		})
-		exerciseApp(t, appBaseURL)
-
-		logs := container.Logs(t)
-		jsonLines, legacyLines := collectProfilerLines(t, logs)
-
-		if len(jsonLines) == 0 {
-			t.Fatalf("expected profiler JSON lines with PYROSCOPE_LOG_FORMAT=json, found none; logs:\n%s", logs)
-		}
-		if len(legacyLines) != 0 {
-			t.Fatalf("expected no plain-text profiler lines with PYROSCOPE_LOG_FORMAT=json, found %d (e.g. %q)", len(legacyLines), legacyLines[0])
-		}
-
-		for i, line := range jsonLines {
-			if !validSeverities[line.Severity] {
-				t.Errorf("line %d: severity %q is not one of DEBUG/INFO/WARNING/ERROR/CRITICAL", i, line.Severity)
-			}
-			if line.Message == "" {
-				t.Errorf("line %d: empty message", i)
-			}
-			if line.PID == nil || line.TID == nil {
-				t.Errorf("line %d: pid and tid must be preserved, got pid=%v tid=%v", i, line.PID, line.TID)
-			}
-			// An explicit UTC offset is required. A bare local timestamp would
-			// be assigned the wrong event time by the collector.
-			if _, err := time.Parse(time.RFC3339, line.Time); err != nil {
-				t.Errorf("line %d: time %q is not RFC 3339: %v", i, line.Time, err)
-			}
-			if !strings.HasSuffix(line.Time, "Z") {
-				t.Errorf("line %d: time %q must carry an explicit UTC offset", i, line.Time)
-			}
-		}
 	})
+
+	// When the log file cannot be created the logger falls back to stderr
+	// alone and reports the failure. That report must be JSON too. A non-root
+	// container cannot create the default log directory, so in practice this
+	// is the path most containers take.
+	t.Run("json format when the log file cannot be created", func(t *testing.T) {
+		jsonLines := assertJSONOutput(t, map[string]string{
+			"PYROSCOPE_LOG_FORMAT":        "json",
+			"PYROSCOPE_PROFILING_LOG_DIR": "/proc/pyroscope-unwritable",
+		})
+		for _, line := range jsonLines {
+			if strings.Contains(line.Message, "Error creating native log file") {
+				return
+			}
+		}
+		t.Fatal("expected the log file failure to be reported as a JSON line; the fallback path was not exercised")
+	})
+}
+
+// assertJSONOutput runs the app with env and checks that every profiler line
+// on the container stream is well-formed JSON.
+func assertJSONOutput(t *testing.T, env map[string]string) []profilerLogLine {
+	t.Helper()
+	net := dockertest.CreateNetwork(t)
+	pyroscopeURL := startPyroscope(t, net)
+	appBaseURL, container := startAppContainerWithEnv(t, net, pyroscopeURL, envLibcType(), envDotnetVersion(), false, env)
+	exerciseApp(t, appBaseURL)
+
+	logs := container.Logs(t)
+	jsonLines, legacyLines := collectProfilerLines(t, logs)
+
+	if len(jsonLines) == 0 {
+		t.Fatalf("expected profiler JSON lines with PYROSCOPE_LOG_FORMAT=json, found none; logs:\n%s", logs)
+	}
+	if len(legacyLines) != 0 {
+		t.Fatalf("expected no plain-text profiler lines with PYROSCOPE_LOG_FORMAT=json, found %d (e.g. %q)", len(legacyLines), legacyLines[0])
+	}
+
+	for i, line := range jsonLines {
+		if !validSeverities[line.Severity] {
+			t.Errorf("line %d: severity %q is not one of DEBUG/INFO/WARNING/ERROR/CRITICAL", i, line.Severity)
+		}
+		if line.Message == "" {
+			t.Errorf("line %d: empty message", i)
+		}
+		if line.PID == nil || line.TID == nil {
+			t.Errorf("line %d: pid and tid must be preserved, got pid=%v tid=%v", i, line.PID, line.TID)
+		}
+		// An explicit UTC offset is required. A bare local timestamp would
+		// be assigned the wrong event time by the collector.
+		if _, err := time.Parse(time.RFC3339, line.Time); err != nil {
+			t.Errorf("line %d: time %q is not RFC 3339: %v", i, line.Time, err)
+		}
+		if !strings.HasSuffix(line.Time, "Z") {
+			t.Errorf("line %d: time %q must carry an explicit UTC offset", i, line.Time)
+		}
+	}
+	return jsonLines
 }
 
 // TestNativeLogLevel pins the level control. PYROSCOPE_LOG_LEVEL is set by this

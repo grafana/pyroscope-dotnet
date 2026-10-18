@@ -172,6 +172,7 @@ std::tuple<std::shared_ptr<spdlog::logger>, bool> Logger::CreateInternalLogger()
     std::shared_ptr<spdlog::logger> stderr_logger;
 
     bool stderr_log_enabled = ::shared::StderrLogEnabled();
+    bool log_file_failed = false;
     if (stderr_log_enabled)
     {
         stderr_logger = std::make_shared<spdlog::logger>(LoggerPolicy::file_name, std::make_shared<spdlog::sinks::stderr_color_sink_mt>());
@@ -210,7 +211,7 @@ std::tuple<std::shared_ptr<spdlog::logger>, bool> Logger::CreateInternalLogger()
         // There's not a good way to report errors when trying to create the log file.
         // But we never should be changing the normal behavior of an app.
         logger = stderr_logger;
-        logger->error("LoggerImpl Handler: Error creating native log file.");
+        log_file_failed = true;
     }
 
     logger->set_pattern(LoggerPolicy::pattern);
@@ -228,6 +229,15 @@ std::tuple<std::shared_ptr<spdlog::logger>, bool> Logger::CreateInternalLogger()
                 sink->set_formatter(std::make_unique<JsonFormatter>());
             }
         }
+    }
+
+    // Reported only once the formatter is in place, so that with the JSON
+    // format this line is JSON like every other. It still goes out before the
+    // level and buffering are configured below, which is when it was emitted
+    // before.
+    if (log_file_failed)
+    {
+        logger->error("LoggerImpl Handler: Error creating native log file.");
     }
 
     // Only start flushing if explicitly enabled
