@@ -52,3 +52,9 @@ Output artifact:
 - `artifacts/profiler-build/bin/Release-x64/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/Pyroscope.Profiler.Native.dll`
 
 Note: the vcxproj pins toolset v143 + SDK 10.0.19041; CI overrides these via `/p:PlatformToolset` and `/p:WindowsTargetPlatformVersion` to whatever the runner image ships (see the workflow for details). Windows-only sources live in `profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/` — they are shipped code, not dead upstream leftovers.
+
+## OpenSSL
+
+- Use the OpenSSL LTS branch with the longest remaining support. Now this is 3.5 (supported until 2030-04-08). Do not move to a non-LTS branch (3.6, 4.0, ...), also not for a CVE fix: the LTS branch gets the same security fixes.
+- Use the same OpenSSL version in all Pyroscope SDK repos: pyroscope-python, pyroscope-ruby, pyroscope-dotnet.
+- `renovate.json` allows only patch updates for `openssl/openssl`. Move to a new branch only when a newer LTS has a longer support period.

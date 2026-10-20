@@ -22,7 +22,7 @@
       "separateMinorPatch": true
     },
     {
-      "description": "Restrict openssl/openssl to patch-level updates only. Vulnerability alerts still bypass this and can produce minor/major bumps when needed for CVE fixes.",
+      "description": "Restrict openssl/openssl to patch-level updates only, to keep it on the longest-supported LTS branch (3.5, EOL 2030-04-08). Never move to a non-LTS branch. See AGENTS.md.",
       "matchPackageNames": ["openssl/openssl"],
       "matchUpdateTypes": ["major", "minor"],
       "enabled": false
