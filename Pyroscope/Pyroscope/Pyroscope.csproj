@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <TargetFramework>net8.0</TargetFramework>
-        <VersionPrefix>1.5.1</VersionPrefix>
+        <VersionPrefix>1.5.2</VersionPrefix>
         <PackageReadmeFile>README.md</PackageReadmeFile>
     </PropertyGroup>
 
