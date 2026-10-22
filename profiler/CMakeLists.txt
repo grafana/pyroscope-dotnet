@@ -133,12 +133,10 @@ if(ISLINUX)
     add_compile_options($<$<AND:$<COMPILE_LANGUAGE:CXX>,$<CXX_COMPILER_ID:Clang>>:-stdlib=libstdc++>)
 endif()
 add_subdirectory(third_party/protobuf)
-add_subdirectory(third_party/CxxUrl)
 
 set_property(TARGET libprotobuf PROPERTY POSITION_INDEPENDENT_CODE ON)
 
-include_directories(third_party/cppcodec)
-
+add_subdirectory(src/ProfilerEngine/pyroscope-uploader)
 add_subdirectory(src/ProfilerEngine/Datadog.Profiler.Native.Linux)
 add_subdirectory(src/ProfilerEngine/Datadog.Linux.ApiWrapper)
 enable_testing()

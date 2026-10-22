@@ -271,5 +271,6 @@
     <ResourceCompile Include="..\Datadog.Profiler.Native.Windows\Resource.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Import Project="..\pyroscope-uploader\PyroscopeUploader.targets" />
   <ImportGroup Label="ExtensionTargets" />
 </Project>

@@ -242,9 +242,6 @@
   <ItemGroup>
     <ClCompile Include="*.cpp" Exclude="DllMain.cpp" />
     <ClCompile Include="gen\**\*.pb.cc" />
-    <!-- PYROSCOPE_WINDOWS_NOTE: CxxUrl is a single-file .cpp lib in third_party; pulled in directly
-         rather than as a separate static lib. Linux CMake handles this via add_subdirectory. -->
-    <ClCompile Include="$(DOTNET-TRACER-REPO-ROOT-PATH)profiler\third_party\CxxUrl\url.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\shared\src\native-lib\PPDB\PPDB.vcxproj">

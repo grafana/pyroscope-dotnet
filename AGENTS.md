@@ -17,7 +17,7 @@ git submodule update --init --recursive
 
 ## Build the profiler (Linux, Debug)
 
-Requires clang/clang++ and cmake. Uses `build-claude-Debug` as the build directory. Always use the Unix Makefiles generator (never Ninja).
+Requires clang/clang++, cmake and rustup (the Rust toolchain version is pinned in `profiler/src/ProfilerEngine/pyroscope-uploader/rust-toolchain.toml`). Uses `build-claude-Debug` as the build directory. Always use the Unix Makefiles generator (never Ninja).
 
 ```bash
 mkdir build-claude-Debug
@@ -40,7 +40,7 @@ Output artifacts:
 
 ## Build the profiler (Windows)
 
-Windows is a supported target: CI (`.github/workflows/windows.yml`) builds `Pyroscope.Profiler.Native.dll` (Release x64) with MSBuild and runs the integration tests against it on Windows runners. Local build (requires MSVC + vcpkg):
+Windows is a supported target: CI (`.github/workflows/windows.yml`) builds `Pyroscope.Profiler.Native.dll` (Release x64) with MSBuild and runs the integration tests against it on Windows runners. Local build (requires MSVC + vcpkg + rustup):
 
 ```powershell
 vcpkg integrate install
@@ -52,6 +52,10 @@ Output artifact:
 - `artifacts/profiler-build/bin/Release-x64/profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/Pyroscope.Profiler.Native.dll`
 
 Note: the vcxproj pins toolset v143 + SDK 10.0.19041; CI overrides these via `/p:PlatformToolset` and `/p:WindowsTargetPlatformVersion` to whatever the runner image ships (see the workflow for details). Windows-only sources live in `profiler/src/ProfilerEngine/Datadog.Profiler.Native.Windows/` — they are shipped code, not dead upstream leftovers.
+
+## Profile upload
+
+The HTTP upload to the Pyroscope server is the Rust crate `profiler/src/ProfilerEngine/pyroscope-uploader` (reqwest + prost, like pyroscope-rs). CMake and MSBuild build it with cargo and link it statically into the profiler. `PyroscopePprofSink` only builds the series labels and calls its C API (`include/pyroscope_uploader.h`). Run its tests with `cargo test` in the crate directory. TLS is native-tls: OpenSSL on Linux, SChannel on Windows.
 
 ## OpenSSL
 

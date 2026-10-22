@@ -4,15 +4,10 @@
 
 #include "PyroscopePprofSink.h"
 #include "Log.h"
-#include "OpSysTools.h"
-#include "cppcodec/base64_rfc4648.hpp"
+#include "PyroscopeVersion.h"
 #include "dd_profiler_version.h"
-#include "gen/push/v1/push.pb.h"
-#include "gen/types/v1/types.pb.h"
-#include "google/protobuf/struct.pb.h"
-#include "google/protobuf/util/json_util.h"
-#include "shared/src/native-src/string.h"
-#include "shared/src/native-src/util.h"
+
+#include <string_view>
 
 namespace
 {
@@ -21,115 +16,26 @@ constexpr std::string_view LabelScopeVersion = "otel.scope.version";
 constexpr std::string_view LabelProcessRuntimeName = "process.runtime.name";
 constexpr std::string_view LabelProcessRuntimeVersion = "process.runtime.version";
 constexpr std::string_view PyroscopeDotnetScopeName = "com.grafana.pyroscope/dotnet";
+constexpr std::string_view UserAgent = "pyroscope-dotnet/" PYROSCOPE_SPY_VERSION " reqwest";
 
-std::string BuildPushPath(const Url& url)
+PyroscopeStr ToPyroscopeStr(std::string_view s)
 {
-    Url pushUrl;
-    pushUrl.path(url.path() + "/push.v1.PusherService/Push");
-    return pushUrl.str();
+    return PyroscopeStr{s.data(), s.size()};
 }
 
-void AddLabel(push::v1::RawProfileSeries* series, std::string_view name, std::string_view value)
+void LogFromUploader(int32_t level, const char* message, size_t len)
 {
-    auto* label = series->add_labels();
-    label->set_name(std::string(name));
-    label->set_value(std::string(value));
-}
-}
-
-PyroscopePprofSink::PyroscopePprofSink(
-    std::string server,
-    std::string appName,
-    BasicAuth basicAuth,
-    PyroscopeTenantId tenantId,
-    std::map<std::string, std::string> extraHeaders,
-    IRuntimeInfo* runtimeInfo,
-    const std::vector<std::pair<std::string, std::string>>& staticTags) :
-    _appName(appName),
-    _runtimeInfo(runtimeInfo),
-    _staticTags(staticTags),
-    _url(server),
-    _basicAuth(std::move(basicAuth)),
-    _tenantId(std::move(tenantId)),
-    _extraHeaders(extraHeaders),
-    _client(SchemeHostPort(_url)),
-    _running(true)
-{
-    _client.set_connection_timeout(10);
-    _client.set_read_timeout(10);
-
-    // Honor SSL_CERT_FILE for a custom/private CA. OpenSSL consults it via the
-    // default verify paths only on Unix (cpp-httplib's load_system_certs takes
-    // the Windows cert-store branch and never calls SSL_CTX_set_default_verify_paths),
-    // so wire it explicitly here for parity. Setting a CA path also makes
-    // cpp-httplib verify with OpenSSL alone, skipping its extra Windows Schannel
-    // check that wouldn't know about a privately-trusted CA.
-    auto caCertFile = shared::ToString(shared::GetEnvironmentValue(WStr("SSL_CERT_FILE")));
-    if (!caCertFile.empty())
+    std::string msg(message, len);
+    switch (level)
     {
-        _client.set_ca_cert_path(caCertFile);
-    }
-
-#ifdef CPPHTTPLIB_OPENSSL_SUPPORT
-    // OpenSSL 3.x flags a TLS connection closed without a close_notify alert as a
-    // fatal read error (SSL_R_UNEXPECTED_EOF_WHILE_READING) rather than a clean EOF.
-    // When a remote server closes the upload connection that way, every successful
-    // upload still fails to read the response: it logs a spurious "Failed to read
-    // connection" and the real HTTP status is never seen. Treat the unclean shutdown
-    // as a normal end-of-stream. tls_context() returns null for plain-HTTP clients,
-    // so this is a no-op there.
-    if (auto* sslCtx = static_cast<SSL_CTX*>(_client.tls_context()))
-    {
-        SSL_CTX_set_options(sslCtx, SSL_OP_IGNORE_UNEXPECTED_EOF);
-    }
-#endif
-
-    _workerThread = std::thread(&PyroscopePprofSink::work, this);
-}
-
-PyroscopePprofSink::~PyroscopePprofSink()
-{
-    _running.store(false);
-    _queue.push(PyroscopeRequest{
-        .pprofs = {},
-    });
-    _workerThread.join();
-}
-
-void PyroscopePprofSink::Export(std::vector<Pprof> pprofs)
-{
-    if (_queue.size() >= 3)
-    {
-        Log::Warn("PyroscopePprofSink queue is too big. Dropping pprof data.");
-        return;
-    }
-    PyroscopeRequest req{
-        .pprofs = std::move(pprofs),
-    };
-    _queue.push(std::move(req));
-}
-
-void PyroscopePprofSink::SetBasicAuth(BasicAuth basicAuth)
-{
-    std::lock_guard<std::mutex> auth_guard(_authLock);
-    _basicAuth = std::move(basicAuth);
-}
-
-void PyroscopePprofSink::work()
-{
-    OpSysTools::SetNativeThreadName(WStr("Pyroscope.Pprof.Uploader"));
-    while (_running.load())
-    {
-        PyroscopeRequest req = {};
-        _queue.waitAndPop(req);
-        for (auto& pprof : req.pprofs)
-        {
-            upload(std::move(pprof));
-        }
+        case PYROSCOPE_LOG_DEBUG: Log::Debug("PyroscopePprofSink ", msg); break;
+        case PYROSCOPE_LOG_INFO:  Log::Info("PyroscopePprofSink ", msg); break;
+        case PYROSCOPE_LOG_WARN:  Log::Warn("PyroscopePprofSink ", msg); break;
+        default:                  Log::Error("PyroscopePprofSink ", msg); break;
     }
 }
 
-static std::string_view ProfileTypeName(ProfileType type)
+std::string_view ProfileTypeName(ProfileType type)
 {
     switch (type)
     {
@@ -149,134 +55,84 @@ static std::string_view ProfileTypeName(ProfileType type)
         default:                          return "unknown";
     }
 }
-
-void PyroscopePprofSink::upload(Pprof pprof)
-{
-    push::v1::PushRequest request;
-    auto* series = request.add_series();
-
-    auto* nameLabel = series->add_labels();
-    nameLabel->set_name("__name__");
-    nameLabel->set_value(std::string(ProfileTypeName(pprof.profileType)));
-
-    auto* serviceLabel = series->add_labels();
-    serviceLabel->set_name("service_name");
-    serviceLabel->set_value(_appName);
-
-    auto* spyLabel = series->add_labels();
-    spyLabel->set_name("spy_name");
-    spyLabel->set_value("dotnetspy");
-
-    AddLabel(series, LabelScopeName, PyroscopeDotnetScopeName);
-    AddLabel(series, LabelScopeVersion, PROFILER_VERSION);
-    AddLabel(series, LabelProcessRuntimeName, _runtimeInfo->GetRuntimeName());
-    AddLabel(series, LabelProcessRuntimeVersion, _runtimeInfo->GetRuntimeVersion());
-
-    for (const auto& tag : _staticTags)
-    {
-        auto* label = series->add_labels();
-        label->set_name(tag.first);
-        label->set_value(tag.second);
-    }
-
-    auto* sample = series->add_samples();
-    sample->set_raw_profile(std::move(pprof.bytes));
-
-    std::string body = request.SerializeAsString();
-    std::string path = BuildPushPath(_url);
-
-    httplib::Headers headers = getHeaders();
-    auto res = _client.Post(path, headers, body, "application/proto");
-    if (res)
-    {
-        Log::Debug("PyroscopePprofSink ", res->status);
-    }
-    else
-    {
-        auto err = res.error();
-        Log::Error("PyroscopePprofSink err ", to_string(err), " ", _url);
-    }
 }
 
-httplib::Headers PyroscopePprofSink::getHeaders()
+PyroscopePprofSink::PyroscopePprofSink(
+    std::string server,
+    std::string appName,
+    BasicAuth basicAuth,
+    PyroscopeTenantId tenantId,
+    std::string httpHeadersJson,
+    IRuntimeInfo* runtimeInfo,
+    const Labels& staticTags) :
+    _appName(std::move(appName)),
+    _runtimeInfo(runtimeInfo),
+    _staticTags(staticTags)
 {
-    httplib::Headers headers;
-    std::lock_guard<std::mutex> auth_guard(_authLock);
-    if (!_basicAuth.user.empty() && !_basicAuth.password.empty())
-    {
-        headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(_basicAuth.user + ":" + _basicAuth.password));
-    }
-    else if (!_url.user_info().empty())
-    {
-        headers.emplace("Authorization", "Basic " + cppcodec::base64_rfc4648::encode(_url.user_info()));
-    }
-    if (!_tenantId.value.empty())
-    {
-        headers.emplace("X-Scope-OrgID", _tenantId.value);
-    }
-    headers.emplace("User-Agent", "pyroscope-dotnet/" PYROSCOPE_SPY_VERSION " cpp-httplib");
-    for (const auto& item : _extraHeaders)
-    {
-        headers.emplace(item.first, item.second);
-    }
-    return headers;
+    PyroscopeUploaderConfig config{
+        .server_address = ToPyroscopeStr(server),
+        .basic_auth_user = ToPyroscopeStr(basicAuth.user),
+        .basic_auth_password = ToPyroscopeStr(basicAuth.password),
+        .tenant_id = ToPyroscopeStr(tenantId.value),
+        .http_headers_json = ToPyroscopeStr(httpHeadersJson),
+        .user_agent = ToPyroscopeStr(UserAgent),
+        .log = LogFromUploader,
+    };
+    _uploader = pyroscope_uploader_new(&config);
 }
 
-std::string PyroscopePprofSink::SchemeHostPort(Url& url)
+PyroscopePprofSink::~PyroscopePprofSink()
 {
-    std::stringstream url_builder;
-    if (url.scheme().empty())
-    {
-        Log::Error("PyroscopePprofSink: url scheme empty, falling back to http", url.str());
-        url_builder << "http";
-    } else {
-        url_builder << url.scheme();
-    }
-    url_builder << "://";
-    if (url.host().empty())
-    {
-        Log::Error("PyroscopePprofSink: url host empty, falling back to localhost", url.str());
-        url_builder << "localhost";
-    } else {
-        url_builder << url.host();
-    }
-    if (!url.port().empty())
-    {
-        url_builder << ":" << url.port();
-    }
-    auto res = url_builder.str();
-//    std::cout << "Scheme host port .>> " << res << std::endl;
-    return res;
+    pyroscope_uploader_free(_uploader);
 }
 
-
-std::map<std::string, std::string> PyroscopePprofSink::ParseHeadersJSON(std::string headers)
+void PyroscopePprofSink::Export(std::vector<Pprof> pprofs)
 {
-    std::map<std::string, std::string> result;
-    if (headers.empty())
+    if (_uploader == nullptr)
     {
-        return result;
+        return;
     }
-
-    google::protobuf::Struct json;
-    auto status = google::protobuf::util::JsonStringToMessage(headers, &json);
-    if (!status.ok())
+    std::vector<Labels> labels;
+    std::vector<std::vector<PyroscopeLabel>> ffiLabels;
+    std::vector<PyroscopeProfile> profiles;
+    labels.reserve(pprofs.size());
+    ffiLabels.reserve(pprofs.size());
+    profiles.reserve(pprofs.size());
+    for (const auto& pprof : pprofs)
     {
-        Log::Error("PyroscopePprofSink: failed to parse headers json: ", status.ToString());
-        return result;
-    }
-
-    for (const auto& [key, value] : json.fields())
-    {
-        if (value.kind_case() == google::protobuf::Value::kStringValue)
+        const auto& profileLabels = labels.emplace_back(GetLabels(pprof.profileType));
+        auto& profileFfiLabels = ffiLabels.emplace_back();
+        profileFfiLabels.reserve(profileLabels.size());
+        for (const auto& [name, value] : profileLabels)
         {
-            result[key] = value.string_value();
+            profileFfiLabels.push_back(PyroscopeLabel{ToPyroscopeStr(name), ToPyroscopeStr(value)});
         }
-        else
-        {
-            Log::Error("PyroscopePprofSink: header value is not a string: ", key);
-        }
+        profiles.push_back(PyroscopeProfile{
+            .labels = profileFfiLabels.data(),
+            .labels_len = profileFfiLabels.size(),
+            .pprof = reinterpret_cast<const uint8_t*>(pprof.bytes.data()),
+            .pprof_len = pprof.bytes.size(),
+        });
     }
+    pyroscope_uploader_export(_uploader, profiles.data(), profiles.size());
+}
 
-    return result;
+void PyroscopePprofSink::SetBasicAuth(BasicAuth basicAuth)
+{
+    pyroscope_uploader_set_basic_auth(_uploader, ToPyroscopeStr(basicAuth.user), ToPyroscopeStr(basicAuth.password));
+}
+
+PyroscopePprofSink::Labels PyroscopePprofSink::GetLabels(ProfileType profileType) const
+{
+    Labels labels;
+    labels.reserve(7 + _staticTags.size());
+    labels.emplace_back("__name__", ProfileTypeName(profileType));
+    labels.emplace_back("service_name", _appName);
+    labels.emplace_back("spy_name", "dotnetspy");
+    labels.emplace_back(LabelScopeName, PyroscopeDotnetScopeName);
+    labels.emplace_back(LabelScopeVersion, PROFILER_VERSION);
+    labels.emplace_back(LabelProcessRuntimeName, _runtimeInfo->GetRuntimeName());
+    labels.emplace_back(LabelProcessRuntimeVersion, _runtimeInfo->GetRuntimeVersion());
+    labels.insert(labels.end(), _staticTags.begin(), _staticTags.end());
+    return labels;
 }

@@ -1,5 +1,5 @@
 # Overlay for the builtin x64-windows-static triplet that pins the toolset.
-# vcpkg must build the static deps (openssl, protobuf) with the SAME toolset we
+# vcpkg must build the static deps (protobuf) with the SAME toolset we
 # link the profiler with, or the static objects reference STL helpers (e.g.
 # __std_rotate) the link toolset's STL may not export. CI builds with whatever
 # toolset the runner image ships and passes it here via VCPKG_TOOLSET_OVERRIDE;

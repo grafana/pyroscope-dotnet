@@ -166,9 +166,7 @@ target_link_libraries(${PROFILER_STATIC_LIB_NAME}
     PPDB
     spdlog-headers
     libprotobuf
-    chmike::CxxUrl
-    OpenSSL::Crypto
-    OpenSSL::SSL
+    pyroscope-uploader
     -static-libgcc
     -static-libstdc++
     -lstdc++fs
@@ -181,10 +179,6 @@ add_dependencies(${PROFILER_STATIC_LIB_NAME} libunwind-lib coreclr spdlog-header
 
 
 
-target_include_directories(${PROFILER_STATIC_LIB_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/../../../../profiler/third_party/cpp-httplib)
-target_compile_definitions(${PROFILER_STATIC_LIB_NAME} PUBLIC -DCPPHTTPLIB_OPENSSL_SUPPORT -DCPPHTTPLIB_USE_POLL)
-
-
 # ******************************************************
 # Define shared target
 # ******************************************************
@@ -193,7 +187,6 @@ set(dd_profiling_linker_script "${CMAKE_CURRENT_SOURCE_DIR}/datadog_profiling.ve
 add_library(${PROFILER_SHARED_LIB_NAME} SHARED
     ../Datadog.Profiler.Native/DllMain.cpp
 )
-target_include_directories(${PROFILER_SHARED_LIB_NAME} PRIVATE ${PROJECT_SOURCE_DIR}/../../../../profiler/third_party/cpp-httplib)
 
 set_target_properties(${PROFILER_SHARED_LIB_NAME} PROPERTIES PREFIX "")
 set_target_properties(${PROFILER_SHARED_LIB_NAME} PROPERTIES LINK_DEPENDS "${dd_profiling_linker_script}")

@@ -470,7 +470,7 @@ func generateTestCerts(t *testing.T, hostname string) (caCertPEM, serverCertPEM,
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 	}
 	// An IP literal (Windows uses 127.0.0.1) must be in the IP SAN; a DNS name
-	// (Linux uses host.docker.internal) in the DNS SAN. OpenSSL/cpp-httplib
+	// (Linux uses host.docker.internal) in the DNS SAN. OpenSSL/SChannel
 	// verify the two differently.
 	if ip := net.ParseIP(hostname); ip != nil {
 		serverTemplate.IPAddresses = []net.IP{ip}
@@ -539,7 +539,7 @@ func startAppForTLSTest(t *testing.T, libcType, version, serverAddress string, c
 	t.Helper()
 	if runtime.GOOS == "windows" {
 		// The profiler honors SSL_CERT_FILE for a custom CA (see
-		// PyroscopePprofSink); point it at the test CA.
+		// pyroscope-uploader); point it at the test CA.
 		caPath := filepath.Join(t.TempDir(), "ca.crt")
 		if err := os.WriteFile(caPath, caCertPEM, 0o644); err != nil {
 			t.Fatalf("writing CA cert: %v", err)

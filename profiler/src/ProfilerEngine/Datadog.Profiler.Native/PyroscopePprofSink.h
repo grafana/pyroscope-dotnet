@@ -7,28 +7,11 @@
 #include "IRuntimeInfo.h"
 #include "PprofExporter.h"
 
-#include "LockingQueue.h"
-// A remote server might not honor "Expect: 100-continue". cpp-httplib adds that
-// header automatically once a request body reaches its default 1 KiB threshold,
-// then withholds the body waiting for a "100 Continue" that never arrives, so
-// every profile upload larger than ~1 KiB fails. Disable the behavior (0 = never)
-// so the body is always sent with the headers.
-#define CPPHTTPLIB_EXPECT_100_THRESHOLD 0
-#ifdef _MSC_VER
-// cpp-httplib's OpenSSL path trips C4996 (sscanf, and the library calling its own
-// [[deprecated]] TLS helpers), which /sdl elevates to errors. Suppress for this
-// third-party header only; our own code keeps the /sdl checks.
-#pragma warning(push)
-#pragma warning(disable : 4996)
-#endif
-#include "httplib.h"
-#ifdef _MSC_VER
-#pragma warning(pop)
-#endif
-#include "url.hpp"
-#include "PyroscopeVersion.h"
+#include "pyroscope_uploader.h"
 
 #include <string>
+#include <utility>
+#include <vector>
 
 struct BasicAuth
 {
@@ -44,41 +27,26 @@ struct PyroscopeTenantId
 class PyroscopePprofSink : public PProfExportSink
 {
 public:
+    using Labels = std::vector<std::pair<std::string, std::string>>;
+
     PyroscopePprofSink(std::string server,
                        std::string appName,
                        BasicAuth basicAuth,
                        PyroscopeTenantId tenantId,
-                       std::map<std::string, std::string> extraHeaders,
+                       std::string httpHeadersJson,
                        IRuntimeInfo* runtimeInfo,
-                       const std::vector<std::pair<std::string, std::string>>& staticTags);
+                       const Labels& staticTags);
     ~PyroscopePprofSink() override;
+    PyroscopePprofSink(const PyroscopePprofSink&) = delete;
+    PyroscopePprofSink& operator=(const PyroscopePprofSink&) = delete;
+
     void Export(std::vector<Pprof> pprofs) override;
     void SetBasicAuth(BasicAuth basicAuth);
-    static std::map<std::string, std::string> ParseHeadersJSON(std::string headers);
+    Labels GetLabels(ProfileType profileType) const;
 
 private:
-    static std::string SchemeHostPort(Url& url);
-
-    struct PyroscopeRequest
-    {
-        std::vector<Pprof> pprofs;
-    };
-
-    void work();
-    void upload(Pprof pprof);
-    httplib::Headers getHeaders();
-
     std::string _appName;
     IRuntimeInfo* _runtimeInfo;
-    std::vector<std::pair<std::string, std::string>> _staticTags;
-    Url _url;
-    httplib::Client _client;
-    std::atomic<bool> _running;
-    LockingQueue<PyroscopeRequest> _queue;
-    std::thread _workerThread;
-
-    BasicAuth _basicAuth;
-    PyroscopeTenantId _tenantId;
-    std::map<std::string, std::string> _extraHeaders;
-    std::mutex _authLock;
+    Labels _staticTags;
+    PyroscopeUploader* _uploader;
 };

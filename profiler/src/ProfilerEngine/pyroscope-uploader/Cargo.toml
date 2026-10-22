@@ -1,0 +1,21 @@
+[package]
+name = "pyroscope-uploader"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+base64 = "0.22"
+percent-encoding = "2.3"
+prost = "0.14"
+reqwest = { version = "0.13", default-features = false, features = ["native-tls"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["rt"] }
+url = "2.5"
+
+[profile.release]
+debug = 1

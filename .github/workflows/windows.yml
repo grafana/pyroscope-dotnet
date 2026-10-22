@@ -61,6 +61,10 @@ jobs:
           path: ${{ runner.temp }}\vcpkg-bincache
           key: vcpkg-windows-x64-${{ env.WIN_MSVC }}-${{ hashFiles('vcpkg.json', 'vcpkg-configuration.json', 'build/vcpkg_local_ports/**', 'build/vcpkg_triplets/**') }}
           restore-keys: vcpkg-windows-x64-${{ env.WIN_MSVC }}-
+      - name: Install Rust toolchain
+        shell: pwsh
+        working-directory: profiler/src/ProfilerEngine/pyroscope-uploader
+        run: rustup toolchain install
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@30375c66a4eea26614e0d39710365f22f8b0af57 # v3
       - name: Build profiler (Release x64)

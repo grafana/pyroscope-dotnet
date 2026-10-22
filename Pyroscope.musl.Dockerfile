@@ -28,6 +28,23 @@ RUN curl -fsSLO --retry 10 "https://github.com/openssl/openssl/releases/download
     ln -s /usr/local/openssl/lib64 /usr/local/openssl/lib && \
     cd .. && rm -rf openssl-${OPENSSL_VERSION} openssl-${OPENSSL_VERSION}.tar.gz
 
+# Rust for the pyroscope-uploader static library. rustup-init is pinned by
+# version and sha256 per arch; the toolchain comes from rust-toolchain.toml.
+ARG RUSTUP_VERSION=1.29.2
+ENV RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo PATH=/usr/local/cargo/bin:$PATH
+RUN case "$(uname -m)" in \
+        x86_64) sha=2ba97d668c06dc4b1884f2a3fa6f4cf14b9bd0c1db379af7e4f87a705ff19edd ;; \
+        aarch64) sha=7fdbb23acf6495efee2e371580c52b365917551b4835090a225c44ac30915235 ;; \
+        *) echo "unsupported arch $(uname -m)"; exit 1 ;; \
+    esac && \
+    curl -fsSLo rustup-init --retry 10 "https://static.rust-lang.org/rustup/archive/${RUSTUP_VERSION}/$(uname -m)-unknown-linux-musl/rustup-init" && \
+    echo "${sha}  rustup-init" | sha256sum -c - && \
+    chmod +x rustup-init && \
+    ./rustup-init -y --no-modify-path --profile minimal --default-toolchain none && \
+    rm rustup-init
+COPY profiler/src/ProfilerEngine/pyroscope-uploader/rust-toolchain.toml /tmp/rust-toolchain/rust-toolchain.toml
+RUN cd /tmp/rust-toolchain && rustup toolchain install && rm -rf /tmp/rust-toolchain
+
 FROM builder as build
 
 WORKDIR /profiler
@@ -41,8 +58,8 @@ ADD CMakeLists.txt CMakeLists.txt
 # Allow build type to be passed as build arg, default to Release
 ARG CMAKE_BUILD_TYPE=Release
 # CMAKE_POLICY_VERSION_MINIMUM: the image ships cmake 4, which hard-errors on
-# cmake_minimum_required < 3.5; vendored third_party trees still declare 2.6-3.4
-# (e.g. profiler/third_party/CxxUrl).
+# cmake_minimum_required < 3.5; vendored third_party trees may still declare
+# older versions.
 RUN mkdir build-${CMAKE_BUILD_TYPE} && \
     cd build-${CMAKE_BUILD_TYPE} && \
     cmake .. \
@@ -58,6 +75,9 @@ RUN cd build-${CMAKE_BUILD_TYPE} && make -j16 Pyroscope.Profiler.Native Datadog.
 
 FROM build AS test
 RUN cd build-${CMAKE_BUILD_TYPE} && make -j$(nproc) profiler-native-tests wrapper-native-tests
+# Run pyroscope-uploader unit tests
+RUN cd profiler/src/ProfilerEngine/pyroscope-uploader && \
+    OPENSSL_DIR=/usr/local/openssl OPENSSL_STATIC=1 cargo test --locked --target-dir /profiler/build-${CMAKE_BUILD_TYPE}/pyroscope-uploader-test
 # Run profiler unit tests
 RUN cd build-${CMAKE_BUILD_TYPE}/profiler && ctest --output-on-failure -E "WrappedFunctionsTest"
 # Run wrapper tests with LD_PRELOAD so wrapped functions resolve to the wrapper library

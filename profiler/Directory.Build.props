@@ -193,10 +193,11 @@
            picks them up via add_subdirectory; the Windows MSBuild needs explicit include paths. -->
       <PYROSCOPE-THIRDPARTY-PATH>$(DOTNET-TRACER-REPO-ROOT-PATH)profiler\third_party\</PYROSCOPE-THIRDPARTY-PATH>
       <PYROSCOPE-GEN-PATH>$(DOTNET-TRACER-REPO-ROOT-PATH)profiler\src\ProfilerEngine\Datadog.Profiler.Native\gen</PYROSCOPE-GEN-PATH>
+      <PYROSCOPE-UPLOADER-PATH>$(DOTNET-TRACER-REPO-ROOT-PATH)profiler\src\ProfilerEngine\pyroscope-uploader\</PYROSCOPE-UPLOADER-PATH>
       <!-- PYROSCOPE_WINDOWS_NOTE: protobuf headers come from vcpkg (see vcpkg.json override pinning
            3.21.12). Do NOT add profiler\third_party\protobuf\src here — having both would risk header
            vs. runtime mismatch if vcpkg protobuf moves in the future. -->
-      <SHARED-LIB-INCLUDES>$(PYROSCOPE-THIRDPARTY-PATH)spdlog\include;$(PYROSCOPE-THIRDPARTY-PATH)cpp-httplib;$(PYROSCOPE-THIRDPARTY-PATH)CxxUrl;$(PYROSCOPE-THIRDPARTY-PATH)cppcodec;$(PYROSCOPE-GEN-PATH)</SHARED-LIB-INCLUDES>
+      <SHARED-LIB-INCLUDES>$(PYROSCOPE-THIRDPARTY-PATH)spdlog\include;$(PYROSCOPE-UPLOADER-PATH)include;$(PYROSCOPE-GEN-PATH)</SHARED-LIB-INCLUDES>
       <!-- PYROSCOPE_WINDOWS_NOTE: adopt upstream #8948's warning suppression for vendored headers,
            adapted to the fork's layout. Upstream points ExternalIncludePath at shared\src\native-lib\
            fmt|spdlog; the fork's third-party headers all live under profiler\third_party\, already
@@ -216,17 +217,6 @@
     <ItemDefinitionGroup Condition=" '$(MSBuildProjectExtension)' == '.vcxproj' ">
       <ClCompile>
         <PreprocessorDefinitions>%(PreprocessorDefinitions);MICROSOFT_WINDOWS_WINBASE_H_DEFINE_INTERLOCKED_CPLUSPLUS_OVERLOADS=1</PreprocessorDefinitions>
-        <!-- PYROSCOPE_WINDOWS_NOTE: enable cpp-httplib's OpenSSL/TLS support (the Linux build sets
-             this in Datadog.Profiler.Native.Linux/CMakeLists.txt). Set globally so every TU that
-             includes httplib.h agrees on the layout - the header is header-only, so a per-project
-             mismatch would be an ODR/ABI bug. OpenSSL comes from vcpkg (see vcpkg.json). On
-             Windows cpp-httplib loads CA roots from the system cert store automatically. -->
-        <PreprocessorDefinitions>%(PreprocessorDefinitions);CPPHTTPLIB_OPENSSL_SUPPORT</PreprocessorDefinitions>
-        <!-- PYROSCOPE_WINDOWS_NOTE: force-include winsock2.h before anything else. httplib.h (cpp-httplib)
-             needs winsock2, and <windows.h> auto-includes winsock v1 unless winsock2 has set _WINSOCKAPI_
-             first. WIN32_LEAN_AND_MEAN is the usual workaround but breaks <atlbase.h>. Force-include is
-             a narrower fix that keeps ATL happy. Upstream doesn't need this - no cpp-httplib there. -->
-        <ForcedIncludeFiles>$(DOTNET-TRACER-REPO-ROOT-PATH)profiler\src\ProfilerEngine\Datadog.Profiler.Native\PyroscopeWindowsIncludeOrder.h;%(ForcedIncludeFiles)</ForcedIncludeFiles>
         <!-- PYROSCOPE_WINDOWS_NOTE: /utf-8 required by fmt (bundled with spdlog 1.17) for its Unicode
              support static_assert. Equivalent to /source-charset:utf-8 /execution-charset:utf-8.
              The fork keeps this approach rather than adopting upstream's FMT_UNICODE=0 (v3.51.1 #8948):

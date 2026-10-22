@@ -1,0 +1,20 @@
+<Project>
+  <PropertyGroup>
+    <PyroscopeUploaderRustTarget Condition="'$(Platform)' == 'Win32'">i686-pc-windows-msvc</PyroscopeUploaderRustTarget>
+    <PyroscopeUploaderRustTarget Condition="'$(Platform)' != 'Win32'">x86_64-pc-windows-msvc</PyroscopeUploaderRustTarget>
+    <PyroscopeUploaderTargetDir>$(DOTNET-TRACER-REPO-ROOT-PATH)artifacts\profiler-build\pyroscope-uploader</PyroscopeUploaderTargetDir>
+    <PyroscopeUploaderLib>$(PyroscopeUploaderTargetDir)\$(PyroscopeUploaderRustTarget)\release\pyroscope_uploader.lib</PyroscopeUploaderLib>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalDependencies>$(PyroscopeUploaderLib);kernel32.lib;ntdll.lib;userenv.lib;ws2_32.lib;dbghelp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries Condition="'$(Configuration)' == 'Debug'">libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <Target Name="BuildPyroscopeUploader" BeforeTargets="Link">
+    <Exec Command="cargo build --release --locked --lib --target $(PyroscopeUploaderRustTarget) --target-dir &quot;$(PyroscopeUploaderTargetDir)&quot;"
+          WorkingDirectory="$(MSBuildThisFileDirectory)" />
+  </Target>
+</Project>

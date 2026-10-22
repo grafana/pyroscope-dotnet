@@ -1,12 +1,6 @@
 [submodule "profiler/third_party/protobuf"]
 	path = profiler/third_party/protobuf
 	url = https://github.com/protocolbuffers/protobuf.git
-[submodule "profiler/third_party/cpp-httplib"]
-	path = profiler/third_party/cpp-httplib
-	url = https://github.com/yhirose/cpp-httplib.git
-[submodule "profiler/third_party/cppcodec"]
-	path = profiler/third_party/cppcodec
-	url = https://github.com/tplgy/cppcodec.git
 [submodule "profiler/third_party/spdlog"]
 	path = profiler/third_party/spdlog
 	url = https://github.com/gabime/spdlog.git
