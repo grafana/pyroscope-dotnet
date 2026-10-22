@@ -3,6 +3,7 @@
 //
 
 #include "PyroscopePprofSink.h"
+#include "EnvironmentVariables.h"
 #include "Log.h"
 #include "OpSysTools.h"
 #include "cppcodec/base64_rfc4648.hpp"
@@ -13,6 +14,11 @@
 #include "google/protobuf/util/json_util.h"
 #include "shared/src/native-src/string.h"
 #include "shared/src/native-src/util.h"
+
+#include <algorithm>
+#include <cctype>
+#include <cstring>
+#include <sstream>
 
 namespace
 {
@@ -34,6 +40,149 @@ void AddLabel(push::v1::RawProfileSeries* series, std::string_view name, std::st
     auto* label = series->add_labels();
     label->set_name(std::string(name));
     label->set_value(std::string(value));
+}
+
+std::string Trim(const std::string& s)
+{
+    const auto b = s.find_first_not_of(" \t");
+    if (b == std::string::npos)
+    {
+        return {};
+    }
+    const auto e = s.find_last_not_of(" \t");
+    return s.substr(b, e - b + 1);
+}
+
+std::string ToLower(std::string s)
+{
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+    return s;
+}
+
+std::string StripBrackets(const std::string& s)
+{
+    if (s.size() >= 2 && s.front() == '[' && s.back() == ']')
+    {
+        return s.substr(1, s.size() - 2);
+    }
+    return s;
+}
+
+size_t ParseIp(const std::string& s, unsigned char (&addr)[16])
+{
+    if (inet_pton(AF_INET, s.c_str(), addr) == 1)
+    {
+        return 4;
+    }
+    if (inet_pton(AF_INET6, s.c_str(), addr) == 1)
+    {
+        return 16;
+    }
+    return 0;
+}
+
+bool IpMatches(const std::string& entry, const std::string& host)
+{
+    unsigned char hostAddr[16];
+    const auto hostLen = ParseIp(host, hostAddr);
+    if (hostLen == 0)
+    {
+        return false;
+    }
+
+    auto ip = entry;
+    size_t prefixBits = hostLen * 8;
+    const auto slash = entry.find('/');
+    if (slash != std::string::npos)
+    {
+        ip = entry.substr(0, slash);
+        try
+        {
+            prefixBits = std::stoul(entry.substr(slash + 1));
+        }
+        catch (const std::exception&)
+        {
+            return false;
+        }
+    }
+
+    unsigned char entryAddr[16];
+    if (ParseIp(StripBrackets(ip), entryAddr) != hostLen || prefixBits > hostLen * 8)
+    {
+        return false;
+    }
+
+    const auto fullBytes = prefixBits / 8;
+    if (std::memcmp(hostAddr, entryAddr, fullBytes) != 0)
+    {
+        return false;
+    }
+    const auto remainingBits = prefixBits % 8;
+    if (remainingBits == 0)
+    {
+        return true;
+    }
+    const auto mask = static_cast<unsigned char>(0xFF << (8 - remainingBits));
+    return (hostAddr[fullBytes] & mask) == (entryAddr[fullBytes] & mask);
+}
+
+bool IsIpEntry(const std::string& entry)
+{
+    unsigned char addr[16];
+    return ParseIp(StripBrackets(entry.substr(0, entry.find('/'))), addr) != 0;
+}
+
+std::optional<ProxyConfig> ParseProxy(const std::string& value, const std::string& varName)
+{
+    auto raw = value.find("://") == std::string::npos ? "http://" + value : value;
+    try
+    {
+        Url url(raw);
+        if (url.scheme() != "http")
+        {
+            Log::Error("PyroscopePprofSink: proxy scheme '", url.scheme(), "' in ", varName, " is not supported, only http:// proxies are supported. Not using a proxy.");
+            return std::nullopt;
+        }
+        if (url.host().empty())
+        {
+            Log::Error("PyroscopePprofSink: proxy host in ", varName, " is empty. Not using a proxy.");
+            return std::nullopt;
+        }
+
+        ProxyConfig proxy;
+        proxy.host = url.host();
+        proxy.port = url.port().empty() ? 80 : std::stoi(url.port());
+        const auto& userInfo = url.user_info();
+        const auto colon = userInfo.find(':');
+        proxy.user = userInfo.substr(0, colon);
+        if (colon != std::string::npos)
+        {
+            proxy.password = userInfo.substr(colon + 1);
+        }
+        return proxy;
+    }
+    catch (const std::exception&)
+    {
+        // The exception message has the full URL, which can contain credentials.
+        Log::Error("PyroscopePprofSink: invalid proxy URL in ", varName, ". Not using a proxy.");
+        return std::nullopt;
+    }
+}
+
+std::string GetFirstEnv(const std::function<std::string(const shared::WSTRING&)>& getEnv,
+                        std::initializer_list<shared::WSTRING> names,
+                        std::string& foundName)
+{
+    for (const auto& name : names)
+    {
+        auto value = Trim(getEnv(name));
+        if (!value.empty())
+        {
+            foundName = shared::ToString(name);
+            return value;
+        }
+    }
+    return {};
 }
 }
 
@@ -68,6 +217,19 @@ PyroscopePprofSink::PyroscopePprofSink(
     if (!caCertFile.empty())
     {
         _client.set_ca_cert_path(caCertFile);
+    }
+
+    auto proxy = ResolveProxy(_url, [](const shared::WSTRING& name) {
+        return shared::ToString(shared::GetEnvironmentValue(name));
+    });
+    if (proxy)
+    {
+        Log::Info("PyroscopePprofSink: using proxy ", proxy->host, ":", proxy->port);
+        _client.set_proxy(proxy->host, proxy->port);
+        if (!proxy->user.empty())
+        {
+            _client.set_proxy_basic_auth(proxy->user, proxy->password);
+        }
     }
 
 #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
@@ -249,6 +411,85 @@ std::string PyroscopePprofSink::SchemeHostPort(Url& url)
     return res;
 }
 
+
+std::optional<ProxyConfig> PyroscopePprofSink::ResolveProxy(const Url& server, const std::function<std::string(const shared::WSTRING&)>& getEnv)
+{
+    std::string varName;
+    auto value = GetFirstEnv(getEnv, {EnvironmentVariables::PyroscopeProxy}, varName);
+    if (!value.empty())
+    {
+        return ParseProxy(value, varName);
+    }
+
+    if (server.scheme() == "https")
+    {
+        value = GetFirstEnv(getEnv, {WStr("HTTPS_PROXY"), WStr("https_proxy")}, varName);
+    }
+    else
+    {
+        value = GetFirstEnv(getEnv, {WStr("HTTP_PROXY"), WStr("http_proxy")}, varName);
+    }
+    if (value.empty())
+    {
+        return std::nullopt;
+    }
+
+    std::string noProxyName;
+    auto noProxy = GetFirstEnv(getEnv, {WStr("NO_PROXY"), WStr("no_proxy")}, noProxyName);
+    if (NoProxyMatches(noProxy, server.host()))
+    {
+        return std::nullopt;
+    }
+    return ParseProxy(value, varName);
+}
+
+bool PyroscopePprofSink::NoProxyMatches(const std::string& noProxy, const std::string& host)
+{
+    const auto lowerHost = ToLower(StripBrackets(host));
+    std::stringstream entries(noProxy);
+    std::string entry;
+    while (std::getline(entries, entry, ','))
+    {
+        entry = ToLower(Trim(entry));
+        if (entry.empty())
+        {
+            continue;
+        }
+        if (entry == "*")
+        {
+            return true;
+        }
+        if (IsIpEntry(entry))
+        {
+            if (IpMatches(entry, lowerHost))
+            {
+                return true;
+            }
+            continue;
+        }
+
+        if (entry.rfind("*.", 0) == 0)
+        {
+            entry = entry.substr(1);
+        }
+        if (entry.front() == '.')
+        {
+            entry = entry.substr(1);
+        }
+        if (entry.empty())
+        {
+            continue;
+        }
+        if (lowerHost == entry ||
+            (lowerHost.size() > entry.size() &&
+             lowerHost.compare(lowerHost.size() - entry.size(), entry.size(), entry) == 0 &&
+             lowerHost[lowerHost.size() - entry.size() - 1] == '.'))
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
 std::map<std::string, std::string> PyroscopePprofSink::ParseHeadersJSON(std::string headers)
 {

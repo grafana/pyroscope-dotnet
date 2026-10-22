@@ -12,6 +12,8 @@
 #include <vector>
 
 #include "cppcodec/base64_rfc4648.hpp"
+#include "EnvironmentHelper.h"
+#include "EnvironmentVariables.h"
 #include "PyroscopePprofSink.h"
 #include "RuntimeInfo.h"
 #include "dd_profiler_version.h"
@@ -376,4 +378,161 @@ TEST(PyroscopePprofSinkTest, UploadAddsSemanticSeriesLabels)
 
     server.stop();
     serverThread.join();
+}
+
+namespace
+{
+std::optional<ProxyConfig> ResolveProxy(const std::string& server, const std::map<shared::WSTRING, std::string>& env)
+{
+    return PyroscopePprofSink::ResolveProxy(Url(server), [&env](const shared::WSTRING& name) {
+        auto it = env.find(name);
+        return it == env.end() ? std::string{} : it->second;
+    });
+}
+} // namespace
+
+TEST(PyroscopePprofSinkTest, ResolveProxyReturnsNothingWithoutProxyVariables)
+{
+    EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com", {}).has_value());
+}
+
+TEST(PyroscopePprofSinkTest, ResolveProxyUsesSchemeSpecificVariable)
+{
+    const std::map<shared::WSTRING, std::string> env = {
+        {WStr("HTTPS_PROXY"), "http://secure-proxy:3128"},
+        {WStr("HTTP_PROXY"), "http://plain-proxy:8080"},
+    };
+
+    auto httpsProxy = ResolveProxy("https://pyroscope.example.com", env);
+    ASSERT_TRUE(httpsProxy.has_value());
+    EXPECT_EQ(httpsProxy->host, "secure-proxy");
+    EXPECT_EQ(httpsProxy->port, 3128);
+
+    auto httpProxy = ResolveProxy("http://pyroscope.example.com", env);
+    ASSERT_TRUE(httpProxy.has_value());
+    EXPECT_EQ(httpProxy->host, "plain-proxy");
+    EXPECT_EQ(httpProxy->port, 8080);
+}
+
+TEST(PyroscopePprofSinkTest, ResolveProxyUsesLowercaseVariables)
+{
+    auto proxy = ResolveProxy("https://pyroscope.example.com", {{WStr("https_proxy"), "proxy:3128"}});
+    ASSERT_TRUE(proxy.has_value());
+    EXPECT_EQ(proxy->host, "proxy");
+    EXPECT_EQ(proxy->port, 3128);
+}
+
+TEST(PyroscopePprofSinkTest, ResolveProxyParsesCredentialsAndDefaultPort)
+{
+    auto proxy = ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "http://us%40er:p%3Ass@proxy"}});
+    ASSERT_TRUE(proxy.has_value());
+    EXPECT_EQ(proxy->host, "proxy");
+    EXPECT_EQ(proxy->port, 80);
+    EXPECT_EQ(proxy->user, "us@er");
+    EXPECT_EQ(proxy->password, "p:ss");
+}
+
+TEST(PyroscopePprofSinkTest, ResolveProxyPrefersPyroscopeProxy)
+{
+    const std::map<shared::WSTRING, std::string> env = {
+        {EnvironmentVariables::PyroscopeProxy, "http://pyroscope-proxy:1080"},
+        {WStr("HTTPS_PROXY"), "http://other-proxy:3128"},
+        {WStr("NO_PROXY"), "*"},
+    };
+
+    auto proxy = ResolveProxy("https://pyroscope.example.com", env);
+    ASSERT_TRUE(proxy.has_value());
+    EXPECT_EQ(proxy->host, "pyroscope-proxy");
+    EXPECT_EQ(proxy->port, 1080);
+}
+
+TEST(PyroscopePprofSinkTest, ResolveProxyHonorsNoProxy)
+{
+    const std::map<shared::WSTRING, std::string> env = {
+        {WStr("HTTPS_PROXY"), "http://proxy:3128"},
+        {WStr("no_proxy"), "localhost, .internal.example.com"},
+    };
+
+    EXPECT_FALSE(ResolveProxy("https://pyroscope.internal.example.com", env).has_value());
+    EXPECT_TRUE(ResolveProxy("https://pyroscope.example.com", env).has_value());
+}
+
+TEST(PyroscopePprofSinkTest, ResolveProxyRejectsUnsupportedProxies)
+{
+    EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "https://proxy:3128"}}).has_value());
+    EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "socks5://proxy:1080"}}).has_value());
+    EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "http://proxy:port"}}).has_value());
+}
+
+TEST(PyroscopePprofSinkTest, NoProxyMatchesDomains)
+{
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("", "example.com"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("*", "example.com"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("example.com", "example.com"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("example.com", "api.example.com"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches(".example.com", "example.com"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("*.example.com", "api.example.com"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("other.com, EXAMPLE.com", "example.com"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("example.com", "badexample.com"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("api.example.com", "example.com"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches(",,.", "example.com"));
+}
+
+TEST(PyroscopePprofSinkTest, NoProxyMatchesIpAddresses)
+{
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("127.0.0.1", "127.0.0.1"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("127.0.0.1", "127.0.0.2"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/8", "10.1.2.3"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/8", "11.1.2.3"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("192.168.1.0/23", "192.168.0.7"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("192.168.1.0/24", "192.168.0.7"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("::1", "::1"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("[fd00::]/8", "fd12::1"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/8", "::1"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/33", "10.0.0.1"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/8", "example.com"));
+}
+
+TEST(PyroscopePprofSinkTest, UploadGoesThroughProxy)
+{
+    httplib::Server proxy;
+    ObservedRequest observed;
+
+    proxy.Post(".*", [](const httplib::Request&, httplib::Response& res) { res.status = 200; });
+    proxy.set_logger([&observed](const httplib::Request& req, const httplib::Response& res) {
+        observed.Set(req.target, res.status, req.body, req.get_header_value("Proxy-Authorization"));
+    });
+
+    auto port = proxy.bind_to_any_port("127.0.0.1");
+    ASSERT_GT(port, 0);
+
+    std::thread proxyThread([&proxy]() {
+        proxy.listen_after_bind();
+    });
+    proxy.wait_until_ready();
+
+    {
+        EnvironmentHelper::EnvironmentVariable proxyEnv(
+            EnvironmentVariables::PyroscopeProxy,
+            shared::ToWSTRING("http://proxy-user:proxy-password@127.0.0.1:" + std::to_string(port)));
+        RuntimeInfo runtimeInfo(8, 0, false);
+        PyroscopePprofSink sink(
+            "http://pyroscope.invalid:4040/tenant", "service", BasicAuth{}, PyroscopeTenantId{}, {}, &runtimeInfo, {});
+
+        Pprof pprof;
+        pprof.bytes = "fake-pprof";
+        pprof.profileType = ProfileType::ProcessCpu;
+
+        sink.Export({std::move(pprof)});
+
+        ASSERT_TRUE(observed.WaitForRequest(2s));
+        EXPECT_EQ(observed.Path, "http://pyroscope.invalid:4040/tenant/push.v1.PusherService/Push");
+        EXPECT_EQ(observed.Status, 200);
+        EXPECT_EQ(
+            observed.Authorization,
+            "Basic " + cppcodec::base64_rfc4648::encode(std::string{"proxy-user:proxy-password"}));
+    }
+
+    proxy.stop();
+    proxyThread.join();
 }
