@@ -24,8 +24,11 @@ RUN manylinux-install-clang -v ${CLANG_VERSION}
 RUN dnf -y install perl-core && dnf clean all
 
 # Build OpenSSL from source with static libs
-ARG OPENSSL_VERSION=3.5.8
+# Update OPENSSL_VERSION and OPENSSL_SHA256 together.
+ARG OPENSSL_VERSION=3.5.9
+ARG OPENSSL_SHA256=603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a
 RUN curl -fsSLO --retry 10 "https://github.com/openssl/openssl/releases/download/openssl-${OPENSSL_VERSION}/openssl-${OPENSSL_VERSION}.tar.gz" && \
+    echo "${OPENSSL_SHA256}  openssl-${OPENSSL_VERSION}.tar.gz" | sha256sum -c - && \
     tar xf openssl-${OPENSSL_VERSION}.tar.gz && \
     cd openssl-${OPENSSL_VERSION} && \
     ./config no-shared no-tests --prefix=/usr/local/openssl --openssldir=/etc/ssl && \
