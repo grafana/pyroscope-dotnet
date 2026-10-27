@@ -19,6 +19,7 @@
 #include <cctype>
 #include <cstring>
 #include <sstream>
+#include <tuple>
 
 namespace
 {
@@ -96,14 +97,13 @@ bool IpMatches(const std::string& entry, const std::string& host)
     if (slash != std::string::npos)
     {
         ip = entry.substr(0, slash);
-        try
-        {
-            prefixBits = std::stoul(entry.substr(slash + 1));
-        }
-        catch (const std::exception&)
+        const auto bits = entry.substr(slash + 1);
+        if (bits.empty() || bits.size() > 3 ||
+            !std::all_of(bits.begin(), bits.end(), [](unsigned char c) { return std::isdigit(c); }))
         {
             return false;
         }
+        prefixBits = std::stoul(bits);
     }
 
     unsigned char entryAddr[16];
@@ -130,6 +130,34 @@ bool IsIpEntry(const std::string& entry)
 {
     unsigned char addr[16];
     return ParseIp(StripBrackets(entry.substr(0, entry.find('/'))), addr) != 0;
+}
+
+bool IsLoopback(const std::string& host)
+{
+    return host == "localhost" ||
+           IpMatches("127.0.0.0/8", host) ||
+           IpMatches("::1", host) ||
+           IpMatches("::ffff:127.0.0.0/104", host);
+}
+
+// Bare IPv6 addresses and CIDR ranges have several colons and no port.
+std::pair<std::string, std::string> SplitEntryPort(const std::string& entry)
+{
+    if (entry.front() == '[')
+    {
+        const auto close = entry.find(']');
+        if (close != std::string::npos && close + 1 < entry.size() && entry[close + 1] == ':')
+        {
+            return {entry.substr(0, close + 1), entry.substr(close + 2)};
+        }
+        return {entry, {}};
+    }
+    const auto colon = entry.find(':');
+    if (colon != std::string::npos && entry.find(':', colon + 1) == std::string::npos)
+    {
+        return {entry.substr(0, colon), entry.substr(colon + 1)};
+    }
+    return {entry, {}};
 }
 
 std::optional<ProxyConfig> ParseProxy(const std::string& value, const std::string& varName)
@@ -429,21 +457,26 @@ std::optional<ProxyConfig> PyroscopePprofSink::ResolveProxy(const Url& server, c
     {
         value = GetFirstEnv(getEnv, {WStr("HTTP_PROXY"), WStr("http_proxy")}, varName);
     }
-    if (value.empty())
+    if (value.empty() || IsLoopback(ToLower(StripBrackets(server.host()))))
     {
         return std::nullopt;
     }
 
     std::string noProxyName;
     auto noProxy = GetFirstEnv(getEnv, {WStr("NO_PROXY"), WStr("no_proxy")}, noProxyName);
-    if (NoProxyMatches(noProxy, server.host()))
+    auto port = server.port();
+    if (port.empty())
+    {
+        port = server.scheme() == "https" ? "443" : "80";
+    }
+    if (NoProxyMatches(noProxy, server.host(), port))
     {
         return std::nullopt;
     }
     return ParseProxy(value, varName);
 }
 
-bool PyroscopePprofSink::NoProxyMatches(const std::string& noProxy, const std::string& host)
+bool PyroscopePprofSink::NoProxyMatches(const std::string& noProxy, const std::string& host, const std::string& port)
 {
     const auto lowerHost = ToLower(StripBrackets(host));
     std::stringstream entries(noProxy);
@@ -458,6 +491,12 @@ bool PyroscopePprofSink::NoProxyMatches(const std::string& noProxy, const std::s
         if (entry == "*")
         {
             return true;
+        }
+        std::string entryPort;
+        std::tie(entry, entryPort) = SplitEntryPort(entry);
+        if (entry.empty() || (!entryPort.empty() && entryPort != port))
+        {
+            continue;
         }
         if (IsIpEntry(entry))
         {

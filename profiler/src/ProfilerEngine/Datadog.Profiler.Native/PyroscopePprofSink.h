@@ -67,7 +67,7 @@ public:
     void SetBasicAuth(BasicAuth basicAuth);
     static std::map<std::string, std::string> ParseHeadersJSON(std::string headers);
     static std::optional<ProxyConfig> ResolveProxy(const Url& server, const std::function<std::string(const shared::WSTRING&)>& getEnv);
-    static bool NoProxyMatches(const std::string& noProxy, const std::string& host);
+    static bool NoProxyMatches(const std::string& noProxy, const std::string& host, const std::string& port);
 
 private:
     static std::string SchemeHostPort(Url& url);

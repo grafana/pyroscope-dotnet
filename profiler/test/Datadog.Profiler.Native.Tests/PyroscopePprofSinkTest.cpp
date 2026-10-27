@@ -466,31 +466,110 @@ TEST(PyroscopePprofSinkTest, ResolveProxyRejectsUnsupportedProxies)
 
 TEST(PyroscopePprofSinkTest, NoProxyMatchesDomains)
 {
-    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("", "example.com"));
-    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("*", "example.com"));
-    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("example.com", "example.com"));
-    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("example.com", "api.example.com"));
-    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches(".example.com", "example.com"));
-    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("*.example.com", "api.example.com"));
-    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("other.com, EXAMPLE.com", "example.com"));
-    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("example.com", "badexample.com"));
-    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("api.example.com", "example.com"));
-    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches(",,.", "example.com"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("", "example.com", "443"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("*", "example.com", "443"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("example.com", "example.com", "443"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("example.com", "api.example.com", "443"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches(".example.com", "example.com", "443"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("*.example.com", "api.example.com", "443"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("other.com, EXAMPLE.com", "example.com", "443"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("example.com", "badexample.com", "443"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("api.example.com", "example.com", "443"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches(",,.", "example.com", "443"));
 }
 
 TEST(PyroscopePprofSinkTest, NoProxyMatchesIpAddresses)
 {
-    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("127.0.0.1", "127.0.0.1"));
-    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("127.0.0.1", "127.0.0.2"));
-    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/8", "10.1.2.3"));
-    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/8", "11.1.2.3"));
-    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("192.168.1.0/23", "192.168.0.7"));
-    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("192.168.1.0/24", "192.168.0.7"));
-    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("::1", "::1"));
-    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("[fd00::]/8", "fd12::1"));
-    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/8", "::1"));
-    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/33", "10.0.0.1"));
-    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/8", "example.com"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("127.0.0.1", "127.0.0.1", "443"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("127.0.0.1", "127.0.0.2", "443"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/8", "10.1.2.3", "443"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/8", "11.1.2.3", "443"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("192.168.1.0/23", "192.168.0.7", "443"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("192.168.1.0/24", "192.168.0.7", "443"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("::1", "::1", "443"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("[fd00::]/8", "fd12::1", "443"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/8", "::1", "443"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/33", "10.0.0.1", "443"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/8", "example.com", "443"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/8x", "10.0.0.1", "443"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/-8", "10.0.0.1", "443"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("10.0.0.0/", "10.0.0.1", "443"));
+}
+
+TEST(PyroscopePprofSinkTest, NoProxyMatchesPorts)
+{
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("example.com:4040", "example.com", "4040"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("example.com:4040", "example.com", "443"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches(".example.com:4040", "api.example.com", "4040"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("10.0.0.5:4040", "10.0.0.5", "4040"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("10.0.0.5:4040", "10.0.0.5", "80"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("[fd00::1]:4040", "fd00::1", "4040"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches("[fd00::1]:4040", "fd00::1", "80"));
+    EXPECT_TRUE(PyroscopePprofSink::NoProxyMatches("fd00::1", "fd00::1", "80"));
+    EXPECT_FALSE(PyroscopePprofSink::NoProxyMatches(":4040", "example.com", "4040"));
+}
+
+TEST(PyroscopePprofSinkTest, ResolveProxyMatchesNoProxyPorts)
+{
+    const std::map<shared::WSTRING, std::string> env = {
+        {WStr("HTTPS_PROXY"), "http://proxy:3128"},
+        {WStr("NO_PROXY"), "pyroscope.example.com:4040, other.example.com:443"},
+    };
+
+    EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com:4040", env).has_value());
+    EXPECT_TRUE(ResolveProxy("https://pyroscope.example.com", env).has_value());
+    EXPECT_FALSE(ResolveProxy("https://other.example.com", env).has_value());
+}
+
+TEST(PyroscopePprofSinkTest, ResolveProxySkipsLoopbackServers)
+{
+    const std::map<shared::WSTRING, std::string> env = {{WStr("HTTP_PROXY"), "http://proxy:3128"}};
+
+    EXPECT_FALSE(ResolveProxy("http://localhost:4040", env).has_value());
+    EXPECT_FALSE(ResolveProxy("http://LOCALHOST:4040", env).has_value());
+    EXPECT_FALSE(ResolveProxy("http://127.0.0.1:4040", env).has_value());
+    EXPECT_FALSE(ResolveProxy("http://127.1.2.3:4040", env).has_value());
+    EXPECT_FALSE(ResolveProxy("http://[::1]:4040", env).has_value());
+    EXPECT_FALSE(ResolveProxy("http://[::ffff:127.0.0.1]:4040", env).has_value());
+    EXPECT_TRUE(ResolveProxy("http://128.0.0.1:4040", env).has_value());
+    EXPECT_TRUE(ResolveProxy("http://localhost.example.com:4040", env).has_value());
+}
+
+TEST(PyroscopePprofSinkTest, ResolveProxyUsesPyroscopeProxyForLoopbackServers)
+{
+    auto proxy = ResolveProxy("http://localhost:4040", {{EnvironmentVariables::PyroscopeProxy, "http://proxy:3128"}});
+    ASSERT_TRUE(proxy.has_value());
+    EXPECT_EQ(proxy->host, "proxy");
+}
+
+TEST(PyroscopePprofSinkTest, ResolveProxyDoesNotFallBackFromInvalidPyroscopeProxy)
+{
+    const std::map<shared::WSTRING, std::string> env = {
+        {EnvironmentVariables::PyroscopeProxy, "socks5://pyroscope-proxy:1080"},
+        {WStr("HTTPS_PROXY"), "http://other-proxy:3128"},
+    };
+
+    EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com", env).has_value());
+}
+
+TEST(PyroscopePprofSinkTest, ResolveProxyParsesIpv6Proxy)
+{
+    auto proxy = ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "http://[fd00::1]:3128"}});
+    ASSERT_TRUE(proxy.has_value());
+    EXPECT_EQ(proxy->host, "fd00::1");
+    EXPECT_EQ(proxy->port, 3128);
+}
+
+TEST(PyroscopePprofSinkTest, ResolveProxyTreatsSchemelessServerAsHttp)
+{
+    const std::map<shared::WSTRING, std::string> env = {
+        {WStr("HTTPS_PROXY"), "http://secure-proxy:3128"},
+        {WStr("HTTP_PROXY"), "http://plain-proxy:8080"},
+    };
+
+    auto proxy = ResolveProxy("//pyroscope.example.com:4040", env);
+    ASSERT_TRUE(proxy.has_value());
+    EXPECT_EQ(proxy->host, "plain-proxy");
 }
 
 TEST(PyroscopePprofSinkTest, UploadGoesThroughProxy)
