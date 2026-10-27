@@ -160,6 +160,26 @@ std::pair<std::string, std::string> SplitEntryPort(const std::string& entry)
     return {entry, {}};
 }
 
+// Url has already validated the percent encoding.
+std::string PercentDecode(const std::string& s)
+{
+    std::string out;
+    out.reserve(s.size());
+    for (size_t i = 0; i < s.size(); i++)
+    {
+        if (s[i] == '%' && i + 2 < s.size())
+        {
+            out.push_back(static_cast<char>(std::stoi(s.substr(i + 1, 2), nullptr, 16)));
+            i += 2;
+        }
+        else
+        {
+            out.push_back(s[i]);
+        }
+    }
+    return out;
+}
+
 std::optional<ProxyConfig> ParseProxy(const std::string& value, const std::string& varName)
 {
     auto raw = value.find("://") == std::string::npos ? "http://" + value : value;
@@ -180,12 +200,25 @@ std::optional<ProxyConfig> ParseProxy(const std::string& value, const std::strin
         ProxyConfig proxy;
         proxy.host = url.host();
         proxy.port = url.port().empty() ? 80 : std::stoi(url.port());
-        const auto& userInfo = url.user_info();
-        const auto colon = userInfo.find(':');
-        proxy.user = userInfo.substr(0, colon);
-        if (colon != std::string::npos)
+        if (proxy.port == 0)
         {
-            proxy.password = userInfo.substr(colon + 1);
+            Log::Error("PyroscopePprofSink: proxy port in ", varName, " is 0. Not using a proxy.");
+            return std::nullopt;
+        }
+        // Url::user_info() is already percent-decoded, so an encoded ':' in the user
+        // name would be taken for the separator. Split the raw user info instead.
+        const auto authorityBegin = raw.find("://") + 3;
+        const auto authority = raw.substr(authorityBegin, raw.find_first_of("/?#", authorityBegin) - authorityBegin);
+        const auto at = authority.rfind('@');
+        if (at != std::string::npos)
+        {
+            const auto userInfo = authority.substr(0, at);
+            const auto colon = userInfo.find(':');
+            proxy.user = PercentDecode(userInfo.substr(0, colon));
+            if (colon != std::string::npos)
+            {
+                proxy.password = PercentDecode(userInfo.substr(colon + 1));
+            }
         }
         return proxy;
     }

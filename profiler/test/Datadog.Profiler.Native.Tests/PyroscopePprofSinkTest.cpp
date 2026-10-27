@@ -432,6 +432,19 @@ TEST(PyroscopePprofSinkTest, ResolveProxyParsesCredentialsAndDefaultPort)
     EXPECT_EQ(proxy->password, "p:ss");
 }
 
+TEST(PyroscopePprofSinkTest, ResolveProxySplitsCredentialsBeforeDecoding)
+{
+    auto proxy = ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "http://us%3Aer:p%40ss:word@proxy:3128"}});
+    ASSERT_TRUE(proxy.has_value());
+    EXPECT_EQ(proxy->user, "us:er");
+    EXPECT_EQ(proxy->password, "p@ss:word");
+
+    auto userOnly = ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "http://user@proxy:3128"}});
+    ASSERT_TRUE(userOnly.has_value());
+    EXPECT_EQ(userOnly->user, "user");
+    EXPECT_EQ(userOnly->password, "");
+}
+
 TEST(PyroscopePprofSinkTest, ResolveProxyPrefersPyroscopeProxy)
 {
     const std::map<shared::WSTRING, std::string> env = {
@@ -462,6 +475,8 @@ TEST(PyroscopePprofSinkTest, ResolveProxyRejectsUnsupportedProxies)
     EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "https://proxy:3128"}}).has_value());
     EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "socks5://proxy:1080"}}).has_value());
     EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "http://proxy:port"}}).has_value());
+    EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "http://proxy:0"}}).has_value());
+    EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "http://proxy:65536"}}).has_value());
 }
 
 TEST(PyroscopePprofSinkTest, NoProxyMatchesDomains)
