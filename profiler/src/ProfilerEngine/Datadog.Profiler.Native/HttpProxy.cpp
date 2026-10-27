@@ -192,6 +192,12 @@ ProxyConfig ParseProxy(const std::string& value, const std::string& varName)
             {
                 proxy.password = PercentDecode(userInfo.substr(colon + 1));
             }
+            // cpp-httplib only sends Proxy-Authorization when both parts are non-empty.
+            if (proxy.user.empty() || proxy.password.empty())
+            {
+                Log::Error("PyroscopePprofSink: proxy credentials in ", varName, " need both a user name and a password. Profiles will not be uploaded.");
+                return ProxyConfig{.invalid = true};
+            }
         }
         return proxy;
     }

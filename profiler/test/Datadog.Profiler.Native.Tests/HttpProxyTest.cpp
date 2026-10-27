@@ -68,11 +68,16 @@ TEST(HttpProxyTest, ResolveSplitsCredentialsBeforeDecoding)
     ASSERT_TRUE(proxy.has_value());
     EXPECT_EQ(proxy->user, "us:er");
     EXPECT_EQ(proxy->password, "p@ss:word");
+}
 
-    auto userOnly = ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "http://user@proxy:3128"}});
-    ASSERT_TRUE(userOnly.has_value());
-    EXPECT_EQ(userOnly->user, "user");
-    EXPECT_EQ(userOnly->password, "");
+TEST(HttpProxyTest, ResolveMarksIncompleteCredentialsInvalid)
+{
+    for (const auto* value : {"http://user@proxy:3128", "http://user:@proxy:3128", "http://:secret@proxy:3128", "http://@proxy:3128"})
+    {
+        auto proxy = ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), value}});
+        ASSERT_TRUE(proxy.has_value()) << value;
+        EXPECT_TRUE(proxy->invalid) << value;
+    }
 }
 
 TEST(HttpProxyTest, ResolvePrefersPyroscopeProxy)
