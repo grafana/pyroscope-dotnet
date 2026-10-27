@@ -50,20 +50,22 @@ func TestNativeUploadLogLevel(t *testing.T) {
 			if host := hostDockerInternalExtraHost(t); host != "" {
 				extraHosts = append(extraHosts, host)
 			}
-			level := "info"
+			env := map[string]string{
+				"REGION":                     "us-east",
+				"PYROSCOPE_APPLICATION_NAME": "upload-log-test",
+				"PYROSCOPE_SERVER_ADDRESS":   fmt.Sprintf("http://host.docker.internal:%d", ln.Addr().(*net.TCPAddr).Port),
+				"PYROSCOPE_LOG_FORMAT":       "json",
+				"PYROSCOPE_LOG_LEVEL":        "info",
+			}
 			if tc.severity == "DEBUG" {
-				level = "debug"
+				// Debug lines need both the level threshold and the separate debug switch.
+				env["PYROSCOPE_LOG_LEVEL"] = "debug"
+				env["DD_TRACE_DEBUG"] = "true"
 			}
 			container := dockertest.StartContainer(t, dockertest.ContainerRequest{
-				Image:    buildAppImage(t, libc, version, false),
-				Platform: "linux/amd64",
-				Env: map[string]string{
-					"REGION":                     "us-east",
-					"PYROSCOPE_APPLICATION_NAME": "upload-log-test",
-					"PYROSCOPE_SERVER_ADDRESS":   fmt.Sprintf("http://host.docker.internal:%d", ln.Addr().(*net.TCPAddr).Port),
-					"PYROSCOPE_LOG_FORMAT":       "json",
-					"PYROSCOPE_LOG_LEVEL":        level,
-				},
+				Image:        buildAppImage(t, libc, version, false),
+				Platform:     "linux/amd64",
+				Env:          env,
 				ExtraHosts:   extraHosts,
 				ExposedPorts: []string{"5000/tcp"},
 				WaitFor:      dockertest.WaitForHTTP("/healthz", "5000/tcp", 120*time.Second),
