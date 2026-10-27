@@ -26,11 +26,8 @@
 #pragma warning(pop)
 #endif
 #include "url.hpp"
-#include "shared/src/native-src/string.h"
 #include "PyroscopeVersion.h"
 
-#include <functional>
-#include <optional>
 #include <string>
 
 struct BasicAuth
@@ -42,16 +39,6 @@ struct BasicAuth
 struct PyroscopeTenantId
 {
     std::string value;
-};
-
-struct ProxyConfig
-{
-    std::string host;
-    int port = 0;
-    std::string user;
-    std::string password;
-    // A configured but unusable proxy disables uploads instead of falling back to a direct connection.
-    bool invalid = false;
 };
 
 class PyroscopePprofSink : public PProfExportSink
@@ -68,8 +55,6 @@ public:
     void Export(std::vector<Pprof> pprofs) override;
     void SetBasicAuth(BasicAuth basicAuth);
     static std::map<std::string, std::string> ParseHeadersJSON(std::string headers);
-    static std::optional<ProxyConfig> ResolveProxy(const Url& server, const std::function<std::string(const shared::WSTRING&)>& getEnv);
-    static bool NoProxyMatches(const std::string& noProxy, const std::string& host, const std::string& port);
 
 private:
     static std::string SchemeHostPort(Url& url);
