@@ -180,7 +180,7 @@ std::string PercentDecode(const std::string& s)
     return out;
 }
 
-std::optional<ProxyConfig> ParseProxy(const std::string& value, const std::string& varName)
+ProxyConfig ParseProxy(const std::string& value, const std::string& varName)
 {
     auto raw = value.find("://") == std::string::npos ? "http://" + value : value;
     try
@@ -188,13 +188,13 @@ std::optional<ProxyConfig> ParseProxy(const std::string& value, const std::strin
         Url url(raw);
         if (url.scheme() != "http")
         {
-            Log::Error("PyroscopePprofSink: proxy scheme '", url.scheme(), "' in ", varName, " is not supported, only http:// proxies are supported. Not using a proxy.");
-            return std::nullopt;
+            Log::Error("PyroscopePprofSink: proxy scheme '", url.scheme(), "' in ", varName, " is not supported, only http:// proxies are supported. Profiles will not be uploaded.");
+            return ProxyConfig{.invalid = true};
         }
         if (url.host().empty())
         {
-            Log::Error("PyroscopePprofSink: proxy host in ", varName, " is empty. Not using a proxy.");
-            return std::nullopt;
+            Log::Error("PyroscopePprofSink: proxy host in ", varName, " is empty. Profiles will not be uploaded.");
+            return ProxyConfig{.invalid = true};
         }
 
         ProxyConfig proxy;
@@ -202,8 +202,8 @@ std::optional<ProxyConfig> ParseProxy(const std::string& value, const std::strin
         proxy.port = url.port().empty() ? 80 : std::stoi(url.port());
         if (proxy.port == 0)
         {
-            Log::Error("PyroscopePprofSink: proxy port in ", varName, " is 0. Not using a proxy.");
-            return std::nullopt;
+            Log::Error("PyroscopePprofSink: proxy port in ", varName, " is 0. Profiles will not be uploaded.");
+            return ProxyConfig{.invalid = true};
         }
         // Url::user_info() is already percent-decoded, so an encoded ':' in the user
         // name would be taken for the separator. Split the raw user info instead.
@@ -225,8 +225,8 @@ std::optional<ProxyConfig> ParseProxy(const std::string& value, const std::strin
     catch (const std::exception&)
     {
         // The exception message has the full URL, which can contain credentials.
-        Log::Error("PyroscopePprofSink: invalid proxy URL in ", varName, ". Not using a proxy.");
-        return std::nullopt;
+        Log::Error("PyroscopePprofSink: invalid proxy URL in ", varName, ". Profiles will not be uploaded.");
+        return ProxyConfig{.invalid = true};
     }
 }
 
@@ -283,7 +283,11 @@ PyroscopePprofSink::PyroscopePprofSink(
     auto proxy = ResolveProxy(_url, [](const shared::WSTRING& name) {
         return shared::ToString(shared::GetEnvironmentValue(name));
     });
-    if (proxy)
+    if (proxy && proxy->invalid)
+    {
+        _uploadDisabled = true;
+    }
+    else if (proxy)
     {
         Log::Info("PyroscopePprofSink: using proxy ", proxy->host, ":", proxy->port);
         _client.set_proxy(proxy->host, proxy->port);
@@ -321,6 +325,10 @@ PyroscopePprofSink::~PyroscopePprofSink()
 
 void PyroscopePprofSink::Export(std::vector<Pprof> pprofs)
 {
+    if (_uploadDisabled)
+    {
+        return;
+    }
     if (_queue.size() >= 3)
     {
         Log::Warn("PyroscopePprofSink queue is too big. Dropping pprof data.");

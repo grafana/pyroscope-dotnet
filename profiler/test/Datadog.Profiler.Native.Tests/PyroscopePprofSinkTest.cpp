@@ -470,13 +470,25 @@ TEST(PyroscopePprofSinkTest, ResolveProxyHonorsNoProxy)
     EXPECT_TRUE(ResolveProxy("https://pyroscope.example.com", env).has_value());
 }
 
-TEST(PyroscopePprofSinkTest, ResolveProxyRejectsUnsupportedProxies)
+TEST(PyroscopePprofSinkTest, ResolveProxyMarksUnsupportedProxiesInvalid)
 {
-    EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "https://proxy:3128"}}).has_value());
-    EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "socks5://proxy:1080"}}).has_value());
-    EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "http://proxy:port"}}).has_value());
-    EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "http://proxy:0"}}).has_value());
-    EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), "http://proxy:65536"}}).has_value());
+    for (const auto* value : {"https://proxy:3128", "socks5://proxy:1080", "http://proxy:port", "http://proxy:0", "http://proxy:65536"})
+    {
+        auto proxy = ResolveProxy("https://pyroscope.example.com", {{WStr("HTTPS_PROXY"), value}});
+        ASSERT_TRUE(proxy.has_value()) << value;
+        EXPECT_TRUE(proxy->invalid) << value;
+    }
+}
+
+TEST(PyroscopePprofSinkTest, ResolveProxyIgnoresInvalidProxyWhenBypassed)
+{
+    const std::map<shared::WSTRING, std::string> env = {
+        {WStr("HTTPS_PROXY"), "socks5://proxy:1080"},
+        {WStr("NO_PROXY"), "pyroscope.example.com"},
+    };
+
+    EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com", env).has_value());
+    EXPECT_FALSE(ResolveProxy("https://localhost:4040", {{WStr("HTTPS_PROXY"), "socks5://proxy:1080"}}).has_value());
 }
 
 TEST(PyroscopePprofSinkTest, NoProxyMatchesDomains)
@@ -564,7 +576,9 @@ TEST(PyroscopePprofSinkTest, ResolveProxyDoesNotFallBackFromInvalidPyroscopeProx
         {WStr("HTTPS_PROXY"), "http://other-proxy:3128"},
     };
 
-    EXPECT_FALSE(ResolveProxy("https://pyroscope.example.com", env).has_value());
+    auto proxy = ResolveProxy("https://pyroscope.example.com", env);
+    ASSERT_TRUE(proxy.has_value());
+    EXPECT_TRUE(proxy->invalid);
 }
 
 TEST(PyroscopePprofSinkTest, ResolveProxyParsesIpv6Proxy)
@@ -629,4 +643,41 @@ TEST(PyroscopePprofSinkTest, UploadGoesThroughProxy)
 
     proxy.stop();
     proxyThread.join();
+}
+
+TEST(PyroscopePprofSinkTest, InvalidProxyDisablesUpload)
+{
+    httplib::Server server;
+    ObservedRequest observed;
+
+    server.Post(".*", [](const httplib::Request&, httplib::Response& res) { res.status = 200; });
+    server.set_logger([&observed](const httplib::Request& req, const httplib::Response& res) {
+        observed.Set(req.target, res.status);
+    });
+
+    auto port = server.bind_to_any_port("127.0.0.1");
+    ASSERT_GT(port, 0);
+
+    std::thread serverThread([&server]() {
+        server.listen_after_bind();
+    });
+    server.wait_until_ready();
+
+    {
+        EnvironmentHelper::EnvironmentVariable proxyEnv(EnvironmentVariables::PyroscopeProxy, WStr("socks5://127.0.0.1:1080"));
+        RuntimeInfo runtimeInfo(8, 0, false);
+        PyroscopePprofSink sink(
+            "http://127.0.0.1:" + std::to_string(port), "service", BasicAuth{}, PyroscopeTenantId{}, {}, &runtimeInfo, {});
+
+        Pprof pprof;
+        pprof.bytes = "fake-pprof";
+        pprof.profileType = ProfileType::ProcessCpu;
+
+        sink.Export({std::move(pprof)});
+
+        EXPECT_FALSE(observed.WaitForRequest(1s));
+    }
+
+    server.stop();
+    serverThread.join();
 }

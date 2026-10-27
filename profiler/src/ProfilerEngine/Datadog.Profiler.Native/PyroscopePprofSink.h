@@ -50,6 +50,8 @@ struct ProxyConfig
     int port = 0;
     std::string user;
     std::string password;
+    // A configured but unusable proxy disables uploads instead of falling back to a direct connection.
+    bool invalid = false;
 };
 
 class PyroscopePprofSink : public PProfExportSink
@@ -87,6 +89,7 @@ private:
     Url _url;
     httplib::Client _client;
     std::atomic<bool> _running;
+    bool _uploadDisabled = false;
     LockingQueue<PyroscopeRequest> _queue;
     std::thread _workerThread;
 
