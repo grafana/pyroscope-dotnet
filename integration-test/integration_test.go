@@ -500,6 +500,9 @@ func startTLSProfileReceiver(t *testing.T, hostname string) (port int, caCertPEM
 	ch := make(chan struct{}, 1)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("TLS profile receiver: %s %s", r.Method, r.URL.Path)
+		if r.Header.Get("Proxy-Authorization") != "" {
+			t.Errorf("TLS profile receiver: got proxy credentials meant for the proxy")
+		}
 		select {
 		case ch <- struct{}{}:
 		default:

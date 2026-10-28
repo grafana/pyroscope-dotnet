@@ -122,6 +122,9 @@ func startPlainProfileReceiver(t *testing.T) (port int, received <-chan struct{}
 	ch := make(chan struct{}, 1)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("profile receiver: %s %s", r.Method, r.URL.Path)
+		if r.Header.Get("Proxy-Authorization") != "" {
+			t.Errorf("profile receiver: got proxy credentials meant for the proxy")
+		}
 		select {
 		case ch <- struct{}{}:
 		default:
