@@ -20,6 +20,7 @@
 #include <tuple>
 
 using ::testing::_;
+using ::testing::AnyNumber;
 using ::testing::AtLeast;
 using ::testing::ByMove;
 using ::testing::Invoke;
@@ -301,9 +302,13 @@ TEST(SamplesCollectorTest, MustExportAfterStop)
 
     auto [exporter, mockExporter] = CreateExporter();
 
-    // the provider and exporter are supposed to be called once AFTER Stop()
-    EXPECT_CALL(mockExporter, Add(_)).Times(2);
-    EXPECT_CALL(mockExporter, Export(_, _, _)).Times(1).WillRepeatedly(Return(true));
+    // the provider and exporter are supposed to be called once AFTER Stop();
+    // the number of 60ms collection ticks during the sleep below varies under load
+    EXPECT_CALL(mockExporter, Add(_)).Times(AtLeast(1));
+    // periodic exports are aligned to wall-clock multiples of the upload interval,
+    // so one may fire during the sleep below if a boundary is crossed
+    EXPECT_CALL(mockExporter, Export(_, _, false)).Times(AnyNumber()).WillRepeatedly(Return(true));
+    EXPECT_CALL(mockExporter, Export(_, _, true)).Times(1).WillOnce(Return(true));
 
     auto metricsSender = MockMetricsSender();
     auto threadsCpuManagerHelper = ThreadsCpuManagerHelper();
