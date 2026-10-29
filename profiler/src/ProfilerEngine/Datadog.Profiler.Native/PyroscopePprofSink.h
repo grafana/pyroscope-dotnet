@@ -74,6 +74,7 @@ private:
     Url _url;
     httplib::Client _client;
     std::atomic<bool> _running;
+    bool _uploadDisabled = false;
     LockingQueue<PyroscopeRequest> _queue;
     std::thread _workerThread;
 

@@ -12,6 +12,7 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io"
+	"maps"
 	"math/big"
 	"net"
 	"net/http"
@@ -33,11 +34,11 @@ import (
 func startPyroscope(t *testing.T, net *dockertest.Network) string {
 	t.Helper()
 	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
-		Image: "grafana/pyroscope:2.1.0@sha256:5a5f97d007be75746d336cf0f6a9ae8008c42d9d8200319ee92e52fea4ae38df",
+		Image: "grafana/pyroscope:2.4.1@sha256:8ade8d37ac58c20aca0054360fbcdef956a8242f48ad68e0ec67757f21d48e28",
 		Cmd: []string{
+			"-architecture.storage=v2",
+			"-write-path=segment-writer",
 			"-validation.disable-label-sanitization=true",
-			"-distributor.health-check-ingesters=false",
-			"-ingester.min-ready-duration=0s",
 			"-segment-writer.min-ready-duration=0s",
 			"-segment-writer.readiness-check-ring-health=false",
 			"-metastore.min-ready-duration=0s",
@@ -499,6 +500,9 @@ func startTLSProfileReceiver(t *testing.T, hostname string) (port int, caCertPEM
 	ch := make(chan struct{}, 1)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("TLS profile receiver: %s %s", r.Method, r.URL.Path)
+		if r.Header.Get("Proxy-Authorization") != "" {
+			t.Errorf("TLS profile receiver: got proxy credentials meant for the proxy")
+		}
 		select {
 		case ch <- struct{}{}:
 		default:
@@ -535,7 +539,7 @@ func hostDockerInternalExtraHost(t *testing.T) string {
 	return "host.docker.internal:" + dockertest.BridgeGatewayIP(t)
 }
 
-func startAppForTLSTest(t *testing.T, libcType, version, serverAddress string, caCertPEM []byte) string {
+func startAppForTLSTest(t *testing.T, libcType, version, svcName, serverAddress string, caCertPEM []byte, extraEnv map[string]string) string {
 	t.Helper()
 	if runtime.GOOS == "windows" {
 		// The profiler honors SSL_CERT_FILE for a custom CA (see
@@ -544,9 +548,9 @@ func startAppForTLSTest(t *testing.T, libcType, version, serverAddress string, c
 		if err := os.WriteFile(caPath, caCertPEM, 0o644); err != nil {
 			t.Fatalf("writing CA cert: %v", err)
 		}
-		return startHostApp(t, version, false, "tls-test-app", serverAddress, map[string]string{
-			"SSL_CERT_FILE": caPath,
-		})
+		env := map[string]string{"SSL_CERT_FILE": caPath}
+		maps.Copy(env, extraEnv)
+		return startHostApp(t, version, false, svcName, serverAddress, env)
 	}
 	ensureProfilerImage(t, libcType)
 	image := buildAppImage(t, libcType, version, false)
@@ -557,15 +561,18 @@ func startAppForTLSTest(t *testing.T, libcType, version, serverAddress string, c
 		extraHosts = []string{extraHost}
 	}
 
+	env := map[string]string{
+		"REGION":                     "us-east",
+		"PYROSCOPE_APPLICATION_NAME": svcName,
+		"PYROSCOPE_SERVER_ADDRESS":   serverAddress,
+		"DD_TRACE_DEBUG":             "true",
+	}
+	maps.Copy(env, extraEnv)
+
 	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
-		Image:    image,
-		Platform: "linux/amd64",
-		Env: map[string]string{
-			"REGION":                     "us-east",
-			"PYROSCOPE_APPLICATION_NAME": "tls-test-app",
-			"PYROSCOPE_SERVER_ADDRESS":   serverAddress,
-			"DD_TRACE_DEBUG":             "true",
-		},
+		Image:      image,
+		Platform:   "linux/amd64",
+		Env:        env,
 		ExtraHosts: extraHosts,
 		Files: []dockertest.ContainerFile{
 			{
@@ -594,7 +601,7 @@ func runTLSProfileUploadTest(t *testing.T, libcType, version string) {
 	port, caCertPEM, received := startTLSProfileReceiver(t, hostname)
 	serverAddress := fmt.Sprintf("https://%s:%d", hostname, port)
 
-	appBaseURL := startAppForTLSTest(t, libcType, version, serverAddress, caCertPEM)
+	appBaseURL := startAppForTLSTest(t, libcType, version, "tls-test-app", serverAddress, caCertPEM, nil)
 	runLoadGenerator(ctx, t, appBaseURL)
 
 	select {

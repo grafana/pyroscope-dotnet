@@ -3,6 +3,7 @@
 //
 
 #include "PyroscopePprofSink.h"
+#include "HttpProxy.h"
 #include "Log.h"
 #include "OpSysTools.h"
 #include "cppcodec/base64_rfc4648.hpp"
@@ -13,6 +14,8 @@
 #include "google/protobuf/util/json_util.h"
 #include "shared/src/native-src/string.h"
 #include "shared/src/native-src/util.h"
+
+#include <sstream>
 
 namespace
 {
@@ -70,6 +73,23 @@ PyroscopePprofSink::PyroscopePprofSink(
         _client.set_ca_cert_path(caCertFile);
     }
 
+    auto proxy = HttpProxy::Resolve(_url, [](const shared::WSTRING& name) {
+        return shared::ToString(shared::GetEnvironmentValue(name));
+    });
+    if (proxy && proxy->invalid)
+    {
+        _uploadDisabled = true;
+    }
+    else if (proxy)
+    {
+        Log::Info("PyroscopePprofSink: using proxy ", proxy->host, ":", proxy->port);
+        _client.set_proxy(proxy->host, proxy->port);
+        if (!proxy->user.empty())
+        {
+            _client.set_proxy_basic_auth(proxy->user, proxy->password);
+        }
+    }
+
 #ifdef CPPHTTPLIB_OPENSSL_SUPPORT
     // OpenSSL 3.x flags a TLS connection closed without a close_notify alert as a
     // fatal read error (SSL_R_UNEXPECTED_EOF_WHILE_READING) rather than a clean EOF.
@@ -98,6 +118,10 @@ PyroscopePprofSink::~PyroscopePprofSink()
 
 void PyroscopePprofSink::Export(std::vector<Pprof> pprofs)
 {
+    if (_uploadDisabled)
+    {
+        return;
+    }
     if (_queue.size() >= 3)
     {
         Log::Warn("PyroscopePprofSink queue is too big. Dropping pprof data.");
@@ -248,7 +272,6 @@ std::string PyroscopePprofSink::SchemeHostPort(Url& url)
 //    std::cout << "Scheme host port .>> " << res << std::endl;
     return res;
 }
-
 
 std::map<std::string, std::string> PyroscopePprofSink::ParseHeadersJSON(std::string headers)
 {
