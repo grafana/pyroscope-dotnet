@@ -2888,6 +2888,8 @@ void CorProfilerCallback::SetStackSamplerEnabled(bool enabled)
         return;
     }
 
+    std::lock_guard<std::mutex> toggleLock(_stackSamplerToggleLock);
+
     // StackSamplerLoop is a standalone service: StackSamplerLoopManager only runs the deadlock
     // watcher, so the loop must be started/stopped explicitly. Same order as service startup/shutdown.
     if (enabled)

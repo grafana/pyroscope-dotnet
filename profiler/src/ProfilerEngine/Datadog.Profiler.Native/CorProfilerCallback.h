@@ -55,6 +55,7 @@
 
 #include <atomic>
 #include <memory>
+#include <mutex>
 #include <shared_mutex>
 #include <vector>
 
@@ -261,6 +262,10 @@ private :
     // Synchronizes access to the services below, and the engine lifetime flag.
     mutable std::shared_mutex _engineLifetimeMutex;
     bool _isServicesShutdown = false;
+
+    // Serializes SetStackSamplerEnabled() so that concurrent enable/disable calls cannot interleave
+    // and leave the sampler loop, its watcher and the CPU profiler in different states.
+    std::mutex _stackSamplerToggleLock;
 
     // The pointer here are observable pointer which means that they are used only to access the data.
     // Their lifetime is managed by the _services vector.
