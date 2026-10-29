@@ -2880,9 +2880,20 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::EventPipeProviderCreated(EVENTPIP
 void CorProfilerCallback::SetStackSamplerEnabled(bool enabled)
 {
     Log::Debug("CorProfilerCallback::SetStackSamplerEnabled: ", enabled);
+
+    EngineActiveGuard engineGuard(_isInitialized, _engineLifetimeMutex, _isServicesShutdown);
+    if (!engineGuard.IsActive() || _pStackSamplerLoopManager == nullptr || _pStackSamplerLoop == nullptr)
+    {
+        Log::Debug("CorProfilerCallback::SetStackSamplerEnabled: engine is not active, ignoring.");
+        return;
+    }
+
+    // StackSamplerLoop is a standalone service: StackSamplerLoopManager only runs the deadlock
+    // watcher, so the loop must be started/stopped explicitly. Same order as service startup/shutdown.
     if (enabled)
     {
         _pStackSamplerLoopManager->Start();
+        _pStackSamplerLoop->Start();
 #ifdef LINUX
         if (_pCpuProfiler != nullptr)
         {
@@ -2898,6 +2909,7 @@ void CorProfilerCallback::SetStackSamplerEnabled(bool enabled)
             _pCpuProfiler->StopWithState(ServiceBase::State::Init);
         }
 #endif
+        _pStackSamplerLoop->StopWithState(ServiceBase::State::Init);
         _pStackSamplerLoopManager->StopWithState(ServiceBase::State::Init);
     }
 }

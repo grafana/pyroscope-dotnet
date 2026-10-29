@@ -114,6 +114,17 @@ const char* StackSamplerLoop::GetName()
 
 bool StackSamplerLoop::StartImpl()
 {
+    // A thread left behind by a previous startup timeout still references this instance and
+    // would resume sampling once _shutdownRequested is cleared below, so refuse to restart.
+    if (_pLoopThread != nullptr)
+    {
+        Log::Error("StackSamplerLoop::StartImpl - A previous sampler thread was not stopped; not restarting.");
+        return false;
+    }
+
+    // The loop can be restarted at runtime (see CorProfilerCallback::SetStackSamplerEnabled).
+    _shutdownRequested = false;
+
     std::promise<void> loopReadyPromise;
     std::future<void> loopReadyFuture = loopReadyPromise.get_future();
 
