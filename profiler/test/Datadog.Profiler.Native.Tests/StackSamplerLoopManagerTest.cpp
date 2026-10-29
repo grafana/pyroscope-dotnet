@@ -5,12 +5,16 @@
 #include "gtest/gtest.h"
 
 #include "ManagedThreadList.h"
+#include "MeanMaxMetric.h"
 #include "MetricsRegistry.h"
 #include "MockProfilerInfo.h"
 #include "ProfilerMockedInterface.h"
 #include "StackSamplerLoop.h"
 #include "StackSamplerLoopManager.h"
 #include "ThreadsCpuManager.h"
+
+#include <chrono>
+#include <thread>
 
 using ::testing::Return;
 
@@ -47,6 +51,21 @@ namespace
         // Avoid a tight busy-spin in StackSamplerLoop::MainLoop() (OpSysTools::Sleep(0ns)) between
         // the Start() and Stop() calls each test issues.
         ON_CALL(config, CpuWallTimeSamplingRate()).WillByDefault(Return(std::chrono::milliseconds(50)));
+    }
+
+    // GetMetrics() resets the metric, so each call only sees iterations since the previous one.
+    bool WaitForSamplerIteration(MeanMaxMetric& iterationDurationMetric)
+    {
+        auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
+        while (std::chrono::steady_clock::now() < deadline)
+        {
+            if (iterationDurationMetric.GetMetrics().front().second > 0)
+            {
+                return true;
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        return false;
     }
 }
 
@@ -152,4 +171,50 @@ TEST(StackSamplerLoopManagerTest, FullLifecycleMatchesStartServicesAndStopServic
 
     ASSERT_TRUE(manager.Stop());
     ASSERT_FALSE(manager.IsStarted());
+}
+
+TEST(StackSamplerLoopManagerTest, StackSamplerLoopKeepsSamplingAfterRestart)
+{
+    MockProfilerInfo profilerInfo;
+    auto [configHolder, config] = CreateConfiguration();
+    StubOutSamplingConfig(config);
+    // With empty thread lists a wall-time iteration samples nothing, but it still records its
+    // duration in this internal metric, which makes running iterations observable.
+    ON_CALL(config, IsWallTimeProfilingEnabled()).WillByDefault(Return(true));
+    ON_CALL(config, IsInternalMetricsEnabled()).WillByDefault(Return(true));
+
+    ThreadsCpuManager threadsCpuManager;
+    ManagedThreadList managedThreadList(nullptr);
+    ManagedThreadList codeHotspotThreadList(nullptr);
+    MetricsRegistry metricsRegistry;
+
+    StackSamplerLoopManager manager(
+        &profilerInfo, nullptr, nullptr, &threadsCpuManager, nullptr, metricsRegistry);
+
+    StackSamplerLoop stackSamplerLoop(
+        &profilerInfo, configHolder.get(), nullptr, &manager, &threadsCpuManager,
+        &managedThreadList, &codeHotspotThreadList, nullptr, nullptr, metricsRegistry);
+
+    manager.SetStackSamplerLoop(&stackSamplerLoop);
+
+    auto iterationDurationMetric = metricsRegistry.GetOrRegister<MeanMaxMetric>("dotnet_internal_walltime_iterations_duration");
+
+    // Mirrors CorProfilerCallback::SetStackSamplerEnabled(): Start() alone is not enough, because
+    // a sampler thread that exits right after signaling readiness would still report success.
+    for (int i = 0; i < 3; i++)
+    {
+        ASSERT_TRUE(manager.Start()) << "cycle " << i;
+        ASSERT_TRUE(stackSamplerLoop.Start()) << "cycle " << i;
+        ASSERT_TRUE(WaitForSamplerIteration(*iterationDurationMetric)) << "sampler did not run in cycle " << i;
+
+        ASSERT_TRUE(stackSamplerLoop.StopWithState(ServiceBase::State::Init)) << "cycle " << i;
+        ASSERT_TRUE(manager.StopWithState(ServiceBase::State::Init)) << "cycle " << i;
+        ASSERT_FALSE(stackSamplerLoop.IsStarted());
+        iterationDurationMetric->GetMetrics();
+    }
+
+    ASSERT_TRUE(manager.Start());
+    ASSERT_TRUE(stackSamplerLoop.Start());
+    ASSERT_TRUE(stackSamplerLoop.Stop());
+    ASSERT_TRUE(manager.Stop());
 }
