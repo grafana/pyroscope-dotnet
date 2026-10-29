@@ -389,6 +389,12 @@ func TestDynamicCpuProfilingToggleAffectsProfileData(t *testing.T) {
 		labelMatcher{"service_name", appName},
 		labelMatcher{"vehicle", "bike"},
 	)
+	// SetCPUTrackingEnabled toggles the whole stack sampler, so wall-time
+	// sampling must stop and resume together with CPU sampling.
+	profileTypeIDs := []string{
+		"process_cpu:cpu:nanoseconds:cpu:nanoseconds",
+		"wall:wall:nanoseconds:cpu:nanoseconds",
+	}
 	require.Never(t, func() bool {
 		resp, err := client.Get(appBaseURL + "/bike")
 		if err != nil {
@@ -401,38 +407,46 @@ func TestDynamicCpuProfilingToggleAffectsProfileData(t *testing.T) {
 			return false
 		}
 
-		collapsed, err := queryProfile(t, pyroscopeURL, labelSelector, "process_cpu:cpu:nanoseconds:cpu:nanoseconds")
-		if err != nil {
-			t.Logf("profile query failed while CPU disabled: %v", err)
-			return false
+		for _, profileTypeID := range profileTypeIDs {
+			collapsed, err := queryProfile(t, pyroscopeURL, labelSelector, profileTypeID)
+			if err != nil {
+				t.Logf("%s profile query failed while CPU disabled: %v", profileTypeID, err)
+				continue
+			}
+			if collapsed != "" {
+				t.Logf("unexpected %s profile data while CPU disabled:\n%s", profileTypeID, collapsed)
+				return true
+			}
 		}
-		return collapsed != ""
-	}, 45*time.Second, 5*time.Second, "expected no CPU profile data while CPU profiling is disabled")
+		return false
+	}, 45*time.Second, 5*time.Second, "expected no CPU or wall profile data while CPU profiling is disabled")
 
 	enableResp := postOK(t, client, appBaseURL+"/profiling?cpu=true")
 	require.Equal(t, http.StatusOK, enableResp.StatusCode)
 	_ = enableResp.Body.Close()
 
-	var lastCollapsed string
-	var lastErr error
-	require.Eventually(t, func() bool {
-		resp, err := client.Get(appBaseURL + "/bike")
-		if err != nil {
-			lastErr = err
-			return false
-		}
-		_ = resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			lastErr = fmt.Errorf("bike request returned status %d", resp.StatusCode)
-			return false
-		}
+	for _, profileTypeID := range profileTypeIDs {
+		var lastCollapsed string
+		var lastErr error
+		require.Eventually(t, func() bool {
+			resp, err := client.Get(appBaseURL + "/bike")
+			if err != nil {
+				lastErr = err
+				return false
+			}
+			_ = resp.Body.Close()
+			if resp.StatusCode != http.StatusOK {
+				lastErr = fmt.Errorf("bike request returned status %d", resp.StatusCode)
+				return false
+			}
 
-		lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector, "process_cpu:cpu:nanoseconds:cpu:nanoseconds")
-		if lastErr != nil || lastCollapsed == "" {
-			return false
-		}
-		return frameContains(lastCollapsed, "OrderService", "FindNearestVehicle")
-	}, 2*time.Minute, 5*time.Second, "expected CPU profile data after CPU profiling is re-enabled")
+			lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector, profileTypeID)
+			if lastErr != nil || lastCollapsed == "" {
+				return false
+			}
+			return frameContains(lastCollapsed, "OrderService", "FindNearestVehicle")
+		}, 2*time.Minute, 5*time.Second, "expected %s profile data after CPU profiling is re-enabled", profileTypeID)
+	}
 }
 
 // generateTestCerts creates a self-signed CA and a server certificate signed by
