@@ -16,6 +16,12 @@
 #include <chrono>
 #include <thread>
 
+#ifdef LINUX
+#include <filesystem>
+#include <fstream>
+#include <string>
+#endif
+
 using ::testing::Return;
 
 // These tests cover the fix for a shutdown-time SEGV in StackSamplerLoop::CodeHotspotIteration():
@@ -67,6 +73,23 @@ namespace
         }
         return false;
     }
+
+#ifdef LINUX
+    int CountThreadsNamed(const std::string& name)
+    {
+        int count = 0;
+        for (auto const& task : std::filesystem::directory_iterator("/proc/self/task"))
+        {
+            std::ifstream comm(task.path() / "comm");
+            std::string threadName;
+            if (std::getline(comm, threadName) && threadName == name)
+            {
+                count++;
+            }
+        }
+        return count;
+    }
+#endif
 }
 
 TEST(StackSamplerLoopManagerTest, StartFailsCleanlyWhenStackSamplerLoopWasNeverWiredIn)
@@ -218,3 +241,36 @@ TEST(StackSamplerLoopManagerTest, StackSamplerLoopKeepsSamplingAfterRestart)
     ASSERT_TRUE(stackSamplerLoop.Stop());
     ASSERT_TRUE(manager.Stop());
 }
+
+#ifdef LINUX
+TEST(StackSamplerLoopManagerTest, WatcherKeepsRunningAfterRestart)
+{
+    MockProfilerInfo profilerInfo;
+    ThreadsCpuManager threadsCpuManager;
+    MetricsRegistry metricsRegistry;
+
+    StackSamplerLoopManager manager(
+        &profilerInfo, nullptr, nullptr, &threadsCpuManager, nullptr, metricsRegistry);
+
+    auto [configHolder, config] = CreateConfiguration();
+    StubOutSamplingConfig(config);
+    ManagedThreadList managedThreadList(nullptr);
+    ManagedThreadList codeHotspotThreadList(nullptr);
+    StackSamplerLoop stackSamplerLoop(
+        &profilerInfo, configHolder.get(), nullptr, &manager, &threadsCpuManager,
+        &managedThreadList, &codeHotspotThreadList, nullptr, nullptr, metricsRegistry);
+    manager.SetStackSamplerLoop(&stackSamplerLoop);
+
+    // Start() succeeds even if the watcher thread exits right after signaling readiness,
+    // so check that the thread is still alive a little later.
+    for (int i = 0; i < 3; i++)
+    {
+        ASSERT_TRUE(manager.Start()) << "cycle " << i;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        ASSERT_EQ(CountThreadsNamed("DD_Watcher"), 1) << "watcher is not running in cycle " << i;
+
+        ASSERT_TRUE(manager.StopWithState(ServiceBase::State::Init)) << "cycle " << i;
+        ASSERT_EQ(CountThreadsNamed("DD_Watcher"), 0) << "cycle " << i;
+    }
+}
+#endif

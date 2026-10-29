@@ -111,6 +111,8 @@ bool StackSamplerLoopManager::RunWatcher()
     std::promise<void> watcherReadyPromise;
     std::future<void> watcherReadyFuture = watcherReadyPromise.get_future();
 
+    _isWatcherShutdownRequested = false;
+
     try
     {
         _pWatcherThread = std::make_unique<std::thread>(
