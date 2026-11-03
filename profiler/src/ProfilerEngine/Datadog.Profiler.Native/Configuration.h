@@ -94,6 +94,7 @@ public:
     uint32_t GetHeapSnapshotMemoryPressureThreshold() const override;
     std::chrono::seconds GetTestHeapSnapshotInterval() const override;
     std::chrono::milliseconds GetLibrariesInfoCacheStartTimeout() const override;
+    std::chrono::milliseconds GetWatcherStartTimeout() const override;
     uint32_t GetHeapHandleLimit() const override;
     uint64_t GetHeapSamplingRate() const override;
     bool UseManagedCodeCache() const override;
@@ -136,6 +137,7 @@ private:
     std::chrono::minutes GetDefaultHeapSnapshotInterval() const;
     std::chrono::seconds ExtractTestHeapSnapshotInterval() const;
     std::chrono::milliseconds ExtractLibrariesInfoCacheStartTimeout() const;
+    std::chrono::milliseconds ExtractWatcherStartTimeout() const;
     int32_t ExtractHeapHandleLimit() const;
     uint64_t ExtractHeapSamplingRate() const;
     uint32_t ExtractReferenceTreeFormat() const;
@@ -165,6 +167,7 @@ private:
     static std::chrono::minutes const DefaultDevHeapSnapshotInterval;
     static std::chrono::minutes const DefaultProdHeapSnapshotInterval;
     static std::chrono::milliseconds const DefaultLibrariesInfoCacheStartTimeout;
+    static std::chrono::milliseconds const DefaultWatcherStartTimeout;
 
 
     static std::string const DefaultPyroscopeServerAddress;
@@ -251,6 +254,7 @@ private:
     uint32_t _heapSnapshotMemoryPressureThreshold; // in % of used memory
     std::chrono::seconds _testHeapSnapshotInterval;
     std::chrono::milliseconds _librariesInfoCacheStartTimeout;
+    std::chrono::milliseconds _watcherStartTimeout;
     bool _useManagedCodeCache;
     bool _isMemoryFootprintEnabled;
     bool _isAllocationTypeLeafEnabled;
