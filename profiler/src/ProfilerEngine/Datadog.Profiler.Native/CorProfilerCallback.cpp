@@ -1640,9 +1640,12 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::Initialize(IUnknown* corProfilerI
 
     if (_pConfiguration->UseManagedCodeCache())
     {
-        // Observing JIT events is sufficient for the code cache. ENABLE_REJIT
-        // requests code modification and is forbidden for notification profilers.
         eventMask |= COR_PRF_MONITOR_JIT_COMPILATION;
+#ifdef ARM64
+        // ARM64 loads as a normal profiler so the cache can receive ReJIT callbacks.
+        // Notification-only profilers on x64 cannot enable ReJIT.
+        eventMask |= COR_PRF_ENABLE_REJIT;
+#endif
     }
 
     if (_pConfiguration->IsExceptionProfilingEnabled())
@@ -2963,6 +2966,10 @@ std::shared_ptr<PyroscopePprofSink> CorProfilerCallback::GetPyroscopePprofSink()
 
 HRESULT STDMETHODCALLTYPE CorProfilerCallback::LoadAsNotificationOnly(BOOL* pbNotificationOnly)
 {
+#ifdef ARM64
+    *pbNotificationOnly = FALSE;
+#else
     *pbNotificationOnly = TRUE;
+#endif
     return S_OK;
 }
