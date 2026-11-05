@@ -1,11 +1,8 @@
-ARG BUILDPLATFORM=linux/amd64
 ARG SDK_VERSION=8.0
 ARG PYROSCOPE_SDK_IMAGE
 ARG SDK_IMAGE_SUFFIX
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:$SDK_VERSION$SDK_IMAGE_SUFFIX AS build
+FROM mcr.microsoft.com/dotnet/sdk:$SDK_VERSION$SDK_IMAGE_SUFFIX AS build
 
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
 ARG SDK_VERSION
 ARG SDK_IMAGE_SUFFIX
 
@@ -21,17 +18,17 @@ RUN sed -i -E 's|<TargetFrameworks>.*</TargetFrameworks>|<TargetFramework>net'$S
 
 WORKDIR /dotnet/app
 
-# We hardcode linux-x64 here, as the profiler doesn't support any other platform.
+# Publish for the architecture and libc of the SDK image.
 # Publish to a separate directory: .NET 10+ cleans the output dir before compiling,
 # so -o . (source dir) would delete source files and cause CS5001.
-RUN dotnet publish -o /dotnet/publish --framework net$SDK_VERSION --runtime linux-x64 --no-self-contained
+RUN dotnet publish -o /dotnet/publish --framework net$SDK_VERSION --use-current-runtime --no-self-contained
 
 # This uses a locally built image of the SDK
-FROM --platform=linux/amd64 $PYROSCOPE_SDK_IMAGE AS sdk
+FROM $PYROSCOPE_SDK_IMAGE AS sdk
 ARG PYROSCOPE_SDK_IMAGE
 
-# Runtime only image of the targetplatfrom, so the platform the image will be running on.
-FROM --platform=linux/amd64 mcr.microsoft.com/dotnet/aspnet:$SDK_VERSION$SDK_IMAGE_SUFFIX
+# Runtime image for the same target platform as the build stages.
+FROM mcr.microsoft.com/dotnet/aspnet:$SDK_VERSION$SDK_IMAGE_SUFFIX
 
 WORKDIR /dotnet
 

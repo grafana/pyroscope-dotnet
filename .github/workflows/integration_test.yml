@@ -16,8 +16,16 @@ concurrency:
 
 jobs:
   unit-test:
-    name: dockertest unit tests
-    runs-on: ubuntu-latest
+    name: dockertest unit tests ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Set up Go
@@ -30,13 +38,19 @@ jobs:
         working-directory: integration-test
 
   test:
-    name: integration-test ${{ matrix.libc_type }} .NET ${{ matrix.version }}
-    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}
+    name: integration-test ${{ matrix.arch }} ${{ matrix.libc_type }} .NET ${{ matrix.version }}
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         libc_type: [glibc, musl]
         version: ['8.0', '9.0', '10.0']
+        arch: ['x86_64', 'aarch64']
+        include:
+          - arch: x86_64
+            runner: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}
+          - arch: aarch64
+            runner: ${{ github.repository_owner == 'grafana' && 'ubuntu-arm64-large' || 'ubuntu-24.04-arm' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

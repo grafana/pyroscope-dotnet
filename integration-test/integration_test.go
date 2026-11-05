@@ -60,7 +60,7 @@ func buildAppImage(t *testing.T, libcType, version string, otel bool) string {
 	dockertest.BuildImage(t, dockertest.BuildRequest{
 		Context:    repoRoot(),
 		Dockerfile: filepath.Join(repoRoot(), appDockerfile(otel)),
-		Platform:   "linux/amd64",
+		Platform:   dockerPlatform(),
 		Tag:        tag,
 		BuildArgs: map[string]string{
 			"PYROSCOPE_SDK_IMAGE": profilerImageTag(libcType),
@@ -90,7 +90,7 @@ func startAppWithEnv(t *testing.T, net *dockertest.Network, pyroscopeURL, libcTy
 	}
 	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
 		Image:          image,
-		Platform:       "linux/amd64",
+		Platform:       dockerPlatform(),
 		Network:        net.Name,
 		NetworkAliases: []string{"rideshare"},
 		Env:            env,
@@ -585,7 +585,7 @@ func startAppForTLSTest(t *testing.T, libcType, version, svcName, serverAddress 
 
 	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
 		Image:      image,
-		Platform:   "linux/amd64",
+		Platform:   dockerPlatform(),
 		Env:        env,
 		ExtraHosts: extraHosts,
 		Files: []dockertest.ContainerFile{

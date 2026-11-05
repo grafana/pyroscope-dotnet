@@ -16,13 +16,20 @@ concurrency:
 
 jobs:
   test-cpp-profiler:
-    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}
+    name: C++ profiler unit tests ${{ matrix.arch }} ${{ matrix.libc }}
+    runs-on: ${{ matrix.runner }}
     env:
       DOCKER_BUILDKIT: 1
     strategy:
       fail-fast: false
       matrix:
         libc: ['glibc', 'musl']
+        arch: ['x86_64', 'aarch64']
+        include:
+          - arch: x86_64
+            runner: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}
+          - arch: aarch64
+            runner: ${{ github.repository_owner == 'grafana' && 'ubuntu-arm64-large' || 'ubuntu-24.04-arm' }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -37,5 +44,6 @@ jobs:
             DOCKERFILE=Pyroscope.Dockerfile
           fi
           docker build --target test \
+            --build-arg BASE_ARCH=${{ matrix.arch }} \
             --build-arg CMAKE_BUILD_TYPE=Debug \
             -f ${DOCKERFILE} .
