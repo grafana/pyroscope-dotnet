@@ -396,12 +396,24 @@ std::vector<CodeRange> ManagedCodeCache::GetCodeRanges(FunctionID functionId, bo
         auto hr = _profilerInfo9->GetNativeCodeStartAddresses(functionId, reJitId, 0, &count, nullptr);
         if (SUCCEEDED(hr) && count != 0)
         {
-            std::vector<UINT_PTR> starts(count);
-            hr = _profilerInfo9->GetNativeCodeStartAddresses(functionId, reJitId, starts.size(), &count, starts.data());
-            if (SUCCEEDED(hr))
+            // A new tier can appear after the count query. An undersized buffer
+            // returns no addresses, only ERROR_INSUFFICIENT_BUFFER and the new
+            // count. Retry with that size, but bound the work in this callback.
+            constexpr int MaxEnumerationAttempts = 3;
+            std::vector<UINT_PTR> starts;
+            for (int attempt = 0; attempt < MaxEnumerationAttempts; ++attempt)
             {
-                // Another tier may be compiled between the two calls. Bound the
-                // read to our buffer; its completion callback adds the new version.
+                starts.resize(count);
+                hr = _profilerInfo9->GetNativeCodeStartAddresses(functionId, reJitId, starts.size(), &count, starts.data());
+                if (FAILED(hr))
+                {
+                    if (hr == HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER) && count > starts.size())
+                    {
+                        continue;
+                    }
+                    break;
+                }
+
                 for (size_t i = 0; i < std::min<size_t>(count, starts.size()); ++i)
                 {
                     ULONG32 codeCount = 0;

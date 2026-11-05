@@ -169,6 +169,69 @@ TEST_F(ManagedCodeCacheTest, AddFunction_EnumeratesRequestedRejitVersion) {
     EXPECT_EQ(GetFuncIdOr0(0x5050), 123);
 }
 
+TEST_F(ManagedCodeCacheTest, AddFunction_RetriesWhenNativeVersionsGrowDuringEnumeration) {
+    cache.reset();
+    mockProfiler->supportsInfo9 = true;
+    cache = std::make_unique<ManagedCodeCache>(mockProfiler, metricsRegistry);
+    ASSERT_TRUE(cache->Initialize());
+
+    EXPECT_CALL(*mockProfiler, GetCodeInfo2(_, _, _, _)).Times(0);
+    {
+        InSequence sequence;
+        EXPECT_CALL(*mockProfiler, GetNativeCodeStartAddresses(123, 7, 0, _, nullptr))
+            .WillOnce(DoAll(SetArgPointee<3>(1), Return(S_OK)));
+        // The runtime reports the new count without filling an undersized buffer.
+        EXPECT_CALL(*mockProfiler, GetNativeCodeStartAddresses(123, 7, 1, _, NotNull()))
+            .WillOnce(DoAll(SetArgPointee<3>(2), Return(HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER))));
+        EXPECT_CALL(*mockProfiler, GetNativeCodeStartAddresses(123, 7, 2, _, NotNull()))
+            .WillOnce(DoAll(SetArgPointee<3>(3), Return(HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER))));
+        EXPECT_CALL(*mockProfiler, GetNativeCodeStartAddresses(123, 7, 3, _, NotNull()))
+            .WillOnce([](FunctionID, ReJITID, ULONG32, ULONG32* count, UINT_PTR* starts) {
+                *count = 3;
+                starts[0] = 0x1000;
+                starts[1] = 0x2000;
+                starts[2] = 0x3000;
+                return S_OK;
+            });
+    }
+    for (UINT_PTR start : {0x1000, 0x2000, 0x3000}) {
+        EXPECT_CALL(*mockProfiler, GetCodeInfo4(start, _, _, _))
+            .WillOnce([](UINT_PTR start, ULONG32, ULONG32* count, COR_PRF_CODE_INFO* infos) {
+                *count = 1;
+                infos[0] = {start, 0x100};
+                return S_OK;
+            });
+    }
+
+    cache->AddFunction(123, false, 7);
+    for (UINT_PTR start : {0x1000, 0x2000, 0x3000}) {
+        EXPECT_TRUE(cache->IsManaged(start + 0x50).value());
+        EXPECT_EQ(GetFuncIdOr0(start + 0x50), 123);
+    }
+}
+
+TEST_F(ManagedCodeCacheTest, AddFunction_BoundsRetriesWhenNativeVersionsKeepGrowing) {
+    cache.reset();
+    mockProfiler->supportsInfo9 = true;
+    cache = std::make_unique<ManagedCodeCache>(mockProfiler, metricsRegistry);
+    ASSERT_TRUE(cache->Initialize());
+
+    EXPECT_CALL(*mockProfiler, GetNativeCodeStartAddresses(123, 0, 0, _, nullptr))
+        .WillOnce(DoAll(SetArgPointee<3>(1), Return(S_OK)));
+    EXPECT_CALL(*mockProfiler, GetNativeCodeStartAddresses(123, 0, Gt(0), _, NotNull()))
+        .Times(3)
+        .WillRepeatedly([](FunctionID, ReJITID, ULONG32 capacity, ULONG32* count, UINT_PTR*) {
+            *count = capacity + 1;
+            return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
+        });
+    EXPECT_CALL(*mockProfiler, GetCodeInfo4(_, _, _, _)).Times(0);
+    SetupMockCodeInfo(123, 0x1000, 0x100);
+
+    cache->AddFunction(123, false);
+    EXPECT_EQ(GetFuncIdOr0(0x1050), 123);
+    EXPECT_FALSE(cache->IsManaged(0x2050).value());
+}
+
 TEST_F(ManagedCodeCacheTest, AddFunction_FallsBackWhenNativeVersionEnumerationFails) {
     cache.reset();
     mockProfiler->supportsInfo9 = true;
