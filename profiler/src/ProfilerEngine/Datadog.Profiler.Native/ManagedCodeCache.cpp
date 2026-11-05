@@ -96,10 +96,17 @@ ManagedCodeCache::ManagedCodeCache(ICorProfilerInfo4* pProfilerInfo, MetricsRegi
 {
 }
 
-ManagedCodeCache::~ManagedCodeCache() = default;
+ManagedCodeCache::~ManagedCodeCache()
+{
+    if (_profilerInfo9 != nullptr)
+    {
+        _profilerInfo9->Release();
+    }
+}
 
 bool ManagedCodeCache::Initialize()
 {
+    _profilerInfo->QueryInterface(__uuidof(ICorProfilerInfo9), reinterpret_cast<void**>(&_profilerInfo9));
     Log::Info("ManagedCodeCache initialized successfully");
     return true;
 }
@@ -290,15 +297,15 @@ std::optional<bool> ManagedCodeCache::IsManagedImpl(std::uintptr_t ip) const noe
     return IsCodeInR2RModule(ip, true);
 }
 
-void ManagedCodeCache::AddFunction(FunctionID functionId, bool isDynamic)
+void ManagedCodeCache::AddFunction(FunctionID functionId, bool isDynamic, ReJITID reJitId)
 {
-    AddFunctionImpl(functionId, isDynamic);
+    AddFunctionImpl(functionId, isDynamic, reJitId);
 }
 
 // Maybe rename this into OnJitCompilation
-void ManagedCodeCache::AddFunctionImpl(FunctionID functionId, bool isDynamic)
+void ManagedCodeCache::AddFunctionImpl(FunctionID functionId, bool isDynamic, ReJITID reJitId)
 {
-    auto ranges = GetCodeRanges(functionId, isDynamic);
+    auto ranges = GetCodeRanges(functionId, isDynamic, reJitId);
 
     if (ranges.empty())
     {
@@ -365,37 +372,56 @@ void ManagedCodeCache::RemoveModule(ModuleID moduleId)
     }
 }
 
-std::vector<CodeRange> ManagedCodeCache::GetCodeRanges(FunctionID functionId, bool isDynamic)
+std::vector<CodeRange> ManagedCodeCache::GetCodeRanges(FunctionID functionId, bool isDynamic, ReJITID reJitId)
 {
     std::vector<CodeRange> result;
-    constexpr size_t MAX_CODE_INFOS = 8;
-    COR_PRF_CODE_INFO codeInfos[MAX_CODE_INFOS];
-    ULONG32 nbCodeInfos;
-
-    // For each code version of the function, there are at most 2 code ranges:
-    // hot and cold.
-    // For safety, we pass MAX_CODE_INFOS(8), even though we know it's 2.
-    HRESULT hr = _profilerInfo->GetCodeInfo2(functionId, MAX_CODE_INFOS, &nbCodeInfos, codeInfos);
-
-    if (FAILED(hr) || nbCodeInfos == 0)
-    {
-        return result;  // No code ranges
-    }
-
-    result.reserve(nbCodeInfos);
-    for (ULONG32 i = 0; i < nbCodeInfos; i++)
-    {
-        if (codeInfos[i].size == 0)
+    // A native version has at most two blocks (hot and cold).
+    constexpr ULONG32 MaxCodeInfos = 8;
+    COR_PRF_CODE_INFO codeInfos[MaxCodeInfos];
+    auto appendRanges = [&](ULONG32 count) {
+        for (ULONG32 i = 0; i < std::min(count, MaxCodeInfos); ++i)
         {
-            continue;
+            if (codeInfos[i].size != 0)
+            {
+                result.emplace_back(codeInfos[i].startAddress,
+                                    codeInfos[i].startAddress + codeInfos[i].size - 1,
+                                    functionId, isDynamic);
+            }
         }
-        result.emplace_back(
-            codeInfos[i].startAddress,
-            codeInfos[i].startAddress + codeInfos[i].size - 1,
-            functionId,
-            isDynamic);
+    };
+
+    if (_profilerInfo9 != nullptr)
+    {
+        ULONG32 count = 0;
+        auto hr = _profilerInfo9->GetNativeCodeStartAddresses(functionId, reJitId, 0, &count, nullptr);
+        if (SUCCEEDED(hr) && count != 0)
+        {
+            std::vector<UINT_PTR> starts(count);
+            hr = _profilerInfo9->GetNativeCodeStartAddresses(functionId, reJitId, starts.size(), &count, starts.data());
+            if (SUCCEEDED(hr))
+            {
+                // Another tier may be compiled between the two calls. Bound the
+                // read to our buffer; its completion callback adds the new version.
+                for (size_t i = 0; i < std::min<size_t>(count, starts.size()); ++i)
+                {
+                    ULONG32 codeCount = 0;
+                    if (SUCCEEDED(_profilerInfo9->GetCodeInfo4(starts[i], MaxCodeInfos, &codeCount, codeInfos)))
+                    {
+                        appendRanges(codeCount);
+                    }
+                }
+                return result;
+            }
+        }
     }
 
+    // .NET Framework lacks Info9. Also retain the legacy path for code that
+    // cannot be enumerated through GetNativeCodeStartAddresses.
+    ULONG32 count = 0;
+    if (SUCCEEDED(_profilerInfo->GetCodeInfo2(functionId, MaxCodeInfos, &count, codeInfos)))
+    {
+        appendRanges(count);
+    }
     return result;
 }
 
@@ -404,7 +430,15 @@ void ManagedCodeCache::InsertCodeRangeIntoPage(PagesMap::iterator pageIt,
 {
     std::unique_lock<CodeCacheMutex> pageLock(pageIt->second.lock);
     auto& ranges = pageIt->second.ranges;
-    ranges.insert(std::upper_bound(ranges.begin(), ranges.end(), range), range);
+    auto pos = std::lower_bound(ranges.begin(), ranges.end(), range);
+    for (auto it = pos; it != ranges.end() && it->startAddress == range.startAddress; ++it)
+    {
+        if (it->endAddress == range.endAddress && it->functionId == range.functionId && it->isDynamic == range.isDynamic)
+        {
+            return;
+        }
+    }
+    ranges.insert(pos, range);
 }
 
 void ManagedCodeCache::AddFunctionRangesToCache(std::vector<CodeRange> newRanges)
