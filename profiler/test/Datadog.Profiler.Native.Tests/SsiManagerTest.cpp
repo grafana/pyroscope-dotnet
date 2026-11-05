@@ -254,6 +254,9 @@ TEST(SsiManagerTest, Should_ProfilerNotBeActivated_When_EnableProfilerArchitectu
 
 TEST(SsiManagerTest, Should_ProfilerBeNotActivated_When_NotDeployedAsSSIAndEnabled_WithStableConfiguration)
 {
+#ifdef ARM64
+    EnvironmentHelper::EnvironmentVariable arArm64(EnvironmentVariables::EnableProfilerArchitectureArm64, WStr("1"));
+#endif
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ProfilerEnabled, WStr("1"));
     // In Pyroscope, managed activation is disabled by default (not Standby),
     // so ProfilerEnabled=1 results in ManuallyEnabled and the profiler starts.
