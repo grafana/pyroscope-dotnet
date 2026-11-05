@@ -18,6 +18,14 @@ RUN sed -i -E 's|<TargetFrameworks>.*</TargetFrameworks>|<TargetFramework>net'$S
 
 WORKDIR /dotnet/app
 
+# Build the integration workload's leaf helper for observing its native call site.
+RUN if command -v apt-get > /dev/null 2>&1; then \
+        apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev && rm -rf /var/lib/apt/lists/*; \
+    else \
+        apk add --no-cache gcc musl-dev; \
+    fi
+RUN cc -shared -fPIC -O2 TieringProbe.c -o /dotnet/libTieringProbe.so
+
 # Publish for the architecture and libc of the SDK image.
 # Publish to a separate directory: .NET 10+ cleans the output dir before compiling,
 # so -o . (source dir) would delete source files and cause CS5001.
@@ -37,6 +45,7 @@ WORKDIR /dotnet
 COPY --from=sdk /Pyroscope.Profiler.Native.so ./subfolder/Pyroscope.Profiler.Native.so
 COPY --from=sdk /Pyroscope.Linux.ApiWrapper.x64.so ./subfolder/Pyroscope.Linux.ApiWrapper.x64.so
 COPY --from=build /dotnet/publish ./
+COPY --from=build /dotnet/libTieringProbe.so ./
 
 # Fix for alpine not being able to dlopen an already loaded library
 ENV LD_LIBRARY_PATH=/dotnet/subfolder/

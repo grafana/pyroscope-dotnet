@@ -29,6 +29,10 @@ app.MapGet("/car", (CarService service) =>
 
 app.MapGet("/healthz", () => "ok");
 
+var tiering = new TieredCompilationWorkload();
+app.MapPost("/tiering/prepare", () => tiering.Prepare());
+app.MapPost("/tiering/run", () => tiering.Run());
+
 app.MapGet("/npe", () =>
 {
     for (var i = 0; i < 1_000_000; i++)
