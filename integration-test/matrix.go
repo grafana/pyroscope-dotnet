@@ -42,6 +42,19 @@ func sdkImageSuffix(libcType, version string) string {
 	}
 }
 
+func dockerPlatform() string { return "linux/" + runtime.GOARCH }
+
+func profilerBaseArch() string {
+	switch runtime.GOARCH {
+	case "amd64":
+		return "x86_64"
+	case "arm64":
+		return "aarch64"
+	default:
+		panic(fmt.Sprintf("unsupported profiler architecture %q", runtime.GOARCH))
+	}
+}
+
 func profilerDockerfile(libcType string) string {
 	if libcType == "musl" {
 		return "Pyroscope.musl.Dockerfile"
@@ -92,7 +105,8 @@ func ensureProfilerImage(t *testing.T, libcType string) {
 		for attempt := 1; attempt <= maxAttempts; attempt++ {
 			t.Logf("building profiler image %s (attempt %d/%d) ...", tag, attempt, maxAttempts)
 			cmd := exec.Command("docker", "build",
-				"--platform", "linux/amd64",
+				"--platform", dockerPlatform(),
+				"--build-arg", "BASE_ARCH="+profilerBaseArch(),
 				"-t", tag,
 				"-f", filepath.Join(repoRoot(), profilerDockerfile(libcType)),
 				"--build-arg", "CMAKE_BUILD_TYPE=Debug",

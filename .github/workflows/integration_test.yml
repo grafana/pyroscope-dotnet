@@ -29,6 +29,32 @@ jobs:
         run: go test -v -timeout 5m ./dockertest/
         working-directory: integration-test
 
+  # TODO(#479): remove this job once ARM64 is in the regular integration matrix;
+  # its unfiltered go test command will discover this regression automatically.
+  tiered-compilation-arm64:
+    name: Tiered compilation ARM64 ${{ matrix.libc_type }} .NET ${{ matrix.version }}
+    runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-arm64-large' || 'ubuntu-24.04-arm' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        libc_type: [glibc, musl]
+        version: ['8.0', '9.0', '10.0']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+      - name: Set up Go
+        uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: 'stable'
+          cache-dependency-path: integration-test/go.sum
+      - name: Run tiered compilation regression
+        run: go test -v -timeout 60m -count=1 -run '^TestManagedCodeCacheTieredCompilation$' .
+        env:
+          LIBC_TYPE: ${{ matrix.libc_type }}
+          DOTNET_VERSION: ${{ matrix.version }}
+        working-directory: integration-test
+
   test:
     name: integration-test ${{ matrix.libc_type }} .NET ${{ matrix.version }}
     runs-on: ${{ github.repository_owner == 'grafana' && 'ubuntu-x64-large' || 'ubuntu-latest' }}

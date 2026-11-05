@@ -51,7 +51,7 @@ ARG CMAKE_BUILD_TYPE=Release
 # (e.g. profiler/third_party/CxxUrl).
 RUN mkdir build-${CMAKE_BUILD_TYPE} && \
     cd build-${CMAKE_BUILD_TYPE} && \
-    cmake .. \
+    cmake .. -G "Unix Makefiles" \
         -DCMAKE_C_COMPILER=clang \
         -DCMAKE_CXX_COMPILER=clang++ \
         -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
