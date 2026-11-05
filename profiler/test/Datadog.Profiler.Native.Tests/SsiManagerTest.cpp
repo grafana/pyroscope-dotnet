@@ -209,9 +209,6 @@ TEST(SsiManagerTest, Should_ProfilerNotBeActivated_When_DeployedAsSSIAndEvenWith
 
 TEST(SsiManagerTest, Should_ProfilerBeActivated_When_NotDeployedAsSSIAndEnabled)
 {
-#ifdef ARM64
-    EnvironmentHelper::EnvironmentVariable arArm64(EnvironmentVariables::EnableProfilerArchitectureArm64, WStr("1"));
-#endif
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ProfilerEnabled, WStr("1"));
     EnvironmentHelper::EnvironmentVariable ar2(EnvironmentVariables::ManagedActivationEnabled, WStr("0"));
     auto configuration = Configuration{};
@@ -223,40 +220,8 @@ TEST(SsiManagerTest, Should_ProfilerBeActivated_When_NotDeployedAsSSIAndEnabled)
     ASSERT_EQ(manager.IsProfilerStarted(), true);
 }
 
-#ifdef ARM64
-TEST(SsiManagerTest, Should_ProfilerNotBeActivated_When_EnableProfilerArchitectureArm64IsZero)
-{
-    EnvironmentHelper::EnvironmentVariable arArm64(EnvironmentVariables::EnableProfilerArchitectureArm64, WStr("0"));
-    EnvironmentHelper::EnvironmentVariable arProfiler(EnvironmentVariables::ProfilerEnabled, WStr("1"));
-    EnvironmentHelper::EnvironmentVariable ar2(EnvironmentVariables::ManagedActivationEnabled, WStr("0"));
-    auto configuration = Configuration{};
-
-    SsiLifetimeForTest lifetime;
-
-    SsiManager manager(&configuration, &lifetime);
-
-    ASSERT_EQ(manager.IsProfilerStarted(), false);
-}
-
-TEST(SsiManagerTest, Should_ProfilerNotBeActivated_When_EnableProfilerArchitectureArm64NotSet)
-{
-    EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ProfilerEnabled, WStr("1"));
-    EnvironmentHelper::EnvironmentVariable ar2(EnvironmentVariables::ManagedActivationEnabled, WStr("0"));
-    auto configuration = Configuration{};
-
-    SsiLifetimeForTest lifetime;
-
-    SsiManager manager(&configuration, &lifetime);
-
-    ASSERT_EQ(manager.IsProfilerStarted(), false);
-}
-#endif
-
 TEST(SsiManagerTest, Should_ProfilerBeNotActivated_When_NotDeployedAsSSIAndEnabled_WithStableConfiguration)
 {
-#ifdef ARM64
-    EnvironmentHelper::EnvironmentVariable arArm64(EnvironmentVariables::EnableProfilerArchitectureArm64, WStr("1"));
-#endif
     EnvironmentHelper::EnvironmentVariable ar(EnvironmentVariables::ProfilerEnabled, WStr("1"));
     // In Pyroscope, managed activation is disabled by default (not Standby),
     // so ProfilerEnabled=1 results in ManuallyEnabled and the profiler starts.
