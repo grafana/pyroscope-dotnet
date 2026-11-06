@@ -87,26 +87,23 @@ TEST_F(ManagedCodeCacheTest, AddFunction_SingleRange_GetFunctionInfoReturnsCorre
     EXPECT_EQ(ManagedCodeCache::InvalidFunctionId, borderIp->FunctionId);
 }
 
-// Test: Multiple ranges (tiered JIT simulation)
-TEST_F(ManagedCodeCacheTest, AddFunction_MultipleRanges_AccumulatesCorrectly) {
+// GetCodeInfo2 reports the default native body even after a tier promotion.
+TEST_F(ManagedCodeCacheTest, AddFunction_LegacyGetCodeInfo2_CannotDiscoverPromotedBody) {
     FunctionID testFuncId = 67890;
     uintptr_t tier0Start = 0x2000;
     ULONG32 tier0Size = 0x100;
     uintptr_t tier1Start = 0x3000;
-    ULONG32 tier1Size = 0x200;
 
-    // First JIT (Tier 0)
+    // The first callback discovers the default Tier 0 body.
     SetupMockCodeInfo(testFuncId, tier0Start, tier0Size);
     cache->AddFunction(testFuncId, /*isDynamic*/ false, /*reJitId*/ 0);
-    // Verify Tier 0 works
     EXPECT_EQ(testFuncId, GetFuncIdOr0(tier0Start + 0x50));
 
-    // Second JIT (Tier 1)
-    SetupMockCodeInfo(testFuncId, tier1Start, tier1Size);
+    // A later callback still gets Tier 0 from GetCodeInfo2, not the promoted Tier 1 body.
+    SetupMockCodeInfo(testFuncId, tier0Start, tier0Size);
     cache->AddFunction(testFuncId, /*isDynamic*/ false, /*reJitId*/ 0);
-    // Both ranges should work (accumulation)
     EXPECT_EQ(testFuncId, GetFuncIdOr0(tier0Start + 0x50));
-    EXPECT_EQ(testFuncId, GetFuncIdOr0(tier1Start + 0x100));
+    EXPECT_FALSE(cache->IsManaged(tier1Start + 0x100).value());
 }
 
 // GetCodeInfo2 keeps returning Tier 0 even from later JIT callbacks. Info9
