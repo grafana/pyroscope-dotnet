@@ -72,7 +72,7 @@ TEST_F(ManagedCodeCacheTest, AddFunction_SingleRange_GetFunctionInfoReturnsCorre
 
     SetupMockCodeInfo(testFuncId, codeStart, codeSize);
 
-    cache->AddFunction(testFuncId, /*isDynamic*/ false);
+    cache->AddFunction(testFuncId, /*isDynamic*/ false, /*reJitId*/ 0);
     // Test IPs within range
     EXPECT_EQ(testFuncId, GetFuncIdOr0(codeStart));
     EXPECT_EQ(testFuncId, GetFuncIdOr0(codeStart + 0x100));
@@ -87,26 +87,199 @@ TEST_F(ManagedCodeCacheTest, AddFunction_SingleRange_GetFunctionInfoReturnsCorre
     EXPECT_EQ(ManagedCodeCache::InvalidFunctionId, borderIp->FunctionId);
 }
 
-// Test: Multiple ranges (tiered JIT simulation)
-TEST_F(ManagedCodeCacheTest, AddFunction_MultipleRanges_AccumulatesCorrectly) {
+TEST_F(ManagedCodeCacheTest, AddFunction_ReusedAddress_ResolvesLatestFunctionAcrossPages) {
+    // The range crosses a 64KB page boundary, so both pages must prefer the new function.
+    constexpr uintptr_t start = 0xff80;
+    constexpr ULONG32 size = 0x100;
+    SetupMockCodeInfo(123, start, size);
+    cache->AddFunction(123, false, /*reJitId*/ 0);
+    SetupMockCodeInfo(456, start, size);
+    cache->AddFunction(456, false, /*reJitId*/ 0);
+
+    EXPECT_EQ(GetFuncIdOr0(start), 456);
+    EXPECT_EQ(GetFuncIdOr0(0x10000), 456);
+    EXPECT_EQ(GetFuncIdOr0(start + size - 1), 456);
+    EXPECT_FALSE(cache->IsManaged(start + size).value());
+}
+
+TEST_F(ManagedCodeCacheTest, AddFunction_ReusedFunctionIdAndAddress_ResolvesLatestRegistration) {
+    // A FunctionID can be reused too. An older matching entry must not suppress
+    // a new registration; repeating the latest registration must also be safe.
+    for (FunctionID functionId : {123, 456, 123, 123}) {
+        SetupMockCodeInfo(functionId, 0x1000, 0x100);
+        cache->AddFunction(functionId, false, /*reJitId*/ 0);
+        EXPECT_EQ(GetFuncIdOr0(0x1000), functionId);
+        EXPECT_EQ(GetFuncIdOr0(0x10ff), functionId);
+    }
+}
+
+TEST_F(ManagedCodeCacheTest, AddFunction_ReusedAddress_LargerRangeIncludesNewTail) {
+    SetupMockCodeInfo(123, 0x1000, 0x100);
+    cache->AddFunction(123, false, /*reJitId*/ 0);
+    SetupMockCodeInfo(456, 0x1000, 0x200);
+    cache->AddFunction(456, false, /*reJitId*/ 0);
+
+    EXPECT_EQ(GetFuncIdOr0(0x1050), 456);
+    EXPECT_EQ(GetFuncIdOr0(0x1150), 456);
+    EXPECT_EQ(GetFuncIdOr0(0x11ff), 456);
+    EXPECT_FALSE(cache->IsManaged(0x1200).value());
+}
+
+// GetCodeInfo2 reports the default native body even after a tier promotion.
+TEST_F(ManagedCodeCacheTest, AddFunction_LegacyGetCodeInfo2_CannotDiscoverPromotedBody) {
     FunctionID testFuncId = 67890;
     uintptr_t tier0Start = 0x2000;
     ULONG32 tier0Size = 0x100;
     uintptr_t tier1Start = 0x3000;
-    ULONG32 tier1Size = 0x200;
 
-    // First JIT (Tier 0)
+    // The first callback discovers the default Tier 0 body.
     SetupMockCodeInfo(testFuncId, tier0Start, tier0Size);
-    cache->AddFunction(testFuncId, /*isDynamic*/ false);
-    // Verify Tier 0 works
+    cache->AddFunction(testFuncId, /*isDynamic*/ false, /*reJitId*/ 0);
     EXPECT_EQ(testFuncId, GetFuncIdOr0(tier0Start + 0x50));
 
-    // Second JIT (Tier 1)
-    SetupMockCodeInfo(testFuncId, tier1Start, tier1Size);
-    cache->AddFunction(testFuncId, /*isDynamic*/ false);
-    // Both ranges should work (accumulation)
+    // A later callback still gets Tier 0 from GetCodeInfo2, not the promoted Tier 1 body.
+    SetupMockCodeInfo(testFuncId, tier0Start, tier0Size);
+    cache->AddFunction(testFuncId, /*isDynamic*/ false, /*reJitId*/ 0);
     EXPECT_EQ(testFuncId, GetFuncIdOr0(tier0Start + 0x50));
-    EXPECT_EQ(testFuncId, GetFuncIdOr0(tier1Start + 0x100));
+    EXPECT_FALSE(cache->IsManaged(tier1Start + 0x100).value());
+}
+
+// GetCodeInfo2 keeps returning Tier 0 even from later JIT callbacks. Info9
+// enumerates all native versions, including optimized and OSR code bodies.
+TEST_F(ManagedCodeCacheTest, AddFunction_EnumeratesNativeVersionsAfterTiering) {
+    cache.reset();
+    mockProfiler->supportsInfo9 = true;
+    cache = std::make_unique<ManagedCodeCache>(mockProfiler, metricsRegistry);
+    ASSERT_TRUE(cache->Initialize());
+
+    const FunctionID functionId = 123;
+    std::vector<UINT_PTR> versions{0x1000};
+    EXPECT_CALL(*mockProfiler, GetCodeInfo2(_, _, _, _)).Times(0);
+    EXPECT_CALL(*mockProfiler, GetNativeCodeStartAddresses(functionId, 0, _, _, _))
+        .WillRepeatedly([&](FunctionID, ReJITID, ULONG32 capacity, ULONG32* count, UINT_PTR* starts) {
+            *count = versions.size();
+            for (size_t i = 0; i < std::min<size_t>(capacity, versions.size()); ++i) starts[i] = versions[i];
+            return S_OK;
+        });
+    EXPECT_CALL(*mockProfiler, GetCodeInfo4(_, _, _, _))
+        .WillRepeatedly([](UINT_PTR start, ULONG32, ULONG32* count, COR_PRF_CODE_INFO* infos) {
+            *count = 1;
+            infos[0] = {start, 0x100};
+            return S_OK;
+        });
+
+    cache->AddFunction(functionId, false, /*reJitId*/ 0);
+    EXPECT_EQ(GetFuncIdOr0(0x1050), functionId);
+    EXPECT_FALSE(cache->IsManaged(0x2050).value());
+
+    versions.push_back(0x2000);
+    versions.push_back(0x3000);
+    cache->AddFunction(functionId, false, /*reJitId*/ 0);
+    for (auto start : versions) {
+        EXPECT_TRUE(cache->IsManaged(start + 0x50).value());
+        EXPECT_EQ(GetFuncIdOr0(start + 0x50), functionId);
+    }
+    EXPECT_FALSE(cache->IsManaged(0x3100).value());
+}
+
+TEST_F(ManagedCodeCacheTest, AddFunction_EnumeratesRequestedRejitVersion) {
+    cache.reset();
+    mockProfiler->supportsInfo9 = true;
+    cache = std::make_unique<ManagedCodeCache>(mockProfiler, metricsRegistry);
+    ASSERT_TRUE(cache->Initialize());
+
+    EXPECT_CALL(*mockProfiler, GetNativeCodeStartAddresses(123, 7, _, _, _))
+        .WillRepeatedly([](FunctionID, ReJITID, ULONG32 capacity, ULONG32* count, UINT_PTR* starts) {
+            *count = 1;
+            if (capacity != 0) starts[0] = 0x5000;
+            return S_OK;
+        });
+    EXPECT_CALL(*mockProfiler, GetCodeInfo4(0x5000, _, _, _))
+        .WillOnce([](UINT_PTR start, ULONG32, ULONG32* count, COR_PRF_CODE_INFO* infos) {
+            *count = 1;
+            infos[0] = {start, 0x100};
+            return S_OK;
+        });
+    cache->AddFunction(123, false, 7);
+    EXPECT_EQ(GetFuncIdOr0(0x5050), 123);
+}
+
+TEST_F(ManagedCodeCacheTest, AddFunction_RetriesWhenNativeVersionsGrowDuringEnumeration) {
+    cache.reset();
+    mockProfiler->supportsInfo9 = true;
+    cache = std::make_unique<ManagedCodeCache>(mockProfiler, metricsRegistry);
+    ASSERT_TRUE(cache->Initialize());
+
+    EXPECT_CALL(*mockProfiler, GetCodeInfo2(_, _, _, _)).Times(0);
+    {
+        InSequence sequence;
+        EXPECT_CALL(*mockProfiler, GetNativeCodeStartAddresses(123, 7, 0, _, nullptr))
+            .WillOnce(DoAll(SetArgPointee<3>(1), Return(S_OK)));
+        // The runtime reports the new count without filling an undersized buffer.
+        EXPECT_CALL(*mockProfiler, GetNativeCodeStartAddresses(123, 7, 1, _, NotNull()))
+            .WillOnce(DoAll(SetArgPointee<3>(2), Return(HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER))));
+        EXPECT_CALL(*mockProfiler, GetNativeCodeStartAddresses(123, 7, 2, _, NotNull()))
+            .WillOnce(DoAll(SetArgPointee<3>(3), Return(HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER))));
+        EXPECT_CALL(*mockProfiler, GetNativeCodeStartAddresses(123, 7, 3, _, NotNull()))
+            .WillOnce([](FunctionID, ReJITID, ULONG32, ULONG32* count, UINT_PTR* starts) {
+                *count = 3;
+                starts[0] = 0x1000;
+                starts[1] = 0x2000;
+                starts[2] = 0x3000;
+                return S_OK;
+            });
+    }
+    for (UINT_PTR start : {0x1000, 0x2000, 0x3000}) {
+        EXPECT_CALL(*mockProfiler, GetCodeInfo4(start, _, _, _))
+            .WillOnce([](UINT_PTR start, ULONG32, ULONG32* count, COR_PRF_CODE_INFO* infos) {
+                *count = 1;
+                infos[0] = {start, 0x100};
+                return S_OK;
+            });
+    }
+
+    cache->AddFunction(123, false, 7);
+    for (UINT_PTR start : {0x1000, 0x2000, 0x3000}) {
+        EXPECT_TRUE(cache->IsManaged(start + 0x50).value());
+        EXPECT_EQ(GetFuncIdOr0(start + 0x50), 123);
+    }
+}
+
+TEST_F(ManagedCodeCacheTest, AddFunction_BoundsRetriesWhenNativeVersionsKeepGrowing) {
+    cache.reset();
+    mockProfiler->supportsInfo9 = true;
+    cache = std::make_unique<ManagedCodeCache>(mockProfiler, metricsRegistry);
+    ASSERT_TRUE(cache->Initialize());
+
+    EXPECT_CALL(*mockProfiler, GetNativeCodeStartAddresses(123, 0, 0, _, nullptr))
+        .WillOnce(DoAll(SetArgPointee<3>(1), Return(S_OK)));
+    EXPECT_CALL(*mockProfiler, GetNativeCodeStartAddresses(123, 0, Gt(0), _, NotNull()))
+        .Times(3)
+        .WillRepeatedly([](FunctionID, ReJITID, ULONG32 capacity, ULONG32* count, UINT_PTR*) {
+            *count = capacity + 1;
+            return HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER);
+        });
+    EXPECT_CALL(*mockProfiler, GetCodeInfo4(_, _, _, _)).Times(0);
+    SetupMockCodeInfo(123, 0x1000, 0x100);
+
+    cache->AddFunction(123, false, /*reJitId*/ 0);
+    EXPECT_EQ(GetFuncIdOr0(0x1050), 123);
+    EXPECT_FALSE(cache->IsManaged(0x2050).value());
+}
+
+TEST_F(ManagedCodeCacheTest, AddFunction_FallsBackWhenNativeVersionEnumerationFails) {
+    cache.reset();
+    mockProfiler->supportsInfo9 = true;
+    cache = std::make_unique<ManagedCodeCache>(mockProfiler, metricsRegistry);
+    ASSERT_TRUE(cache->Initialize());
+    EXPECT_CALL(*mockProfiler, GetNativeCodeStartAddresses(123, 0, _, _, _))
+        .WillOnce(Return(E_FAIL));
+    SetupMockCodeInfo(123, 0x6000, 0x100);
+    cache->AddFunction(123, true, /*reJitId*/ 0);
+    auto info = cache->GetFunctionInfo(0x6050);
+    ASSERT_TRUE(info.has_value());
+    EXPECT_EQ(info->FunctionId, 123);
+    EXPECT_TRUE(info->IsDynamic);
 }
 
 // Test: IsManaged for valid managed IP
@@ -116,7 +289,7 @@ TEST_F(ManagedCodeCacheTest, IsManaged_ValidManagedIP_ReturnsTrue) {
     ULONG32 codeSize = 0x150;
 
     SetupMockCodeInfo(testFuncId, codeStart, codeSize);
-    cache->AddFunction(testFuncId, /*isDynamic*/ false);
+    cache->AddFunction(testFuncId, /*isDynamic*/ false, /*reJitId*/ 0);
     EXPECT_TRUE(cache->IsManaged(codeStart + 0x50));
 }
 
@@ -141,8 +314,8 @@ TEST_F(ManagedCodeCacheTest, AddFunction_MultipleFunctions_NoInterference) {
     SetupMockCodeInfo(func1, code1Start, codeSize);
     SetupMockCodeInfo(func2, code2Start, codeSize);
 
-    cache->AddFunction(func1, /*isDynamic*/ false);
-    cache->AddFunction(func2, /*isDynamic*/ false);
+    cache->AddFunction(func1, /*isDynamic*/ false, /*reJitId*/ 0);
+    cache->AddFunction(func2, /*isDynamic*/ false, /*reJitId*/ 0);
     EXPECT_EQ(func1, GetFuncIdOr0(code1Start + 0x50));
     EXPECT_EQ(func2, GetFuncIdOr0(code2Start + 0x50));
 
@@ -174,7 +347,7 @@ TEST_F(ManagedCodeCacheTest, AddFunction_ConcurrentCalls_ThreadSafe) {
         threads.emplace_back([this, t, functionsPerThread]() {
             for (int i = 0; i < functionsPerThread; i++) {
                 FunctionID funcId = (t * 1000) + i;
-                cache->AddFunction(funcId, /*isDynamic*/ false);
+                cache->AddFunction(funcId, /*isDynamic*/ false, /*reJitId*/ 0);
             }
         });
     }
@@ -216,7 +389,7 @@ TEST_F(ManagedCodeCacheTest, IsManaged_ConcurrentAccess) {
     ULONG32 codeSize = 0x200;
 
     SetupMockCodeInfo(testFuncId, codeStart, codeSize);
-    cache->AddFunction(testFuncId, /*isDynamic*/ false);
+    cache->AddFunction(testFuncId, /*isDynamic*/ false, /*reJitId*/ 0);
     // Concurrent IsManaged calls (simulating signal handler scenario)
     const int numCalls = 1000;
     std::atomic<int> successCount{0};
@@ -247,7 +420,7 @@ TEST_F(ManagedCodeCacheTest, GetFunctionInfo_BoundaryIPs_CorrectBehavior) {
     ULONG32 codeSize = 0x100;
 
     SetupMockCodeInfo(testFuncId, codeStart, codeSize);
-    cache->AddFunction(testFuncId, /*isDynamic*/ false);
+    cache->AddFunction(testFuncId, /*isDynamic*/ false, /*reJitId*/ 0);
     // Exact boundaries
     EXPECT_EQ(testFuncId, GetFuncIdOr0(codeStart));  // First byte (inclusive)
     EXPECT_EQ(testFuncId, GetFuncIdOr0(codeStart + codeSize - 1));  // Last byte (inclusive)
@@ -273,7 +446,7 @@ TEST_F(ManagedCodeCacheTest, AddFunction_ZeroSizeRange_DoesNotPolluteCacheNonZer
     ULONG32 codeSize = 0;
 
     SetupMockCodeInfo(testFuncId, codeStart, codeSize);
-    cache->AddFunction(testFuncId, /*isDynamic*/ false);
+    cache->AddFunction(testFuncId, /*isDynamic*/ false, /*reJitId*/ 0);
     // A zero-size range has no valid code; no IP should be reported as managed.
     auto codeStartIp = cache->IsManaged(codeStart);
     EXPECT_TRUE(codeStartIp.has_value());
@@ -299,7 +472,7 @@ TEST_F(ManagedCodeCacheTest, AddFunction_ZeroSizeRangeAtAddressZero_DoesNotHang)
 
     SetupMockCodeInfo(testFuncId, codeStart, codeSize);
     // If the synchronous insert is stuck this call blocks until the test times out.
-    cache->AddFunction(testFuncId, /*isDynamic*/ false);
+    cache->AddFunction(testFuncId, /*isDynamic*/ false, /*reJitId*/ 0);
 
     auto codeStartPlusOneThousand = cache->IsManaged(0x1000);
     EXPECT_TRUE(codeStartPlusOneThousand.has_value());
@@ -314,7 +487,7 @@ TEST_F(ManagedCodeCacheTest, AddFunction_LargeCodeRange_WorksCorrectly) {
     ULONG32 codeSize = 0x10000;  // 64KB
 
     SetupMockCodeInfo(testFuncId, codeStart, codeSize);
-    cache->AddFunction(testFuncId, /*isDynamic*/ false);
+    cache->AddFunction(testFuncId, /*isDynamic*/ false, /*reJitId*/ 0);
     // Test various points in large range
     EXPECT_EQ(testFuncId, GetFuncIdOr0(codeStart));
     EXPECT_EQ(testFuncId, GetFuncIdOr0(codeStart + 0x8000));
@@ -335,7 +508,7 @@ TEST_F(ManagedCodeCacheTest, AddFunction_GetCodeInfo2Fails_HandledGracefully) {
     EXPECT_CALL(*mockProfiler, GetCodeInfo2(testFuncId, _, _, _))
         .WillOnce(Return(E_FAIL));
 
-    cache->AddFunction(testFuncId, /*isDynamic*/ false);
+    cache->AddFunction(testFuncId, /*isDynamic*/ false, /*reJitId*/ 0);
     // Should not crash
     auto nullIp = cache->GetFunctionInfo(0x1000);
     EXPECT_TRUE(nullIp.has_value());
@@ -349,7 +522,7 @@ TEST_F(ManagedCodeCacheTest, AddFunction_DynamicMethod_IsDynamicPropagatedToLook
     ULONG32 codeSize = 0x100;
 
     SetupMockCodeInfo(testFuncId, codeStart, codeSize);
-    cache->AddFunction(testFuncId, /*isDynamic*/ true);
+    cache->AddFunction(testFuncId, /*isDynamic*/ true, /*reJitId*/ 0);
 
     auto info = cache->GetFunctionInfo(codeStart + 0x50);
     ASSERT_TRUE(info.has_value());
@@ -365,7 +538,7 @@ TEST_F(ManagedCodeCacheTest, AddFunction_RegularMethod_IsDynamicFalse) {
     ULONG32 codeSize = 0x100;
 
     SetupMockCodeInfo(testFuncId, codeStart, codeSize);
-    cache->AddFunction(testFuncId, /*isDynamic*/ false);
+    cache->AddFunction(testFuncId, /*isDynamic*/ false, /*reJitId*/ 0);
 
     auto info = cache->GetFunctionInfo(codeStart + 0x50);
     ASSERT_TRUE(info.has_value());
@@ -438,7 +611,7 @@ TEST_F(ManagedCodeCacheTest, IsManaged_WriterHoldsPagesMutex_ReturnsNullopt) {
     ULONG32 codeSize = 0x100;
 
     SetupMockCodeInfo(testFuncId, codeStart, codeSize);
-    cache->AddFunction(testFuncId, /*isDynamic*/ false);
+    cache->AddFunction(testFuncId, /*isDynamic*/ false, /*reJitId*/ 0);
     // Sanity: with no contention, IsManaged returns a concrete value.
     auto baseline = cache->IsManaged(codeStart + 0x50);
     ASSERT_TRUE(baseline.has_value());
@@ -487,7 +660,7 @@ TEST_F(ManagedCodeCacheTest, IsManaged_LockAcquisitionFailure_IncrementsMetric) 
     ULONG32 codeSize = 0x100;
 
     SetupMockCodeInfo(testFuncId, codeStart, codeSize);
-    cache->AddFunction(testFuncId, /*isDynamic*/ false);
+    cache->AddFunction(testFuncId, /*isDynamic*/ false, /*reJitId*/ 0);
 
     // Success path must not increment the failure metric.
     ASSERT_TRUE(cache->IsManaged(codeStart + 0x50).value_or(false));

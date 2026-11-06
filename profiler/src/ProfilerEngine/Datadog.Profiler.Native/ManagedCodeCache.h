@@ -76,23 +76,9 @@ struct ModuleCodeRange {
 
 class IConfiguration;
 
-// Thread-safe cache for managed code address ranges
-// 
-// STRATEGY: Event-Driven Accumulative Caching
-// ===========================================
-// Based on .NET runtime analysis, we discovered:
-// 1. GetCodeInfo3 only returns ONE native code version (the first one)
-// 2. JITCompilationFinished is called MULTIPLE times for tiered compilation
-// 3. Runtime keeps ALL native code versions in memory (for stack safety)
-// 4. Therefore: We capture each tier when it's compiled and NEVER remove old ranges
-//
-// This approach:
-// - Works with ICorProfilerInfo4 (.NET Framework 4.5+)
-// - Captures all tiers (Tier 0, Tier 1, Tier 1 OSR, etc.)
-// - Has minimal overhead (one API call per tier)
-// - Is simpler than querying with Info9
-//
-// See: dotnet-runtime/docs/design/features/code-versioning-profiler-breaking-changes.md
+// Thread-safe cache for managed code address ranges. Keep old native code
+// versions because active stack frames can still refer to them after tiering.
+// Info9 enumerates every native version; older runtimes use GetCodeInfo2.
 class ManagedCodeCache {
 public:
     static constexpr FunctionID InvalidFunctionId = -1;
@@ -112,7 +98,7 @@ public:
     [[nodiscard]] std::optional<FunctionInfo> GetFunctionInfo(std::uintptr_t ip) noexcept;
 
     // isDynamic is true only when called from DynamicMethodJITCompilationFinished
-    void AddFunction(FunctionID functionId, bool isDynamic);
+    void AddFunction(FunctionID functionId, bool isDynamic, ReJITID reJitId);
     void AddModule(ModuleID moduleId);
     void RemoveModule(ModuleID moduleId);
 
@@ -152,7 +138,7 @@ private:
     
     // Query the runtime for code ranges for a specific version
     // This is called when a new tier is compiled
-    std::vector<CodeRange> GetCodeRanges(FunctionID functionId, bool isDynamic);
+    std::vector<CodeRange> GetCodeRanges(FunctionID functionId, bool isDynamic, ReJITID reJitId);
     
     // Append new ranges to the cache (accumulative - never removes old ranges)
     // This preserves old tier code that might still be on the stack
@@ -195,6 +181,7 @@ private:
     
     // Profiler interface (ICorProfilerInfo4 is available in .NET Framework 4.5+)
     ICorProfilerInfo4* _profilerInfo;
+    ICorProfilerInfo9* _profilerInfo9 = nullptr;
 
     // Counts how many times IsManaged failed to acquire a lock within the timeout
     // (signal-handler read path backing off instead of blocking).
@@ -203,7 +190,7 @@ private:
     std::optional<FunctionInfo> GetFunctionInfoImpl(std::uintptr_t ip) const noexcept;
     std::optional<bool> IsCodeInR2RModule(std::uintptr_t ip, bool signalSafe) const noexcept;
     std::optional<FunctionID> GetFunctionFromIP_Original(std::uintptr_t ip) noexcept;
-    void AddFunctionImpl(FunctionID functionId, bool isDynamic);
+    void AddFunctionImpl(FunctionID functionId, bool isDynamic, ReJITID reJitId);
 };
 
 // Compile-time checks for signal-safety

@@ -299,7 +299,7 @@ TEST(FrameStoreNativeIpTest, GetFrame_WithCache_DynamicMethod_ReturnsNotResolved
     MetricsRegistry metricsRegistry;
     auto cache = std::make_unique<ManagedCodeCache>(&mockProfiler, metricsRegistry);
     cache->Initialize();
-    cache->AddFunction(dynamicFuncId, /*isDynamic*/ true);
+    cache->AddFunction(dynamicFuncId, /*isDynamic*/ true, /*reJitId*/ 0);
 
     FrameStore frameStore(
         /*pCorProfilerInfo*/ &mockProfiler,

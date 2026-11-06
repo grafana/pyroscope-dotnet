@@ -22,6 +22,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -60,7 +61,7 @@ func buildAppImage(t *testing.T, libcType, version string, otel bool) string {
 	dockertest.BuildImage(t, dockertest.BuildRequest{
 		Context:    repoRoot(),
 		Dockerfile: filepath.Join(repoRoot(), appDockerfile(otel)),
-		Platform:   "linux/amd64",
+		Platform:   dockerPlatform(),
 		Tag:        tag,
 		BuildArgs: map[string]string{
 			"PYROSCOPE_SDK_IMAGE": profilerImageTag(libcType),
@@ -90,7 +91,7 @@ func startAppWithEnv(t *testing.T, net *dockertest.Network, pyroscopeURL, libcTy
 	}
 	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
 		Image:          image,
-		Platform:       "linux/amd64",
+		Platform:       dockerPlatform(),
 		Network:        net.Name,
 		NetworkAliases: []string{"rideshare"},
 		Env:            env,
@@ -207,6 +208,26 @@ type vehicleCheck struct {
 	expectedFrames [][2]string // each entry is [className, methodName]
 }
 
+// Preserve the last query result so a missing frame is distinguishable from
+// an empty profile or a server error when an eventual assertion times out.
+func recordProfileOnFailure(t *testing.T) func(string, error) {
+	var mu sync.Mutex
+	var collapsed string
+	var queryErr error
+	t.Cleanup(func() {
+		if t.Failed() {
+			mu.Lock()
+			defer mu.Unlock()
+			t.Logf("last profile query error: %v\nlast collapsed profile:\n%s", queryErr, collapsed)
+		}
+	})
+	return func(profile string, err error) {
+		mu.Lock()
+		defer mu.Unlock()
+		collapsed, queryErr = profile, err
+	}
+}
+
 func runRideshareProfileTest(t *testing.T, libcType, version string, otel bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
@@ -250,8 +271,10 @@ func runRideshareProfileTest(t *testing.T, libcType, version string, otel bool) 
 			)
 			var lastCollapsed string
 			var lastErr error
+			recordProfile := recordProfileOnFailure(t)
 			require.Eventually(t, func() bool {
 				lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector, "process_cpu:cpu:nanoseconds:cpu:nanoseconds")
+				recordProfile(lastCollapsed, lastErr)
 				if lastErr != nil || lastCollapsed == "" {
 					return false
 				}
@@ -271,6 +294,9 @@ func TestRideshareProfiles(t *testing.T) {
 }
 
 func TestRideshareProfilesWithOTEL(t *testing.T) {
+	if runtime.GOARCH == "arm64" {
+		t.Skip("ARM64 requires the main profiler slot and cannot run as a notification profiler alongside OTEL")
+	}
 	runRideshareProfileTest(t, envLibcType(), envDotnetVersion(), true)
 }
 
@@ -429,6 +455,7 @@ func TestDynamicCpuProfilingToggleAffectsProfileData(t *testing.T) {
 	for _, profileTypeID := range profileTypeIDs {
 		var lastCollapsed string
 		var lastErr error
+		recordProfile := recordProfileOnFailure(t)
 		require.Eventually(t, func() bool {
 			resp, err := client.Get(appBaseURL + "/bike")
 			if err != nil {
@@ -442,6 +469,7 @@ func TestDynamicCpuProfilingToggleAffectsProfileData(t *testing.T) {
 			}
 
 			lastCollapsed, lastErr = queryProfile(t, pyroscopeURL, labelSelector, profileTypeID)
+			recordProfile(lastCollapsed, lastErr)
 			if lastErr != nil || lastCollapsed == "" {
 				return false
 			}
@@ -585,7 +613,7 @@ func startAppForTLSTest(t *testing.T, libcType, version, svcName, serverAddress 
 
 	c := dockertest.StartContainer(t, dockertest.ContainerRequest{
 		Image:      image,
-		Platform:   "linux/amd64",
+		Platform:   dockerPlatform(),
 		Env:        env,
 		ExtraHosts: extraHosts,
 		Files: []dockertest.ContainerFile{

@@ -1640,7 +1640,8 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::Initialize(IUnknown* corProfilerI
 
     if (_pConfiguration->UseManagedCodeCache())
     {
-        eventMask |= COR_PRF_MONITOR_JIT_COMPILATION | COR_PRF_ENABLE_REJIT;
+        // The cache uses the main profiler slot so it can receive ReJIT callbacks.
+        eventMask |= COR_PRF_MONITOR_JIT_COMPILATION | COR_PRF_MONITOR_MODULE_LOADS | COR_PRF_ENABLE_REJIT;
     }
 
     if (_pConfiguration->IsExceptionProfilingEnabled())
@@ -2214,7 +2215,7 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::JITCompilationFinished(FunctionID
 {
     if (_managedCodeCache != nullptr && SUCCEEDED(hrStatus))
     {
-        _managedCodeCache->AddFunction(functionId, /*isDynamic*/ false);
+        _managedCodeCache->AddFunction(functionId, /*isDynamic*/ false, /*reJitId*/ 0);
     }
     return S_OK;
 }
@@ -2764,7 +2765,7 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::ReJITCompilationFinished(Function
 {
     if (_managedCodeCache != nullptr && SUCCEEDED(hrStatus))
     {
-        _managedCodeCache->AddFunction(functionId, /*isDynamic*/ false);
+        _managedCodeCache->AddFunction(functionId, /*isDynamic*/ false, rejitId);
     }
 
     return S_OK;
@@ -2811,7 +2812,7 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::DynamicMethodJITCompilationFinish
     {
         // The CLR calls this callback (and not JITCompilationFinished) for every
         // dynamic method, so no need to ask it if the function is dynamic or not.
-        _managedCodeCache->AddFunction(functionId, /*isDynamic*/ true);
+        _managedCodeCache->AddFunction(functionId, /*isDynamic*/ true, /*reJitId*/ 0);
     }
     return S_OK;
 }
@@ -2961,11 +2962,10 @@ std::shared_ptr<PyroscopePprofSink> CorProfilerCallback::GetPyroscopePprofSink()
 
 HRESULT STDMETHODCALLTYPE CorProfilerCallback::LoadAsNotificationOnly(BOOL* pbNotificationOnly)
 {
-    if (_pConfiguration->UseManagedCodeCache())
-    {
-        *pbNotificationOnly = FALSE;
-    } else {
-        *pbNotificationOnly = TRUE;
-    }
+#ifdef ARM64
+    *pbNotificationOnly = FALSE;
+#else
+    *pbNotificationOnly = _pConfiguration->UseManagedCodeCache() ? FALSE : TRUE;
+#endif
     return S_OK;
 }

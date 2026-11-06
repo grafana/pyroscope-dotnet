@@ -96,10 +96,17 @@ ManagedCodeCache::ManagedCodeCache(ICorProfilerInfo4* pProfilerInfo, MetricsRegi
 {
 }
 
-ManagedCodeCache::~ManagedCodeCache() = default;
+ManagedCodeCache::~ManagedCodeCache()
+{
+    if (_profilerInfo9 != nullptr)
+    {
+        _profilerInfo9->Release();
+    }
+}
 
 bool ManagedCodeCache::Initialize()
 {
+    _profilerInfo->QueryInterface(__uuidof(ICorProfilerInfo9), reinterpret_cast<void**>(&_profilerInfo9));
     Log::Info("ManagedCodeCache initialized successfully");
     return true;
 }
@@ -167,7 +174,7 @@ std::optional<ManagedCodeCache::FunctionInfo> ManagedCodeCache::GetFunctionInfo(
     if (functionId.has_value() && functionId.value() != InvalidFunctionId) {
         // We found a function id and we can add it synchronously to our cache.
         // Precompiled (R2R/NGEN) code is never dynamic: a dynamic method only exists at runtime.
-        AddFunctionImpl(functionId.value(), /*isDynamic*/ false);
+        AddFunctionImpl(functionId.value(), /*isDynamic*/ false, /*reJitId*/ 0);
         return FunctionInfo{functionId.value(), false};
     }
     // If we arrive here, it means that the call to GetFunctionFromIP_Original possibly crashed.
@@ -290,15 +297,15 @@ std::optional<bool> ManagedCodeCache::IsManagedImpl(std::uintptr_t ip) const noe
     return IsCodeInR2RModule(ip, true);
 }
 
-void ManagedCodeCache::AddFunction(FunctionID functionId, bool isDynamic)
+void ManagedCodeCache::AddFunction(FunctionID functionId, bool isDynamic, ReJITID reJitId)
 {
-    AddFunctionImpl(functionId, isDynamic);
+    AddFunctionImpl(functionId, isDynamic, reJitId);
 }
 
 // Maybe rename this into OnJitCompilation
-void ManagedCodeCache::AddFunctionImpl(FunctionID functionId, bool isDynamic)
+void ManagedCodeCache::AddFunctionImpl(FunctionID functionId, bool isDynamic, ReJITID reJitId)
 {
-    auto ranges = GetCodeRanges(functionId, isDynamic);
+    auto ranges = GetCodeRanges(functionId, isDynamic, reJitId);
 
     if (ranges.empty())
     {
@@ -365,37 +372,68 @@ void ManagedCodeCache::RemoveModule(ModuleID moduleId)
     }
 }
 
-std::vector<CodeRange> ManagedCodeCache::GetCodeRanges(FunctionID functionId, bool isDynamic)
+std::vector<CodeRange> ManagedCodeCache::GetCodeRanges(FunctionID functionId, bool isDynamic, ReJITID reJitId)
 {
     std::vector<CodeRange> result;
-    constexpr size_t MAX_CODE_INFOS = 8;
-    COR_PRF_CODE_INFO codeInfos[MAX_CODE_INFOS];
-    ULONG32 nbCodeInfos;
-
-    // For each code version of the function, there are at most 2 code ranges:
-    // hot and cold.
-    // For safety, we pass MAX_CODE_INFOS(8), even though we know it's 2.
-    HRESULT hr = _profilerInfo->GetCodeInfo2(functionId, MAX_CODE_INFOS, &nbCodeInfos, codeInfos);
-
-    if (FAILED(hr) || nbCodeInfos == 0)
-    {
-        return result;  // No code ranges
-    }
-
-    result.reserve(nbCodeInfos);
-    for (ULONG32 i = 0; i < nbCodeInfos; i++)
-    {
-        if (codeInfos[i].size == 0)
+    // A native version has at most two blocks (hot and cold).
+    constexpr ULONG32 MaxCodeInfos = 8;
+    COR_PRF_CODE_INFO codeInfos[MaxCodeInfos];
+    auto appendRanges = [&](ULONG32 count) {
+        for (ULONG32 i = 0; i < std::min(count, MaxCodeInfos); ++i)
         {
-            continue;
+            if (codeInfos[i].size != 0)
+            {
+                result.emplace_back(codeInfos[i].startAddress,
+                                    codeInfos[i].startAddress + codeInfos[i].size - 1,
+                                    functionId, isDynamic);
+            }
         }
-        result.emplace_back(
-            codeInfos[i].startAddress,
-            codeInfos[i].startAddress + codeInfos[i].size - 1,
-            functionId,
-            isDynamic);
+    };
+
+    if (_profilerInfo9 != nullptr)
+    {
+        ULONG32 count = 0;
+        auto hr = _profilerInfo9->GetNativeCodeStartAddresses(functionId, reJitId, 0, &count, nullptr);
+        if (SUCCEEDED(hr) && count != 0)
+        {
+            // A new tier can appear after the count query. An undersized buffer
+            // returns no addresses, only ERROR_INSUFFICIENT_BUFFER and the new
+            // count. Retry with that size, but bound the work in this callback.
+            constexpr int MaxEnumerationAttempts = 3;
+            std::vector<UINT_PTR> starts;
+            for (int attempt = 0; attempt < MaxEnumerationAttempts; ++attempt)
+            {
+                starts.resize(count);
+                hr = _profilerInfo9->GetNativeCodeStartAddresses(functionId, reJitId, starts.size(), &count, starts.data());
+                if (FAILED(hr))
+                {
+                    if (hr == HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER) && count > starts.size())
+                    {
+                        continue;
+                    }
+                    break;
+                }
+
+                for (size_t i = 0; i < std::min<size_t>(count, starts.size()); ++i)
+                {
+                    ULONG32 codeCount = 0;
+                    if (SUCCEEDED(_profilerInfo9->GetCodeInfo4(starts[i], MaxCodeInfos, &codeCount, codeInfos)))
+                    {
+                        appendRanges(codeCount);
+                    }
+                }
+                return result;
+            }
+        }
     }
 
+    // .NET Framework lacks Info9. Also retain the legacy path for code that
+    // cannot be enumerated through GetNativeCodeStartAddresses.
+    ULONG32 count = 0;
+    if (SUCCEEDED(_profilerInfo->GetCodeInfo2(functionId, MaxCodeInfos, &count, codeInfos)))
+    {
+        appendRanges(count);
+    }
     return result;
 }
 
@@ -404,7 +442,18 @@ void ManagedCodeCache::InsertCodeRangeIntoPage(PagesMap::iterator pageIt,
 {
     std::unique_lock<CodeCacheMutex> pageLock(pageIt->second.lock);
     auto& ranges = pageIt->second.ranges;
-    ranges.insert(std::upper_bound(ranges.begin(), ranges.end(), range), range);
+    auto insertPos = std::upper_bound(ranges.begin(), ranges.end(), range);
+    if (insertPos != ranges.begin())
+    {
+        // Only skip an identical newest entry: addresses and FunctionIDs can be reused.
+        const auto& previous = *(insertPos - 1);
+        if (previous.startAddress == range.startAddress && previous.endAddress == range.endAddress &&
+            previous.functionId == range.functionId && previous.isDynamic == range.isDynamic)
+        {
+            return;
+        }
+    }
+    ranges.insert(insertPos, range);
 }
 
 void ManagedCodeCache::AddFunctionRangesToCache(std::vector<CodeRange> newRanges)

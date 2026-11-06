@@ -10,10 +10,11 @@
 
 #include <atomic>
 
-// Mock ICorProfilerInfo4 with only 3 methods that ManagedCodeCache actually uses
-class MockProfilerInfo : public ICorProfilerInfo4 {
+// Mock the profiler APIs used by ManagedCodeCache.
+class MockProfilerInfo : public ICorProfilerInfo9 {
 public:
     virtual ~MockProfilerInfo() = default;
+    bool supportsInfo9 = false;
 
     // IUnknown
     STDMETHOD(QueryInterface)(REFIID riid, void** ppvObject) override {
@@ -22,7 +23,15 @@ public:
             return E_POINTER;
         }
 
-        *ppvObject = static_cast<ICorProfilerInfo4*>(this);
+        if (riid == __uuidof(ICorProfilerInfo9))
+        {
+            *ppvObject = supportsInfo9 ? static_cast<ICorProfilerInfo9*>(this) : nullptr;
+            if (!supportsInfo9) return E_NOINTERFACE;
+        }
+        else
+        {
+            *ppvObject = static_cast<ICorProfilerInfo4*>(this);
+        }
         AddRef();
         return S_OK;
     }
@@ -33,7 +42,7 @@ public:
         return count;
     }
 
-    // Mocked methods (3 total - only what ManagedCodeCache uses)
+    // Mocked methods used by ManagedCodeCache
     MOCK_METHOD(HRESULT, GetFunctionFromIP,
         (LPCBYTE ip, FunctionID* pFunctionId),
         (override, Calltype(STDMETHODCALLTYPE)));
@@ -131,6 +140,20 @@ public:
     STDMETHOD(GetILToNativeMapping2)(FunctionID functionId, ReJITID reJitId, ULONG32 cMap, ULONG32* pcMap, COR_DEBUG_IL_TO_NATIVE_MAP map[]) override { return E_NOTIMPL; }
     STDMETHOD(EnumJITedFunctions2)(ICorProfilerFunctionEnum** ppEnum) override { return E_NOTIMPL; }
     STDMETHOD(GetObjectSize2)(ObjectID objectId, SIZE_T* pcSize) override { return E_NOTIMPL; }
+
+    // ICorProfilerInfo5 through ICorProfilerInfo9
+    STDMETHOD(GetEventMask2)(DWORD *pdwEventsLow, DWORD *pdwEventsHigh) override { return E_NOTIMPL; }
+    STDMETHOD(SetEventMask2)(DWORD dwEventsLow, DWORD dwEventsHigh) override { return E_NOTIMPL; }
+    STDMETHOD(EnumNgenModuleMethodsInliningThisMethod)(ModuleID inlinersModuleId, ModuleID inlineeModuleId, mdMethodDef inlineeMethodId, BOOL *incompleteData, ICorProfilerMethodEnum **ppEnum) override { return E_NOTIMPL; }
+    STDMETHOD(ApplyMetaData)(ModuleID moduleId) override { return E_NOTIMPL; }
+    STDMETHOD(GetInMemorySymbolsLength)(ModuleID moduleId, DWORD *pCountSymbolBytes) override { return E_NOTIMPL; }
+    STDMETHOD(ReadInMemorySymbols)(ModuleID moduleId, DWORD symbolsReadOffset, BYTE *pSymbolBytes, DWORD countSymbolBytes, DWORD *pCountSymbolBytesRead) override { return E_NOTIMPL; }
+    STDMETHOD(IsFunctionDynamic)(FunctionID functionId, BOOL *isDynamic) override { return E_NOTIMPL; }
+    STDMETHOD(GetFunctionFromIP3)(LPCBYTE ip, FunctionID *functionId, ReJITID *pReJitId) override { return E_NOTIMPL; }
+    STDMETHOD(GetDynamicFunctionInfo)(FunctionID functionId, ModuleID *moduleId, PCCOR_SIGNATURE *ppvSig, ULONG *pbSig, ULONG cchName, ULONG *pcchName, WCHAR wszName[ ]) override { return E_NOTIMPL; }
+    MOCK_METHOD(HRESULT, GetNativeCodeStartAddresses, (FunctionID, ReJITID, ULONG32, ULONG32*, UINT_PTR*), (override, Calltype(STDMETHODCALLTYPE)));
+    STDMETHOD(GetILToNativeMapping3)(UINT_PTR pNativeCodeStartAddress, ULONG32 cMap, ULONG32 *pcMap, COR_DEBUG_IL_TO_NATIVE_MAP map[ ]) override { return E_NOTIMPL; }
+    MOCK_METHOD(HRESULT, GetCodeInfo4, (UINT_PTR, ULONG32, ULONG32*, COR_PRF_CODE_INFO*), (override, Calltype(STDMETHODCALLTYPE)));
 
 private:
     std::atomic<ULONG> _refCount{1};
