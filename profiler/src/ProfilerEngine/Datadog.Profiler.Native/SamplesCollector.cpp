@@ -30,12 +30,6 @@ ProfileTime _time() {
     return std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now());
 }
 
-ProfileTime truncate(
-    ProfileTime &t,
-    std::chrono::seconds &period) {
-    return t - (t.time_since_epoch() % period);
-}
-
 
 SamplesCollector::SamplesCollector(
     IConfiguration* configuration,
@@ -63,6 +57,8 @@ void SamplesCollector::RegisterBatchedProvider(IBatchedSamplesProvider* batchedS
 bool SamplesCollector::StartImpl()
 {
     Log::Info("Starting the samples collector");
+    _profileStartTime = _time();
+    _nextExportDeadline = std::chrono::steady_clock::now() + _uploadInterval;
     _workerThread = std::thread([this]
         {
             OpSysTools::SetNativeThreadName(WorkerThreadName);
@@ -88,10 +84,8 @@ bool SamplesCollector::StopImpl()
 
     // Export the leftover samples
     CollectSamples(_samplesProviders);
-    auto now = _time();
-    auto startTime = truncate(now, _uploadInterval);
-    auto endTime = startTime + _uploadInterval;
-    Export(startTime, endTime, true);
+    auto endTime = _time();
+    Export(_profileStartTime, endTime, true);
 
     return true;
 }
@@ -119,28 +113,18 @@ void SamplesCollector::ExportWork()
 
     const auto future = _exporterThreadPromise.get_future();
 
-    auto now = _time();
-    auto startTime = truncate(now, _uploadInterval);
-    auto endTime = startTime + _uploadInterval;
-    auto sleepTime = endTime - now;
-
     while (true)
     {
-        if (future.wait_for(sleepTime) != std::future_status::timeout)
+        // Use a monotonic deadline so export work does not shift subsequent windows.
+        if (future.wait_until(_nextExportDeadline) != std::future_status::timeout)
         {
             break;
         }
 
-        Export(startTime, endTime);
-
-        now = _time();
-        startTime = truncate(now, _uploadInterval);
-        endTime = startTime + _uploadInterval;
-        if (now - startTime > endTime - now) {
-            startTime = endTime;
-            endTime = startTime + _uploadInterval;
-        }
-        sleepTime = endTime - now;
+        auto endTime = _profileStartTime + _uploadInterval;
+        Export(_profileStartTime, endTime);
+        _profileStartTime = endTime;
+        _nextExportDeadline += _uploadInterval;
     }
 }
 

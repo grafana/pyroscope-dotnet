@@ -53,6 +53,9 @@ private:
     inline static std::string const SuccessfulExportsMetricName = "datadog.profiling.dotnet.operational.exports";
 
     std::chrono::seconds _uploadInterval;
+    // Initialized before threads start; read at shutdown only after joining them.
+    ProfileTime _profileStartTime;
+    std::chrono::steady_clock::time_point _nextExportDeadline;
     IThreadsCpuManager* _pThreadsCpuManager;
     std::forward_list<std::pair<ISamplesProvider*, uint64_t>> _samplesProviders;
     std::forward_list<std::pair<ISamplesProvider*, uint64_t>> _batchedSamplesProviders;
