@@ -442,15 +442,18 @@ void ManagedCodeCache::InsertCodeRangeIntoPage(PagesMap::iterator pageIt,
 {
     std::unique_lock<CodeCacheMutex> pageLock(pageIt->second.lock);
     auto& ranges = pageIt->second.ranges;
-    auto pos = std::lower_bound(ranges.begin(), ranges.end(), range);
-    for (auto it = pos; it != ranges.end() && it->startAddress == range.startAddress; ++it)
+    auto insertPos = std::upper_bound(ranges.begin(), ranges.end(), range);
+    if (insertPos != ranges.begin())
     {
-        if (it->endAddress == range.endAddress && it->functionId == range.functionId && it->isDynamic == range.isDynamic)
+        // Only skip an identical newest entry: addresses and FunctionIDs can be reused.
+        const auto& previous = *(insertPos - 1);
+        if (previous.startAddress == range.startAddress && previous.endAddress == range.endAddress &&
+            previous.functionId == range.functionId && previous.isDynamic == range.isDynamic)
         {
             return;
         }
     }
-    ranges.insert(pos, range);
+    ranges.insert(insertPos, range);
 }
 
 void ManagedCodeCache::AddFunctionRangesToCache(std::vector<CodeRange> newRanges)
