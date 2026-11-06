@@ -37,6 +37,7 @@ ADD build build
 ADD profiler profiler
 ADD shared shared
 ADD CMakeLists.txt CMakeLists.txt
+ADD tracer/build/_build/version.props tracer/build/_build/version.props
 
 # Allow build type to be passed as build arg, default to Release
 ARG CMAKE_BUILD_TYPE=Release

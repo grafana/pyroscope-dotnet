@@ -76,6 +76,9 @@ remove_fork_dirs() {
     profiler/test/Datadog.Profiler.IntegrationTests \
     profiler/test/RuntimeMetrics.Tests \
     profiler/test/Directory.Build.props
+  # Keep the SDK version file: since v3.57.0 it is the single source of the native version, read by
+  # build/cmake/DdVersion.cmake (CMake) and build/DdVersion.props / profiler/Directory.Build.props (MSBuild).
+  git checkout "${REF}" -- tracer/build/_build/version.props
 }
 
 # ── Remove files we replace with git submodules ──────────────────────────────
