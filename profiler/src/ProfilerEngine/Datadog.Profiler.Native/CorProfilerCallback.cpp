@@ -1640,7 +1640,7 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::Initialize(IUnknown* corProfilerI
 
     if (_pConfiguration->UseManagedCodeCache())
     {
-        eventMask |= COR_PRF_MONITOR_JIT_COMPILATION;
+        eventMask |= COR_PRF_MONITOR_JIT_COMPILATION | COR_PRF_MONITOR_MODULE_LOADS;
 #ifdef ARM64
         // ARM64 loads as a normal profiler so the cache can receive ReJIT callbacks.
         // Notification-only profilers on x64 cannot enable ReJIT.
