@@ -87,6 +87,44 @@ TEST_F(ManagedCodeCacheTest, AddFunction_SingleRange_GetFunctionInfoReturnsCorre
     EXPECT_EQ(ManagedCodeCache::InvalidFunctionId, borderIp->FunctionId);
 }
 
+TEST_F(ManagedCodeCacheTest, AddFunction_ReusedAddress_ResolvesLatestFunctionAcrossPages) {
+    // The range crosses a 64KB page boundary, so both pages must prefer the new function.
+    constexpr uintptr_t start = 0xff80;
+    constexpr ULONG32 size = 0x100;
+    SetupMockCodeInfo(123, start, size);
+    cache->AddFunction(123, false, /*reJitId*/ 0);
+    SetupMockCodeInfo(456, start, size);
+    cache->AddFunction(456, false, /*reJitId*/ 0);
+
+    EXPECT_EQ(GetFuncIdOr0(start), 456);
+    EXPECT_EQ(GetFuncIdOr0(0x10000), 456);
+    EXPECT_EQ(GetFuncIdOr0(start + size - 1), 456);
+    EXPECT_FALSE(cache->IsManaged(start + size).value());
+}
+
+TEST_F(ManagedCodeCacheTest, AddFunction_ReusedFunctionIdAndAddress_ResolvesLatestRegistration) {
+    // A FunctionID can be reused too. An older matching entry must not suppress
+    // a new registration; repeating the latest registration must also be safe.
+    for (FunctionID functionId : {123, 456, 123, 123}) {
+        SetupMockCodeInfo(functionId, 0x1000, 0x100);
+        cache->AddFunction(functionId, false, /*reJitId*/ 0);
+        EXPECT_EQ(GetFuncIdOr0(0x1000), functionId);
+        EXPECT_EQ(GetFuncIdOr0(0x10ff), functionId);
+    }
+}
+
+TEST_F(ManagedCodeCacheTest, AddFunction_ReusedAddress_LargerRangeIncludesNewTail) {
+    SetupMockCodeInfo(123, 0x1000, 0x100);
+    cache->AddFunction(123, false, /*reJitId*/ 0);
+    SetupMockCodeInfo(456, 0x1000, 0x200);
+    cache->AddFunction(456, false, /*reJitId*/ 0);
+
+    EXPECT_EQ(GetFuncIdOr0(0x1050), 456);
+    EXPECT_EQ(GetFuncIdOr0(0x1150), 456);
+    EXPECT_EQ(GetFuncIdOr0(0x11ff), 456);
+    EXPECT_FALSE(cache->IsManaged(0x1200).value());
+}
+
 // GetCodeInfo2 reports the default native body even after a tier promotion.
 TEST_F(ManagedCodeCacheTest, AddFunction_LegacyGetCodeInfo2_CannotDiscoverPromotedBody) {
     FunctionID testFuncId = 67890;
