@@ -294,6 +294,9 @@ func TestRideshareProfiles(t *testing.T) {
 }
 
 func TestRideshareProfilesWithOTEL(t *testing.T) {
+	if runtime.GOARCH == "arm64" {
+		t.Skip("ARM64 requires the main profiler slot and cannot run as a notification profiler alongside OTEL")
+	}
 	runRideshareProfileTest(t, envLibcType(), envDotnetVersion(), true)
 }
 
