@@ -174,7 +174,7 @@ std::optional<ManagedCodeCache::FunctionInfo> ManagedCodeCache::GetFunctionInfo(
     if (functionId.has_value() && functionId.value() != InvalidFunctionId) {
         // We found a function id and we can add it synchronously to our cache.
         // Precompiled (R2R/NGEN) code is never dynamic: a dynamic method only exists at runtime.
-        AddFunctionImpl(functionId.value(), /*isDynamic*/ false);
+        AddFunctionImpl(functionId.value(), /*isDynamic*/ false, /*reJitId*/ 0);
         return FunctionInfo{functionId.value(), false};
     }
     // If we arrive here, it means that the call to GetFunctionFromIP_Original possibly crashed.

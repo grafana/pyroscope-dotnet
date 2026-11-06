@@ -98,7 +98,7 @@ public:
     [[nodiscard]] std::optional<FunctionInfo> GetFunctionInfo(std::uintptr_t ip) noexcept;
 
     // isDynamic is true only when called from DynamicMethodJITCompilationFinished
-    void AddFunction(FunctionID functionId, bool isDynamic, ReJITID reJitId = 0);
+    void AddFunction(FunctionID functionId, bool isDynamic, ReJITID reJitId);
     void AddModule(ModuleID moduleId);
     void RemoveModule(ModuleID moduleId);
 
@@ -190,7 +190,7 @@ private:
     std::optional<FunctionInfo> GetFunctionInfoImpl(std::uintptr_t ip) const noexcept;
     std::optional<bool> IsCodeInR2RModule(std::uintptr_t ip, bool signalSafe) const noexcept;
     std::optional<FunctionID> GetFunctionFromIP_Original(std::uintptr_t ip) noexcept;
-    void AddFunctionImpl(FunctionID functionId, bool isDynamic, ReJITID reJitId = 0);
+    void AddFunctionImpl(FunctionID functionId, bool isDynamic, ReJITID reJitId);
 };
 
 // Compile-time checks for signal-safety

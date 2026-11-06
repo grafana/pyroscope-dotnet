@@ -2215,7 +2215,7 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::JITCompilationFinished(FunctionID
 {
     if (_managedCodeCache != nullptr && SUCCEEDED(hrStatus))
     {
-        _managedCodeCache->AddFunction(functionId, /*isDynamic*/ false);
+        _managedCodeCache->AddFunction(functionId, /*isDynamic*/ false, /*reJitId*/ 0);
     }
     return S_OK;
 }
@@ -2812,7 +2812,7 @@ HRESULT STDMETHODCALLTYPE CorProfilerCallback::DynamicMethodJITCompilationFinish
     {
         // The CLR calls this callback (and not JITCompilationFinished) for every
         // dynamic method, so no need to ask it if the function is dynamic or not.
-        _managedCodeCache->AddFunction(functionId, /*isDynamic*/ true);
+        _managedCodeCache->AddFunction(functionId, /*isDynamic*/ true, /*reJitId*/ 0);
     }
     return S_OK;
 }
