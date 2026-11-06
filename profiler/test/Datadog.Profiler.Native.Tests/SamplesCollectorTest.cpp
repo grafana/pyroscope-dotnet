@@ -104,6 +104,37 @@ private:
     int _calls;
 };
 
+TEST(SamplesCollectorTest, ShutdownUsesActualCollectorLifetime)
+{
+    auto threadsCpuManagerHelper = ThreadsCpuManagerHelper();
+    auto [configuration, mockConfiguration] = CreateConfiguration();
+    EXPECT_CALL(mockConfiguration, GetUploadInterval()).WillOnce(Return(1000s));
+    auto [exporter, mockExporter] = CreateExporter();
+    auto metricsSender = MockMetricsSender();
+    auto collector = SamplesCollector(configuration.get(), &threadsCpuManagerHelper, exporter.get(), &metricsSender);
+
+    const auto beforeStart = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now());
+    ProfileTime recordedStart, recordedEnd;
+    EXPECT_CALL(mockExporter, Export(_, _, true))
+        .WillOnce(Invoke([&](ProfileTime& start, ProfileTime& end, bool) {
+            recordedStart = start;
+            recordedEnd = end;
+            return true;
+        }));
+
+    collector.Start();
+    const auto afterStart = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now());
+    std::this_thread::sleep_for(20ms);
+    collector.Stop();
+    const auto afterStop = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::now());
+
+    EXPECT_GE(recordedStart, beforeStart);
+    EXPECT_LE(recordedStart, afterStart);
+    EXPECT_GE(recordedEnd, afterStart);
+    EXPECT_LE(recordedEnd, afterStop);
+    EXPECT_LT(recordedEnd - recordedStart, 1000s);
+}
+
 TEST(SamplesCollectorTest, MustCollectSamplesFromTwoProviders)
 {
     std::string runtimeId = "MyRid";
