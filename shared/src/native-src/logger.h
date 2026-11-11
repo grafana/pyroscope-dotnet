@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cctype>
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -13,6 +14,7 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/spdlog.h>
 #include "lazy_rotating_file_sink.h"
+#include "json_formatter.h"
 
 #include "dd_filesystem.hpp"
 #include "pal.h"
@@ -20,6 +22,54 @@
 
 namespace datadog::shared
 {
+
+/// Lower-cases an environment value so the comparisons below can be exact.
+inline std::string NormalizeEnvValue(const ::shared::WSTRING& raw)
+{
+    const auto value = ::shared::ToString(raw);
+    std::string normalized;
+    normalized.reserve(value.size());
+    for (const char c : value)
+    {
+        normalized.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+    }
+    return normalized;
+}
+
+/// Parses the configured log level. Unset or unrecognised keeps the previous
+/// behaviour of emitting everything the logger is handed.
+///
+/// Looked up as DD_LOG_LEVEL so GetEnvironmentValue's alias chain applies, the
+/// same as every other setting here: DD_LOG_LEVEL, then LOG_LEVEL, then
+/// PYROSCOPE_LOG_LEVEL. The last is the name this repository's own test images
+/// already set and the one the Java SDK documents.
+inline spdlog::level::level_enum GetConfiguredLogLevel()
+{
+    const auto configured = NormalizeEnvValue(::shared::GetEnvironmentValue(WStr("DD_LOG_LEVEL")));
+    if (configured.empty())
+    {
+        return spdlog::level::debug;
+    }
+
+    if (configured == "trace") return spdlog::level::trace;
+    if (configured == "debug") return spdlog::level::debug;
+    if (configured == "info") return spdlog::level::info;
+    if (configured == "warn" || configured == "warning") return spdlog::level::warn;
+    if (configured == "err" || configured == "error") return spdlog::level::err;
+    if (configured == "critical" || configured == "fatal") return spdlog::level::critical;
+    if (configured == "off" || configured == "none") return spdlog::level::off;
+
+    return spdlog::level::debug;
+}
+
+/// True when the configured log format asks for JSON on stderr. Defaults to
+/// the human-readable pattern so existing consumers are unaffected.
+///
+/// Resolves as DD_LOG_FORMAT, then LOG_FORMAT, then PYROSCOPE_LOG_FORMAT.
+inline bool JsonStderrEnabled()
+{
+    return NormalizeEnvValue(::shared::GetEnvironmentValue(WStr("DD_LOG_FORMAT"))) == "json";
+}
 
 /// <summary>
 /// Logger class is created only by LogManager class.
@@ -122,6 +172,7 @@ std::tuple<std::shared_ptr<spdlog::logger>, bool> Logger::CreateInternalLogger()
     std::shared_ptr<spdlog::logger> stderr_logger;
 
     bool stderr_log_enabled = ::shared::StderrLogEnabled();
+    bool log_file_failed = false;
     if (stderr_log_enabled)
     {
         stderr_logger = std::make_shared<spdlog::logger>(LoggerPolicy::file_name, std::make_shared<spdlog::sinks::stderr_color_sink_mt>());
@@ -160,10 +211,34 @@ std::tuple<std::shared_ptr<spdlog::logger>, bool> Logger::CreateInternalLogger()
         // There's not a good way to report errors when trying to create the log file.
         // But we never should be changing the normal behavior of an app.
         logger = stderr_logger;
-        logger->error("LoggerImpl Handler: Error creating native log file.");
+        log_file_failed = true;
     }
 
     logger->set_pattern(LoggerPolicy::pattern);
+
+    // The stderr sink is the one a container log collector reads, so it is the
+    // only one that gets structured output. The rotating file keeps the
+    // human-readable pattern. Both sinks are visited here because the fallback
+    // path above can hand us a logger whose only sink is stderr.
+    if (JsonStderrEnabled())
+    {
+        for (auto const& sink : logger->sinks())
+        {
+            if (std::dynamic_pointer_cast<spdlog::sinks::stderr_color_sink_mt>(sink) != nullptr)
+            {
+                sink->set_formatter(std::make_unique<JsonFormatter>());
+            }
+        }
+    }
+
+    // Reported only once the formatter is in place, so that with the JSON
+    // format this line is JSON like every other. It still goes out before the
+    // level and buffering are configured below, which is when it was emitted
+    // before.
+    if (log_file_failed)
+    {
+        logger->error("LoggerImpl Handler: Error creating native log file.");
+    }
 
     // Only start flushing if explicitly enabled
     if (buffering_enabled)
@@ -180,7 +255,7 @@ std::tuple<std::shared_ptr<spdlog::logger>, bool> Logger::CreateInternalLogger()
     else
     {
         logger->disable_backtrace();
-        logger->set_level(spdlog::level::debug);
+        logger->set_level(GetConfiguredLogLevel());
         logger->flush_on(spdlog::level::info);
         spdlog::flush_every(std::chrono::seconds(3));
         logger->debug("Buffering of logs disabled");
@@ -356,8 +431,12 @@ inline void Logger::FlushAndDisableBuffering()
 
     m_buffering_enabled = false;
 
-    // Write all
-    _internalLogger->set_level(spdlog::level::debug);
+    // Write all. The level goes back to whatever was configured rather than a
+    // hard-coded debug: dump_backtrace replays the buffered messages straight
+    // into the sinks without consulting the level, so restoring the configured
+    // one here loses nothing from the dump and keeps the setting meaningful for
+    // everything logged afterwards.
+    _internalLogger->set_level(GetConfiguredLogLevel());
     Flush();
     _internalLogger->flush_on(spdlog::level::info);
     _internalLogger->dump_backtrace();

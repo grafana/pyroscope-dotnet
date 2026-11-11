@@ -213,7 +213,18 @@ void PyroscopePprofSink::upload(Pprof pprof)
     auto res = _client.Post(path, headers, body, "application/proto");
     if (res)
     {
-        Log::Debug("PyroscopePprofSink ", res->status);
+        if (res->status >= 200 && res->status < 300)
+        {
+            Log::Debug("PyroscopePprofSink ", res->status);
+        }
+        else if (res->status == 429)
+        {
+            Log::Warn("PyroscopePprofSink upload rejected with HTTP status ", res->status);
+        }
+        else
+        {
+            Log::Error("PyroscopePprofSink upload rejected with HTTP status ", res->status);
+        }
     }
     else
     {
