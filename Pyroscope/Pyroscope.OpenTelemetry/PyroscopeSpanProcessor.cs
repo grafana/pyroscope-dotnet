@@ -40,8 +40,7 @@ public class PyroscopeSpanProcessor : BaseProcessor<Activity>
 
     private static bool IsRootSpan(Activity data)
     {
-        var parent = data.Parent;
-        return parent == null || parent.HasRemoteParent;
+        return data.Parent == null;
     }
 
     internal static void ConvertSpanId(Activity activity, out ulong spanId, out ulong traceIdLo, out ulong traceIdHi)
