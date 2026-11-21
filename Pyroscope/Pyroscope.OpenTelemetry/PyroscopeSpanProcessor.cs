@@ -10,6 +10,26 @@ public class PyroscopeSpanProcessor : BaseProcessor<Activity>
 {
     private const string ProfileIdSpanTagKey = "pyroscope.profile.id";
 
+    private readonly Action<ulong, ulong, ulong> writeContext;
+
+    private readonly AsyncLocal<RootContext?> currentRoot;
+
+    private sealed record RootContext(Activity Activity, ulong Span, ulong Hi, ulong Lo, RootContext? Previous)
+    {
+        // Captured execution contexts can outlive the span that created them.
+        public volatile bool Ended;
+    }
+
+    public PyroscopeSpanProcessor() : this((span, hi, lo) => Profiler.Instance.SetSpanContext(span, hi, lo))
+    {
+    }
+
+    internal PyroscopeSpanProcessor(Action<ulong, ulong, ulong> writeContext)
+    {
+        this.writeContext = writeContext;
+        currentRoot = new AsyncLocal<RootContext?>(change => ApplyContext(change.CurrentValue));
+    }
+
     public override void OnStart(Activity data)
     {
         if (!IsRootSpan(data))
@@ -21,7 +41,7 @@ public class PyroscopeSpanProcessor : BaseProcessor<Activity>
         {
             ConvertSpanId(data, out var localRootSpanId, out var traceIdLo, out var traceIdHi);
 
-            Profiler.Instance.SetSpanContext(localRootSpanId, traceIdHi, traceIdLo);
+            currentRoot.Value = new RootContext(data, localRootSpanId, traceIdHi, traceIdLo, ActiveRoot(currentRoot.Value));
             data.AddTag(ProfileIdSpanTagKey, data.SpanId.ToString());
         }
         catch (Exception ex)
@@ -32,9 +52,35 @@ public class PyroscopeSpanProcessor : BaseProcessor<Activity>
 
     public override void OnEnd(Activity data)
     {
-        if (IsRootSpan(data))
+        if (!IsRootSpan(data)) return;
+
+        var current = currentRoot.Value;
+        for (var root = current; root != null; root = root.Previous)
         {
-            Profiler.Instance.SetSpanContext(0, 0, 0);
+            if (root.Activity != data) continue;
+            root.Ended = true;
+            currentRoot.Value = ActiveRoot(current);
+            break;
+        }
+    }
+
+    private static RootContext? ActiveRoot(RootContext? root)
+    {
+        while (root is { Ended: true }) root = root.Previous;
+        return root;
+    }
+
+    private void ApplyContext(RootContext? root)
+    {
+        root = ActiveRoot(root);
+        try
+        {
+            writeContext(root?.Span ?? 0, root?.Hi ?? 0, root?.Lo ?? 0);
+        }
+        catch (Exception ex)
+        {
+            // Exceptions escaping an execution-context change callback can terminate the process.
+            Console.WriteLine($"Caught exception while applying profiler span context: {ex.Message}");
         }
     }
 
