@@ -7,6 +7,30 @@ namespace Pyroscope.OpenTelemetry.Tests;
 [TestFixture]
 public class PyroscopeSpanProcessorTests
 {
+    [TestCase(true)]
+    [TestCase(false)]
+    public void OnStart_TagsOnlyTheLocalRoot(bool remoteParent)
+    {
+        using var source = new ActivitySource(nameof(OnStart_TagsOnlyTheLocalRoot));
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = candidate => candidate == source,
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+        };
+        ActivitySource.AddActivityListener(listener);
+        var parent = remoteParent
+            ? new ActivityContext(ActivityTraceId.CreateRandom(), ActivitySpanId.CreateRandom(), ActivityTraceFlags.Recorded, isRemote: true)
+            : default;
+        using var processor = new PyroscopeSpanProcessor();
+        using var root = source.StartActivity("request", ActivityKind.Server, parent)!;
+        processor.OnStart(root);
+        using var child = source.StartActivity("child")!;
+        processor.OnStart(child);
+
+        Assert.That(root.GetTagItem("pyroscope.profile.id"), Is.EqualTo(root.SpanId.ToString()));
+        Assert.That(child.GetTagItem("pyroscope.profile.id"), Is.Null);
+    }
+
     [Test]
     public void ConvertSpanId_ConvertsActivityIdsUsingProfilerByteOrder()
     {
